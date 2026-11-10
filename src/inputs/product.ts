@@ -25,6 +25,9 @@ export const priority = [
 
 export const allowed_page_types = ["collection", "detail"] as const;
 
+export const allowed_layouts = ["app-shell"] as const;
+
 export type Task = (typeof tasks)[number];
 export type PriorityItem = (typeof priority)[number];
 export type AllowedPageType = (typeof allowed_page_types)[number];
+export type AllowedLayout = (typeof allowed_layouts)[number];
