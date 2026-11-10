@@ -27,6 +27,22 @@ const cases = [
     ],
     phrase: "has no view",
   },
+  {
+    name: "undeclared-layout",
+    args: ["scripts/check-inventories.ts", "--layouts", "fixtures/illegal/undeclared-layout"],
+    phrase: "undeclared layout",
+  },
+  {
+    name: "inventory-expansion",
+    args: [
+      "scripts/check-inventories.ts",
+      "--head",
+      "fixtures/illegal/inventory-expansion/head",
+      "--base",
+      "fixtures/illegal/inventory-expansion/base",
+    ],
+    phrase: "without a proposal",
+  },
 ];
 
 let failed = false;

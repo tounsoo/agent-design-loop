@@ -81,6 +81,7 @@ npm run check:fixtures && npm run check
 | `npm run check:disclosure` | Disclosure depth or count above the cap |
 | `npm run check:priority` | A primary action that is not Approve, or Request changes shown as primary |
 | `npm run check:one-thing` | A page type other than collection or detail, a second shell, or a primary on the queue |
+| `npm run check:inventories` | A layout or page type outside the allowlists, or an inventory-set change versus the pull request base with no new proposal. Introducing `allowed_layouts` is the bootstrap, because the base does not have that list yet |
 | `npm run check:state-coverage` | A modeled flow state with no view |
 | `npm run check:target-size` | An invoice control under WCAG 2.5.8 (24 CSS px), spacing exception included. Needs Chrome. |
 | `npm run test` | The flow, the three-step journey, the request-changes branch, and the rendered states |
@@ -89,15 +90,15 @@ There is no LLM judge on CI.
 
 ## Use it as a testing ground
 
-1. Give an agent a UI task that is already in `src/inputs/product.ts`. Do not invent a task or a page type in the same change.
-2. The agent reads the inputs, the catalog, the layouts, the page shells, and the flow, then generates inside those constraints. `AGENTS.md` is only the pointer.
-3. The agent runs the checks and fixes exit codes: a second primary, a raw control, a skipped state, a path over the budget.
+1. Give an agent a UI task that is already in `src/inputs/product.ts`. Do not invent a task, a layout, or a page type in the same change.
+2. The agent reads the inventories: product inputs, UX rules, the catalog, layouts, page types, and the flow. `AGENTS.md` is only the pointer. It does not list what those inventories contain.
+3. The agent runs the checks and fixes exit codes: a second primary, a raw control, a skipped state, a path over the budget, a layout or page type that is not in the allowlist.
 4. What the checks cannot decide goes in `review/` as a short note.
-5. If a rule has to break, the agent adds a file under `proposals/` with a reason and a preview. It does not silently raise `max_steps`, add a page type, or bypass the catalog.
+5. If a rule has to break, or the work needs a catalog export, layout, page type, flow state, or rule input that is not already recorded, the agent adds a file under `proposals/` with a reason, a preview, and a graduation. It does not invent the missing piece, and it does not edit the inventory to sneak the change through. The inventory check fails that membership change when the pull request has no new proposal. See [proposals/README.md](proposals/README.md).
 
 [Proposal 0001](proposals/0001-approval-note.md) asks to require an approval note before Approve and raise the budget to 4. It is not applied.
 
-When a human approves a proposal, graduate it into the catalog, a layout, a page-type shell, the flow model, or `src/inputs/product.ts`. The next run is constrained by that change. See [proposals/README.md](proposals/README.md).
+When a human approves a proposal, a separate change graduates it into the inventory data and the checks: the catalog, a layout, a page-type shell, the flow model, or `src/inputs/product.ts`. The next run is constrained by that change. See [proposals/README.md](proposals/README.md).
 
 ## Where the constraints live
 
@@ -107,11 +108,11 @@ src/layouts/app-shell/               Meridian frame: header, nav, drawer; no pag
 src/page-types/collection/           heading, toolbar, table, pagination; no primary
 src/page-types/detail/               breadcrumbs, meta, body, one primary, secondary
 src/flows/invoice-approval/          loading, empty, error, ready, invoice-approved, changes-requested
-src/inputs/product.ts                tasks, priority, allowed page types
+src/inputs/product.ts                tasks, priority, allowed layouts, allowed page types
 src/rules/ux-rules.ts                check, input, and review question for each rule
 src/features/invoice-approval/       To approve, All invoices, Vendors, and the invoice
 src/harness/state-preview/           ?state=, ?page=, ?route=, and ?invoice=
-fixtures/illegal/                    two primaries, over budget, off catalog, missing view
+fixtures/illegal/                    two primaries, over budget, off catalog, missing view, undeclared layout, inventory expansion
 proposals/                           escape hatch
 review/                              judgment the checks cannot make
 ```

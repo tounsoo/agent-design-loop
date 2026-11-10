@@ -19,9 +19,10 @@
     "check:disclosure": "tsx scripts/check-disclosure.ts",
     "check:priority": "tsx scripts/check-priority.ts",
     "check:one-thing": "tsx scripts/check-one-thing.ts",
+    "check:inventories": "tsx scripts/check-inventories.ts",
     "check:target-size": "tsx scripts/check-target-size.ts",
     "test": "vitest run",
-    "check": "npm run typecheck && npm run lint && npm run check:step-budget && npm run check:disclosure && npm run check:priority && npm run check:one-thing && npm run check:state-coverage && npm run check:target-size && npm run test",
+    "check": "npm run typecheck && npm run lint && npm run check:step-budget && npm run check:disclosure && npm run check:priority && npm run check:one-thing && npm run check:inventories && npm run check:state-coverage && npm run check:target-size && npm run test",
     "check:fixtures": "tsx scripts/check-fixtures.ts"
   },
   "dependencies": {
