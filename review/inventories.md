@@ -5,7 +5,7 @@ The inventories record the catalog, layouts, page types, flow states, and rule i
 ## What the checks already decided
 
 - `src/layouts` matches `allowed_layouts`. The only id is `app-shell`.
-- `src/page-types` and the `pageTypes` export match `allowed_page_types`: `collection` and `detail`. `check:one-thing` still locks that pair.
+- `src/page-types` and the `pageTypes` export match `allowed_page_types`: `collection` and `detail`. `check:one-thing` reads that inventory. It does not keep a second list of page-type ids.
 - Catalog membership is the export names in `src/catalog/index.ts`. Flow-state membership is `modeledStates`.
 - Rule inputs are each task's `max_steps`, the priority items, the disclosure caps, the visible-question cap, the target-size floor, and the allowed lists.
 - Imports may name only those layout and page-type ids.
