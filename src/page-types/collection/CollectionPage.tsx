@@ -1,5 +1,5 @@
 import { Children, isValidElement, type ReactElement, type ReactNode } from "react";
-import { Stack, Text } from "../../catalog";
+import { DensityProvider, Stack, Text } from "../../catalog";
 import { usePageHeading } from "../../layouts/app-shell";
 
 /**
@@ -10,6 +10,7 @@ import { usePageHeading } from "../../layouts/app-shell";
  * https://todae.omsoo.design/recipes/data-table
  *
  * The queue chooses one record. This shell has no primary-action slot.
+ * Compact density is the payables queue: more rows in the same frame.
  */
 
 function isSlot(node: ReactNode, slot: unknown): boolean {
@@ -75,15 +76,17 @@ function CollectionPageRoot({ children, state }: { children: ReactNode; state: s
   const pagination = optional(items, Pagination, "Pagination");
 
   return (
-    <Stack.Root className="collection-page" data-page="collection" data-state={state} gap="spacious">
-      <Stack.Root gap="condensed">
-        {heading}
-        {description}
+    <DensityProvider className="collection-page" density="compact">
+      <Stack.Root className="collection-page" data-page="collection" data-state={state} gap="spacious">
+        <Stack.Root gap="condensed">
+          {heading}
+          {description}
+        </Stack.Root>
+        {toolbar}
+        {body}
+        {pagination}
       </Stack.Root>
-      {toolbar}
-      {body}
-      {pagination}
-    </Stack.Root>
+    </DensityProvider>
   );
 }
 

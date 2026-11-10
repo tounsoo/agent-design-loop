@@ -30,13 +30,13 @@ The app uses React 19, TypeScript 6, and the published package `@tounsoo/todae`.
 npm run dev
 ```
 
-Open the URL Vite prints. The default screen is the Meridian workspace on **To approve**: a full-height shell, sidebar navigation, and a searchable invoice table. Opening an invoice is a link in the table, not a primary button. Approve is not on the queue.
+Open the URL Vite prints. The default screen is the Meridian workspace on **To approve**: a full-height shell, sidebar navigation, and a compact payables table. Opening an invoice is a link in the table, not a primary button. Approve is not on the queue.
 
 Navigation:
 
-- **To approve** (`/`) — pending invoices.
-- **All invoices** (`?route=invoices`) — every invoice, with status.
-- **Vendors** (`?route=vendors`) — vendor name, open count, and last invoice. Read-only.
+- **To approve** (`/`) — pending invoices, with PO, terms, aging, cost center, submitter, and status, plus invoice, vendor, amount, and due.
+- **All invoices** (`?route=invoices`) — every invoice, with those columns and a status filter.
+- **Vendors** (`?route=vendors`) — outstanding balance, payment terms, open count, and last invoice. Read-only.
 
 On an invoice (`?invoice=inv-1842`):
 

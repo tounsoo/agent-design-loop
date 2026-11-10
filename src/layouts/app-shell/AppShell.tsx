@@ -1,6 +1,17 @@
 import { createContext, useContext, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type ComponentType, type ReactNode, type RefObject } from "react";
 import { Menu as MenuIcon, PanelLeft } from "lucide-react";
-import { Button, Drawer, Link, Nav, Splitter, Stack, useAnnouncer, useFocusHandoff, VisuallyHidden } from "../../catalog";
+import {
+  Button,
+  DensityProvider,
+  Drawer,
+  Link,
+  Nav,
+  Splitter,
+  Stack,
+  useAnnouncer,
+  useFocusHandoff,
+  VisuallyHidden,
+} from "../../catalog";
 
 /**
  * Product frame encoded from the Todae app shell recipe:
@@ -8,6 +19,7 @@ import { Button, Drawer, Link, Nav, Splitter, Stack, useAnnouncer, useFocusHando
  *
  * There is no AppShell export in `@tounsoo/todae`. This shell owns the chrome.
  * Callers fill `brand`, the nav items, optional `headerActions`, and `main`.
+ * Compact density is the frame for the payables workspace. It is not a page type.
  */
 
 const WIDE = "(min-width: 48rem)";
@@ -124,69 +136,71 @@ export function AppShell({
   );
 
   return (
-    <PageHeadingContext.Provider value={heading}>
-      <div className="app-shell">
-        <Stack.Root as="header" align="center" className="app-shell-header" direction="row" gap="condensed">
-          <VisuallyHidden.Root focusable>
-            <Link.Root href={`#${MAIN_ID}`}>Skip to content</Link.Root>
-          </VisuallyHidden.Root>
-          <Button.Root
-            ref={navButton}
-            aria-label="Navigation"
-            type="button"
-            variant="ghost"
-            {...(wide
-              ? { "aria-controls": sidebarId, "aria-expanded": width > 0 }
-              : { "aria-haspopup": "dialog" as const })}
-            onClick={wide ? toggleSidebar : openDrawer}
+    <DensityProvider density="compact">
+      <PageHeadingContext.Provider value={heading}>
+        <div className="app-shell">
+          <Stack.Root as="header" align="center" className="app-shell-header" direction="row" gap="condensed">
+            <VisuallyHidden.Root focusable>
+              <Link.Root href={`#${MAIN_ID}`}>Skip to content</Link.Root>
+            </VisuallyHidden.Root>
+            <Button.Root
+              ref={navButton}
+              aria-label="Navigation"
+              type="button"
+              variant="ghost"
+              {...(wide
+                ? { "aria-controls": sidebarId, "aria-expanded": width > 0 }
+                : { "aria-haspopup": "dialog" as const })}
+              onClick={wide ? toggleSidebar : openDrawer}
+            >
+              <Button.Icon>{wide ? <PanelLeft /> : <MenuIcon />}</Button.Icon>
+            </Button.Root>
+            {brand}
+            {headerActions ? <div className="app-shell-header-actions">{headerActions}</div> : null}
+          </Stack.Root>
+          <Splitter.Root
+            className="app-shell-splitter"
+            collapsible
+            max={360}
+            min={180}
+            show={wide ? "both" : "end"}
+            value={width}
+            onValueChange={resize}
           >
-            <Button.Icon>{wide ? <PanelLeft /> : <MenuIcon />}</Button.Icon>
-          </Button.Root>
-          {brand}
-          {headerActions ? <div className="app-shell-header-actions">{headerActions}</div> : null}
-        </Stack.Root>
-        <Splitter.Root
-          className="app-shell-splitter"
-          collapsible
-          max={360}
-          min={180}
-          show={wide ? "both" : "end"}
-          value={width}
-          onValueChange={resize}
-        >
-          <Splitter.Panel className="app-shell-pad" id={sidebarId}>
-            {wide ? <div ref={sidebarHandoff}>{navigation}</div> : null}
-          </Splitter.Panel>
-          <Splitter.Handle ref={handle} aria-label="Resize navigation" />
-          <Splitter.Panel className="app-shell-pad">
-            <main className="app-shell-main" id={MAIN_ID} tabIndex={-1}>
-              {children}
-            </main>
-          </Splitter.Panel>
-        </Splitter.Root>
-        <Drawer.Root
-          open={drawerOpen}
-          restoreFocusRef={navigated ? heading : navButton}
-          side="start"
-          onOpenChange={setDrawerOpen}
-        >
-          <Drawer.Header>
-            <Drawer.Title>Navigation</Drawer.Title>
-            <Drawer.Close />
-          </Drawer.Header>
-          <Drawer.Body
-            onClick={(event) => {
-              const elsewhere = event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
-              const target = event.target;
-              if (!elsewhere && target instanceof Element && target.closest('a[aria-current="page"]')) {
-                setDrawerOpen(false);
-              }
-            }}
+            <Splitter.Panel className="app-shell-pad" id={sidebarId}>
+              {wide ? <div ref={sidebarHandoff}>{navigation}</div> : null}
+            </Splitter.Panel>
+            <Splitter.Handle ref={handle} aria-label="Resize navigation" />
+            <Splitter.Panel className="app-shell-pad">
+              <main className="app-shell-main" id={MAIN_ID} tabIndex={-1}>
+                {children}
+              </main>
+            </Splitter.Panel>
+          </Splitter.Root>
+          <Drawer.Root
+            open={drawerOpen}
+            restoreFocusRef={navigated ? heading : navButton}
+            side="start"
+            onOpenChange={setDrawerOpen}
           >
-            {!wide ? navigation : null}
-          </Drawer.Body>
-        </Drawer.Root>
-      </div>
-    </PageHeadingContext.Provider>
+            <Drawer.Header>
+              <Drawer.Title>Navigation</Drawer.Title>
+              <Drawer.Close />
+            </Drawer.Header>
+            <Drawer.Body
+              onClick={(event) => {
+                const elsewhere = event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
+                const target = event.target;
+                if (!elsewhere && target instanceof Element && target.closest('a[aria-current="page"]')) {
+                  setDrawerOpen(false);
+                }
+              }}
+            >
+              {!wide ? navigation : null}
+            </Drawer.Body>
+          </Drawer.Root>
+        </div>
+      </PageHeadingContext.Provider>
+    </DensityProvider>
   );
 }

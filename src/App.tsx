@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { DensityProvider, Stack, Text, ThemeProvider } from "./catalog";
+import { Stack, Text, ThemeProvider } from "./catalog";
 import { InvoiceApproval } from "./features/invoice-approval";
 import { meridianNav, navCopy } from "./features/invoice-approval/navigation";
 import { invoiceById, type AppLocation } from "./flows/invoice-approval";
@@ -41,32 +41,30 @@ export function App() {
 
   return (
     <ThemeProvider appearance="system">
-      <DensityProvider density="comfortable">
-        <AppShell
-          brand={
-            <Stack.Root align="baseline" direction="row" gap="condensed">
-              <Text.Root as="span" weight="bold">
-                Meridian
-              </Text.Root>
-              <Text.Root as="span" tone="muted">
-                Payables
-              </Text.Root>
-            </Stack.Root>
-          }
-          headerActions={<StatePreviewMenu onNavigate={navigate} />}
-          items={meridianNav.map((item) => ({
-            href: item.href,
-            label: item.label,
-            icon: item.icon,
-            current: item.route === location.route,
-          }))}
-          pageTitle={pageTitle(location)}
-          url={url}
-          onNavigate={navigate}
-        >
-          <InvoiceApproval location={location} onNavigate={navigate} />
-        </AppShell>
-      </DensityProvider>
+      <AppShell
+        brand={
+          <Stack.Root align="baseline" direction="row" gap="condensed">
+            <Text.Root as="span" weight="bold">
+              Meridian
+            </Text.Root>
+            <Text.Root as="span" tone="muted">
+              Payables
+            </Text.Root>
+          </Stack.Root>
+        }
+        headerActions={<StatePreviewMenu onNavigate={navigate} />}
+        items={meridianNav.map((item) => ({
+          href: item.href,
+          label: item.label,
+          icon: item.icon,
+          current: item.route === location.route,
+        }))}
+        pageTitle={pageTitle(location)}
+        url={url}
+        onNavigate={navigate}
+      >
+        <InvoiceApproval location={location} onNavigate={navigate} />
+      </AppShell>
     </ThemeProvider>
   );
 }

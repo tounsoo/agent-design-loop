@@ -78,4 +78,9 @@
     text-align: end;
     font-variant-numeric: tabular-nums;
   }
+
+  /* Queue columns stay on one line. A wide table scrolls in the collection's ScrollArea. */
+  .collection-page :is(th, td):not([colspan]) {
+    white-space: nowrap;
+  }
 }

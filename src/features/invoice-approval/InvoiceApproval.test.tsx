@@ -33,7 +33,20 @@ describe("invoice approval views", () => {
     renderApproval();
     expect(screen.getByRole("heading", { name: "To approve" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Northwind Office Supply/ })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Helios Freight/ })).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /Helios Freight/ }).length).toBeGreaterThan(0);
+    expect(screen.getByRole("columnheader", { name: "PO" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Aging" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Terms" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Cost center" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Submitter" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Status" })).toBeInTheDocument();
+    const filters = screen.getByRole("toolbar", { name: "Filter invoices" });
+    expect(filters).toHaveTextContent("Vendor");
+    expect(filters).toHaveTextContent("Terms");
+    expect(filters).toHaveTextContent("Aging");
+    expect(filters).toHaveTextContent("Cost center");
+    expect(filters).toHaveTextContent("Submitter");
+    expect(filters).not.toHaveTextContent("Status");
     expect(screen.getByRole("navigation", { name: "Invoice pages" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
   });
@@ -62,13 +75,14 @@ describe("invoice approval views", () => {
     expect(screen.queryByRole("link", { name: /INV-1842/ })).toBeNull();
     await user.clear(screen.getByRole("searchbox", { name: "Search invoices" }));
     await user.click(screen.getByRole("button", { name: "Next" }));
-    expect(screen.getByRole("link", { name: /INV-1888/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /INV-1950/ })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /INV-1842/ })).toBeNull();
   });
 
   it("lists every status on all invoices and vendors on their own collection", () => {
     const { unmount } = renderApproval("?route=invoices");
     expect(screen.getByRole("heading", { name: "All invoices" })).toBeInTheDocument();
+    expect(screen.getByRole("toolbar", { name: "Filter invoices" })).toHaveTextContent("Status");
     expect(screen.getAllByText("Approved").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Changes requested").length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
@@ -77,7 +91,17 @@ describe("invoice approval views", () => {
     renderApproval("?route=vendors");
     expect(screen.getByRole("heading", { name: "Vendors" })).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Vendor pages" })).toBeInTheDocument();
+    const vendorFilters = screen.getByRole("toolbar", { name: "Filter vendors" });
+    expect(vendorFilters).toHaveTextContent("Terms");
+    expect(vendorFilters).toHaveTextContent("Open invoices");
+    expect(vendorFilters).toHaveTextContent("Balance");
+    expect(screen.getByRole("columnheader", { name: "Outstanding" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Terms" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Open invoices" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Last invoice" })).toBeInTheDocument();
     const kite = screen.getByRole("row", { name: /Kite Analytics/ });
+    expect(kite).toHaveTextContent("$0.00");
+    expect(kite).toHaveTextContent("Net 30");
     expect(kite).toHaveTextContent("0");
     expect(kite).toHaveTextContent("INV-1802");
     expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
