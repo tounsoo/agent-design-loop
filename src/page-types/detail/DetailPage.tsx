@@ -1,5 +1,11 @@
 import { Children, isValidElement, type ReactElement, type ReactNode } from "react";
-import { Button, Card, Stack, Text } from "../../catalog";
+import { Button, Stack, Text } from "../../catalog";
+import { usePageHeading } from "../../layouts/app-shell";
+
+/**
+ * Detail page type. One record. Slots: breadcrumbs, heading, meta, body,
+ * one primary action, and secondary actions. Record fields use DataList.
+ */
 
 function isSlot(node: ReactNode, slot: unknown): boolean {
   return isValidElement(node) && node.type === slot;
@@ -14,8 +20,21 @@ function countButtons(node: ReactNode): number {
   return self + countButtons(props.children);
 }
 
+export function Breadcrumbs({ children }: { children: ReactNode }) {
+  return <div data-slot="breadcrumbs">{children}</div>;
+}
+
 export function Heading({ children }: { children: ReactNode }) {
-  return <Text.Root as="h1">{children}</Text.Root>;
+  const headingRef = usePageHeading();
+  return (
+    <Text.Root as="h1" ref={headingRef ?? undefined} tabIndex={-1}>
+      {children}
+    </Text.Root>
+  );
+}
+
+export function Meta({ children }: { children: ReactNode }) {
+  return <div data-slot="meta">{children}</div>;
 }
 
 export function Body({ children }: { children: ReactNode }) {
@@ -54,38 +73,44 @@ function requireOne(items: readonly ReactNode[], slot: unknown, name: string): R
   return match;
 }
 
-/**
- * Invoice detail shell. Callers fill named slots. The shell owns chrome.
- * The primary slot accepts exactly one primary button.
- */
+function optional(items: readonly ReactNode[], slot: unknown, name: string): ReactElement | null {
+  const matches = items.filter((item) => isSlot(item, slot));
+  if (matches.length > 1) {
+    throw new Error(`DetailPage accepts at most one ${name} slot, found ${matches.length}.`);
+  }
+  const match = matches[0];
+  return isValidElement(match) ? match : null;
+}
+
 function DetailPageRoot({ children, state }: { children: ReactNode; state: string }) {
   const items = Children.toArray(children);
+  const breadcrumbs = optional(items, Breadcrumbs, "Breadcrumbs");
   const heading = requireOne(items, Heading, "Heading");
+  const meta = optional(items, Meta, "Meta");
   const body = requireOne(items, Body, "Body");
   const primary = requireOne(items, Primary, "Primary");
-  const secondary = items.filter((item) => isSlot(item, Secondary));
-  if (secondary.length > 1) {
-    throw new Error(`DetailPage accepts at most one Secondary slot, found ${secondary.length}.`);
-  }
+  const secondary = optional(items, Secondary, "Secondary");
 
   return (
-    <Card.Root data-page="detail" data-state={state}>
-      <Card.Header>{heading}</Card.Header>
-      <Card.Body>
-        <Stack.Root gap="spacious">{body}</Stack.Root>
-      </Card.Body>
-      <Card.Footer>
-        <Stack.Root align="center" direction="row" gap="normal" justify="end">
-          {secondary[0]}
-          {primary}
-        </Stack.Root>
-      </Card.Footer>
-    </Card.Root>
+    <Stack.Root className="detail-page" data-page="detail" data-state={state} gap="spacious">
+      {breadcrumbs}
+      <Stack.Root gap="condensed">
+        {heading}
+        {meta}
+      </Stack.Root>
+      {body}
+      <Stack.Root align="center" className="detail-actions" direction="row" gap="normal" justify="end">
+        {secondary}
+        {primary}
+      </Stack.Root>
+    </Stack.Root>
   );
 }
 
 export const DetailPage = Object.assign(DetailPageRoot, {
+  Breadcrumbs,
   Heading,
+  Meta,
   Body,
   Primary,
   Secondary,

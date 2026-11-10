@@ -1,6 +1,7 @@
 import { useId, type ReactElement } from "react";
 import {
   Alert,
+  Breadcrumbs,
   Button,
   DataList,
   Disclosure,
@@ -18,14 +19,17 @@ import {
 } from "../../catalog";
 import {
   formatMoney,
-  invoiceById,
-  sampleInvoices,
+  routeHref,
+  statusLabel,
+  type CollectionRoute,
   type FlowState,
   type Invoice,
   type ModeledState,
 } from "../../flows/invoice-approval";
 import { CollectionPage } from "../../page-types/collection";
 import { DetailPage } from "../../page-types/detail";
+import { useCollectionBrowser } from "./collection";
+import { navCopy } from "./navigation";
 
 export type Actions = {
   retry: () => void;
@@ -50,6 +54,18 @@ type MissingView = Exclude<ModeledState, (typeof renderedStates)[number]>;
 type ViewsCovered = MissingView extends never ? true : never;
 export const viewsCovered: ViewsCovered = true;
 
+function lookup(ledger: readonly Invoice[], id: string): Invoice | undefined {
+  return ledger.find((invoice) => invoice.id === id) ?? ledger[0];
+}
+
+function showsDetail(state: FlowState): state is Extract<FlowState, { invoiceId: string }> {
+  return (
+    state.status === "invoice-approved" ||
+    state.status === "changes-requested" ||
+    (state.status === "ready" && state.screen === "detail")
+  );
+}
+
 function LoadingBody() {
   return (
     <>
@@ -67,11 +83,17 @@ function LoadingBody() {
   );
 }
 
-function EmptyBody() {
+function EmptyBody({ route }: { route: CollectionRoute }) {
+  const copy =
+    route === "vendors"
+      ? { title: "No vendors", description: "No vendors are in the ledger." }
+      : route === "invoices"
+        ? { title: "No invoices", description: "The ledger has no invoices." }
+        : { title: "No invoices waiting", description: "Nothing needs approval right now." };
   return (
     <EmptyState.Root>
-      <EmptyState.Title as="h2">No invoices waiting</EmptyState.Title>
-      <EmptyState.Description>Nothing needs approval right now.</EmptyState.Description>
+      <EmptyState.Title as="h2">{copy.title}</EmptyState.Title>
+      <EmptyState.Description>{copy.description}</EmptyState.Description>
     </EmptyState.Root>
   );
 }
@@ -89,48 +111,20 @@ function ErrorBody({ message, onRetry }: { message: string; onRetry: () => void 
   );
 }
 
-function QueueBody({ onOpen }: { onOpen: (invoiceId: string) => void }) {
-  return (
-    <Table.Root>
-      <Table.Caption>Pending vendor invoices</Table.Caption>
-      <Table.Head>
-        <Table.Row>
-          <Table.HeaderCell scope="col">Vendor</Table.HeaderCell>
-          <Table.HeaderCell scope="col">Invoice</Table.HeaderCell>
-          <Table.HeaderCell scope="col">Amount</Table.HeaderCell>
-          <Table.HeaderCell scope="col">Due</Table.HeaderCell>
-        </Table.Row>
-      </Table.Head>
-      <Table.Body>
-        {sampleInvoices.map((invoice) => (
-          <Table.Row key={invoice.id}>
-            <Table.Cell>
-              <Link.Root
-                href={`?invoice=${invoice.id}`}
-                onClick={(event) => {
-                  event.preventDefault();
-                  onOpen(invoice.id);
-                }}
-              >
-                {invoice.vendor}
-              </Link.Root>
-            </Table.Cell>
-            <Table.Cell>{invoice.number}</Table.Cell>
-            <Table.Cell>{formatMoney(invoice.amountCents)}</Table.Cell>
-            <Table.Cell>{invoice.due}</Table.Cell>
-          </Table.Row>
-        ))}
-      </Table.Body>
-    </Table.Root>
-  );
-}
-
-function InvoiceFacts({ invoice }: { invoice: Invoice }) {
+function InvoiceFacts({ invoice, status }: { invoice: Invoice; status: Invoice["status"] }) {
   return (
     <DataList.Root orientation="horizontal">
       <DataList.Item>
         <DataList.Term>Invoice</DataList.Term>
         <DataList.Details>{invoice.number}</DataList.Details>
+      </DataList.Item>
+      <DataList.Item>
+        <DataList.Term>Vendor</DataList.Term>
+        <DataList.Details>{invoice.vendor}</DataList.Details>
+      </DataList.Item>
+      <DataList.Item>
+        <DataList.Term>Status</DataList.Term>
+        <DataList.Details>{statusLabel[status]}</DataList.Details>
       </DataList.Item>
       <DataList.Item>
         <DataList.Term>Amount</DataList.Term>
@@ -212,84 +206,29 @@ function ReasonField({
   );
 }
 
-function DetailBody({
-  invoice,
-  lineItemsOpen,
-  requestingChanges,
-  reason,
-  reasonError,
-  outcome,
-  actions,
-}: {
-  invoice: Invoice;
-  lineItemsOpen: boolean;
-  requestingChanges: boolean;
-  reason: string;
-  reasonError: boolean;
-  outcome: "approved" | "changes" | null;
-  actions: Actions;
-}) {
-  return (
-    <>
-      <Stack.Root gap="normal" role="status">
-        {outcome === "approved" ? (
-          <Alert.Root role="none" tone="success">
-            <Alert.Title>Invoice approved</Alert.Title>
-            <Alert.Description>
-              {invoice.vendor} · {formatMoney(invoice.amountCents)} is approved.
-            </Alert.Description>
-          </Alert.Root>
-        ) : null}
-        {outcome === "changes" ? (
-          <Alert.Root role="none" tone="info">
-            <Alert.Title>Changes requested</Alert.Title>
-            <Alert.Description>{reason}</Alert.Description>
-          </Alert.Root>
-        ) : null}
-      </Stack.Root>
-      <InvoiceFacts invoice={invoice} />
-      <LineItems invoice={invoice} open={lineItemsOpen} onToggle={actions.setLineItemsOpen} />
-      {requestingChanges && outcome === null ? (
-        <ReasonField reason={reason} reasonError={reasonError} onReason={actions.setReason} />
-      ) : null}
-    </>
-  );
-}
-
-function queueBody(state: FlowState, actions: Actions): ReactElement {
-  switch (state.status) {
-    case "loading":
-      return <LoadingBody />;
-    case "empty":
-      return <EmptyBody />;
-    case "error":
-      return <ErrorBody message={state.message} onRetry={actions.retry} />;
-    case "ready":
-      return <QueueBody onOpen={actions.openInvoice} />;
-    case "invoice-approved":
-    case "changes-requested":
-      return <EmptyBody />;
-    default: {
-      const unreachable: never = state;
-      return unreachable;
-    }
+function crumbFor(route: CollectionRoute): { href: string; label: string } {
+  if (route === "invoices" || route === "vendors") {
+    const copy = navCopy(route);
+    return { href: copy.href, label: copy.label };
   }
+  return { href: routeHref("to-approve"), label: "To approve" };
 }
 
-function isQueue(
-  state: FlowState,
-): state is
-  | Extract<FlowState, { status: "loading" | "empty" | "error" }>
-  | Extract<FlowState, { status: "ready"; screen: "collection" }> {
-  return (
-    state.status === "loading" ||
-    state.status === "empty" ||
-    state.status === "error" ||
-    (state.status === "ready" && state.screen === "collection")
-  );
-}
+export function InvoiceApprovalView({
+  state,
+  actions,
+  route,
+  ledger,
+  onNavigate,
+}: {
+  state: FlowState;
+  actions: Actions;
+  route: CollectionRoute;
+  ledger: readonly Invoice[];
+  onNavigate: (href: string) => void;
+}): ReactElement {
+  const browser = useCollectionBrowser(route, ledger, actions.openInvoice);
 
-export function renderInvoiceApproval(state: FlowState, actions: Actions): ReactElement {
   switch (state.status) {
     case "loading":
     case "empty":
@@ -304,35 +243,79 @@ export function renderInvoiceApproval(state: FlowState, actions: Actions): React
     }
   }
 
-  if (isQueue(state)) {
+  if (!showsDetail(state)) {
+    const copy = navCopy(route);
+    const ready = state.status === "ready";
+    const showTable = ready && browser.total > 0;
     return (
       <CollectionPage state={state.status}>
-        <CollectionPage.Heading>Invoices to approve</CollectionPage.Heading>
-        <CollectionPage.Body>{queueBody(state, actions)}</CollectionPage.Body>
+        <CollectionPage.Heading>{ready ? browser.heading : copy.label}</CollectionPage.Heading>
+        {ready ? <CollectionPage.Description>{browser.description}</CollectionPage.Description> : null}
+        {showTable ? <CollectionPage.Toolbar>{browser.toolbar}</CollectionPage.Toolbar> : null}
+        <CollectionPage.Body>
+          {state.status === "loading" ? <LoadingBody /> : null}
+          {state.status === "empty" || (ready && browser.total === 0) ? <EmptyBody route={route} /> : null}
+          {state.status === "error" ? <ErrorBody message={state.message} onRetry={actions.retry} /> : null}
+          {showTable ? browser.table : null}
+        </CollectionPage.Body>
+        {showTable && browser.pagination ? <CollectionPage.Pagination>{browser.pagination}</CollectionPage.Pagination> : null}
       </CollectionPage>
     );
   }
 
-  const invoice = invoiceById(state.invoiceId) ?? sampleInvoices[0];
+  const invoice = lookup(ledger, state.invoiceId);
   if (!invoice) throw new Error("The approval queue has no sample invoice.");
   const detail = state.status === "ready" ? state : null;
-  const canAct = detail !== null;
   const outcome = state.status === "invoice-approved" ? "approved" : state.status === "changes-requested" ? "changes" : null;
-  const reason = state.status === "invoice-approved" ? "" : state.reason;
+  const shownStatus = outcome === "approved" ? "approved" : outcome === "changes" ? "changes-requested" : invoice.status;
+  const canAct = detail !== null && shownStatus === "pending";
+  const reason = state.status === "changes-requested" ? state.reason : (detail?.reason ?? "");
+  const crumb = crumbFor(route);
 
   return (
     <DetailPage state={state.status}>
+      <DetailPage.Breadcrumbs>
+        <Breadcrumbs.Root>
+          <Breadcrumbs.Item>
+            <Link.Root
+              href={crumb.href}
+              onClick={(event) => {
+                if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                event.preventDefault();
+                onNavigate(crumb.href);
+              }}
+            >
+              {crumb.label}
+            </Link.Root>
+          </Breadcrumbs.Item>
+          <Breadcrumbs.Item current>{invoice.number}</Breadcrumbs.Item>
+        </Breadcrumbs.Root>
+      </DetailPage.Breadcrumbs>
       <DetailPage.Heading>{invoice.vendor}</DetailPage.Heading>
+      <DetailPage.Meta>
+        <InvoiceFacts invoice={invoice} status={shownStatus} />
+      </DetailPage.Meta>
       <DetailPage.Body>
-        <DetailBody
-          actions={actions}
-          invoice={invoice}
-          lineItemsOpen={detail?.lineItemsOpen ?? false}
-          outcome={outcome}
-          reason={reason}
-          reasonError={detail?.reasonError ?? false}
-          requestingChanges={detail?.requestingChanges ?? false}
-        />
+        <Stack.Root gap="normal" role="status">
+          {outcome === "approved" ? (
+            <Alert.Root role="none" tone="success">
+              <Alert.Title>Invoice approved</Alert.Title>
+              <Alert.Description>
+                {invoice.vendor} · {formatMoney(invoice.amountCents)} is approved.
+              </Alert.Description>
+            </Alert.Root>
+          ) : null}
+          {outcome === "changes" ? (
+            <Alert.Root role="none" tone="info">
+              <Alert.Title>Changes requested</Alert.Title>
+              <Alert.Description>{reason}</Alert.Description>
+            </Alert.Root>
+          ) : null}
+        </Stack.Root>
+        <LineItems invoice={invoice} open={detail?.lineItemsOpen ?? false} onToggle={actions.setLineItemsOpen} />
+        {detail?.requestingChanges && outcome === null ? (
+          <ReasonField reason={reason} reasonError={detail.reasonError} onReason={actions.setReason} />
+        ) : null}
       </DetailPage.Body>
       <DetailPage.Secondary>
         <Button.Root disabled={!canAct} type="button" variant="secondary" onClick={actions.requestChanges}>

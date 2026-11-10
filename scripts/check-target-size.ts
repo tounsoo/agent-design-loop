@@ -39,6 +39,8 @@ const states = [
   "empty",
   "error",
   "ready&page=collection",
+  "ready&route=invoices",
+  "ready&route=vendors",
   "ready&page=detail",
   "ready&page=detail&branch=request",
   "invoice-approved&page=detail",

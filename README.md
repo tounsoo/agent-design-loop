@@ -2,7 +2,17 @@
 
 This repository is a testing ground for deterministic UI design for agents. An agent generates UI inside constraints that already live in the repo, runs checks that can fail the build, fixes what those checks allow, and opens a proposal when a rule has to break.
 
-The product surface is vendor invoice approval. The page types are `collection` (the approval queue) and `detail` (one invoice). The named task is `approve-vendor-invoice`.
+The product is **Meridian**, an accounts-payable workspace for vendor invoice approval. The frame is an app shell. The page types are `collection` (To approve, All invoices, and Vendors) and `detail` (one invoice). The named task is `approve-vendor-invoice`.
+
+Layouts are product-owned shells with named slots. They encode [Todae](https://github.com/tounsoo/todae) recipes. Recipes are copyable glue, not package namespaces: there is no `AppShell.*`, `DataTable.*`, or `FilterBar.*` export, and this repo does not fork Todae.
+
+| Layout | Where | Recipe |
+| --- | --- | --- |
+| App shell | `src/layouts/app-shell` | [App shell](https://todae.omsoo.design/recipes/app-shell) |
+| Collection | `src/page-types/collection` | [Filter bar](https://todae.omsoo.design/recipes/filter-bar) and [Data table](https://todae.omsoo.design/recipes/data-table) |
+| Detail | `src/page-types/detail` | Breadcrumbs and DataList for one record |
+
+The app shell is the frame, not a third page type. `allowed_page_types` stays `collection` and `detail`.
 
 ## Install
 
@@ -12,7 +22,7 @@ Node.js 22 or newer.
 npm install
 ```
 
-The app uses React 19, TypeScript 6, and the published package `@tounsoo/todae`. It does not fork [Todae](https://github.com/tounsoo/todae).
+The app uses React 19, TypeScript 6, and the published package `@tounsoo/todae`. Icons come from Lucide, as the recipes do. Todae ships no icons.
 
 ## Run the app
 
@@ -20,27 +30,40 @@ The app uses React 19, TypeScript 6, and the published package `@tounsoo/todae`.
 npm run dev
 ```
 
-Open the URL Vite prints. The default screen is the invoice queue: vendor, amount, and due date. Opening a vendor is a link, not a second primary button.
+Open the URL Vite prints. The default screen is the Meridian workspace on **To approve**: a full-height shell, sidebar navigation, and a searchable invoice table. Opening an invoice is a link in the table, not a primary button. Approve is not on the queue.
 
-On the invoice:
+Navigation:
 
+- **To approve** (`/`) — pending invoices.
+- **All invoices** (`?route=invoices`) — every invoice, with status.
+- **Vendors** (`?route=vendors`) — vendor name, open count, and last invoice. Read-only.
+
+On an invoice (`?invoice=inv-1842`):
+
+- Breadcrumbs return to the collection you came from.
+- Identity and amounts are a DataList.
 - **Approve** is the only primary action.
 - **Line items** sit behind one disclosure.
 - **Request changes** is secondary. Choosing it reveals a required reason. Sending that request is a branch, not the happy path.
 
+Search, filters, sort, and paging are available on collections. They are not steps on the happy path.
+
 The happy path is three steps: open an invoice, open Line items, Approve. That lands on `invoice-approved`. `max_steps` stays 3. There is no approval note and no confirm step.
 
-Modeled states are previewable with `?state=` and, when the screen matters, `?page=`:
+The shell stays up in every modeled state. Loading, empty, and error render inside `main`. A **Preview** menu in the header is a developer aid for opening those states without clicking through. The default URL does not depend on it.
 
 - `?state=loading`
 - `?state=empty`
 - `?state=error`
 - `?state=ready&page=collection`
+- `?state=ready&route=invoices`
+- `?state=ready&route=vendors`
 - `?state=ready&page=detail`
+- `?state=ready&page=detail&branch=request`
 - `?state=invoice-approved&page=detail`
 - `?state=changes-requested&page=detail`
 
-A state the model does not name is ignored, and the page stays on the queue.
+A state the model does not name is ignored, and the page stays on To approve.
 
 ## Run the checks
 
@@ -67,26 +90,27 @@ There is no LLM judge on CI.
 ## Use it as a testing ground
 
 1. Give an agent a UI task that is already in `src/inputs/product.ts`. Do not invent a task or a page type in the same change.
-2. The agent reads the inputs, the catalog, the page shells, and the flow, then generates inside those constraints. `AGENTS.md` is only the pointer.
+2. The agent reads the inputs, the catalog, the layouts, the page shells, and the flow, then generates inside those constraints. `AGENTS.md` is only the pointer.
 3. The agent runs the checks and fixes exit codes: a second primary, a raw control, a skipped state, a path over the budget.
 4. What the checks cannot decide goes in `review/` as a short note.
 5. If a rule has to break, the agent adds a file under `proposals/` with a reason and a preview. It does not silently raise `max_steps`, add a page type, or bypass the catalog.
 
 [Proposal 0001](proposals/0001-approval-note.md) asks to require an approval note before Approve and raise the budget to 4. It is not applied.
 
-When a human approves a proposal, graduate it into the catalog, a page-type shell, the flow model, or `src/inputs/product.ts`. The next run is constrained by that change. See [proposals/README.md](proposals/README.md).
+When a human approves a proposal, graduate it into the catalog, a layout, a page-type shell, the flow model, or `src/inputs/product.ts`. The next run is constrained by that change. See [proposals/README.md](proposals/README.md).
 
 ## Where the constraints live
 
 ```
 src/catalog/                         only UI entry; re-exports @tounsoo/todae
-src/page-types/collection/           heading and list; no primary action
-src/page-types/detail/               heading, body, one primary, secondary
+src/layouts/app-shell/               Meridian frame: header, nav, drawer; no page type
+src/page-types/collection/           heading, toolbar, table, pagination; no primary
+src/page-types/detail/               breadcrumbs, meta, body, one primary, secondary
 src/flows/invoice-approval/          loading, empty, error, ready, invoice-approved, changes-requested
 src/inputs/product.ts                tasks, priority, allowed page types
 src/rules/ux-rules.ts                check, input, and review question for each rule
-src/features/invoice-approval/       the shipped queue and detail
-src/harness/state-preview/           ?state= and ?page= preview
+src/features/invoice-approval/       To approve, All invoices, Vendors, and the invoice
+src/harness/state-preview/           ?state=, ?page=, ?route=, and ?invoice=
 fixtures/illegal/                    two primaries, over budget, off catalog, missing view
 proposals/                           escape hatch
 review/                              judgment the checks cannot make

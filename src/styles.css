@@ -1,23 +1,81 @@
 /*
  * Layer order is declared before Todae's sheet so the app frame does not
  * override component paint. Component styling stays in the catalog.
+ * The shell grid is the product frame from the app shell recipe.
  */
 @layer app, todae;
 
 @import "@tounsoo/todae/todae.css";
 
 @layer app {
+  html,
+  body,
+  #root,
+  #root > [data-appearance],
+  #root > [data-appearance] > [data-density] {
+    height: 100%;
+  }
+
   body {
     margin: 0;
+    background: var(--todae-color-bg-canvas);
+    color: var(--todae-color-fg-default);
+    font-family: var(--todae-font-family-sans);
   }
 
-  #root {
-    box-sizing: border-box;
-    min-height: 100%;
-    padding: 1.5rem;
+  .app-shell {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    block-size: 100dvh;
+    overflow: hidden;
+    background: var(--todae-color-bg-canvas);
+    color: var(--todae-color-fg-default);
   }
 
-  [data-page] {
-    max-width: 46rem;
+  .app-shell-header {
+    padding-block: var(--todae-space-2);
+    padding-inline: var(--todae-space-3);
+    border-block-end: 1px solid var(--todae-color-border-subtle);
+    background: var(--todae-color-bg-surface);
+  }
+
+  .app-shell-header-actions {
+    margin-inline-start: auto;
+  }
+
+  .app-shell-splitter {
+    min-block-size: 0;
+  }
+
+  .app-shell-pad {
+    padding: var(--todae-space-4);
+  }
+
+  .app-shell-main:focus {
+    outline: none;
+  }
+
+  .collection-page,
+  .detail-page {
+    min-inline-size: 0;
+  }
+
+  .detail-page {
+    max-inline-size: 46rem;
+  }
+
+  .detail-actions {
+    padding-block-start: var(--todae-space-3);
+    border-block-start: 1px solid var(--todae-color-border-subtle);
+  }
+
+  .collection-search {
+    flex: 1 1 16rem;
+    max-inline-size: 22rem;
+  }
+
+  .num {
+    text-align: end;
+    font-variant-numeric: tabular-nums;
   }
 }
