@@ -25,9 +25,7 @@ export function Body({ children }: { children: ReactNode }) {
 export function Primary({ children }: { children: ReactElement }) {
   const buttons = countButtons(children);
   if (buttons !== 1) {
-    throw new Error(
-      `settings primary slot accepts exactly one primary button, found ${buttons}.`,
-    );
+    throw new Error(`detail primary slot accepts exactly one primary button, found ${buttons}.`);
   }
   return (
     <Stack.Root data-slot="primary" direction="row" justify="end">
@@ -38,7 +36,7 @@ export function Primary({ children }: { children: ReactElement }) {
 
 export function Secondary({ children }: { children: ReactNode }) {
   return (
-    <Stack.Root data-slot="secondary" gap="normal">
+    <Stack.Root data-slot="secondary" direction="row" gap="normal">
       {children}
     </Stack.Root>
   );
@@ -47,44 +45,46 @@ export function Secondary({ children }: { children: ReactNode }) {
 function requireOne(items: readonly ReactNode[], slot: unknown, name: string): ReactElement {
   const matches = items.filter((item) => isSlot(item, slot));
   if (matches.length !== 1) {
-    throw new Error(`SettingsPage requires exactly one ${name} slot, found ${matches.length}.`);
+    throw new Error(`DetailPage requires exactly one ${name} slot, found ${matches.length}.`);
   }
   const match = matches[0];
   if (!isValidElement(match)) {
-    throw new Error(`SettingsPage ${name} slot is missing.`);
+    throw new Error(`DetailPage ${name} slot is missing.`);
   }
   return match;
 }
 
 /**
- * Settings shell. Callers fill named slots. The shell owns chrome and spacing.
+ * Invoice detail shell. Callers fill named slots. The shell owns chrome.
  * The primary slot accepts exactly one primary button.
  */
-function SettingsPageRoot({ children }: { children: ReactNode }) {
+function DetailPageRoot({ children, state }: { children: ReactNode; state: string }) {
   const items = Children.toArray(children);
   const heading = requireOne(items, Heading, "Heading");
   const body = requireOne(items, Body, "Body");
   const primary = requireOne(items, Primary, "Primary");
   const secondary = items.filter((item) => isSlot(item, Secondary));
   if (secondary.length > 1) {
-    throw new Error(`SettingsPage accepts at most one Secondary slot, found ${secondary.length}.`);
+    throw new Error(`DetailPage accepts at most one Secondary slot, found ${secondary.length}.`);
   }
 
   return (
-    <Card.Root data-page="settings">
+    <Card.Root data-page="detail" data-state={state}>
       <Card.Header>{heading}</Card.Header>
       <Card.Body>
-        <Stack.Root gap="spacious">
-          {body}
-          {secondary[0]}
-        </Stack.Root>
+        <Stack.Root gap="spacious">{body}</Stack.Root>
       </Card.Body>
-      <Card.Footer>{primary}</Card.Footer>
+      <Card.Footer>
+        <Stack.Root align="center" direction="row" gap="normal" justify="end">
+          {secondary[0]}
+          {primary}
+        </Stack.Root>
+      </Card.Footer>
     </Card.Root>
   );
 }
 
-export const SettingsPage = Object.assign(SettingsPageRoot, {
+export const DetailPage = Object.assign(DetailPageRoot, {
   Heading,
   Body,
   Primary,

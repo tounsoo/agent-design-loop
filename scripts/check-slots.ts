@@ -47,18 +47,18 @@ for (const root of roots) {
   for (const file of files) {
     const source = parseFile(file);
     const relative = path.relative(process.cwd(), file);
-    const settingsPages = jsxElements(source, "SettingsPage");
+    const detailPages = jsxElements(source, "DetailPage");
     walk(source, (node) => {
-      if (ts.isJsxSelfClosingElement(node) && jsxTagName(node.tagName) === "SettingsPage") {
-        violations.push(`${relative}:${lineOf(source, node)}: primary slot is missing on SettingsPage.`);
+      if (ts.isJsxSelfClosingElement(node) && jsxTagName(node.tagName) === "DetailPage") {
+        violations.push(`${relative}:${lineOf(source, node)}: primary slot is missing on DetailPage.`);
       }
     });
-    for (const page of settingsPages) {
+    for (const page of detailPages) {
       pages += 1;
-      const slots = jsxElements(page, "SettingsPage.Primary");
+      const slots = jsxElements(page, "DetailPage.Primary");
       if (slots.length !== 1) {
         violations.push(
-          `${relative}:${lineOf(source, page)}: primary slot accepts exactly one SettingsPage.Primary, found ${slots.length}.`,
+          `${relative}:${lineOf(source, page)}: primary slot accepts exactly one DetailPage.Primary, found ${slots.length}.`,
         );
         continue;
       }
@@ -76,11 +76,11 @@ for (const root of roots) {
 }
 
 if (rootArg === -1 && pages < 1) {
-  violations.push("primary slot: src/features does not render a SettingsPage.");
+  violations.push("primary slot: src/features does not render a DetailPage.");
 }
 
 if (rootArg !== -1 && pages < 1) {
-  violations.push("primary slot: no SettingsPage to check.");
+  violations.push("primary slot: no DetailPage to check.");
 }
 
 if (violations.length > 0) {
@@ -88,4 +88,4 @@ if (violations.length > 0) {
   process.exit(1);
 }
 
-console.log(`primary slot: exactly one primary button on ${pages} settings page(s).`);
+console.log(`primary slot: exactly one primary button on ${pages} detail page(s).`);

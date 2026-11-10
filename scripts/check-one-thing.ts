@@ -3,13 +3,14 @@ import path from "node:path";
 import ts from "typescript";
 import { allowed_page_types } from "../src/inputs/product";
 import { MAX_VISIBLE_QUESTIONS } from "../src/rules/ux-rules";
-import { jsxElements, jsxTagName, listSourceFiles, parseFile } from "./lib/jsx";
+import { attributeValue, jsxElements, jsxTagName, listSourceFiles, parseFile, walk } from "./lib/jsx";
 
 const violations: string[] = [];
-
+const expected = ["collection", "detail"];
 const allowed = [...allowed_page_types];
-if (allowed.length !== 1 || allowed[0] !== "settings") {
-  violations.push(`one thing: allowed_page_types must be ["settings"], found ${JSON.stringify(allowed)}.`);
+
+if (JSON.stringify(allowed) !== JSON.stringify(expected)) {
+  violations.push(`one thing: allowed_page_types must be ${JSON.stringify(expected)}, found ${JSON.stringify(allowed)}.`);
 }
 
 const pageTypeDir = path.resolve("src/page-types");
@@ -17,22 +18,34 @@ const pageTypeNames = readdirSync(pageTypeDir, { withFileTypes: true })
   .filter((entry) => entry.isDirectory())
   .map((entry) => entry.name)
   .sort();
-if (pageTypeNames.length !== 1 || pageTypeNames[0] !== "settings") {
-  violations.push(`one thing: page types must be ["settings"], found ${JSON.stringify(pageTypeNames)}.`);
+if (JSON.stringify(pageTypeNames) !== JSON.stringify(expected)) {
+  violations.push(`one thing: page types must be ${JSON.stringify(expected)}, found ${JSON.stringify(pageTypeNames)}.`);
 }
 
 const declared = exportedStrings(path.join(pageTypeDir, "index.ts"), "pageTypes");
-if (!declared || declared.length !== 1 || declared[0] !== "settings") {
-  violations.push(`one thing: pageTypes must be ["settings"], found ${JSON.stringify(declared)}.`);
+if (!declared || JSON.stringify(declared) !== JSON.stringify(expected)) {
+  violations.push(`one thing: pageTypes must be ${JSON.stringify(expected)}, found ${JSON.stringify(declared)}.`);
 }
 
-let settingsPages = 0;
+const shellCounts = new Map<string, number>([
+  ["CollectionPage", 0],
+  ["DetailPage", 0],
+]);
 for (const file of listSourceFiles(path.resolve("src/features"))) {
   const source = parseFile(file);
-  const pages = jsxElements(source, "SettingsPage");
-  settingsPages += pages.length;
-  if (pages.length > 1) {
-    violations.push(`one thing: ${path.relative(process.cwd(), file)} renders ${pages.length} settings pages.`);
+  const relative = path.relative(process.cwd(), file);
+  for (const tag of shellCounts.keys()) {
+    const pages = jsxElements(source, tag);
+    shellCounts.set(tag, (shellCounts.get(tag) ?? 0) + pages.length);
+    if (pages.length > 1) {
+      violations.push(`one thing: ${relative} renders ${pages.length} ${tag} shells.`);
+    }
+  }
+  for (const page of jsxElements(source, "CollectionPage")) {
+    const primary = primaryButtons(page, source);
+    if (primary.length > 0) {
+      violations.push(`one thing: ${relative} puts a primary button on the collection page.`);
+    }
   }
   let visibleQuestions = 0;
   for (const fieldset of jsxElements(source, "Fieldset.Root")) {
@@ -40,13 +53,31 @@ for (const file of listSourceFiles(path.resolve("src/features"))) {
   }
   if (visibleQuestions > MAX_VISIBLE_QUESTIONS) {
     violations.push(
-      `one thing: ${path.relative(process.cwd(), file)} shows ${visibleQuestions} questions before disclosure (max ${MAX_VISIBLE_QUESTIONS}).`,
+      `one thing: ${relative} shows ${visibleQuestions} questions before disclosure (max ${MAX_VISIBLE_QUESTIONS}).`,
     );
   }
 }
 
-if (settingsPages !== 1) {
-  violations.push(`one thing: expected exactly one SettingsPage in src/features, found ${settingsPages}.`);
+for (const [tag, count] of shellCounts) {
+  if (count !== 1) {
+    violations.push(`one thing: expected exactly one ${tag} in src/features, found ${count}.`);
+  }
+}
+
+function primaryButtons(root: ts.Node, source: ts.SourceFile): ts.Node[] {
+  const found: ts.Node[] = [];
+  walk(root, (node) => {
+    const opening = ts.isJsxElement(node)
+      ? node.openingElement
+      : ts.isJsxSelfClosingElement(node)
+        ? node
+        : null;
+    if (!opening || jsxTagName(opening.tagName) !== "Button.Root") return;
+    const variant = attributeValue(opening, "variant");
+    if (variant === null || variant === "primary") found.push(node);
+  });
+  void source;
+  return found;
 }
 
 function hasAncestor(node: ts.Node, tag: string): boolean {
@@ -82,4 +113,4 @@ if (violations.length > 0) {
   process.exit(1);
 }
 
-console.log("one thing: one settings page, one visible question, no other page type.");
+console.log("one thing: collection and detail, one shell each, no primary on the queue.");

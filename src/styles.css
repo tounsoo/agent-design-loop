@@ -17,7 +17,7 @@
     padding: 1.5rem;
   }
 
-  [data-page="settings"] {
-    max-width: 40rem;
+  [data-page] {
+    max-width: 46rem;
   }
 }

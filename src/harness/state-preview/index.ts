@@ -1,2 +1,2 @@
-export { readPreviewState } from "./readState";
+export { readPreview } from "./readState";
 export { StatePreviewLinks } from "./StatePreviewLinks";

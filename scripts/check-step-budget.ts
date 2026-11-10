@@ -1,17 +1,17 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { tasks } from "../src/inputs/product";
-import { taskHappyPath } from "../src/flows/notification-prefs/graph";
-import { shortestPath, type TaskEdge } from "../src/flows/notification-prefs/shortest-path";
+import { taskHappyPath } from "../src/flows/invoice-approval/graph";
+import { shortestPath, type TaskEdge } from "../src/flows/invoice-approval/shortest-path";
 
-const task = tasks.find((item) => item.id === "update-notification-prefs");
+const task = tasks.find((item) => item.id === "approve-vendor-invoice");
 if (!task) {
-  console.error("step budget: missing task update-notification-prefs");
+  console.error("step budget: missing task approve-vendor-invoice");
   process.exit(1);
 }
 
-if (task.success_state !== "prefs-saved") {
-  console.error(`step budget: success_state is ${task.success_state}, expected prefs-saved`);
+if (task.success_state !== "invoice-approved") {
+  console.error(`step budget: success_state is ${task.success_state}, expected invoice-approved`);
   process.exit(1);
 }
 
@@ -21,7 +21,7 @@ let label: string;
 
 if (graphArg === -1) {
   pathSteps = taskHappyPath();
-  label = "src/flows/notification-prefs/graph";
+  label = "src/flows/invoice-approval/graph";
 } else {
   const graphFile = process.argv[graphArg + 1];
   if (!graphFile) {
@@ -48,7 +48,7 @@ console.log(`  max_steps: ${task.max_steps}`);
 
 if (pathSteps.length > task.max_steps) {
   console.error(
-    `step budget: path length ${pathSteps.length} exceeds max_steps ${task.max_steps} for update-notification-prefs.`,
+    `step budget: path length ${pathSteps.length} exceeds max_steps ${task.max_steps} for ${task.id}.`,
   );
   process.exit(1);
 }

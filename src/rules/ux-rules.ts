@@ -24,7 +24,7 @@ export const uxRules = [
   {
     id: "exhaustive-states",
     structuralCheck: "npm run check:state-coverage",
-    input: "src/flows/notification-prefs/states.ts#modeledStates",
+    input: "src/flows/invoice-approval/states.ts#modeledStates",
     reviewQuestion: "Did we model the states that actually happen?",
   },
   {
@@ -35,13 +35,13 @@ export const uxRules = [
   },
 ] as const;
 
-/** One disclosure level: Delivery windows, and nothing nested under it. */
+/** Line items are the one disclosure. Nothing nests under them. */
 export const MAX_DISCLOSURE_DEPTH = 1;
 
-/** One disclosure control in the settings view. */
+/** One disclosure control on the invoice detail view. */
 export const MAX_DISCLOSURES_PER_PAGE = 1;
 
-/** One question visible before a disclosure opens. */
+/** One question visible before a disclosure or the request-changes branch opens. */
 export const MAX_VISIBLE_QUESTIONS = 1;
 
 /** WCAG 2.5.8 Target Size (Minimum). */

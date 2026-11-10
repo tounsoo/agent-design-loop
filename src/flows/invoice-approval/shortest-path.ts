@@ -1,10 +1,3 @@
-export type TaskNode = {
-  readonly channelChanged: boolean;
-  readonly deliveryOpen: boolean;
-  readonly windowChanged: boolean;
-  readonly saved: boolean;
-};
-
 export type TaskEdge<T> = {
   readonly step: string;
   readonly when: (node: T) => boolean;

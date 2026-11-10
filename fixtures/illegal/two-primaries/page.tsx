@@ -1,18 +1,18 @@
 import { Button } from "../../../src/catalog";
-import { SettingsPage } from "../../../src/page-types/settings";
+import { DetailPage } from "../../../src/page-types/detail";
 
-/** Illegal: two primary buttons in the one primary slot. The slot check must fail. */
+/** Illegal: two primary buttons in the detail primary slot. The slot check must fail. */
 export function TwoPrimaries() {
   return (
-    <SettingsPage>
-      <SettingsPage.Heading>Notification settings</SettingsPage.Heading>
-      <SettingsPage.Body>Channels</SettingsPage.Body>
-      <SettingsPage.Primary>
+    <DetailPage state="ready">
+      <DetailPage.Heading>Northwind Office Supply</DetailPage.Heading>
+      <DetailPage.Body>INV-1842</DetailPage.Body>
+      <DetailPage.Primary>
         <>
-          <Button.Root>Save</Button.Root>
-          <Button.Root>Delivery windows</Button.Root>
+          <Button.Root>Approve</Button.Root>
+          <Button.Root>Request changes</Button.Root>
         </>
-      </SettingsPage.Primary>
-    </SettingsPage>
+      </DetailPage.Primary>
+    </DetailPage>
   );
 }

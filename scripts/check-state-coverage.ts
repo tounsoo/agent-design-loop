@@ -5,9 +5,9 @@ import { parseFile, walk } from "./lib/jsx";
 const statesArg = process.argv.indexOf("--states");
 const viewsArg = process.argv.indexOf("--views");
 const statesFile =
-  statesArg === -1 ? "src/flows/notification-prefs/states.ts" : (process.argv[statesArg + 1] ?? "");
+  statesArg === -1 ? "src/flows/invoice-approval/states.ts" : (process.argv[statesArg + 1] ?? "");
 const viewsFile =
-  viewsArg === -1 ? "src/features/notification-settings/views.tsx" : (process.argv[viewsArg + 1] ?? "");
+  viewsArg === -1 ? "src/features/invoice-approval/views.tsx" : (process.argv[viewsArg + 1] ?? "");
 
 function exportedStringArray(file: string, name: string): string[] | null {
   const source = parseFile(path.resolve(file));

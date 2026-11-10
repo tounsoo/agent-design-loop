@@ -1,3 +1,4 @@
-export { SettingsPage } from "./settings";
+export { CollectionPage } from "./collection";
+export { DetailPage } from "./detail";
 
-export const pageTypes = ["settings"] as const;
+export const pageTypes = ["collection", "detail"] as const;

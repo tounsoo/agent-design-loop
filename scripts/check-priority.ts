@@ -11,9 +11,9 @@ if (!primaryItem || primaryItem.level !== "primary" || !secondaryItem || seconda
   process.exit(1);
 }
 
-type Hit = { file: string; line: number; text: string; inDisclosure: boolean };
+type Hit = { file: string; line: number; text: string; inDisclosure: boolean; variant: string | null | "dynamic" };
 
-const primaryButtons: Hit[] = [];
+const buttons: Hit[] = [];
 const summaries: Hit[] = [];
 const violations: string[] = [];
 
@@ -38,14 +38,12 @@ for (const file of listSourceFiles(path.resolve("src/features"))) {
     if (!opening) return;
     const tag = jsxTagName(opening.tagName);
     if (tag === "Button.Root") {
-      const variant = attributeValue(opening, "variant");
-      const primary = variant === null || variant === "primary";
-      if (!primary) return;
-      primaryButtons.push({
+      buttons.push({
         file: relative,
         line: lineOf(source, opening),
         text: elementText(node).text,
         inDisclosure: insideDisclosure(node),
+        variant: attributeValue(opening, "variant"),
       });
     }
     if (tag === "Disclosure.Summary") {
@@ -54,10 +52,14 @@ for (const file of listSourceFiles(path.resolve("src/features"))) {
         line: lineOf(source, opening),
         text: elementText(node).text,
         inDisclosure: true,
+        variant: null,
       });
     }
   });
 }
+
+const primaryButtons = buttons.filter((button) => button.variant === null || button.variant === "primary");
+const secondaryButtons = buttons.filter((button) => button.text === secondaryItem.action);
 
 if (primaryButtons.length !== 1 || primaryButtons[0]?.text !== primaryItem.action) {
   violations.push(
@@ -69,8 +71,14 @@ if (primaryButtons.some((button) => button.inDisclosure)) {
   violations.push("priority: a primary button is inside a disclosure.");
 }
 
-if (!summaries.some((summary) => summary.text === secondaryItem.action)) {
-  violations.push(`priority: rank 2 "${secondaryItem.action}" is not a Disclosure.Summary.`);
+if (secondaryButtons.length !== 1 || secondaryButtons[0]?.variant !== "secondary") {
+  violations.push(
+    `priority: rank 2 "${secondaryItem.action}" must be one secondary button, found ${secondaryButtons.map((button) => `${button.variant ?? "primary"}:"${button.text}"`).join(", ") || "none"}.`,
+  );
+}
+
+if (!summaries.some((summary) => summary.text === "Line items")) {
+  violations.push("priority: line items are not behind a disclosure.");
 }
 
 if (primaryButtons.some((button) => button.text === secondaryItem.action)) {
@@ -83,5 +91,5 @@ if (violations.length > 0) {
 }
 
 console.log(
-  `priority: "${primaryItem.action}" is the primary button; "${secondaryItem.action}" is a disclosure summary.`,
+  `priority: "${primaryItem.action}" is the primary button; "${secondaryItem.action}" is secondary; line items are disclosed.`,
 );

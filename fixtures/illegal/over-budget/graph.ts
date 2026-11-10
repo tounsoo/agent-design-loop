@@ -1,49 +1,41 @@
 type Node = {
-  channelChanged: boolean;
-  deliveryOpen: boolean;
-  windowChanged: boolean;
-  confirming: boolean;
-  saved: boolean;
+  invoiceOpen: boolean;
+  lineItemsOpen: boolean;
+  noteWritten: boolean;
+  approved: boolean;
 };
 
 export const taskStart: Node = {
-  channelChanged: false,
-  deliveryOpen: false,
-  windowChanged: false,
-  confirming: false,
-  saved: false,
+  invoiceOpen: false,
+  lineItemsOpen: false,
+  noteWritten: false,
+  approved: false,
 };
 
-/** Illegal happy path: confirm-before-save makes the task 5 steps. max_steps stays 4. */
+/** Illegal happy path: a required approval note makes the task 4 steps. max_steps stays 3. */
 export const taskEdges = [
   {
-    step: "change-channel",
-    when: (node: Node) => !node.saved && !node.confirming && !node.channelChanged,
-    apply: (node: Node) => ({ ...node, channelChanged: true }),
+    step: "open-invoice",
+    when: (node: Node) => !node.invoiceOpen,
+    apply: (node: Node) => ({ ...node, invoiceOpen: true }),
   },
   {
-    step: "open-delivery-windows",
-    when: (node: Node) => !node.saved && !node.confirming && !node.deliveryOpen,
-    apply: (node: Node) => ({ ...node, deliveryOpen: true }),
+    step: "open-line-items",
+    when: (node: Node) => node.invoiceOpen && !node.lineItemsOpen,
+    apply: (node: Node) => ({ ...node, lineItemsOpen: true }),
   },
   {
-    step: "change-window",
-    when: (node: Node) => !node.saved && !node.confirming && node.deliveryOpen && !node.windowChanged,
-    apply: (node: Node) => ({ ...node, windowChanged: true }),
+    step: "write-approval-note",
+    when: (node: Node) => node.lineItemsOpen && !node.noteWritten && !node.approved,
+    apply: (node: Node) => ({ ...node, noteWritten: true }),
   },
   {
-    step: "save",
-    when: (node: Node) =>
-      !node.saved && !node.confirming && node.channelChanged && node.deliveryOpen && node.windowChanged,
-    apply: (node: Node) => ({ ...node, confirming: true }),
-  },
-  {
-    step: "confirm-before-save",
-    when: (node: Node) => node.confirming && !node.saved,
-    apply: (node: Node) => ({ ...node, confirming: false, saved: true }),
+    step: "approve",
+    when: (node: Node) => node.noteWritten && !node.approved,
+    apply: (node: Node) => ({ ...node, approved: true }),
   },
 ];
 
 export function isTaskSuccess(node: Node): boolean {
-  return node.saved;
+  return node.approved;
 }
