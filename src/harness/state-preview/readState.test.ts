@@ -17,6 +17,7 @@ describe("state preview harness", () => {
     expect(readLocation("")).toMatchObject({ route: "to-approve", invoiceId: null });
     expect(readLocation("?route=invoices").route).toBe("invoices");
     expect(readLocation("?route=vendors").route).toBe("vendors");
+    expect(readLocation("?route=tracking").route).toBe("tracking");
     expect(readLocation("?route=nope").route).toBe("to-approve");
     expect(readLocation("?invoice=inv-1842")).toMatchObject({ route: "to-approve", invoiceId: "inv-1842" });
     expect(readLocation("?route=invoices&invoice=inv-1711").invoiceId).toBe("inv-1711");

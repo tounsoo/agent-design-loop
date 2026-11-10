@@ -1,4 +1,4 @@
-import { Building2, ClipboardList, Files } from "lucide-react";
+import { Building2, ClipboardList, Files, Kanban } from "lucide-react";
 import type { AppShellItem } from "../../layouts/app-shell";
 import { routeHref, type CollectionRoute } from "../../flows/invoice-approval";
 
@@ -22,6 +22,13 @@ export const meridianNav: readonly {
     label: "All invoices",
     description: "Every invoice in the payables ledger.",
     icon: Files,
+  },
+  {
+    route: "tracking",
+    href: routeHref("tracking"),
+    label: "Tracking",
+    description: "Invoices by status. Open one to approve it or request changes.",
+    icon: Kanban,
   },
   {
     route: "vendors",

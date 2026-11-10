@@ -23,5 +23,11 @@ describe("Meridian shell", () => {
     await user.click(screen.getByRole("link", { name: "Vendors" }));
     expect(screen.getByRole("heading", { name: "Vendors" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Vendors" })).toHaveAttribute("aria-current", "page");
+
+    await user.click(screen.getByRole("link", { name: "Tracking" }));
+    expect(screen.getByRole("heading", { name: "Tracking" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Tracking" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("heading", { name: "Pending" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
   });
 });

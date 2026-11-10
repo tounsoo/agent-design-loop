@@ -3,6 +3,7 @@ export {
   Badge,
   Breadcrumbs,
   Button,
+  Card,
   ChipList,
   DataList,
   DensityProvider,

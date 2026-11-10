@@ -2,8 +2,11 @@ import type { Preview } from "./transition";
 import { initialFlowState } from "./transition";
 import type { FlowState, Invoice } from "./states";
 
-/** Routes inside the collection page. Not a third page type. */
-export const collectionRoutes = ["to-approve", "invoices", "vendors"] as const;
+/**
+ * Routes inside the collection page. Not a third page type.
+ * Tracking is a status board in that same page.
+ */
+export const collectionRoutes = ["to-approve", "invoices", "tracking", "vendors"] as const;
 
 export type CollectionRoute = (typeof collectionRoutes)[number];
 

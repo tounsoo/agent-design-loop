@@ -30,6 +30,7 @@ import { CollectionPage } from "../../page-types/collection";
 import { DetailPage } from "../../page-types/detail";
 import { useCollectionBrowser } from "./collection";
 import { navCopy } from "./navigation";
+import { TrackingBoard } from "./tracking";
 
 export type Actions = {
   retry: () => void;
@@ -89,7 +90,9 @@ function EmptyBody({ route }: { route: CollectionRoute }) {
       ? { title: "No vendors", description: "No vendors are in the ledger." }
       : route === "invoices"
         ? { title: "No invoices", description: "The ledger has no invoices." }
-        : { title: "No invoices waiting", description: "Nothing needs approval right now." };
+        : route === "tracking"
+          ? { title: "No invoices to track", description: "The ledger has no invoices." }
+          : { title: "No invoices waiting", description: "Nothing needs approval right now." };
   return (
     <EmptyState.Root>
       <EmptyState.Title as="h2">{copy.title}</EmptyState.Title>
@@ -207,7 +210,7 @@ function ReasonField({
 }
 
 function crumbFor(route: CollectionRoute): { href: string; label: string } {
-  if (route === "invoices" || route === "vendors") {
+  if (route === "invoices" || route === "vendors" || route === "tracking") {
     const copy = navCopy(route);
     return { href: copy.href, label: copy.label };
   }
@@ -246,17 +249,24 @@ export function InvoiceApprovalView({
   if (!showsDetail(state)) {
     const copy = navCopy(route);
     const ready = state.status === "ready";
-    const showTable = ready && browser.total > 0;
+    const tracking = route === "tracking";
+    const showTable = ready && !tracking && browser.total > 0;
+    const showBoard = ready && tracking && ledger.length > 0;
+    const showEmpty =
+      state.status === "empty" || (ready && !tracking && browser.total === 0) || (ready && tracking && ledger.length === 0);
     return (
       <CollectionPage state={state.status}>
-        <CollectionPage.Heading>{ready ? browser.heading : copy.label}</CollectionPage.Heading>
-        {ready ? <CollectionPage.Description>{browser.description}</CollectionPage.Description> : null}
+        <CollectionPage.Heading>{ready && !tracking ? browser.heading : copy.label}</CollectionPage.Heading>
+        {ready ? (
+          <CollectionPage.Description>{tracking ? copy.description : browser.description}</CollectionPage.Description>
+        ) : null}
         {showTable ? <CollectionPage.Toolbar>{browser.toolbar}</CollectionPage.Toolbar> : null}
         <CollectionPage.Body>
           {state.status === "loading" ? <LoadingBody /> : null}
-          {state.status === "empty" || (ready && browser.total === 0) ? <EmptyBody route={route} /> : null}
+          {showEmpty ? <EmptyBody route={route} /> : null}
           {state.status === "error" ? <ErrorBody message={state.message} onRetry={actions.retry} /> : null}
           {showTable ? browser.table : null}
+          {showBoard ? <TrackingBoard invoices={ledger} onOpen={actions.openInvoice} /> : null}
         </CollectionPage.Body>
         {showTable && browser.pagination ? <CollectionPage.Pagination>{browser.pagination}</CollectionPage.Pagination> : null}
       </CollectionPage>

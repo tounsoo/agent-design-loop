@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { DensityProvider, ThemeProvider } from "../../catalog";
 import { readLocation } from "../../harness/state-preview";
 import { InvoiceApproval } from "./InvoiceApproval";
+import { TrackingBoard } from "./tracking";
 
 function Harness({ search }: { search: string }) {
   const [current, setCurrent] = useState(search);
@@ -32,7 +33,8 @@ describe("invoice approval views", () => {
   it("shows the queue without an approve button", () => {
     renderApproval();
     expect(screen.getByRole("heading", { name: "To approve" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Northwind Office Supply/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /INV-1842, Northwind Office Supply/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /INV-1936, Northwind Office Supply/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Helios Freight/ })).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Invoice pages" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
@@ -66,7 +68,50 @@ describe("invoice approval views", () => {
     expect(screen.queryByRole("link", { name: /INV-1842/ })).toBeNull();
   });
 
-  it("lists every status on all invoices and vendors on their own collection", () => {
+  it("tracks invoices by status without approval actions", async () => {
+    const user = userEvent.setup();
+    renderApproval("?route=tracking");
+    expect(screen.getByRole("heading", { name: "Tracking" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Pending" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Changes requested" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Approved" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /INV-1842, Northwind Office Supply/ })).toHaveAttribute(
+      "href",
+      "?route=tracking&invoice=inv-1842",
+    );
+    expect(screen.getByText("6 days overdue")).toBeInTheDocument();
+    expect(screen.getByText("$4,280.00")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Request changes" })).toBeNull();
+
+    await user.click(screen.getByRole("link", { name: /INV-1842, Northwind Office Supply/ }));
+    expect(screen.getByRole("heading", { name: "Northwind Office Supply" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Tracking" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Approve" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Request changes" })).toBeInTheDocument();
+  });
+
+  it("keeps loading, empty, and error inside the tracking shell", () => {
+    const { unmount } = renderApproval("?state=loading&route=tracking");
+    expect(screen.getByRole("heading", { name: "Tracking" })).toBeInTheDocument();
+    expect(screen.getAllByText("Loading invoices").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
+    unmount();
+
+    const empty = renderApproval("?state=empty&route=tracking");
+    expect(screen.getByRole("heading", { name: "Tracking" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "No invoices to track" })).toBeInTheDocument();
+    empty.unmount();
+
+    renderApproval("?state=error&route=tracking");
+    expect(screen.getByRole("heading", { name: "Tracking" })).toBeInTheDocument();
+    expect(screen.getByText("Couldn't load invoices.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
+  });
+
+  it("lists every status on all invoices and vendors on their own collection", async () => {
+    const user = userEvent.setup();
     const { unmount } = renderApproval("?route=invoices");
     expect(screen.getByRole("heading", { name: "All invoices" })).toBeInTheDocument();
     expect(screen.getAllByText("Approved").length).toBeGreaterThan(0);
@@ -77,6 +122,7 @@ describe("invoice approval views", () => {
     renderApproval("?route=vendors");
     expect(screen.getByRole("heading", { name: "Vendors" })).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Vendor pages" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "2" }));
     const kite = screen.getByRole("row", { name: /Kite Analytics/ });
     expect(kite).toHaveTextContent("0");
     expect(kite).toHaveTextContent("INV-1802");
@@ -86,7 +132,7 @@ describe("invoice approval views", () => {
   it("approves after opening an invoice and its line items", async () => {
     const user = userEvent.setup();
     renderApproval();
-    await user.click(screen.getByRole("link", { name: /Northwind Office Supply/ }));
+    await user.click(screen.getByRole("link", { name: /INV-1842, Northwind Office Supply/ }));
     expect(screen.getByRole("heading", { name: "Northwind Office Supply" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "To approve" })).toBeInTheDocument();
     expect(screen.getAllByText("INV-1842").length).toBeGreaterThan(0);
@@ -103,6 +149,32 @@ describe("invoice approval views", () => {
     await user.click(screen.getByRole("button", { name: "Approve" }));
     expect(screen.getByText("Invoice approved")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Approve" })).toBeDisabled();
+  });
+
+  it("shows an empty column when a status has no invoices", () => {
+    render(
+      <ThemeProvider appearance="light">
+        <TrackingBoard
+          invoices={[
+            {
+              id: "inv-1",
+              number: "INV-1",
+              vendor: "Cedar Facilities",
+              amountCents: 100,
+              dueOn: "2026-11-04",
+              due: "Nov 4, 2026",
+              status: "pending",
+              lines: [{ description: "Cleaning", amountCents: 100 }],
+            },
+          ]}
+          onOpen={() => undefined}
+        />
+      </ThemeProvider>,
+    );
+    expect(screen.getByRole("heading", { name: "Pending" })).toBeInTheDocument();
+    expect(screen.getByText("No invoices are waiting on a vendor.")).toBeInTheDocument();
+    expect(screen.getByText("No invoices have been approved.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
   });
 
   it("requires a reason before requesting changes", async () => {

@@ -36,6 +36,7 @@ Navigation:
 
 - **To approve** (`/`) — pending invoices.
 - **All invoices** (`?route=invoices`) — every invoice, with status.
+- **Tracking** (`?route=tracking`) — the same collection page, with invoices grouped by status. The invoice number opens the detail. Approve and Request changes stay on that detail.
 - **Vendors** (`?route=vendors`) — vendor name, open count, and last invoice. Read-only.
 
 On an invoice (`?invoice=inv-1842`):

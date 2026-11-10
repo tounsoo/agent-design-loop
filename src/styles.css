@@ -78,4 +78,23 @@
     text-align: end;
     font-variant-numeric: tabular-nums;
   }
+
+  .tracking-board {
+    align-items: stretch;
+  }
+
+  .tracking-column {
+    flex: 0 0 18rem;
+    inline-size: 18rem;
+    padding: var(--todae-space-3);
+    border: 1px solid var(--todae-color-border-subtle);
+    border-radius: var(--todae-card-radius);
+    background: var(--todae-color-bg-subtle);
+  }
+
+  .tracking-invoice {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 1.5rem;
+  }
 }
