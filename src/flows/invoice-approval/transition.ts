@@ -81,8 +81,8 @@ export type Preview = {
 
 const firstInvoice = sampleInvoices[0];
 
-export function initialFlowState(preview: Preview): FlowState {
-  const invoiceId = firstInvoice?.id ?? "";
+export function initialFlowState(preview: Preview, invoiceId?: string | null): FlowState {
+  const id = invoiceId && invoiceId.length > 0 ? invoiceId : (firstInvoice?.id ?? "");
   switch (preview.state) {
     case "loading":
       return { status: "loading" };
@@ -91,16 +91,16 @@ export function initialFlowState(preview: Preview): FlowState {
     case "error":
       return { status: "error", message: loadErrorMessage };
     case "invoice-approved":
-      return { status: "invoice-approved", invoiceId };
+      return { status: "invoice-approved", invoiceId: id };
     case "changes-requested":
       return {
         status: "changes-requested",
-        invoiceId,
+        invoiceId: id,
         reason: "Quantity on toner does not match the packing slip.",
       };
     case "ready":
       if (preview.page === "detail") {
-        return detailReady(invoiceId, { requestingChanges: preview.branch });
+        return detailReady(id, { requestingChanges: preview.branch });
       }
       return { status: "ready", screen: "collection" };
     case null:
