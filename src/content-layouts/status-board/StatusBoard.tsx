@@ -3,8 +3,9 @@ import { Badge, Card, DensityProvider, EmptyState, Link, ScrollArea, Stack, Text
 import { formatMoney, invoiceHref, statusLabel, type Invoice, type InvoiceStatus } from "../../flows/invoice-approval";
 
 /**
- * Status board for the Tracking route. It fills the collection page body.
- * It is not its own page type. The invoice number is a link. The card is not.
+ * Status-board content layout. Columns of invoice cards for the Tracking
+ * route. This module is product-owned glue. There is no board export in
+ * `@tounsoo/todae`. The invoice number is a link. The card is not.
  *
  * Aging is measured from the sample ledger's as-of date so the board does not
  * depend on the clock. https://todae.omsoo.design/card
@@ -139,7 +140,7 @@ function TrackingColumn({
   );
 }
 
-export function TrackingBoard({
+export function StatusBoard({
   invoices,
   onOpen,
 }: {
@@ -147,21 +148,23 @@ export function TrackingBoard({
   onOpen: (invoiceId: string) => void;
 }) {
   return (
-    <DensityProvider density="compact">
-      <ScrollArea.Root aria-label="Invoice status columns" axis="inline">
-        <Stack.Root className="tracking-board" direction="row" gap="normal">
-          {columns.map((column) => (
-            <TrackingColumn
-              key={column.status}
-              empty={column.empty}
-              hint={column.hint}
-              invoices={invoices.filter((invoice) => invoice.status === column.status)}
-              status={column.status}
-              onOpen={onOpen}
-            />
-          ))}
-        </Stack.Root>
-      </ScrollArea.Root>
-    </DensityProvider>
+    <Stack.Root data-content-layout="status-board" gap="normal">
+      <DensityProvider density="compact">
+        <ScrollArea.Root aria-label="Invoice status columns" axis="inline">
+          <Stack.Root className="tracking-board" direction="row" gap="normal">
+            {columns.map((column) => (
+              <TrackingColumn
+                key={column.status}
+                empty={column.empty}
+                hint={column.hint}
+                invoices={invoices.filter((invoice) => invoice.status === column.status)}
+                status={column.status}
+                onOpen={onOpen}
+              />
+            ))}
+          </Stack.Root>
+        </ScrollArea.Root>
+      </DensityProvider>
+    </Stack.Root>
   );
 }

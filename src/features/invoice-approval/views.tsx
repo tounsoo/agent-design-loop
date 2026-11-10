@@ -26,11 +26,11 @@ import {
   type Invoice,
   type ModeledState,
 } from "../../flows/invoice-approval";
+import { DataTable, useCollectionBrowser } from "../../content-layouts/data-table";
+import { StatusBoard } from "../../content-layouts/status-board";
 import { CollectionPage } from "../../page-types/collection";
 import { DetailPage } from "../../page-types/detail";
-import { useCollectionBrowser } from "./collection";
 import { navCopy } from "./navigation";
-import { TrackingBoard } from "./tracking";
 
 export type Actions = {
   retry: () => void;
@@ -260,15 +260,15 @@ export function InvoiceApprovalView({
         {ready ? (
           <CollectionPage.Description>{tracking ? copy.description : browser.description}</CollectionPage.Description>
         ) : null}
-        {showTable ? <CollectionPage.Toolbar>{browser.toolbar}</CollectionPage.Toolbar> : null}
         <CollectionPage.Body>
           {state.status === "loading" ? <LoadingBody /> : null}
           {showEmpty ? <EmptyBody route={route} /> : null}
           {state.status === "error" ? <ErrorBody message={state.message} onRetry={actions.retry} /> : null}
-          {showTable ? browser.table : null}
-          {showBoard ? <TrackingBoard invoices={ledger} onOpen={actions.openInvoice} /> : null}
+          {showTable ? (
+            <DataTable pagination={browser.pagination} table={browser.table} toolbar={browser.toolbar} />
+          ) : null}
+          {showBoard ? <StatusBoard invoices={ledger} onOpen={actions.openInvoice} /> : null}
         </CollectionPage.Body>
-        {showTable && browser.pagination ? <CollectionPage.Pagination>{browser.pagination}</CollectionPage.Pagination> : null}
       </CollectionPage>
     );
   }

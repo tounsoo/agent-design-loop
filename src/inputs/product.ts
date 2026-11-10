@@ -25,9 +25,14 @@ export const priority = [
 
 export const allowed_page_types = ["collection", "detail"] as const;
 
+/** Chrome around the page. Not the composition inside a page body. */
 export const allowed_layouts = ["app-shell"] as const;
+
+/** Compositions that fill a page type's body. */
+export const allowed_content_layouts = ["data-table", "status-board"] as const;
 
 export type Task = (typeof tasks)[number];
 export type PriorityItem = (typeof priority)[number];
 export type AllowedPageType = (typeof allowed_page_types)[number];
 export type AllowedLayout = (typeof allowed_layouts)[number];
+export type AllowedContentLayout = (typeof allowed_content_layouts)[number];
