@@ -1,0 +1,51 @@
+import { spawnSync } from "node:child_process";
+
+const cases = [
+  {
+    name: "two-primaries",
+    args: ["scripts/check-slots.ts", "--root", "fixtures/illegal/two-primaries"],
+    phrase: "primary slot",
+  },
+  {
+    name: "over-budget",
+    args: ["scripts/check-step-budget.ts", "--graph", "fixtures/illegal/over-budget/graph.ts"],
+    phrase: "step budget",
+  },
+  {
+    name: "off-catalog",
+    args: ["scripts/lint-product-ui.ts", "--root", "fixtures/illegal/off-catalog"],
+    phrase: "off-catalog",
+  },
+  {
+    name: "missing-view",
+    args: [
+      "scripts/check-state-coverage.ts",
+      "--states",
+      "fixtures/illegal/missing-view/model.ts",
+      "--views",
+      "fixtures/illegal/missing-view/views.ts",
+    ],
+    phrase: "has no view",
+  },
+];
+
+let failed = false;
+
+for (const testCase of cases) {
+  const result = spawnSync(process.execPath, ["--import", "tsx", ...testCase.args], {
+    encoding: "utf8",
+  });
+  const output = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+  const exited = result.status !== 0 && result.status !== null;
+  const explained = output.includes(testCase.phrase);
+  if (exited && explained) {
+    console.log(`fixtures: ${testCase.name} failed the check as required (exit ${result.status}).`);
+    continue;
+  }
+  failed = true;
+  console.error(`fixtures: ${testCase.name} was expected to fail with "${testCase.phrase}".`);
+  console.error(output.trim() || `(status ${result.status}, signal ${result.signal})`);
+}
+
+if (failed) process.exit(1);
+console.log("fixtures: illegal cases failed the checks.");

@@ -1,0 +1,23 @@
+/*
+ * Layer order is declared before Todae's sheet so the app frame does not
+ * override component paint. Component styling stays in the catalog.
+ */
+@layer app, todae;
+
+@import "@tounsoo/todae/todae.css";
+
+@layer app {
+  body {
+    margin: 0;
+  }
+
+  #root {
+    box-sizing: border-box;
+    min-height: 100%;
+    padding: 1.5rem;
+  }
+
+  [data-page] {
+    max-width: 46rem;
+  }
+}

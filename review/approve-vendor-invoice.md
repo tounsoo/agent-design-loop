@@ -1,0 +1,23 @@
+# Review: approve-vendor-invoice
+
+Task: review a vendor invoice and approve it. Success state `invoice-approved`. Budget 3.
+
+## What the checks already decided
+
+- The queue is a collection page. Opening a vendor is a link. Approve is not on the queue.
+- Primary is Approve because the priority list ranks it 1. The detail primary slot has that one button.
+- Request changes is rank 2, a secondary button. Choosing it reveals a reason. An empty reason cannot reach `changes-requested`.
+- Line items sit behind one disclosure. That open is a step on the happy path, not a second primary.
+- The shortest path that opens an invoice, opens line items, and approves is 3 steps. `max_steps` is 3.
+- The flow renders loading, empty, error, ready, invoice-approved, and changes-requested.
+- The page types are collection and detail. Each shell appears once.
+
+## What the checks cannot decide
+
+- Is an extra step earning its cost? An approval note would make the path 4. That is not shipped. [Proposal 0001](../proposals/0001-approval-note.md) asks to raise the budget to 4 and require the note. A human still has to say whether the note is worth the step.
+- Is the thing shown first actually what people need first? The queue shows vendor, amount, and due date. On the invoice, identity is visible, line items are disclosed, and Approve is the only primary. The priority list says that order. Research could still disagree.
+- Does research support this split: one queue to choose an invoice, one detail page to decide? Request changes is a branch on the detail page, not a third page.
+- Did we model the states that actually happen? The six states above are the ones this journey names. A partial payment or a duplicate invoice number is not modeled.
+- Should an important control aim for 44 CSS px instead of the 24 CSS px floor? The target-size check enforces the floor only.
+
+No exception is recorded in the product inputs.
