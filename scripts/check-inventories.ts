@@ -2,17 +2,23 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import ts from "typescript";
+import { collectionCompositionViolations } from "./lib/collection-body";
 import { walk } from "./lib/jsx";
 
 /**
- * Inventories are data: catalog exports, layout ids, page type ids, modeled
- * flow states, and the mechanically checked product inputs. Directory sets
- * must match the allowlists. Membership is compared to the pull request base.
+ * Inventories are data: catalog exports, chrome layout ids, content layout
+ * ids, page type ids, modeled flow states, and the mechanically checked
+ * product inputs. Directory sets must match the allowlists. Membership is
+ * compared to the pull request base.
  *
- * A base that does not export allowed_layouts is the bootstrap that records
- * these inventories. It may introduce that list. It may not change a set the
- * base already had. After the list exists, a membership change needs a new
- * proposal file with a reason, a preview, and a graduation.
+ * A list the base does not export may be introduced. That is how allowed_layouts
+ * was recorded, and how allowed_content_layouts is recorded. It may not change
+ * a set the base already had. After a list exists, a membership change needs
+ * a new proposal file with a reason, a preview, and a graduation.
+ *
+ * allowed_layouts is the app frame. allowed_content_layouts are the
+ * compositions that fill a page type's body. A collection ready body has to
+ * be one of those. Loading, empty, and error may stay in the page shell.
  */
 
 const PRODUCT = "src/inputs/product.ts";
@@ -26,6 +32,7 @@ type PriorityItem = { action: string; rank: number; level: string };
 
 type Inventory = {
   layouts: string[] | null;
+  contentLayouts: string[] | null;
   pageTypes: string[];
   catalogExports: string[];
   flowStates: string[];
@@ -198,6 +205,7 @@ function readInventory(root: Root): Inventory {
   const priority = objectRecords(exportedInitializer(product, "priority"), "priority");
   return {
     layouts: optionalStringArray(product, "allowed_layouts"),
+    contentLayouts: optionalStringArray(product, "allowed_content_layouts"),
     pageTypes: sortedUnique(stringArray(exportedInitializer(product, "allowed_page_types"), "allowed_page_types")),
     catalogExports: catalogExports(catalog),
     flowStates: sortedUnique(stringArray(exportedInitializer(states, "modeledStates"), "modeledStates")),
@@ -218,14 +226,16 @@ function readInventory(root: Root): Inventory {
   };
 }
 
-function membershipChanges(base: Inventory, head: Inventory, bootstrap: boolean): string[] {
+function membershipChanges(base: Inventory, head: Inventory): string[] {
   const lines: string[] = [];
   const compare = (label: string, before: unknown, after: unknown) => {
     const left = JSON.stringify(before);
     const right = JSON.stringify(after);
     if (left !== right) lines.push(`${label} changed from ${left} to ${right}.`);
   };
-  if (!bootstrap) compare("allowed_layouts", base.layouts, head.layouts);
+  // A missing list on the base is the bootstrap that records it.
+  if (base.layouts !== null) compare("allowed_layouts", base.layouts, head.layouts);
+  if (base.contentLayouts !== null) compare("allowed_content_layouts", base.contentLayouts, head.contentLayouts);
   compare("allowed_page_types", base.pageTypes, head.pageTypes);
   compare("catalog exports", base.catalogExports, head.catalogExports);
   compare("flow states", base.flowStates, head.flowStates);
@@ -245,7 +255,7 @@ function childDirectories(dir: string): string[] {
     .sort();
 }
 
-function directoryDrift(kind: "layout" | "page type", dir: string, allowed: readonly string[]): string[] {
+function directoryDrift(kind: "layout" | "content layout" | "page type", dir: string, allowed: readonly string[]): string[] {
   const absolute = path.resolve(dir);
   if (!existsSync(absolute)) return [`allowed ${kind} directory ${dir} is missing.`];
   const found = childDirectories(absolute);
@@ -408,13 +418,22 @@ function resolveBaseRev(): string {
   return tryGit(["merge-base", "HEAD", main])?.trim() || fail("inventory: cannot resolve the pull request base.");
 }
 
+function introducedLists(base: Inventory): string[] {
+  const introduced: string[] = [];
+  if (base.layouts === null) introduced.push("allowed_layouts");
+  if (base.contentLayouts === null) introduced.push("allowed_content_layouts");
+  return introduced;
+}
+
 function summary(inventory: Inventory): string {
   const budgets = inventory.maxSteps.map((task) => `${task.id}=${task.max_steps}`).join(", ");
   const actions = inventory.priority.map((item) => item.action).join(", ");
-  return `layouts ${JSON.stringify(inventory.layouts)}; page types ${JSON.stringify(inventory.pageTypes)}; catalog ${inventory.catalogExports.length} exports; flow states ${JSON.stringify(inventory.flowStates)}; max_steps ${budgets}; priority ${actions}; disclosure depth ${inventory.disclosureDepth}, per page ${inventory.disclosuresPerPage}; visible questions ${inventory.visibleQuestions}; target ${inventory.targetMinPx}px.`;
+  return `layouts ${JSON.stringify(inventory.layouts)}; content layouts ${JSON.stringify(inventory.contentLayouts)}; page types ${JSON.stringify(inventory.pageTypes)}; catalog ${inventory.catalogExports.length} exports; flow states ${JSON.stringify(inventory.flowStates)}; max_steps ${budgets}; priority ${actions}; disclosure depth ${inventory.disclosureDepth}, per page ${inventory.disclosuresPerPage}; visible questions ${inventory.visibleQuestions}; target ${inventory.targetMinPx}px.`;
 }
 
 const layoutsFlag = flag("--layouts");
+const contentLayoutsFlag = flag("--content-layouts");
+const featuresFlag = flag("--features");
 const headFlag = flag("--head");
 const baseFlag = flag("--base");
 
@@ -432,25 +451,58 @@ if (layoutsFlag) {
   process.exit(0);
 }
 
+if (contentLayoutsFlag) {
+  const allowed = readInventory({ kind: "dir", dir: process.cwd() }).contentLayouts;
+  if (!allowed) fail("inventory: allowed_content_layouts is missing from src/inputs/product.ts.");
+  const violations = directoryDrift("content layout", contentLayoutsFlag, allowed);
+  if (violations.length > 0) {
+    for (const violation of violations) console.error(`inventory: ${violation}`);
+    process.exit(1);
+  }
+  console.log("inventory: content layout directories match allowed_content_layouts.");
+  process.exit(0);
+}
+
+if (featuresFlag) {
+  const allowed = readInventory({ kind: "dir", dir: process.cwd() }).contentLayouts;
+  if (!allowed) fail("inventory: allowed_content_layouts is missing from src/inputs/product.ts.");
+  const dir = path.resolve(featuresFlag);
+  const localStyles = path.join(dir, "styles.css");
+  const stylesPath = existsSync(localStyles) ? localStyles : path.resolve("src/styles.css");
+  const violations = collectionCompositionViolations(dir, allowed, stylesPath);
+  if (violations.length > 0) {
+    for (const violation of violations) console.error(`inventory: ${violation}`);
+    process.exit(1);
+  }
+  console.log("inventory: collection bodies use a registered content layout.");
+  process.exit(0);
+}
+
 if (headFlag && baseFlag) {
   const head = readInventory({ kind: "dir", dir: path.resolve(headFlag) });
   const base = readInventory({ kind: "dir", dir: path.resolve(baseFlag) });
   if (!head.layouts) fail("inventory: allowed_layouts is missing from the head product inputs.");
-  const bootstrap = base.layouts === null;
-  const changes = membershipChanges(base, head, bootstrap);
+  const changes = membershipChanges(base, head);
   const explained = explainingProposals(new Set(proposalsOnDisk(path.resolve(baseFlag)).keys()), proposalsOnDisk(path.resolve(headFlag)));
   if (!reportMembership(changes, explained)) process.exit(1);
-  const note = bootstrap ? "base has no allowed_layouts; recorded the head inventories." : "membership matches the base.";
+  const introduced = introducedLists(base);
+  const note =
+    introduced.length > 0
+      ? `base has no ${introduced.join(" or ")}; recorded the head inventories.`
+      : "membership matches the base.";
   console.log(`inventory: ${note}`);
   process.exit(0);
 }
 
 const head = readInventory({ kind: "dir", dir: process.cwd() });
 if (!head.layouts) fail("inventory: allowed_layouts is missing from src/inputs/product.ts.");
+if (!head.contentLayouts) fail("inventory: allowed_content_layouts is missing from src/inputs/product.ts.");
 
 const violations = [
   ...directoryDrift("layout", "src/layouts", head.layouts),
+  ...directoryDrift("content layout", "src/content-layouts", head.contentLayouts),
   ...directoryDrift("page type", "src/page-types", head.pageTypes),
+  ...collectionCompositionViolations(path.resolve("src/features"), head.contentLayouts, path.resolve("src/styles.css")),
 ];
 
 const declaredPages = sortedUnique(stringArray(exportedInitializer(parseSource(PAGE_TYPES, readText({ kind: "dir", dir: process.cwd() }, PAGE_TYPES)), "pageTypes"), "pageTypes"));
@@ -465,14 +517,16 @@ for (const id of barrelMembers(path.resolve(PAGE_TYPES))) {
 for (const id of importedMembers(path.resolve("src"), "layouts")) {
   if (!head.layouts.includes(id)) violations.push(`undeclared layout "${id}" is not in the inventory.`);
 }
+for (const id of importedMembers(path.resolve("src"), "content-layouts")) {
+  if (!head.contentLayouts.includes(id)) violations.push(`undeclared content layout "${id}" is not in the inventory.`);
+}
 for (const id of importedMembers(path.resolve("src"), "page-types")) {
   if (!head.pageTypes.includes(id)) violations.push(`undeclared page type "${id}" is not in the inventory.`);
 }
 
 const baseRev = resolveBaseRev();
 const base = readInventory({ kind: "git", rev: baseRev });
-const bootstrap = base.layouts === null;
-const changes = membershipChanges(base, head, bootstrap);
+const changes = membershipChanges(base, head);
 const explained = explainingProposals(proposalNamesAtRev(baseRev), proposalsOnDisk(process.cwd()));
 const matched = reportMembership(changes, explained);
 
@@ -481,6 +535,7 @@ if (violations.length > 0 || !matched) {
   process.exit(1);
 }
 
-if (bootstrap) console.log("inventory: base has no allowed_layouts; recorded the current inventories.");
+const introduced = introducedLists(base);
+if (introduced.length > 0) console.log(`inventory: base has no ${introduced.join(" or ")}; recorded the current inventories.`);
 else console.log(`inventory: membership matches ${baseRev.slice(0, 7)}.`);
 console.log(`inventory: ${summary(head)}`);

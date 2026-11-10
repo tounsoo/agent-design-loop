@@ -8,9 +8,10 @@ Read, in order:
 2. UX rules: `src/rules/ux-rules.ts`
 3. Catalog, the only UI entry: `src/catalog/index.ts`
 4. Layouts: `src/layouts`
-5. Page types: `src/page-types`
-6. Flow model: `src/flows/invoice-approval`
-7. Proposals: `proposals/README.md`
+5. Content layouts: `src/content-layouts`
+6. Page types: `src/page-types`
+7. Flow model: `src/flows/invoice-approval`
+8. Proposals: `proposals/README.md`
 
 The product is **Meridian**, an accounts-payable workspace. The named task is in the product inputs.
 
@@ -20,4 +21,4 @@ Loop: read inventories → generate within constraints → run checks and fix �
 
 Checks: `npm run check:fixtures && npm run check`
 
-If the work needs a catalog export, layout, page type, flow state, or rule input that is not in those inventories, open a proposal. Do not invent the missing piece, and do not edit an inventory to sneak the change through.
+If the work needs a catalog export, layout, content layout, page type, flow state, or rule input that is not in those inventories, open a proposal. Do not invent the missing piece, and do not edit an inventory to sneak the change through.

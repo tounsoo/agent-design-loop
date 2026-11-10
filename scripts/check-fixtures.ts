@@ -43,6 +43,27 @@ const cases = [
     ],
     phrase: "without a proposal",
   },
+  {
+    name: "undeclared-content-layout",
+    args: ["scripts/check-inventories.ts", "--content-layouts", "fixtures/illegal/undeclared-content-layout"],
+    phrase: "undeclared content layout",
+  },
+  {
+    name: "content-layout-expansion",
+    args: [
+      "scripts/check-inventories.ts",
+      "--head",
+      "fixtures/illegal/content-layout-expansion/head",
+      "--base",
+      "fixtures/illegal/content-layout-expansion/base",
+    ],
+    phrase: "without a proposal",
+  },
+  {
+    name: "ad-hoc-content",
+    args: ["scripts/check-inventories.ts", "--features", "fixtures/illegal/ad-hoc-content"],
+    phrase: "not a registered content layout",
+  },
 ];
 
 let failed = false;

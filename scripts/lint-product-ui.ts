@@ -5,7 +5,7 @@ import { attributeValue, jsxTagName, lineOf, listSourceFiles, parseFile, walk } 
 const rootArg = process.argv.indexOf("--root");
 const roots =
   rootArg === -1
-    ? ["src/features", "src/page-types", "src/layouts", "src/harness", "src/App.tsx", "src/main.tsx", "src/catalog"]
+    ? ["src/features", "src/page-types", "src/layouts", "src/content-layouts", "src/harness", "src/App.tsx", "src/main.tsx", "src/catalog"]
     : [process.argv[rootArg + 1] ?? ""];
 
 const forbiddenTags = new Set(["button", "input", "select", "textarea", "a"]);

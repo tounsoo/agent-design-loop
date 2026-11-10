@@ -35,6 +35,7 @@ describe("invoice approval views", () => {
     expect(screen.getByRole("link", { name: /Northwind Office Supply/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Helios Freight/ })).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Invoice pages" })).toBeInTheDocument();
+    expect(document.querySelector("[data-content-layout='data-table']")).not.toBeNull();
     expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
   });
 
@@ -45,6 +46,7 @@ describe("invoice approval views", () => {
 
     renderApproval("?state=empty");
     expect(screen.getByRole("heading", { name: "No invoices waiting" })).toBeInTheDocument();
+    expect(document.querySelector("[data-content-layout='data-table']")).toBeNull();
   });
 
   it("shows the load error with a secondary retry", () => {
@@ -69,6 +71,7 @@ describe("invoice approval views", () => {
   it("lists every status on all invoices and vendors on their own collection", () => {
     const { unmount } = renderApproval("?route=invoices");
     expect(screen.getByRole("heading", { name: "All invoices" })).toBeInTheDocument();
+    expect(document.querySelector("[data-content-layout='data-table']")).not.toBeNull();
     expect(screen.getAllByText("Approved").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Changes requested").length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
@@ -76,6 +79,7 @@ describe("invoice approval views", () => {
 
     renderApproval("?route=vendors");
     expect(screen.getByRole("heading", { name: "Vendors" })).toBeInTheDocument();
+    expect(document.querySelector("[data-content-layout='data-table']")).not.toBeNull();
     expect(screen.getByRole("navigation", { name: "Vendor pages" })).toBeInTheDocument();
     const kite = screen.getByRole("row", { name: /Kite Analytics/ });
     expect(kite).toHaveTextContent("0");
@@ -88,6 +92,7 @@ describe("invoice approval views", () => {
     renderApproval();
     await user.click(screen.getByRole("link", { name: /Northwind Office Supply/ }));
     expect(screen.getByRole("heading", { name: "Northwind Office Supply" })).toBeInTheDocument();
+    expect(document.querySelector("[data-content-layout='data-table']")).toBeNull();
     expect(screen.getByRole("link", { name: "To approve" })).toBeInTheDocument();
     expect(screen.getAllByText("INV-1842").length).toBeGreaterThan(0);
     const primary = document.querySelector("[data-slot='primary']");
