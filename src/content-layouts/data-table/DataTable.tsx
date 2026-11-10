@@ -34,7 +34,10 @@ import {
 } from "../../flows/invoice-approval";
 
 /**
- * Filter bar + data table, composed the way the Todae recipes describe.
+ * Data-table content layout. Filter bar and data table, composed the way
+ * the Todae recipes describe. This module is product-owned glue. There is
+ * no `DataTable.*` export in `@tounsoo/todae`.
+ *
  * Search, sort, filters, and paging are not steps on the approval path.
  * Row selection is omitted: the queue's job is to open one invoice, and
  * there is no bulk approve.
@@ -533,6 +536,25 @@ export function useCollectionBrowser(
     table,
     pagination,
   };
+}
+
+/** The ready collection body: filter bar, table, and pagination, in that order. */
+export function DataTable({
+  toolbar,
+  table,
+  pagination,
+}: {
+  toolbar: ReactNode;
+  table: ReactNode;
+  pagination: ReactNode | null;
+}) {
+  return (
+    <Stack.Root data-content-layout="data-table" gap="spacious">
+      <div data-slot="toolbar">{toolbar}</div>
+      {table}
+      {pagination ? <div data-slot="pagination">{pagination}</div> : null}
+    </Stack.Root>
+  );
 }
 
 function meridianCopy(
