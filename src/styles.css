@@ -79,8 +79,81 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* Queue columns stay on one line. A wide table scrolls in the collection's ScrollArea. */
-  .collection-page :is(th, td):not([colspan]) {
-    white-space: nowrap;
+  .collection-page [data-content-layout="data-table"],
+  .queue-scroll {
+    min-inline-size: 0;
+    max-inline-size: 100%;
+  }
+
+  /* Ten invoice columns share the page width so Cost center and Submitter stay on screen at 1280px. */
+  .invoice-queue {
+    inline-size: 100%;
+    max-inline-size: 100%;
+    table-layout: fixed;
+  }
+
+  .invoice-queue :is(th, td) {
+    white-space: normal;
+  }
+
+  .invoice-queue th button {
+    max-inline-size: 100%;
+    white-space: normal;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .invoice-queue td span {
+    white-space: normal;
+  }
+
+  .invoice-queue th:nth-child(1),
+  .invoice-queue td:nth-child(1) {
+    inline-size: 9%;
+  }
+
+  .invoice-queue th:nth-child(2),
+  .invoice-queue td:nth-child(2) {
+    inline-size: 8%;
+  }
+
+  .invoice-queue th:nth-child(3),
+  .invoice-queue td:nth-child(3) {
+    inline-size: 13%;
+  }
+
+  .invoice-queue th:nth-child(4),
+  .invoice-queue td:nth-child(4) {
+    inline-size: 10%;
+  }
+
+  .invoice-queue th:nth-child(5),
+  .invoice-queue td:nth-child(5) {
+    inline-size: 10%;
+  }
+
+  .invoice-queue th:nth-child(6),
+  .invoice-queue td:nth-child(6) {
+    inline-size: 12%;
+  }
+
+  .invoice-queue th:nth-child(7),
+  .invoice-queue td:nth-child(7) {
+    inline-size: 12%;
+  }
+
+  .invoice-queue th:nth-child(8),
+  .invoice-queue td:nth-child(8) {
+    inline-size: 7%;
+  }
+
+  .invoice-queue th:nth-child(9),
+  .invoice-queue td:nth-child(9) {
+    inline-size: 10%;
+  }
+
+  .invoice-queue th:nth-child(10),
+  .invoice-queue td:nth-child(10) {
+    inline-size: 9%;
   }
 }

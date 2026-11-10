@@ -3,11 +3,9 @@ import { DensityProvider, Stack, Text } from "../../catalog";
 import { usePageHeading } from "../../layouts/app-shell";
 
 /**
- * Collection page type. Encodes the Todae filter bar and data table recipes
- * as one shell. Callers fill the slots. The shell owns the chrome.
- *
- * https://todae.omsoo.design/recipes/filter-bar
- * https://todae.omsoo.design/recipes/data-table
+ * Collection page type. Heading, description, and body. The ready body is a
+ * content layout; this shell does not own that composition. Loading, empty,
+ * and error render in the body and are not content layouts.
  *
  * The queue chooses one record. This shell has no primary-action slot.
  * Compact density is the payables queue: more rows in the same frame.
@@ -34,16 +32,12 @@ export function Description({ children }: { children: ReactNode }) {
   );
 }
 
-export function Toolbar({ children }: { children: ReactNode }) {
-  return <div data-slot="toolbar">{children}</div>;
-}
-
 export function Body({ children }: { children: ReactNode }) {
-  return <Stack.Root gap="normal">{children}</Stack.Root>;
-}
-
-export function Pagination({ children }: { children: ReactNode }) {
-  return <div data-slot="pagination">{children}</div>;
+  return (
+    <Stack.Root data-slot="body" gap="normal">
+      {children}
+    </Stack.Root>
+  );
 }
 
 function requireOne(items: readonly ReactNode[], slot: unknown, name: string): ReactElement {
@@ -71,9 +65,7 @@ function CollectionPageRoot({ children, state }: { children: ReactNode; state: s
   const items = Children.toArray(children);
   const heading = requireOne(items, Heading, "Heading");
   const description = optional(items, Description, "Description");
-  const toolbar = optional(items, Toolbar, "Toolbar");
   const body = requireOne(items, Body, "Body");
-  const pagination = optional(items, Pagination, "Pagination");
 
   return (
     <DensityProvider className="collection-page" density="compact">
@@ -82,9 +74,7 @@ function CollectionPageRoot({ children, state }: { children: ReactNode; state: s
           {heading}
           {description}
         </Stack.Root>
-        {toolbar}
         {body}
-        {pagination}
       </Stack.Root>
     </DensityProvider>
   );
@@ -93,7 +83,5 @@ function CollectionPageRoot({ children, state }: { children: ReactNode; state: s
 export const CollectionPage = Object.assign(CollectionPageRoot, {
   Heading,
   Description,
-  Toolbar,
   Body,
-  Pagination,
 });

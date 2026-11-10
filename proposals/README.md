@@ -5,12 +5,13 @@ A proposal is how an inventory grows. The agent writes one when the work needs s
 The inventories are:
 
 - the component catalog, `src/catalog/index.ts`
-- layouts, `allowed_layouts` in `src/inputs/product.ts` and the directories in `src/layouts`
+- layouts, `allowed_layouts` in `src/inputs/product.ts` and the directories in `src/layouts` — the app frame
+- content layouts, `allowed_content_layouts` in `src/inputs/product.ts` and the directories in `src/content-layouts` — the compositions that fill a page type's body
 - page types, `allowed_page_types` in `src/inputs/product.ts` and the directories in `src/page-types`
 - flow states, `modeledStates` in `src/flows/invoice-approval/states.ts`
 - rule inputs in `src/inputs/product.ts` and `src/rules/ux-rules.ts`: step budgets (`max_steps`), priority, disclosure caps, the visible-question cap, the target-size floor, and the allowed lists
 
-Editing a layout or page-type implementation without changing its id is not an inventory change.
+Editing a layout, content layout, or page-type implementation without changing its id is not an inventory change.
 
 Each proposal includes:
 

@@ -42,7 +42,10 @@ import {
 } from "../../flows/invoice-approval";
 
 /**
- * Filter bar + data table, composed the way the Todae recipes describe.
+ * Data-table content layout. Filter bar and data table, composed the way
+ * the Todae recipes describe. This module is product-owned glue. There is
+ * no `DataTable.*` export in `@tounsoo/todae`.
+ *
  * Search, sort, filters, and paging are not steps on the approval path.
  * Row selection is omitted: the queue's job is to open one invoice, and
  * there is no bulk approve. The invoice number is a link in the cell.
@@ -551,7 +554,7 @@ export function useCollectionBrowser(
     route === "vendors" ? (
       <Stack.Root gap="condensed">
         <Text.Root tone="muted">{`${matchCount} of ${total} ${noun("vendor", total)}`}</Text.Root>
-        <ScrollArea.Root aria-label={copy.scroll} axis="inline" focusable>
+        <ScrollArea.Root aria-label={copy.scroll} axis="inline" className="queue-scroll" focusable>
           <Table.Root>
             <Table.Caption>{copy.caption}</Table.Caption>
             <Table.Head>
@@ -578,8 +581,8 @@ export function useCollectionBrowser(
     ) : (
       <Stack.Root gap="condensed">
         <Text.Root tone="muted">{`${matchCount} of ${total} ${noun("invoice", total)}`}</Text.Root>
-        <ScrollArea.Root aria-label={copy.scroll} axis="inline" focusable>
-          <Table.Root>
+        <ScrollArea.Root aria-label={copy.scroll} axis="inline" className="queue-scroll" focusable>
+          <Table.Root className="invoice-queue">
             <Table.Caption>{copy.caption}</Table.Caption>
             <Table.Head>
               <Table.Row>{INVOICE_COLUMNS.map((column) => header(column))}</Table.Row>
@@ -672,6 +675,25 @@ export function useCollectionBrowser(
     table,
     pagination,
   };
+}
+
+/** The ready collection body: filter bar, table, and pagination, in that order. */
+export function DataTable({
+  toolbar,
+  table,
+  pagination,
+}: {
+  toolbar: ReactNode;
+  table: ReactNode;
+  pagination: ReactNode | null;
+}) {
+  return (
+    <Stack.Root data-content-layout="data-table" gap="spacious">
+      <div data-slot="toolbar">{toolbar}</div>
+      {table}
+      {pagination ? <div data-slot="pagination">{pagination}</div> : null}
+    </Stack.Root>
+  );
 }
 
 function meridianCopy(
