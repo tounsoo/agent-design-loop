@@ -1,8 +1,11 @@
 export {
   formatMoney,
+  formatQuantity,
   invoiceById,
+  invoiceSubtotalCents,
   isModeledState,
   isScreen,
+  lineAmountCents,
   loadErrorMessage,
   modeledStates,
   sampleInvoices,

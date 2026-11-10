@@ -41,9 +41,9 @@ Navigation:
 On an invoice (`?invoice=inv-1842`):
 
 - Breadcrumbs return to the collection you came from.
-- Identity and amounts are a DataList.
+- Header fields a reviewer matches are a DataList: invoice date, received date, due date, PO number, payment terms, payment method, tax, subtotal, total, billing entity, and who submitted it.
 - **Approve** is the only primary action.
-- **Line items** sit behind one disclosure.
+- **Line items** sit behind one disclosure. Each line shows description, quantity, unit price, amount, GL account, and cost center. Quantity times unit price, plus tax, equals the invoice total.
 - **Request changes** is secondary. Choosing it reveals a required reason. Sending that request is a branch, not the happy path.
 
 Search, filters, sort, and paging are available on collections. They are not steps on the happy path.

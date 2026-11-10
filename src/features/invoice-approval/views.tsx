@@ -1,6 +1,7 @@
 import { useId, type ReactElement } from "react";
 import {
   Alert,
+  Badge,
   Breadcrumbs,
   Button,
   DataList,
@@ -11,19 +12,25 @@ import {
   Label,
   Link,
   Loader,
+  ScrollArea,
   Skeleton,
   Stack,
   Table,
   Text,
   VisuallyHidden,
+  type BadgeTone,
 } from "../../catalog";
 import {
   formatMoney,
+  formatQuantity,
+  invoiceSubtotalCents,
+  lineAmountCents,
   routeHref,
   statusLabel,
   type CollectionRoute,
   type FlowState,
   type Invoice,
+  type InvoiceStatus,
   type ModeledState,
 } from "../../flows/invoice-approval";
 import { CollectionPage } from "../../page-types/collection";
@@ -111,29 +118,48 @@ function ErrorBody({ message, onRetry }: { message: string; onRetry: () => void 
   );
 }
 
-function InvoiceFacts({ invoice, status }: { invoice: Invoice; status: Invoice["status"] }) {
+const STATUS_TONE: Record<InvoiceStatus, BadgeTone> = {
+  pending: "warning",
+  approved: "success",
+  "changes-requested": "info",
+};
+
+function InvoiceFacts({ invoice, status }: { invoice: Invoice; status: InvoiceStatus }) {
+  const facts: { term: string; details: string }[] = [
+    { term: "Vendor", details: invoice.vendor },
+    { term: "Invoice", details: invoice.number },
+    { term: "Status", details: statusLabel[status] },
+    { term: "Total", details: formatMoney(invoice.amountCents) },
+    { term: "Subtotal", details: formatMoney(invoiceSubtotalCents(invoice)) },
+    { term: "Tax", details: formatMoney(invoice.taxCents) },
+    { term: "Due", details: invoice.due },
+    { term: "Invoice date", details: invoice.invoiceDate },
+    { term: "Received", details: invoice.received },
+    { term: "Payment terms", details: invoice.paymentTerms },
+    { term: "PO number", details: invoice.poNumber },
+    { term: "Billing entity", details: invoice.billingEntity },
+    { term: "Submitted by", details: invoice.submittedBy },
+    { term: "Payment method", details: invoice.paymentMethod },
+    { term: "Currency", details: invoice.currency },
+  ];
   return (
-    <DataList.Root orientation="horizontal">
-      <DataList.Item>
-        <DataList.Term>Invoice</DataList.Term>
-        <DataList.Details>{invoice.number}</DataList.Details>
-      </DataList.Item>
-      <DataList.Item>
-        <DataList.Term>Vendor</DataList.Term>
-        <DataList.Details>{invoice.vendor}</DataList.Details>
-      </DataList.Item>
-      <DataList.Item>
-        <DataList.Term>Status</DataList.Term>
-        <DataList.Details>{statusLabel[status]}</DataList.Details>
-      </DataList.Item>
-      <DataList.Item>
-        <DataList.Term>Amount</DataList.Term>
-        <DataList.Details>{formatMoney(invoice.amountCents)}</DataList.Details>
-      </DataList.Item>
-      <DataList.Item>
-        <DataList.Term>Due</DataList.Term>
-        <DataList.Details>{invoice.due}</DataList.Details>
-      </DataList.Item>
+    <DataList.Root aria-label="Invoice" minItemSize="16rem" orientation="vertical">
+      {facts.map((fact) => (
+        <DataList.Item key={fact.term}>
+          <DataList.Term>{fact.term}</DataList.Term>
+          <DataList.Details>
+            {fact.term === "Status" ? (
+              <Badge.Root tone={STATUS_TONE[status]}>{fact.details}</Badge.Root>
+            ) : fact.term === "Total" ? (
+              <Text.Root as="span" weight="bold">
+                {fact.details}
+              </Text.Root>
+            ) : (
+              fact.details
+            )}
+          </DataList.Details>
+        </DataList.Item>
+      ))}
     </DataList.Root>
   );
 }
@@ -147,6 +173,7 @@ function LineItems({
   open: boolean;
   onToggle: (open: boolean) => void;
 }) {
+  const subtotal = invoiceSubtotalCents(invoice);
   return (
     <Disclosure.Root
       open={open}
@@ -155,22 +182,65 @@ function LineItems({
       }}
     >
       <Disclosure.Summary>Line items</Disclosure.Summary>
-      <Table.Root>
-        <Table.Head>
-          <Table.Row>
-            <Table.HeaderCell scope="col">Description</Table.HeaderCell>
-            <Table.HeaderCell scope="col">Amount</Table.HeaderCell>
-          </Table.Row>
-        </Table.Head>
-        <Table.Body>
-          {invoice.lines.map((line) => (
-            <Table.Row key={line.description}>
-              <Table.Cell>{line.description}</Table.Cell>
-              <Table.Cell>{formatMoney(line.amountCents)}</Table.Cell>
+      <ScrollArea.Root aria-label={`${invoice.number} line items`} axis="inline" focusable>
+        <Table.Root>
+          <Table.Caption>{`${invoice.number} line items`}</Table.Caption>
+          <Table.Head>
+            <Table.Row>
+              <Table.HeaderCell scope="col">Description</Table.HeaderCell>
+              <Table.HeaderCell className="num" scope="col">
+                Quantity
+              </Table.HeaderCell>
+              <Table.HeaderCell className="num" scope="col">
+                Unit price
+              </Table.HeaderCell>
+              <Table.HeaderCell className="num" scope="col">
+                Amount
+              </Table.HeaderCell>
+              <Table.HeaderCell scope="col">GL account</Table.HeaderCell>
+              <Table.HeaderCell scope="col">Cost center</Table.HeaderCell>
             </Table.Row>
-          ))}
-        </Table.Body>
-      </Table.Root>
+          </Table.Head>
+          <Table.Body>
+            {invoice.lines.map((line) => (
+              <Table.Row key={line.description}>
+                <Table.HeaderCell scope="row">{line.description}</Table.HeaderCell>
+                <Table.Cell className="num">{formatQuantity(line.quantity)}</Table.Cell>
+                <Table.Cell className="num">{formatMoney(line.unitPriceCents)}</Table.Cell>
+                <Table.Cell className="num">{formatMoney(lineAmountCents(line))}</Table.Cell>
+                <Table.Cell>{line.glAccount}</Table.Cell>
+                <Table.Cell>{line.costCenter}</Table.Cell>
+              </Table.Row>
+            ))}
+          </Table.Body>
+          <Table.Foot>
+            <Table.Row>
+              <Table.HeaderCell scope="row">Subtotal</Table.HeaderCell>
+              <Table.Cell />
+              <Table.Cell />
+              <Table.Cell className="num">{formatMoney(subtotal)}</Table.Cell>
+              <Table.Cell />
+              <Table.Cell />
+            </Table.Row>
+            <Table.Row>
+              <Table.HeaderCell scope="row">Tax</Table.HeaderCell>
+              <Table.Cell />
+              <Table.Cell />
+              <Table.Cell className="num">{formatMoney(invoice.taxCents)}</Table.Cell>
+              <Table.Cell />
+              <Table.Cell />
+            </Table.Row>
+            <Table.Row>
+              <Table.HeaderCell scope="row">Total</Table.HeaderCell>
+              <Table.Cell />
+              <Table.Cell />
+              <Table.Cell className="num">{formatMoney(invoice.amountCents)}</Table.Cell>
+              <Table.Cell />
+              <Table.Cell />
+            </Table.Row>
+          </Table.Foot>
+        </Table.Root>
+      </ScrollArea.Root>
     </Disclosure.Root>
   );
 }

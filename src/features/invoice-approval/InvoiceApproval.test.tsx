@@ -99,6 +99,27 @@ describe("invoice approval views", () => {
     if (details) details.open = true;
     details?.dispatchEvent(new Event("toggle", { bubbles: true }));
     expect(await screen.findByText("Printer toner")).toBeInTheDocument();
+    expect(screen.getByText("PO-4418")).toBeInTheDocument();
+    expect(screen.getByText("Invoice date")).toBeInTheDocument();
+    expect(screen.getByText("Nov 4, 2026")).toBeInTheDocument();
+    expect(screen.getByText("Received")).toBeInTheDocument();
+    expect(screen.getByText("Nov 5, 2026")).toBeInTheDocument();
+    expect(screen.getByText("Payment terms")).toBeInTheDocument();
+    expect(screen.getByText("Net 14")).toBeInTheDocument();
+    expect(screen.getByText("Submitted by")).toBeInTheDocument();
+    expect(screen.getByText("Priya Shah")).toBeInTheDocument();
+    expect(screen.getByText("Billing entity")).toBeInTheDocument();
+    expect(screen.getByText("Meridian Labs, Inc.")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Quantity" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Unit price" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Amount" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "GL account" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Cost center" })).toBeInTheDocument();
+    const toner = screen.getByRole("row", { name: /Printer toner/ });
+    expect(toner).toHaveTextContent("$215.00");
+    expect(toner).toHaveTextContent("$860.00");
+    expect(toner).toHaveTextContent("6100 Office supplies");
+    expect(toner).toHaveTextContent("140 Facilities");
 
     await user.click(screen.getByRole("button", { name: "Approve" }));
     expect(screen.getByText("Invoice approved")).toBeInTheDocument();

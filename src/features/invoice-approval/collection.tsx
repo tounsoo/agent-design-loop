@@ -187,7 +187,7 @@ export function useCollectionBrowser(
   };
 
   const invoiceMatches = invoiceRows.filter((invoice) => {
-    const text = `${invoice.number} ${invoice.vendor} ${statusLabel[invoice.status]} ${formatMoney(invoice.amountCents)} ${invoice.due}`;
+    const text = `${invoice.number} ${invoice.poNumber} ${invoice.vendor} ${statusLabel[invoice.status]} ${formatMoney(invoice.amountCents)} ${invoice.due}`;
     if (needle && !text.toLowerCase().includes(needle)) return false;
     return facets.every((facet) => {
       const chosen = filters[facet.key] ?? [];
