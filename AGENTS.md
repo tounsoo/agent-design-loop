@@ -1,6 +1,6 @@
 # Agent loop
 
-This file is a pointer. The checks enforce the rules. Inventories are data. This file does not list what they contain.
+This file is a pointer. The checks enforce the rules. Inventories are data. This file does not list what they contain. A walkthrough for people new to the repo is `docs/how-it-works.md`.
 
 Read, in order:
 
