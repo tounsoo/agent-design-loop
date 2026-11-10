@@ -1,5 +1,7 @@
 # tounsoo/agent-design-loop
 
+New here? [How this design loop works](docs/how-it-works.md) explains the control ladder, the layers on a Meridian screen, the checks, and how a proposal graduates.
+
 This repository is a testing ground for deterministic UI design for agents. An agent generates UI inside constraints that already live in the repo, runs checks that can fail the build, fixes what those checks allow, and opens a proposal when a rule has to break.
 
 The product is **Meridian**, an accounts-payable workspace for vendor invoice approval. The frame is an app shell. The page types are `collection` (To approve, All invoices, and Vendors) and `detail` (one invoice). The named task is `approve-vendor-invoice`.
