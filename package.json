@@ -1,0 +1,51 @@
+{
+  "name": "agent-design-loop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . && npm run lint:product-ui && npm run lint:slots",
+    "lint:product-ui": "tsx scripts/lint-product-ui.ts",
+    "lint:slots": "tsx scripts/check-slots.ts",
+    "check:step-budget": "tsx scripts/check-step-budget.ts",
+    "check:state-coverage": "tsx scripts/check-state-coverage.ts",
+    "check:disclosure": "tsx scripts/check-disclosure.ts",
+    "check:priority": "tsx scripts/check-priority.ts",
+    "check:one-thing": "tsx scripts/check-one-thing.ts",
+    "check:target-size": "tsx scripts/check-target-size.ts",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm run lint && npm run check:step-budget && npm run check:disclosure && npm run check:priority && npm run check:one-thing && npm run check:state-coverage && npm run check:target-size && npm run test",
+    "check:fixtures": "tsx scripts/check-fixtures.ts"
+  },
+  "dependencies": {
+    "@tounsoo/todae": "0.10.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "typescript": "~6.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^22.19.0",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@vitejs/plugin-react": "^5.1.0",
+    "eslint": "^9.39.1",
+    "jsdom": "^27.0.1",
+    "puppeteer-core": "^24.29.0",
+    "tsx": "^4.20.6",
+    "typescript-eslint": "^8.46.3",
+    "vite": "^7.2.2",
+    "vitest": "^4.0.8"
+  }
+}

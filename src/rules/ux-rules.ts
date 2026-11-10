@@ -1,0 +1,48 @@
+/**
+ * Each rule is a structural check, a product-owned input, and a review question.
+ * The checks fail the build. The questions stay in review notes.
+ */
+export const uxRules = [
+  {
+    id: "minimize-interaction-cost",
+    structuralCheck: "npm run check:step-budget",
+    input: "src/inputs/product.ts#tasks",
+    reviewQuestion: "Is an extra step earning its cost?",
+  },
+  {
+    id: "progressive-reveal",
+    structuralCheck: "npm run lint:slots && npm run check:disclosure && npm run check:priority",
+    input: "src/inputs/product.ts#priority",
+    reviewQuestion: "Is the thing shown first actually what people need first?",
+  },
+  {
+    id: "one-thing-per-page",
+    structuralCheck: "npm run check:one-thing",
+    input: "src/inputs/product.ts#allowed_page_types",
+    reviewQuestion: "Does research support grouping these questions?",
+  },
+  {
+    id: "exhaustive-states",
+    structuralCheck: "npm run check:state-coverage",
+    input: "src/flows/notification-prefs/states.ts#modeledStates",
+    reviewQuestion: "Did we model the states that actually happen?",
+  },
+  {
+    id: "target-size",
+    structuralCheck: "npm run check:target-size",
+    input: "No product exception is recorded. WCAG 2.5.8 spacing may pass an undersized control.",
+    reviewQuestion: "Should an important control aim for the stricter 44 CSS px enhanced size?",
+  },
+] as const;
+
+/** One disclosure level: Delivery windows, and nothing nested under it. */
+export const MAX_DISCLOSURE_DEPTH = 1;
+
+/** One disclosure control in the settings view. */
+export const MAX_DISCLOSURES_PER_PAGE = 1;
+
+/** One question visible before a disclosure opens. */
+export const MAX_VISIBLE_QUESTIONS = 1;
+
+/** WCAG 2.5.8 Target Size (Minimum). */
+export const TARGET_MIN_PX = 24;
