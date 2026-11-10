@@ -16,10 +16,20 @@ export {
   flowFromLocation,
   invoiceHref,
   isCollectionRoute,
+  isVendorDetail,
   locationKey,
   routeHref,
+  vendorHref,
 } from "./location";
 export type { AppLocation, CollectionRoute } from "./location";
+export {
+  invoicesForVendor,
+  outstandingCents,
+  sampleVendors,
+  vendorById,
+  vendorByName,
+} from "./vendors";
+export type { Vendor } from "./vendors";
 export { isTaskSuccess, taskEdges, taskHappyPath, taskStart } from "./graph";
 export { shortestPath } from "./shortest-path";
 export type { TaskEdge } from "./shortest-path";

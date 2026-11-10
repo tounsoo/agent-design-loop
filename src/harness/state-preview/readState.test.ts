@@ -18,7 +18,12 @@ describe("state preview harness", () => {
     expect(readLocation("?route=invoices").route).toBe("invoices");
     expect(readLocation("?route=vendors").route).toBe("vendors");
     expect(readLocation("?route=nope").route).toBe("to-approve");
-    expect(readLocation("?invoice=inv-1842")).toMatchObject({ route: "to-approve", invoiceId: "inv-1842" });
+    expect(readLocation("?invoice=inv-1842")).toMatchObject({ route: "to-approve", invoiceId: "inv-1842", vendorId: null });
+    expect(readLocation("?route=vendors&vendor=northwind-office-supply")).toMatchObject({
+      route: "vendors",
+      invoiceId: null,
+      vendorId: "northwind-office-supply",
+    });
     expect(readLocation("?route=invoices&invoice=inv-1711").invoiceId).toBe("inv-1711");
     expect(readLocation("?state=loading&invoice=inv-1842").preview.state).toBe("loading");
   });

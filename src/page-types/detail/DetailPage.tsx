@@ -4,7 +4,12 @@ import { usePageHeading } from "../../layouts/app-shell";
 
 /**
  * Detail page type. One record. Slots: breadcrumbs, heading, meta, body,
- * one primary action, and secondary actions. Record fields use DataList.
+ * primary, and secondary. Record fields use DataList.
+ *
+ * Primary is optional at runtime. Invoice detail fills it with Approve, and
+ * the slot check still requires that button in the feature source. A vendor
+ * record leaves the slot out: no ranked action belongs on it, and Approve
+ * stays on the invoice.
  */
 
 function isSlot(node: ReactNode, slot: unknown): boolean {
@@ -88,7 +93,7 @@ function DetailPageRoot({ children, state }: { children: ReactNode; state: strin
   const heading = requireOne(items, Heading, "Heading");
   const meta = optional(items, Meta, "Meta");
   const body = requireOne(items, Body, "Body");
-  const primary = requireOne(items, Primary, "Primary");
+  const primary = optional(items, Primary, "Primary");
   const secondary = optional(items, Secondary, "Secondary");
 
   return (
@@ -99,10 +104,12 @@ function DetailPageRoot({ children, state }: { children: ReactNode; state: strin
         {meta}
       </Stack.Root>
       {body}
-      <Stack.Root align="center" className="detail-actions" direction="row" gap="normal" justify="end">
-        {secondary}
-        {primary}
-      </Stack.Root>
+      {primary || secondary ? (
+        <Stack.Root align="center" className="detail-actions" direction="row" gap="normal" justify="end">
+          {secondary}
+          {primary}
+        </Stack.Root>
+      ) : null}
     </Stack.Root>
   );
 }

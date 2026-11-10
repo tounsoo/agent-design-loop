@@ -18,9 +18,11 @@ export function readLocation(search: string): AppLocation {
   const routeValue = params.get("route");
   const route: CollectionRoute = routeValue != null && isCollectionRoute(routeValue) ? routeValue : "to-approve";
   const invoice = params.get("invoice");
+  const vendor = params.get("vendor");
   return {
     preview: readPreview(search),
     route,
     invoiceId: invoice && invoice.length > 0 ? invoice : null,
+    vendorId: vendor && vendor.length > 0 ? vendor : null,
   };
 }

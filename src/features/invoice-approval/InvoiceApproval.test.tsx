@@ -80,6 +80,61 @@ describe("invoice approval views", () => {
     const kite = screen.getByRole("row", { name: /Kite Analytics/ });
     expect(kite).toHaveTextContent("0");
     expect(kite).toHaveTextContent("INV-1802");
+    const kiteLink = screen.getByRole("link", { name: "Kite Analytics" });
+    expect(kiteLink).toHaveAttribute("href", "?route=vendors&vendor=kite-analytics");
+    expect(kiteLink.closest("tr")?.getAttribute("onclick")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
+  });
+
+  it("opens a vendor master record without an approval action", async () => {
+    const user = userEvent.setup();
+    renderApproval("?route=vendors");
+    await user.type(screen.getByRole("searchbox", { name: "Search vendors" }), "Northwind");
+    await user.click(screen.getByRole("link", { name: "Northwind Office Supply" }));
+    expect(screen.getByRole("heading", { name: "Northwind Office Supply" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Vendors" })).toHaveAttribute("href", "?route=vendors");
+    expect(screen.getByText("36-4829107")).toBeInTheDocument();
+    expect(screen.getByText("Net 30")).toBeInTheDocument();
+    expect(screen.getByText("ACH")).toBeInTheDocument();
+    expect(screen.getByText("400 N Michigan Ave, Chicago, IL 60611")).toBeInTheDocument();
+    expect(screen.getByText("Outstanding balance").closest("div")).toHaveTextContent("$4,280.00");
+    expect(screen.getByText("Accounts payable · ap@northwind.example")).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /INV-/ }).map((link) => link.textContent)).toEqual(["INV-1711", "INV-1842"]);
+    expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Request changes" })).toBeNull();
+    expect(document.querySelector("details")).toBeNull();
+    expect(document.querySelector("[data-page='detail']")).not.toBeNull();
+    expect(document.querySelector("[data-slot='primary']")).toBeNull();
+
+    await user.click(screen.getByRole("link", { name: "Vendors" }));
+    expect(screen.getByRole("heading", { name: "Vendors" })).toBeInTheDocument();
+  });
+
+  it("opens the invoice from the vendor record on the existing detail", async () => {
+    const user = userEvent.setup();
+    renderApproval("?route=vendors&vendor=northwind-office-supply");
+    await user.click(screen.getByRole("link", { name: "INV-1842" }));
+    expect(screen.getByRole("heading", { name: "Northwind Office Supply" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Northwind Office Supply" })).toHaveAttribute(
+      "href",
+      "?route=vendors&vendor=northwind-office-supply",
+    );
+    expect(screen.getByRole("button", { name: "Approve" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Request changes" })).toBeEnabled();
+    expect(document.querySelector("[data-slot='primary'] button")).toHaveTextContent("Approve");
+
+    await user.click(screen.getByRole("link", { name: "Northwind Office Supply" }));
+    expect(screen.getByRole("heading", { name: "Northwind Office Supply" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
+    expect(screen.getByText("Outstanding balance").closest("div")).toHaveTextContent("$4,280.00");
+  });
+
+  it("shows a zero outstanding balance when every invoice is approved", () => {
+    renderApproval("?route=vendors&vendor=kite-analytics");
+    expect(screen.getByRole("heading", { name: "Kite Analytics" })).toBeInTheDocument();
+    expect(screen.getByText("$0.00")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "INV-1802" })).toBeInTheDocument();
+    expect(screen.getByText("Approved")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
   });
 

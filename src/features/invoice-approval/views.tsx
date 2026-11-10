@@ -21,24 +21,42 @@ import {
   formatMoney,
   routeHref,
   statusLabel,
+  vendorById,
+  vendorHref,
   type CollectionRoute,
   type FlowState,
   type Invoice,
   type ModeledState,
+  type Vendor,
 } from "../../flows/invoice-approval";
 import { CollectionPage } from "../../page-types/collection";
 import { DetailPage } from "../../page-types/detail";
 import { useCollectionBrowser } from "./collection";
 import { navCopy } from "./navigation";
+import { VendorIdentity, VendorInvoices } from "./vendor-record";
 
 export type Actions = {
   retry: () => void;
   openInvoice: (invoiceId: string) => void;
+  openVendor: (vendorId: string) => void;
   setLineItemsOpen: (open: boolean) => void;
   requestChanges: () => void;
   setReason: (reason: string) => void;
   approve: () => void;
 };
+
+type InvoiceRecord = {
+  kind: "invoice";
+  invoice: Invoice;
+  flow: Extract<FlowState, { invoiceId: string }>;
+};
+
+type VendorRecord = {
+  kind: "vendor";
+  vendor: Vendor;
+};
+
+type DetailRecord = InvoiceRecord | VendorRecord;
 
 /** States this module renders. A missing member is a type error. */
 export const renderedStates = [
@@ -214,20 +232,138 @@ function crumbFor(route: CollectionRoute): { href: string; label: string } {
   return { href: routeHref("to-approve"), label: "To approve" };
 }
 
+function RecordDetail({
+  record,
+  actions,
+  route,
+  ledger,
+  vendorId,
+  onNavigate,
+}: {
+  record: DetailRecord;
+  actions: Actions;
+  route: CollectionRoute;
+  ledger: readonly Invoice[];
+  vendorId: string | null;
+  onNavigate: (href: string) => void;
+}): ReactElement {
+  const invoice = record.kind === "invoice" ? record.invoice : null;
+  const flow = record.kind === "invoice" ? record.flow : null;
+  const detail = flow?.status === "ready" ? flow : null;
+  const outcome = flow?.status === "invoice-approved" ? "approved" : flow?.status === "changes-requested" ? "changes" : null;
+  const shownStatus = outcome === "approved" ? "approved" : outcome === "changes" ? "changes-requested" : invoice?.status;
+  const canAct = detail !== null && shownStatus === "pending";
+  const reason = flow?.status === "changes-requested" ? flow.reason : (detail?.reason ?? "");
+  const crumb = crumbFor(route);
+  const vendors = navCopy("vendors");
+  const fromVendor = record.kind === "invoice" && route === "vendors" ? vendorById(vendorId ?? "") : undefined;
+  const linkedVendor = fromVendor && invoice && fromVendor.legalName === invoice.vendor ? fromVendor : null;
+
+  return (
+    <DetailPage state={flow?.status ?? "ready"}>
+      <DetailPage.Breadcrumbs>
+        <Breadcrumbs.Root>
+          <Breadcrumbs.Item>
+            <Link.Root
+              href={record.kind === "vendor" ? vendors.href : crumb.href}
+              onClick={(event) => {
+                if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                event.preventDefault();
+                onNavigate(record.kind === "vendor" ? vendors.href : crumb.href);
+              }}
+            >
+              {record.kind === "vendor" ? vendors.label : crumb.label}
+            </Link.Root>
+          </Breadcrumbs.Item>
+          {linkedVendor ? (
+            <Breadcrumbs.Item>
+              <Link.Root
+                href={vendorHref(linkedVendor.id)}
+                onClick={(event) => {
+                  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                  event.preventDefault();
+                  onNavigate(vendorHref(linkedVendor.id));
+                }}
+              >
+                {linkedVendor.legalName}
+              </Link.Root>
+            </Breadcrumbs.Item>
+          ) : null}
+          <Breadcrumbs.Item current>{record.kind === "vendor" ? record.vendor.legalName : invoice?.number}</Breadcrumbs.Item>
+        </Breadcrumbs.Root>
+      </DetailPage.Breadcrumbs>
+      <DetailPage.Heading>{record.kind === "vendor" ? record.vendor.legalName : invoice?.vendor}</DetailPage.Heading>
+      <DetailPage.Meta>
+        {record.kind === "vendor" ? (
+          <VendorIdentity invoices={ledger} vendor={record.vendor} />
+        ) : invoice && shownStatus ? (
+          <InvoiceFacts invoice={invoice} status={shownStatus} />
+        ) : null}
+      </DetailPage.Meta>
+      <DetailPage.Body>
+        {record.kind === "vendor" ? (
+          <VendorInvoices invoices={ledger} route={route} vendor={record.vendor} onOpen={actions.openInvoice} />
+        ) : invoice ? (
+          <>
+            <Stack.Root gap="normal" role="status">
+              {outcome === "approved" ? (
+                <Alert.Root role="none" tone="success">
+                  <Alert.Title>Invoice approved</Alert.Title>
+                  <Alert.Description>
+                    {invoice.vendor} · {formatMoney(invoice.amountCents)} is approved.
+                  </Alert.Description>
+                </Alert.Root>
+              ) : null}
+              {outcome === "changes" ? (
+                <Alert.Root role="none" tone="info">
+                  <Alert.Title>Changes requested</Alert.Title>
+                  <Alert.Description>{reason}</Alert.Description>
+                </Alert.Root>
+              ) : null}
+            </Stack.Root>
+            <LineItems invoice={invoice} open={detail?.lineItemsOpen ?? false} onToggle={actions.setLineItemsOpen} />
+            {detail?.requestingChanges && outcome === null ? (
+              <ReasonField reason={reason} reasonError={detail.reasonError} onReason={actions.setReason} />
+            ) : null}
+          </>
+        ) : null}
+      </DetailPage.Body>
+      {record.kind === "invoice" ? (
+        <DetailPage.Secondary>
+          <Button.Root disabled={!canAct} type="button" variant="secondary" onClick={actions.requestChanges}>
+            Request changes
+          </Button.Root>
+        </DetailPage.Secondary>
+      ) : null}
+      {record.kind === "invoice" ? (
+        <DetailPage.Primary>
+          <Button.Root disabled={!canAct} type="button" onClick={actions.approve}>
+            Approve
+          </Button.Root>
+        </DetailPage.Primary>
+      ) : null}
+    </DetailPage>
+  );
+}
+
 export function InvoiceApprovalView({
   state,
   actions,
   route,
   ledger,
+  vendorId,
+  previewState,
   onNavigate,
 }: {
   state: FlowState;
   actions: Actions;
   route: CollectionRoute;
   ledger: readonly Invoice[];
+  vendorId: string | null;
+  previewState: ModeledState | null;
   onNavigate: (href: string) => void;
 }): ReactElement {
-  const browser = useCollectionBrowser(route, ledger, actions.openInvoice);
+  const browser = useCollectionBrowser(route, ledger, actions.openInvoice, actions.openVendor);
 
   switch (state.status) {
     case "loading":
@@ -243,7 +379,26 @@ export function InvoiceApprovalView({
     }
   }
 
-  if (!showsDetail(state)) {
+  const invoiceState = showsDetail(state) ? state : null;
+  const vendor =
+    invoiceState == null && state.status === "ready" && route === "vendors" && previewState == null
+      ? (vendorById(vendorId ?? "") ?? null)
+      : null;
+
+  if (vendor) {
+    return (
+      <RecordDetail
+        actions={actions}
+        ledger={ledger}
+        record={{ kind: "vendor", vendor }}
+        route={route}
+        vendorId={vendorId}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  if (!invoiceState) {
     const copy = navCopy(route);
     const ready = state.status === "ready";
     const showTable = ready && browser.total > 0;
@@ -263,70 +418,17 @@ export function InvoiceApprovalView({
     );
   }
 
-  const invoice = lookup(ledger, state.invoiceId);
+  const invoice = lookup(ledger, invoiceState.invoiceId);
   if (!invoice) throw new Error("The approval queue has no sample invoice.");
-  const detail = state.status === "ready" ? state : null;
-  const outcome = state.status === "invoice-approved" ? "approved" : state.status === "changes-requested" ? "changes" : null;
-  const shownStatus = outcome === "approved" ? "approved" : outcome === "changes" ? "changes-requested" : invoice.status;
-  const canAct = detail !== null && shownStatus === "pending";
-  const reason = state.status === "changes-requested" ? state.reason : (detail?.reason ?? "");
-  const crumb = crumbFor(route);
 
   return (
-    <DetailPage state={state.status}>
-      <DetailPage.Breadcrumbs>
-        <Breadcrumbs.Root>
-          <Breadcrumbs.Item>
-            <Link.Root
-              href={crumb.href}
-              onClick={(event) => {
-                if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-                event.preventDefault();
-                onNavigate(crumb.href);
-              }}
-            >
-              {crumb.label}
-            </Link.Root>
-          </Breadcrumbs.Item>
-          <Breadcrumbs.Item current>{invoice.number}</Breadcrumbs.Item>
-        </Breadcrumbs.Root>
-      </DetailPage.Breadcrumbs>
-      <DetailPage.Heading>{invoice.vendor}</DetailPage.Heading>
-      <DetailPage.Meta>
-        <InvoiceFacts invoice={invoice} status={shownStatus} />
-      </DetailPage.Meta>
-      <DetailPage.Body>
-        <Stack.Root gap="normal" role="status">
-          {outcome === "approved" ? (
-            <Alert.Root role="none" tone="success">
-              <Alert.Title>Invoice approved</Alert.Title>
-              <Alert.Description>
-                {invoice.vendor} · {formatMoney(invoice.amountCents)} is approved.
-              </Alert.Description>
-            </Alert.Root>
-          ) : null}
-          {outcome === "changes" ? (
-            <Alert.Root role="none" tone="info">
-              <Alert.Title>Changes requested</Alert.Title>
-              <Alert.Description>{reason}</Alert.Description>
-            </Alert.Root>
-          ) : null}
-        </Stack.Root>
-        <LineItems invoice={invoice} open={detail?.lineItemsOpen ?? false} onToggle={actions.setLineItemsOpen} />
-        {detail?.requestingChanges && outcome === null ? (
-          <ReasonField reason={reason} reasonError={detail.reasonError} onReason={actions.setReason} />
-        ) : null}
-      </DetailPage.Body>
-      <DetailPage.Secondary>
-        <Button.Root disabled={!canAct} type="button" variant="secondary" onClick={actions.requestChanges}>
-          Request changes
-        </Button.Root>
-      </DetailPage.Secondary>
-      <DetailPage.Primary>
-        <Button.Root disabled={!canAct} type="button" onClick={actions.approve}>
-          Approve
-        </Button.Root>
-      </DetailPage.Primary>
-    </DetailPage>
+    <RecordDetail
+      actions={actions}
+      ledger={ledger}
+      record={{ kind: "invoice", invoice, flow: invoiceState }}
+      route={route}
+      vendorId={vendorId}
+      onNavigate={onNavigate}
+    />
   );
 }

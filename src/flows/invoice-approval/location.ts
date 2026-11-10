@@ -1,6 +1,7 @@
 import type { Preview } from "./transition";
 import { initialFlowState } from "./transition";
 import type { FlowState, Invoice } from "./states";
+import { vendorById } from "./vendors";
 
 /** Routes inside the collection page. Not a third page type. */
 export const collectionRoutes = ["to-approve", "invoices", "vendors"] as const;
@@ -11,6 +12,7 @@ export type AppLocation = {
   readonly preview: Preview;
   readonly route: CollectionRoute;
   readonly invoiceId: string | null;
+  readonly vendorId: string | null;
 };
 
 export function isCollectionRoute(value: string): value is CollectionRoute {
@@ -24,6 +26,7 @@ export function locationKey(location: AppLocation): string {
     branch: location.preview.branch,
     route: location.route,
     invoiceId: location.invoiceId,
+    vendorId: location.vendorId,
   });
 }
 
@@ -32,11 +35,26 @@ export function routeHref(route: CollectionRoute): string {
   return `?route=${route}`;
 }
 
-export function invoiceHref(route: CollectionRoute, invoiceId: string): string {
+export function invoiceHref(route: CollectionRoute, invoiceId: string, vendorId?: string): string {
   const params = new URLSearchParams();
   if (route !== "to-approve") params.set("route", route);
+  if (route === "vendors" && vendorId) params.set("vendor", vendorId);
   params.set("invoice", invoiceId);
   return `?${params.toString()}`;
+}
+
+export function vendorHref(vendorId: string): string {
+  const params = new URLSearchParams();
+  params.set("route", "vendors");
+  params.set("vendor", vendorId);
+  return `?${params.toString()}`;
+}
+
+/** A vendor master record. An open invoice, or a preview state, keeps the approval path. */
+export function isVendorDetail(location: AppLocation): boolean {
+  if (location.preview.state != null || location.invoiceId != null) return false;
+  if (location.route !== "vendors" || location.vendorId == null) return false;
+  return vendorById(location.vendorId) != null;
 }
 
 function detailReady(invoiceId: string): Extract<FlowState, { status: "ready"; screen: "detail" }> {

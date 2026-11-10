@@ -2,11 +2,14 @@ import { useEffect, useState } from "react";
 import { DensityProvider, Stack, Text, ThemeProvider } from "./catalog";
 import { InvoiceApproval } from "./features/invoice-approval";
 import { meridianNav, navCopy } from "./features/invoice-approval/navigation";
-import { invoiceById, type AppLocation } from "./flows/invoice-approval";
+import { invoiceById, isVendorDetail, vendorById, type AppLocation } from "./flows/invoice-approval";
 import { readLocation, StatePreviewMenu } from "./harness/state-preview";
 import { AppShell } from "./layouts/app-shell";
 
 function pageTitle(location: AppLocation): string {
+  if (isVendorDetail(location)) {
+    return vendorById(location.vendorId ?? "")?.legalName ?? "Vendor";
+  }
   const detail =
     location.invoiceId != null ||
     location.preview.page === "detail" ||

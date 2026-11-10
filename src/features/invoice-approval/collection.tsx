@@ -26,6 +26,8 @@ import {
   formatMoney,
   invoiceHref,
   statusLabel,
+  vendorByName,
+  vendorHref,
   type CollectionRoute,
   type Invoice,
   type InvoiceStatus,
@@ -62,6 +64,7 @@ type Facet = {
 type ActiveChip = { key: string; label: string; value: string };
 
 type VendorRow = {
+  id: string;
   name: string;
   openCount: number;
   lastNumber: string;
@@ -90,6 +93,7 @@ function vendorsFrom(invoices: readonly Invoice[]): VendorRow[] {
     const current = byName.get(invoice.vendor);
     if (!current) {
       byName.set(invoice.vendor, {
+        id: vendorByName(invoice.vendor)?.id ?? "",
         name: invoice.vendor,
         openCount: invoice.status === "pending" ? 1 : 0,
         lastNumber: invoice.number,
@@ -101,6 +105,7 @@ function vendorsFrom(invoices: readonly Invoice[]): VendorRow[] {
     }
     const later = invoice.dueOn > current.lastDueOn;
     byName.set(invoice.vendor, {
+      id: current.id,
       name: invoice.vendor,
       openCount: current.openCount + (invoice.status === "pending" ? 1 : 0),
       lastNumber: later ? invoice.number : current.lastNumber,
@@ -123,6 +128,7 @@ export function useCollectionBrowser(
   route: CollectionRoute,
   invoices: readonly Invoice[],
   onOpen: (invoiceId: string) => void,
+  onOpenVendor: (vendorId: string) => void,
 ): CollectionBrowser {
   const searchId = useId();
   const searchRef = useRef<HTMLInputElement>(null);
@@ -406,7 +412,22 @@ export function useCollectionBrowser(
             <Table.Body>
               {pageVendors.map((row) => (
                 <Table.Row key={row.name}>
-                  <Table.HeaderCell scope="row">{row.name}</Table.HeaderCell>
+                  <Table.HeaderCell scope="row">
+                    {row.id ? (
+                      <Link.Root
+                        href={vendorHref(row.id)}
+                        onClick={(event) => {
+                          if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                          event.preventDefault();
+                          onOpenVendor(row.id);
+                        }}
+                      >
+                        {row.name}
+                      </Link.Root>
+                    ) : (
+                      row.name
+                    )}
+                  </Table.HeaderCell>
                   <Table.Cell className="num">{row.openCount}</Table.Cell>
                   <Table.Cell>
                     {row.lastNumber}

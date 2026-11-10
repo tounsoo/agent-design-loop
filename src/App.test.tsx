@@ -23,5 +23,13 @@ describe("Meridian shell", () => {
     await user.click(screen.getByRole("link", { name: "Vendors" }));
     expect(screen.getByRole("heading", { name: "Vendors" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Vendors" })).toHaveAttribute("aria-current", "page");
+
+    await user.type(screen.getByRole("searchbox", { name: "Search vendors" }), "Northwind");
+    await user.click(screen.getByRole("link", { name: "Northwind Office Supply" }));
+    expect(screen.getByRole("heading", { name: "Northwind Office Supply" })).toBeInTheDocument();
+    expect(document.title).toBe("Northwind Office Supply · Meridian");
+    expect(screen.getByRole("link", { name: "Vendors", current: "page" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Vendors", current: false })).toHaveAttribute("href", "?route=vendors");
+    expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
   });
 });

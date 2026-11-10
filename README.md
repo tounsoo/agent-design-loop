@@ -2,7 +2,7 @@
 
 This repository is a testing ground for deterministic UI design for agents. An agent generates UI inside constraints that already live in the repo, runs checks that can fail the build, fixes what those checks allow, and opens a proposal when a rule has to break.
 
-The product is **Meridian**, an accounts-payable workspace for vendor invoice approval. The frame is an app shell. The page types are `collection` (To approve, All invoices, and Vendors) and `detail` (one invoice). The named task is `approve-vendor-invoice`.
+The product is **Meridian**, an accounts-payable workspace for vendor invoice approval. The frame is an app shell. The page types are `collection` (To approve, All invoices, and Vendors) and `detail` (one invoice, or one vendor). The named task is `approve-vendor-invoice`.
 
 Layouts are product-owned shells with named slots. They encode [Todae](https://github.com/tounsoo/todae) recipes. Recipes are copyable glue, not package namespaces: there is no `AppShell.*`, `DataTable.*`, or `FilterBar.*` export, and this repo does not fork Todae.
 
@@ -36,7 +36,14 @@ Navigation:
 
 - **To approve** (`/`) — pending invoices.
 - **All invoices** (`?route=invoices`) — every invoice, with status.
-- **Vendors** (`?route=vendors`) — vendor name, open count, and last invoice. Read-only.
+- **Vendors** (`?route=vendors`) — vendor name, open count, and last invoice. The vendor name is a link to that vendor's record.
+
+On a vendor (`?route=vendors&vendor=northwind-office-supply`):
+
+- Breadcrumbs return to Vendors.
+- Commercial identity is a DataList: legal name, tax ID, payment terms, payment method, address, outstanding balance, and contact.
+- That vendor's invoices are a table in the detail body. The invoice number links to the invoice, and the invoice breadcrumb can return to this vendor. There is no second disclosure.
+- There is no page-level action. Approve and Request changes stay on the invoice.
 
 On an invoice (`?invoice=inv-1842`):
 
@@ -109,7 +116,7 @@ src/page-types/detail/               breadcrumbs, meta, body, one primary, secon
 src/flows/invoice-approval/          loading, empty, error, ready, invoice-approved, changes-requested
 src/inputs/product.ts                tasks, priority, allowed page types
 src/rules/ux-rules.ts                check, input, and review question for each rule
-src/features/invoice-approval/       To approve, All invoices, Vendors, and the invoice
+src/features/invoice-approval/       To approve, All invoices, Vendors, the vendor, and the invoice
 src/harness/state-preview/           ?state=, ?page=, ?route=, and ?invoice=
 fixtures/illegal/                    two primaries, over budget, off catalog, missing view
 proposals/                           escape hatch

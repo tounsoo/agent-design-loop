@@ -12,6 +12,7 @@ Task: review a vendor invoice and approve it. Success state `invoice-approved`. 
 - The shortest path that opens an invoice, opens line items, and approves is 3 steps. `max_steps` is 3.
 - The flow renders loading, empty, error, ready, invoice-approved, and changes-requested. The shell stays up in each.
 - The page types are collection and detail. The app shell is the frame, not a third page type. Each page shell appears once.
+- Opening a vendor is a cell link to a detail record. That record has no primary and no Request changes. Approve stays on the invoice. See [vendor master](vendor-master.md).
 
 ## What the checks cannot decide
 
@@ -20,5 +21,6 @@ Task: review a vendor invoice and approve it. Success state `invoice-approved`. 
 - Does research support this split: one collection to choose an invoice, one detail page to decide? All invoices and Vendors are the same collection shell, not new page types. Request changes is a branch on the detail page, not a third page.
 - Did we model the states that actually happen? The six states above are the ones this journey names. A partial payment or a duplicate invoice number is not modeled.
 - Should an important control aim for 44 CSS px instead of the 24 CSS px floor? The target-size check enforces the floor only.
+- The vendor record's outstanding balance and its invoice table are judgments the checks do not make. They are written down in [vendor master](vendor-master.md).
 
 No exception is recorded in the product inputs.

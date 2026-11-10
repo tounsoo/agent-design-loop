@@ -1,9 +1,11 @@
 import { useState } from "react";
 import {
   flowFromLocation,
+  invoiceHref,
   locationKey,
   sampleInvoices,
   transition,
+  vendorHref,
   type AppLocation,
   type FlowState,
   type Invoice,
@@ -29,12 +31,9 @@ export function InvoiceApproval({
 
   const actions: Actions = {
     retry: () => setOverlay(transition(flow, { type: "retry" })),
-    openInvoice: (invoiceId) => {
-      const params = new URLSearchParams();
-      if (location.route !== "to-approve") params.set("route", location.route);
-      params.set("invoice", invoiceId);
-      onNavigate(`?${params.toString()}`);
-    },
+    openInvoice: (invoiceId) =>
+      onNavigate(invoiceHref(location.route, invoiceId, location.vendorId ?? undefined)),
+    openVendor: (vendorId) => onNavigate(vendorHref(vendorId)),
     setLineItemsOpen: (open) =>
       setOverlay(transition(flow, { type: open ? "open-line-items" : "close-line-items" })),
     requestChanges: () => {
@@ -65,8 +64,10 @@ export function InvoiceApproval({
     <InvoiceApprovalView
       actions={actions}
       ledger={ledger}
+      previewState={location.preview.state}
       route={location.route}
       state={flow}
+      vendorId={location.vendorId}
       onNavigate={onNavigate}
     />
   );
