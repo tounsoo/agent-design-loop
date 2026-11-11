@@ -28,7 +28,7 @@ Each file has an H1 title, one paragraph on the user-visible behavior, then four
 ## Features
 
 - [Payables collections](collections.md): To approve, All invoices and Vendors, with search and paging.
-- [Approve an invoice](approve-invoice.md): the named task, three steps to `invoice-approved`.
+- [Approve an invoice](approve-invoice.md): the named task, two steps to `invoice-approved`.
 - [Request changes](request-changes.md): the branch, with its required reason.
 - [Modeled-state preview](state-preview.md): `?state=` URLs and the Preview menu.
 - [The rule gate](rule-gate.md): checks, illegal fixtures and proposals, the surface an agent meets.

@@ -16,7 +16,7 @@ The inventories record the catalog, layouts, page types, flow states, and rule i
 ## What the checks cannot decide
 
 - Whether a proposal's reason is good enough to graduate, or whether the preview is the right UI. The check only sees that a new file contains those three words.
-- Whether a pull request that both adds a proposal and edits the inventory is graduating early. Merging the proposal is supposed to record the request. A separate change applies it. The check accepts the file either way. A reviewer has to refuse an edit that should have waited.
+- Whether a pull request that both adds a proposal and edits the inventory is graduating early. For a request, merging the proposal is supposed to record it, and a later change applies it. A proposal marked `Status: decided` lands with its change on purpose. The check accepts the file either way. A reviewer has to refuse an edit that should have waited.
 - Whether an implementation edit that keeps the same ids changed the product enough to need a proposal. Slot behavior, copy, and invoice fields are outside the membership set.
 - Whether a stringly-typed screen inside the existing page types should have been a new page type. The check looks at directories, the `pageTypes` export, and import paths.
 - Whether a new kind of product input, one the check is not written to read, should join the membership set.

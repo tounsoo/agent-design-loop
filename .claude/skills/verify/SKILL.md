@@ -63,7 +63,7 @@ When a change touches an inventory (anything `proposals/README.md` lists), `chec
 CHROME_PATH=/path/to/chrome npm run check:target-size
 ```
 
-It builds the app, serves it with `vite preview` on `127.0.0.1:4173` (strict port, so stop any other preview first), and opens every modeled state at 1280 by 900 in headless Chrome, with the detail page's Line items open. It fails any invoice control under 24 CSS px that misses the WCAG 2.5.8 spacing exception. It closes the server and the browser itself.
+It builds the app, serves it with `vite preview` on `127.0.0.1:4173` (strict port, so stop any other preview first), and opens every modeled state at 1280 by 900 in headless Chrome, once per preview query `harness.config.ts` lists for it, and opens a disclosure when the page has one. `npx tsx scripts/check-target-size.ts --list` prints those previews without Chrome. It fails any invoice control under 24 CSS px that misses the WCAG 2.5.8 spacing exception. It closes the server and the browser itself.
 
 To look at a change, run `npm run build && npm run preview`. It is ready when Vite prints `http://127.0.0.1:4173/`. Open the URLs in [features/](features/README.md) there, and stop the preview server you started when done.
 

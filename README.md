@@ -55,7 +55,9 @@ Search, filters, sort, and paging are available on collections. They are not ste
 
 The happy path is two steps: open an invoice, Approve. That lands on `invoice-approved`. Opening Line items is optional and not counted. `max_steps` stays 3. There is no approval note and no confirm step. `check:step-budget` measures the task graph and the shipped reducer, and fails when either is over budget or the two paths are not the same steps.
 
-The shell stays up in every modeled state. Loading, empty, and error render inside `main`. A **Preview** menu in the header is a developer aid for opening those states without clicking through. The default URL does not depend on it.
+The shell stays up in every modeled state. Loading, empty, and error render inside `main`. A **Preview** menu in the header is a developer aid for opening those states without clicking through. It links to Loading, Empty, Error, Queue (`/`), Detail, Invoice approved, and Changes requested. The default URL does not depend on it.
+
+These are the preview URLs `check:target-size` opens. The menu has no entry for the All invoices and Vendors routes or for the request-changes branch, so type those URLs.
 
 - `?state=loading`
 - `?state=empty`
@@ -93,6 +95,8 @@ npm run check:fixtures && npm run check
 
 There is no LLM judge on CI.
 
+The scripts take a path flag as two arguments, `--config fixtures/two-tasks/harness.config.ts`. `--config=<file>` and `--adapter=<file>` are refused. Any other `--name=<value>`, such as `--features=<dir>`, is ignored, and the script reads its default path from `harness.config.ts`.
+
 ## Use it as a testing ground
 
 1. Give an agent a UI task that is already in `src/inputs/product.ts`. Do not invent a task, a layout, a content layout, or a page type in the same change.
@@ -103,7 +107,7 @@ There is no LLM judge on CI.
 
 [Proposal 0001](proposals/0001-approval-note.md) asks to require an approval note before Approve and raise the budget to 4. It is not applied. [Proposal 0003](proposals/0003-two-step-approve.md) corrects its counts: the shipped path is 2 steps, so the note would make 3, inside the current budget.
 
-When a human approves a proposal, a separate change graduates it into the inventory data and the checks: the catalog, a layout, a content layout, a page-type shell, the flow model, or `src/inputs/product.ts`. The next run is constrained by that change. See [proposals/README.md](proposals/README.md).
+When a human approves a proposal, a change graduates it into the inventory data and the checks: the catalog, a layout, a content layout, a page-type shell, the flow model, or `src/inputs/product.ts`. The next run is constrained by that change. The inventory check accepts that change in the same pull request as the proposal, so a reviewer decides whether it should have waited. A proposal can also record a decision that lands with its own pull request, as [proposal 0003](proposals/0003-two-step-approve.md) and [proposal 0004](proposals/0004-config-tasks-and-previews.md) do. See [proposals/README.md](proposals/README.md).
 
 ## Where the constraints live
 

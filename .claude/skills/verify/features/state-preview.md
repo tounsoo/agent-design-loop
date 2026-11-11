@@ -23,8 +23,10 @@ Preconditions:
 - **States.** Open `?state=loading`, `?state=empty` and `?state=error`. Run `npx vitest run -t "renders loading, empty, and error"` and `npx vitest run -t "shows the load error with a secondary retry"`. They show `Loading invoices`, the heading `No invoices waiting`, and `Couldn't load invoices.` with a secondary `Try again`.
 - **Parameters.** Run `npx vitest run -t "state preview harness"`. Both cases pass: a modeled state with a page, an unknown name ignored, a route and an invoice id.
 - **Coverage.** Run `npm run check:state-coverage`. It prints `6 modeled states have views` and lists them.
-- **Browser.** Run `CHROME_PATH=<chrome> npm run check:target-size`. It opens every URL in the README's state list and prints `invoice controls meet 24 CSS px`.
+- **Previews.** Run `npx tsx scripts/check-target-size.ts --list`. It prints each preview URL and `target size: 10 previews from modeledStates.` without Chrome.
+- **Browser.** Run `CHROME_PATH=<chrome> npm run check:target-size`. It opens every preview and prints `target size: controls on 10 previews meet 24 CSS px (or the WCAG spacing exception).`
 
 ## Gotchas
 
-- `check:target-size` keeps its own hand-written list of states, so a new modeled state needs a line there too.
+- `check:target-size` opens every state in `modeledStates`, plus the query strings `flows[].previews` in `harness.config.ts` adds. A new modeled state is opened without editing the script. A preview for a state that is not modeled, or one that sets `state` itself, fails.
+- The Preview menu has no entry for `?route=invoices`, `?route=vendors` or `branch=request`. Type those URLs.
