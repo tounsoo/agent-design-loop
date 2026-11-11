@@ -76,7 +76,7 @@ In a Claude Duet thread there is no Chrome, and the Chrome downloads are blocked
 | `src/catalog/`, `src/layouts/`, `src/content-layouts/`, `src/page-types/`, `src/flows/` (the inventories, see `proposals/README.md`) | 1, 2 and 3 |
 | `src/inputs/`, `src/rules/`, `package.json` and `package-lock.json` (the Todae version) | 1, 2 and 3 |
 | `scripts/`, `fixtures/` | 1 and 2 |
-| `*.test.ts(x)`, `src/test-setup.ts`, `tsconfig.json`, `eslint.config.js`, `.npmrc`, `.gitignore` | 1 |
+| `*.test.ts(x)`, `src/test-setup.ts`, `src/vite-env.d.ts`, `tsconfig.json`, `eslint.config.js`, `.npmrc`, `.gitignore` | 1 |
 | `proposals/` | 1. A proposal changes nothing until it graduates. |
 | `.github/` | 1, then the pull request's CI run is the rest of the proof; link it |
 | `README.md`, `AGENTS.md`, `CODEOWNERS`, `docs/`, `review/`, `CLAUDE.md`, `.claude/` | 1. Review covers the rest. |

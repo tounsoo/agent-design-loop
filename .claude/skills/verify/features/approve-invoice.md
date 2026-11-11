@@ -20,10 +20,10 @@ Preconditions:
 
 - The baseline preconditions hold, and Meridian is on To approve.
 
-- **Journey.** Choose `Northwind Office Supply`, open `Line items`, choose `Approve`. Run `npx vitest run -t "approves after opening an invoice and its line items"`. The heading reads `Northwind Office Supply`, `Printer toner` appears under Line items, then the alert `Invoice approved` shows and `Approve` is disabled.
+- **Journey.** Choose `Northwind Office Supply`, open `Line items`, choose `Approve`. Run `npx vitest run -t "approves after opening an invoice and its line items"`. The heading reads `Northwind Office Supply`, `Printer toner` appears under Line items, then the status `Invoice approved` shows and `Approve` is disabled.
 - **Budget.** Run `npm run check:step-budget`. It prints `path (3): open-invoice → open-line-items → approve` and `within budget.`
 - **Priority and disclosure.** Run `npm run check:priority` and `npm run check:disclosure`. They print `"Approve" is the primary button; "Request changes" is secondary; line items are disclosed.` and `depth ≤ 1`.
-- **Browser.** Open `?invoice=inv-1842` in the preview, open `Line items`, choose `Approve`. The `Invoice approved` alert shows inside the shell.
+- **Browser.** Open `?invoice=inv-1842` in the preview, open `Line items`, choose `Approve`. The status `Invoice approved` shows inside the shell.
 
 ## Gotchas
 
