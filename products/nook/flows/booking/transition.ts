@@ -20,7 +20,10 @@ export function transition(state: FlowState, event: FlowEvent): FlowState {
     case "close-details":
       return state.status === "choosing" && state.page === "booking" ? { ...state, detailsOpen: event.type === "open-details" } : state;
     case "book":
-      return state.status === "choosing" && state.page === "booking" ? { status: "booked", roomId: state.roomId, duration: state.duration } : state;
+      // A held room can still be booked: the hold is how a person decides.
+      return (state.status === "choosing" && state.page === "booking") || state.status === "held"
+        ? { status: "booked", roomId: state.roomId, duration: state.duration }
+        : state;
     case "hold":
       return state.status === "choosing" && state.page === "booking" ? { status: "held", roomId: state.roomId, duration: state.duration } : state;
   }
