@@ -293,50 +293,79 @@ function readInventory(root: Root): Inventory | null {
   };
 }
 
-function membershipChanges(base: Inventory, head: Inventory, compareConfig: boolean): string[] {
-  const lines: string[] = [];
-  const compare = (label: string, before: unknown, after: unknown) => {
+/**
+ * One membership change, and the terms a proposal must name to cover it: the
+ * members added or removed, the task or action whose rule input changed, the
+ * cap or config field. A term that lists alternatives is named when any one
+ * of them is: a config path is named by its field, `paths.catalog`, or by its
+ * new value. A proposal about something else does not cover it.
+ */
+type Term = string | readonly string[];
+type Change = { readonly text: string; readonly terms: readonly Term[] };
+
+function differingMembers(before: readonly string[], after: readonly string[]): string[] {
+  return sortedUnique([...before.filter((item) => !after.includes(item)), ...after.filter((item) => !before.includes(item))]);
+}
+
+function differingKeys<T>(before: readonly T[], after: readonly T[], key: (item: T) => string): string[] {
+  const text = (items: readonly T[]) => new Map(items.map((item) => [key(item), JSON.stringify(item)]));
+  const left = text(before);
+  const right = text(after);
+  return sortedUnique([...left.keys(), ...right.keys()].filter((name) => left.get(name) !== right.get(name)));
+}
+
+function membershipChanges(base: Inventory, head: Inventory, compareConfig: boolean): Change[] {
+  const changes: Change[] = [];
+  const compare = (label: string, before: unknown, after: unknown, terms: readonly Term[]) => {
     const left = JSON.stringify(before);
     const right = JSON.stringify(after);
-    if (left !== right) lines.push(`${label} changed from ${left} to ${right}.`);
+    if (left !== right) changes.push({ text: `${label} changed from ${left} to ${right}.`, terms });
   };
+  const list = (label: string, before: readonly string[], after: readonly string[]) => compare(label, before, after, differingMembers(before, after));
   // A missing list on the base is the bootstrap that records it.
-  if (base.layouts !== null) compare("allowed_layouts", base.layouts, head.layouts);
-  if (base.contentLayouts !== null) compare("allowed_content_layouts", base.contentLayouts, head.contentLayouts);
-  compare("allowed_page_types", base.pageTypes, head.pageTypes);
-  compare("catalog exports", base.catalogExports, head.catalogExports);
-  compare("flow states", base.flowStates, head.flowStates);
-  compare("max_steps", base.maxSteps, head.maxSteps);
-  compare("priority", base.priority, head.priority);
-  if (base.disclosedSections !== null) compare("disclosed_sections", base.disclosedSections, head.disclosedSections);
-  compare("MAX_DISCLOSURE_DEPTH", base.disclosureDepth, head.disclosureDepth);
-  compare("MAX_DISCLOSURES_PER_PAGE", base.disclosuresPerPage, head.disclosuresPerPage);
-  compare("MAX_VISIBLE_QUESTIONS", base.visibleQuestions, head.visibleQuestions);
-  compare("TARGET_MIN_PX", base.targetMinPx, head.targetMinPx);
+  if (base.layouts !== null) list("allowed_layouts", base.layouts, head.layouts ?? []);
+  if (base.contentLayouts !== null) list("allowed_content_layouts", base.contentLayouts, head.contentLayouts ?? []);
+  list("allowed_page_types", base.pageTypes, head.pageTypes);
+  list("catalog exports", base.catalogExports, head.catalogExports);
+  list("flow states", base.flowStates, head.flowStates);
+  compare("max_steps", base.maxSteps, head.maxSteps, ["max_steps", ...differingKeys(base.maxSteps, head.maxSteps, (task) => task.id)]);
+  compare("priority", base.priority, head.priority, ["priority", ...differingKeys(base.priority, head.priority, (item) => item.action)]);
+  if (base.disclosedSections !== null) list("disclosed_sections", base.disclosedSections, head.disclosedSections ?? []);
+  compare("MAX_DISCLOSURE_DEPTH", base.disclosureDepth, head.disclosureDepth, ["MAX_DISCLOSURE_DEPTH"]);
+  compare("MAX_DISCLOSURES_PER_PAGE", base.disclosuresPerPage, head.disclosuresPerPage, ["MAX_DISCLOSURES_PER_PAGE"]);
+  compare("MAX_VISIBLE_QUESTIONS", base.visibleQuestions, head.visibleQuestions, ["MAX_VISIBLE_QUESTIONS"]);
+  compare("TARGET_MIN_PX", base.targetMinPx, head.targetMinPx, ["TARGET_MIN_PX"]);
   // The base has the product's inputs but no config at this path: a renamed config would otherwise skip every comparison below.
-  if (compareConfig && base.config === null && head.config !== null) lines.push(`${configName} is new: the base has no config at that path to compare.`);
+  if (compareConfig && base.config === null && head.config !== null) {
+    changes.push({ text: `${configName} is new: the base has no config at that path to compare.`, terms: [configName] });
+  }
   if (compareConfig && base.config !== null) {
-    if (head.config === null) lines.push(`${configName} was removed.`);
+    if (head.config === null) changes.push({ text: `${configName} was removed.`, terms: [configName] });
     else {
       const keys = sortedUnique([...Object.keys(base.config.paths), ...Object.keys(head.config.paths)]);
       for (const key of keys) {
-        compare(`${configName} paths.${key}`, base.config.paths[key as keyof HarnessConfig["paths"]], head.config.paths[key as keyof HarnessConfig["paths"]]);
+        const after = head.config.paths[key as keyof HarnessConfig["paths"]];
+        const values = after === null || after === undefined ? [] : typeof after === "string" ? [after] : [];
+        compare(`${configName} paths.${key}`, base.config.paths[key as keyof HarnessConfig["paths"]], after, [[`paths.${key}`, ...values]]);
       }
-      compare(`${configName} shells`, base.config.shells, head.config.shells);
-      compare(`${configName} flows`, base.config.flows, head.config.flows);
-      if (base.config.adapter !== null) compare(`${configName} adapter`, base.config.adapter, head.config.adapter);
+      const shellFields = (["primarySlots", "collections"] as const).filter(
+        (field) => JSON.stringify(base.config?.shells?.[field]) !== JSON.stringify(head.config?.shells?.[field]),
+      );
+      compare(`${configName} shells`, base.config.shells, head.config.shells, shellFields.map((field) => `shells.${field}`));
+      compare(`${configName} flows`, base.config.flows, head.config.flows, ["flows"]);
+      if (base.config.adapter !== null) compare(`${configName} adapter`, base.config.adapter, head.config.adapter, ["adapter"]);
     }
   }
   if (base.adapter !== null) {
-    if (head.adapter === null) lines.push("the design system adapter was removed.");
+    if (head.adapter === null) changes.push({ text: "the design system adapter was removed.", terms: ["adapter"] });
     else {
       const keys = sortedUnique([...Object.keys(base.adapter), ...Object.keys(head.adapter)]);
       for (const key of keys) {
-        compare(`adapter ${key}`, base.adapter[key as keyof DesignSystemAdapter], head.adapter[key as keyof DesignSystemAdapter]);
+        compare(`adapter ${key}`, base.adapter[key as keyof DesignSystemAdapter], head.adapter[key as keyof DesignSystemAdapter], ["adapter", key]);
       }
     }
   }
-  return lines;
+  return changes;
 }
 
 function childDirectories(dir: string): string[] {
@@ -454,23 +483,59 @@ function proposalExplains(text: string): boolean {
   return body.includes("reason") && body.includes("preview") && body.includes("graduation");
 }
 
-function explainingProposals(baseNames: Set<string>, head: Map<string, string>): string[] {
-  const added: string[] = [];
-  for (const [file, text] of head) {
-    if (!baseNames.has(file) && proposalExplains(text)) added.push(file);
+/** Proposals the head adds that give a reason, a preview and a graduation, with their text. */
+function explainingProposals(baseNames: Set<string>, head: Map<string, string>): Map<string, string> {
+  const added = new Map<string, string>();
+  for (const [file, text] of [...head].sort(([left], [right]) => left.localeCompare(right))) {
+    if (!baseNames.has(file) && proposalExplains(text)) added.set(file, text);
   }
-  return added.sort();
+  return added;
 }
 
-function reportMembership(changes: string[], explained: readonly string[]): boolean {
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** True when the text names the term, or one of its alternatives, as a whole word: `side-panel`, not `side-panels`. */
+function names(text: string, term: Term): boolean {
+  const options = typeof term === "string" ? [term] : term;
+  return options.some((option) => new RegExp(`(?<![A-Za-z0-9_./-])${escapeRegExp(option)}(?![A-Za-z0-9_/-])`).test(text));
+}
+
+function termText(term: Term): string {
+  return typeof term === "string" ? `"${term}"` : term.map((option) => `"${option}"`).join(" or ");
+}
+
+/**
+ * A membership change passes only when one new proposal covers it: it gives a
+ * reason, a preview and a graduation, and it names every term of the change.
+ * A proposal for one change does not let another through.
+ */
+function reportMembership(changes: readonly Change[], explained: ReadonlyMap<string, string>): boolean {
   if (changes.length === 0) return true;
-  if (explained.length === 0) {
+  if (explained.size === 0) {
     console.error("inventory: set changed without a proposal.");
-    for (const change of changes) console.error(`inventory: ${change}`);
+    for (const change of changes) console.error(`inventory: ${change.text}`);
     return false;
   }
-  console.log(`inventory: set changed with ${explained.join(", ")}.`);
-  for (const change of changes) console.log(`inventory: ${change}`);
+  const uncovered: string[] = [];
+  for (const change of changes) {
+    const covering = [...explained].find(([, text]) => change.terms.every((term) => names(text, term)));
+    if (covering) {
+      console.log(`inventory: ${change.text} Covered by ${covering[0]}.`);
+      continue;
+    }
+    const missing = change.terms.filter((term) => ![...explained.values()].some((text) => names(text, term)));
+    uncovered.push(
+      `inventory: ${change.text} No new proposal covers it: one proposal must name ${change.terms.map(termText).join(", ")}${missing.length > 0 ? `, and none names ${missing.map(termText).join(", ")}` : ""}.`,
+    );
+  }
+  if (uncovered.length > 0) {
+    console.error(`inventory: set changed without a proposal that covers it. New proposals: ${[...explained.keys()].join(", ")}.`);
+    for (const line of uncovered) console.error(line);
+    return false;
+  }
+  console.log(`inventory: set changed with ${[...explained.keys()].join(", ")}.`);
   return true;
 }
 
@@ -559,6 +624,28 @@ function summary(inventory: Inventory): string {
 }
 
 const baseFlag = flag("--base");
+const proposalsFlag = flag("--proposals");
+if (proposalsFlag && !baseFlag) fail("inventory: --proposals goes with --base. A pull request's new proposals are the ones its base does not have.");
+
+/**
+ * The proposals the change adds. Against a revision, the files under
+ * proposals/ that the revision does not have. A working-tree base shares the
+ * head's proposals, so it adds none, unless `--proposals <dir>` names the
+ * proposals to read as new: the fixtures have no history to add one in.
+ */
+function newProposals(root: Root): Map<string, string> {
+  if (root.kind === "git") return explainingProposals(proposalNamesAtRev(root.rev), proposalsOnDisk(process.cwd()));
+  if (!proposalsFlag) return new Map();
+  const dir = path.resolve(proposalsFlag);
+  if (!existsSync(dir)) fail(`inventory: proposals directory ${proposalsFlag} is missing.`);
+  const files = new Map<string, string>();
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isFile() && entry.name.endsWith(".md") && entry.name !== "README.md") {
+      files.set(`${proposalsFlag}/${entry.name}`, readFileSync(path.join(dir, entry.name), "utf8"));
+    }
+  }
+  return explainingProposals(new Set(), files);
+}
 const headRoot: Root = { kind: "tree", config };
 
 const head = readInventory(headRoot);
@@ -609,18 +696,17 @@ if (base === null) {
   }
   const rev = baseRoot.kind === "git" ? baseRoot.rev.slice(0, 7) : baseFlag;
   // A new product is a whole inventory added at once, and so is an existing one moved to new file names, so it needs a new proposal like any other membership change.
-  const added = [`base ${rev} has no ${configName} or ${config.paths.inputs}, so this is a new product.`];
-  const newExplained = baseRoot.kind === "git" ? explainingProposals(proposalNamesAtRev(baseRoot.rev), proposalsOnDisk(process.cwd())) : [];
-  if (!reportMembership(added, newExplained)) process.exit(1);
+  const added: Change[] = [
+    { text: `base ${rev} has no ${configName} or ${config.paths.inputs}, so this is a new product.`, terms: [path.posix.dirname(configName.split(path.sep).join("/"))] },
+  ];
+  if (!reportMembership(added, newProposals(baseRoot))) process.exit(1);
   console.log(`inventory: recorded a new product's inventories.`);
   console.log("inventory: collection bodies use a registered content layout.");
   console.log(`inventory: ${summary(head)}`);
   process.exit(0);
 }
 const changes = membershipChanges(base, head, compareConfig);
-// A working-tree base shares the head's proposals, so it can add none.
-const explained = baseRoot.kind === "git" ? explainingProposals(proposalNamesAtRev(baseRoot.rev), proposalsOnDisk(process.cwd())) : [];
-const matched = reportMembership(changes, explained);
+const matched = reportMembership(changes, newProposals(baseRoot));
 
 if (violations.length > 0 || !matched) {
   for (const violation of violations) console.error(`inventory: ${violation}`);

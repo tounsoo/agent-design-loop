@@ -20,12 +20,15 @@ import { checkFile, scripts as packageScripts } from "./lib/scripts";
  *   export default {
  *     config: { adapter?, paths?: { <key>: path }, shells?, flows? },
  *     base?: { adapter?, paths?, shells?, flows? },
+ *     proposals?: "<dir of proposal .md files>",
  *     checks: [{ run: "check:one-thing", args?: ["--list"], fails | passes: "<phrase>" }],
  *   };
  *
  * A fixture has no pull request base, so check:inventories compares it with
  * the product plus `base`'s overrides when the case gives a base, and with
- * the case itself when it does not.
+ * the case itself when it does not. A fixture adds no proposal either, so
+ * check:inventories reads the .md files in `proposals` as the proposals the
+ * change adds.
  *
  * Name cases to run only those: `npm run check:fixtures -- illegal/two-primaries`.
  */
@@ -37,7 +40,7 @@ const CONTAINERS = new Set([FIXTURES, `${FIXTURES}/illegal`]);
 
 type Overrides = { adapter?: string; paths?: Record<string, string | string[]>; shells?: unknown; flows?: unknown[] };
 type Check = { run: string; args: string[]; expect: "fails" | "passes"; phrase: string };
-type Case = { dir: string; config: Overrides; base: Overrides | null; checks: Check[] };
+type Case = { dir: string; config: Overrides; base: Overrides | null; proposals: string | null; checks: Check[] };
 
 function scriptFiles(): Map<string, string> {
   const files = new Map<string, string>();
@@ -77,7 +80,7 @@ function parseCase(dir: string, product: ParsedConfig, scripts: Map<string, stri
   const file = path.join(dir, "case.ts");
   const value = defaultExportLiteral(readFileSync(file, "utf8"), file, "case");
   if (!isRecord(value)) throw new Error(`${file} must export an object.`);
-  const unknown = Object.keys(value).filter((key) => !["config", "base", "checks"].includes(key));
+  const unknown = Object.keys(value).filter((key) => !["config", "base", "proposals", "checks"].includes(key));
   if (unknown.length > 0) throw new Error(`${file} has unknown keys: ${unknown.join(", ")}.`);
   if (!Array.isArray(value.checks) || value.checks.length === 0) throw new Error(`${file} must list at least one check.`);
   const checks = value.checks.map((item, index): Check => {
@@ -86,22 +89,26 @@ function parseCase(dir: string, product: ParsedConfig, scripts: Map<string, stri
     const run = requireString(item, "run", where);
     if (!scripts.has(run)) throw new Error(`${where}.run "${run}" is not an npm script that runs one check.`);
     const args = item.args === undefined ? [] : requireStrings(item, "args", where);
-    if (args.some((arg) => arg === "--config" || arg === "--base")) throw new Error(`${where}.args may not set --config or --base.`);
+    if (args.some((arg) => arg === "--config" || arg === "--base" || arg === "--proposals")) {
+      throw new Error(`${where}.args may not set --config, --base or --proposals.`);
+    }
     if ((item.fails === undefined) === (item.passes === undefined)) throw new Error(`${where} must give exactly one of fails or passes.`);
     const expect = item.fails === undefined ? "passes" : "fails";
     return { run, args, expect, phrase: requireString(item, expect, where) };
   });
   const config = overrides(value.config, `${file} config`, product);
   const base = value.base === undefined ? null : overrides(value.base, `${file} base`, product);
+  const proposals = value.proposals === undefined ? null : requireString(value, "proposals", file);
+  if (proposals !== null && base === null) throw new Error(`${file} gives proposals but no base, so no change is compared.`);
   // A missing path makes a check crash, and a crash prints the path, so a
   // phrase found in a path could pass a case that never ran its rule.
-  const named = [dir, ...pathsIn(config), ...(base ? pathsIn(base) : [])];
+  const named = [dir, ...pathsIn(config), ...(base ? pathsIn(base) : []), ...(proposals ? [proposals] : [])];
   for (const missing of named.filter((name) => !existsSync(name))) throw new Error(`${file} names ${missing}, which does not exist.`);
   for (const check of checks) {
     const echoed = named.find((name) => name.includes(check.phrase));
     if (echoed) throw new Error(`${file} expects "${check.phrase}", which is part of the path ${echoed}, so it cannot show the rule ran.`);
   }
-  return { dir, config, base, checks };
+  return { dir, config, base, proposals, checks };
 }
 
 /** Every repo path a case's overrides name. */
@@ -183,7 +190,7 @@ try {
 
     for (const check of testCase.checks) {
       ran += 1;
-      const extra = check.run === "check:inventories" ? ["--base", base] : [];
+      const extra = check.run === "check:inventories" ? ["--base", base, ...(testCase.proposals ? ["--proposals", testCase.proposals] : [])] : [];
       const args = [scripts.get(check.run) ?? "", ...check.args, "--config", config, ...extra];
       const result = spawnSync(process.execPath, ["--import", "tsx", ...args], { encoding: "utf8" });
       const output = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;

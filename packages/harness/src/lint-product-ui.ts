@@ -4,7 +4,6 @@ import { adapter, isDesignSystemImport } from "./lib/adapter";
 import { config, configName, uiRoots } from "./lib/config";
 import { attributeValue, jsxTagName, lineOf, listSourceFiles, parseFile, walk } from "./lib/jsx";
 
-
 const forbiddenTags = new Set(["button", "input", "select", "textarea", "a"]);
 /** Other component kits. The adapter's own packages are not foreign, even when they are on this list. */
 const foreignPackages = ["@mui/", "antd", "@chakra-ui/", "react-bootstrap", "@radix-ui/"];
@@ -45,35 +44,65 @@ function leavesProduct(file: string, spec: string): boolean {
   return !ownDirectories.some((directory) => isInside(directory, target));
 }
 
+/**
+ * The module a statement or expression loads: an import, an `export ... from`
+ * re-export, a dynamic `import()`, or `require()`. Each reaches the design
+ * system as surely as an import does.
+ */
+function moduleSpecifierOf(node: ts.Node): string | "computed" | null {
+  if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier) {
+    return ts.isStringLiteral(node.moduleSpecifier) ? node.moduleSpecifier.text : null;
+  }
+  if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference)) {
+    const expression = node.moduleReference.expression;
+    return ts.isStringLiteral(expression) ? expression.text : "computed";
+  }
+  const loads =
+    ts.isCallExpression(node) &&
+    (node.expression.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(node.expression) && node.expression.text === "require"));
+  if (loads) {
+    const argument = node.arguments[0];
+    return argument && (ts.isStringLiteral(argument) || ts.isNoSubstitutionTemplateLiteral(argument)) ? argument.text : "computed";
+  }
+  return null;
+}
+
+function checkSpecifier(file: string, source: ts.SourceFile, node: ts.Node, spec: string, catalog: boolean): void {
+  const line = lineOf(source, node);
+  const fromDesignSystem = isDesignSystemImport(spec);
+  if (fromDesignSystem && !catalog) {
+    violations.push({
+      file,
+      line,
+      message: `off-catalog: import "${spec}" directly. Product UI must import from ${path.dirname(config.paths.catalog)}.`,
+    });
+  }
+  if (leavesProduct(file, spec)) {
+    violations.push({
+      file,
+      line,
+      message: `off-catalog: import "${spec}" reaches outside this product's directories in ${configName}. Product UI imports only from its own product.`,
+    });
+  }
+  if (!fromDesignSystem && foreignPackages.some((name) => spec === name.slice(0, -1) || spec.startsWith(name))) {
+    violations.push({ file, line, message: `off-catalog: import "${spec}" is not the ${adapter.name} catalog.` });
+  }
+}
+
 function scan(file: string): void {
   const source = parseFile(file);
   const catalog = isCatalogFile(file);
 
   walk(source, (node) => {
-    if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
-      const spec = node.moduleSpecifier.text;
-      const fromDesignSystem = isDesignSystemImport(spec);
-      if (fromDesignSystem && !catalog) {
-        violations.push({
-          file,
-          line: lineOf(source, node),
-          message: `off-catalog: import "${spec}" directly. Product UI must import from ${path.dirname(config.paths.catalog)}.`,
-        });
-      }
-      if (leavesProduct(file, spec)) {
-        violations.push({
-          file,
-          line: lineOf(source, node),
-          message: `off-catalog: import "${spec}" reaches outside this product's directories in ${configName}. Product UI imports only from its own product.`,
-        });
-      }
-      if (!fromDesignSystem && foreignPackages.some((name) => spec === name.slice(0, -1) || spec.startsWith(name))) {
-        violations.push({
-          file,
-          line: lineOf(source, node),
-          message: `off-catalog: import "${spec}" is not the ${adapter.name} catalog.`,
-        });
-      }
+    const specifier = moduleSpecifierOf(node);
+    if (specifier === "computed") {
+      violations.push({
+        file,
+        line: lineOf(source, node),
+        message: "off-catalog: a dynamic import or require with a computed specifier cannot be checked. Load a string literal.",
+      });
+    } else if (specifier !== null) {
+      checkSpecifier(file, source, node, specifier, catalog);
     }
 
     const opening = ts.isJsxElement(node)

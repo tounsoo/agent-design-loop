@@ -13,6 +13,8 @@ export type FlowConfig = {
   /**
    * Task id in the product inputs' tasks → the task graph module that models
    * it. check:step-budget measures every task through the module named here.
+   * It names a flow state by its `status` field, or by `flowStatus(state)`
+   * when the module exports one.
    */
   readonly tasks?: { readonly [taskId: string]: string };
   /**
@@ -33,14 +35,16 @@ export type ShellRules = {
    * Page type → the slot on its shell that holds the page's one primary
    * action: `{ detail: "Primary" }` means `<DetailPage.Primary>`. lint:slots
    * requires every page of the type to fill it with exactly one primary action,
-   * and each type named here to render at least one page.
+   * and each type named here to render at least one page. The slot must be
+   * one the shell defines as `Object.assign(Root, { ... })`.
    */
   readonly primarySlots: { readonly [pageType: string]: string };
   /**
    * Page type → its shell's chrome slots, for page types that are collections.
    * Every other slot is body. A collection's ready body must be a registered
    * content layout (check:inventories), and a collection page holds no primary
-   * action (check:one-thing). A product with no collection names none.
+   * action (check:one-thing). A product with no collection names none. Each
+   * slot named must be one the shell defines, as in primarySlots.
    */
   readonly collections: { readonly [pageType: string]: readonly string[] };
 };

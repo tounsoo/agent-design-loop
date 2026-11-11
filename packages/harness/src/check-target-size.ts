@@ -147,9 +147,9 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+/** Every control in the document: the page, and the chrome and anything else around it. */
 function collectTargets(): Box[] {
-  const root = document.querySelector("[data-page]");
-  if (!root) return [];
+  const root = document.body;
   const selector = "button, summary, a[href], input, textarea, label, [role='radio'], [role='checkbox'], [role='switch']";
   return [...root.querySelectorAll<HTMLElement>(selector)].flatMap((element) => {
     if (element instanceof HTMLInputElement && element.closest("label")) return [];

@@ -290,17 +290,22 @@ function covered(node: ts.Node, scopes: readonly Scope[]): boolean {
  * in a variable, built outside the shell, or in a file no page renders. A
  * per-page cap cannot count them, so the checks fail them instead.
  */
-export function unreachedTags(featuresRoot: string, pages: readonly Page[], tag: string): string[] {
+export function unreachedElements(featuresRoot: string, pages: readonly Page[], tag: string): { node: ts.Node; where: string }[] {
   const scopes = pages.flatMap((page) => page.scopes);
-  const found: string[] = [];
+  const found: { node: ts.Node; where: string }[] = [];
   for (const file of listSourceFiles(featuresRoot)) {
     const source = parseFile(file);
     walk(source, (node) => {
       const opening = openingOf(node);
       if (!opening || canonicalTag(opening) !== tag || covered(node, scopes)) return;
       const line = source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
-      found.push(`${path.relative(process.cwd(), file)}:${line}`);
+      found.push({ node, where: `${path.relative(process.cwd(), file)}:${line}` });
     });
   }
   return found;
+}
+
+/** Where each unreached element with the tag is, as `file:line`. */
+export function unreachedTags(featuresRoot: string, pages: readonly Page[], tag: string): string[] {
+  return unreachedElements(featuresRoot, pages, tag).map((found) => found.where);
 }
