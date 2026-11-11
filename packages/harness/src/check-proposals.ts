@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveBaseRev } from "./lib/base";
 import { DEFAULT_PROPOSALS, parseConfig } from "./lib/parse-config";
-import { parseAll, proposalsAtRev, proposalsInDir, transitionProblems } from "./lib/proposals";
+import { nameProblems, parseAll, sharedNameProblems, proposalsAtRev, proposalsInDir, transitionProblems } from "./lib/proposals";
 
 /**
  * Every proposal parses: front matter with a status and the changes it
@@ -12,7 +12,8 @@ import { parseAll, proposalsAtRev, proposalsInDir, transitionProblems } from "./
  * against the pull request base, read as check:inventories reads it, every
  * status moved only open → decided → graduated, one step per change, with
  * nothing an approved proposal covers widened. A new proposal cannot graduate
- * what it names in the change that adds it.
+ * what it names in the change that adds it, and is named for the UTC day it
+ * was written and a slug, so parallel changes cannot pick the same name.
  *
  * The folders read are `proposals/` and every product config's
  * `paths.proposals`. It takes no arguments.
@@ -45,16 +46,28 @@ const rev = resolved.rev;
 
 const problems: string[] = [];
 let count = 0;
+const allHead: string[] = [];
+const allBase: string[] = [];
 for (const dir of dirs) {
-  const head = parseAll(proposalsInDir(dir));
-  const base = parseAll(proposalsAtRev(rev, dir));
+  const headFiles = proposalsInDir(dir);
+  const baseFiles = proposalsAtRev(rev, dir);
+  allHead.push(...headFiles.keys());
+  allBase.push(...baseFiles.keys());
+  const head = parseAll(headFiles);
+  const base = parseAll(baseFiles);
   count += head.proposals.size;
-  problems.push(...head.problems, ...transitionProblems(base.proposals, head.proposals, base.legacy, head.unparsed));
+  problems.push(
+    ...nameProblems(baseFiles.keys(), headFiles.keys()),
+    ...head.problems,
+    ...transitionProblems(base.proposals, head.proposals, base.legacy, head.unparsed),
+  );
 }
+
+problems.push(...sharedNameProblems(allBase, allHead));
 
 if (problems.length > 0) {
   console.error(`proposals: compared with ${rev.slice(0, 7)}:`);
   for (const problem of problems) console.error(`- ${problem}`);
   process.exit(1);
 }
-console.log(`proposals: ${count} proposals in ${dirs.join(", ")} have their fields and sections, and each status moved one step at most from ${rev.slice(0, 7)}.`);
+console.log(`proposals: ${count} proposals in ${dirs.join(", ")} have their fields and sections, each new one has a dated name, and each status moved one step at most from ${rev.slice(0, 7)}.`);

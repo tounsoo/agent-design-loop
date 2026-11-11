@@ -210,6 +210,67 @@ export function parseProposal(file: string, text: string): ParsedProposal {
   };
 }
 
+/**
+ * A proposal's file name is its ID. A new one is named for the UTC day it is
+ * written and a slug, `2026-11-12-side-panel.md`, so two pull requests
+ * written in parallel never reach for the same name the way they did for the
+ * next free number. Proposals already on the base keep the numbered names
+ * they merged with, because a decided or graduated proposal cannot be renamed.
+ */
+const DATED_NAME = /^(\d{4})-(\d{2})-(\d{2})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** True for a real calendar day from 2000 that is no later than tomorrow in UTC, which leaves room for a writer ahead of UTC. */
+function isDatedName(name: string, today: Date): boolean {
+  const match = DATED_NAME.exec(name);
+  if (!match) return false;
+  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  const date = new Date(Date.UTC(year, month - 1, day));
+  const real = year >= 2000 && date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+  return real && date.getTime() <= today.getTime() + DAY_MS;
+}
+
+/** Each proposal file the head adds, by path, whose name is not a real, past or present day and a lowercase slug. */
+export function nameProblems(base: Iterable<string>, head: Iterable<string>, today: Date = new Date()): string[] {
+  const before = new Set(base);
+  const problems: string[] = [];
+  for (const file of [...head].sort()) {
+    const name = path.posix.basename(file);
+    if (before.has(file) || isDatedName(name, today)) continue;
+    const slug = name.replace(/\.md$/, "").replace(/^\d{4}(?:[-_]\d{1,2}[-_]\d{1,2})?[-_]/, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "slug";
+    const example = path.posix.join(path.posix.dirname(file), `${today.toISOString().slice(0, 10)}-${slug}.md`);
+    problems.push(
+      `${file} is a new proposal, so its name is the UTC day it was written and a lowercase slug, such as ${example}. A dated name cannot collide with a proposal another pull request adds in parallel, as the next free number can.`,
+    );
+  }
+  return problems;
+}
+
+/**
+ * Each new proposal whose file name another proposal folder also holds. Git
+ * catches two pull requests that add the same name to one folder, but not to
+ * two folders, and either way the ID would name two proposals. `head` and
+ * `base` are paths across every folder the check reads.
+ */
+export function sharedNameProblems(base: Iterable<string>, head: Iterable<string>): string[] {
+  const before = new Set(base);
+  const byName = new Map<string, string[]>();
+  for (const file of head) {
+    const name = path.posix.basename(file);
+    byName.set(name, [...(byName.get(name) ?? []), file]);
+  }
+  const problems: string[] = [];
+  for (const files of [...byName.values()].filter((list) => list.length > 1)) {
+    const sorted = [...files].sort();
+    for (const file of sorted.filter((candidate) => !before.has(candidate))) {
+      const others = sorted.filter((other) => other !== file);
+      problems.push(`${file} is a new proposal with the same name as ${others.join(" and ")}. A file name is the proposal's ID, so give it another slug.`);
+    }
+  }
+  return problems;
+}
+
 /** True when a proposal's file name makes it a proposal: a .md file other than README.md. */
 export function isProposalFile(file: string): boolean {
   return file.endsWith(".md") && path.posix.basename(file) !== "README.md";
