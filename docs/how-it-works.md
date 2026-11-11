@@ -342,7 +342,7 @@ A product whose config and inputs the base has neither of is new. That is a whol
 ```mermaid
 flowchart TB
   read["Read the head inventories and the base inventories."]
-  skip["Skip allowed_layouts, allowed_content_layouts, harness.config.ts or the adapter when the base does not have it."]
+  skip["Skip allowed_layouts, allowed_content_layouts or the adapter when the base does not have it."]
   diff{"Does any compared value differ?"}
   ok["No proposal required."]
   words{"Does the pull request add a new proposal file that contains reason, preview, and graduation?"}
@@ -365,7 +365,7 @@ Compared values, from `membershipChanges` in `scripts/check-inventories.ts`:
 - each priority item's action, rank, and level
 - `disclosed_sections`, only when the base already exports it
 - `MAX_DISCLOSURE_DEPTH`, `MAX_DISCLOSURES_PER_PAGE`, `MAX_VISIBLE_QUESTIONS`, and `TARGET_MIN_PX`
-- every path in `harness.config.ts` and its `flows` list, only when the base already has the file, and the adapter path it names, only when the base config already names one. The base is read at the paths its own config names, or at the head's paths when it has none
+- every path in `harness.config.ts`, its `flows` list, and the adapter path it names, only when the base config already names one. The base is read at the paths its own config names, or at the head's paths when it has none. A config the base does not have at that path, while the base has the product's inputs, is a change of its own, so renaming a config cannot skip these comparisons
 - the design system adapter that `harness.config.ts` names, field by field, only when the base config already names one
 - the config's `shells` rules, which page types have a primary slot or are collections, and their slots
 

@@ -313,6 +313,8 @@ function membershipChanges(base: Inventory, head: Inventory, compareConfig: bool
   compare("MAX_DISCLOSURES_PER_PAGE", base.disclosuresPerPage, head.disclosuresPerPage);
   compare("MAX_VISIBLE_QUESTIONS", base.visibleQuestions, head.visibleQuestions);
   compare("TARGET_MIN_PX", base.targetMinPx, head.targetMinPx);
+  // The base has the product's inputs but no config at this path: a renamed config would otherwise skip every comparison below.
+  if (compareConfig && base.config === null && head.config !== null) lines.push(`${configName} is new: the base has no config at that path to compare.`);
   if (compareConfig && base.config !== null) {
     if (head.config === null) lines.push(`${configName} was removed.`);
     else {
@@ -515,7 +517,6 @@ function introducedLists(base: Inventory, head: Inventory, compareConfig: boolea
   const introduced: string[] = [];
   if (base.layouts === null) introduced.push("allowed_layouts");
   if (base.contentLayouts === null) introduced.push("allowed_content_layouts");
-  if (compareConfig && base.config === null && head.config !== null) introduced.push(configName);
   if (base.adapter === null && head.adapter !== null) introduced.push("design system adapter");
   return introduced;
 }
