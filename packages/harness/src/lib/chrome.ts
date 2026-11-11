@@ -4,10 +4,10 @@ import { Browser, computeExecutablePath, detectBrowserPlatform } from "@puppetee
 import { PUPPETEER_REVISIONS } from "puppeteer-core/internal/revisions.js";
 
 /**
- * Where check:target-size finds a headless Chrome. `npm run setup:chrome`
- * installs the chrome-headless-shell build that this repository's
- * puppeteer-core is tested with into `.cache/chrome`, the same way locally
- * and in CI. A Chrome at `CHROME_PATH`, or a system Chrome in the usual
+ * Where check:target-size and check:accessible-names find a headless Chrome.
+ * `npm run setup:chrome` installs the chrome-headless-shell build that this
+ * repository's puppeteer-core is tested with into `.cache/chrome`, the same
+ * way locally and in CI. A Chrome at `CHROME_PATH`, or a system Chrome in the usual
  * `/usr/bin` paths, works too.
  */
 
@@ -53,7 +53,7 @@ export function findChrome(
     missing: [
       "no headless Chrome found, and this check measures the built app in one.",
       `Looked for CHROME_PATH (unset), ${installed ? `${path.relative(process.cwd(), installed)} (npm run setup:chrome)` : `npm run setup:chrome's install (no build for this platform)`}, and ${SYSTEM_CHROME.join(", ")}.`,
-      `Fix it with one of: npm run setup:chrome, which downloads chrome-headless-shell ${CHROME_BUILD} into ${CHROME_CACHE}; or CHROME_PATH=/path/to/chrome npm run check:target-size -- --config <product config>.`,
+      `Fix it with one of: npm run setup:chrome, which downloads chrome-headless-shell ${CHROME_BUILD} into ${CHROME_CACHE}; or CHROME_PATH=/path/to/chrome in front of the npm run that ran this check.`,
     ].join("\n"),
   };
 }

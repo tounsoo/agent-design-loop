@@ -51,7 +51,7 @@ The happy path is two steps: open an invoice, Approve. That lands on `invoice-ap
 
 The shell stays up in every modeled state. Loading, empty, and error render inside `main`. A **Preview** menu in the header is a developer aid for opening those states without clicking through. It links to Loading, Empty, Error, Queue (`/`), Detail, Invoice approved, and Changes requested. The default URL does not depend on it.
 
-These are the preview URLs `check:target-size` opens. The menu has no entry for the All invoices and Vendors routes or for the request-changes branch, so type those URLs.
+These are the preview URLs `check:target-size` and `check:accessible-names` open. The menu has no entry for the All invoices and Vendors routes or for the request-changes branch, so type those URLs.
 
 - `?state=loading`
 - `?state=empty`

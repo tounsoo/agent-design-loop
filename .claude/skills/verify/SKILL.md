@@ -29,7 +29,7 @@ git rev-parse --verify origin/main || git rev-parse --verify main   # check:inve
 npm run setup:chrome             # the chrome-headless-shell build puppeteer-core pins, into .cache/chrome
 ```
 
-A wrong Node major or a dirty tree is `BLOCKED` until fixed. With neither, run `git fetch origin main`. `check:target-size` looks for Chrome at `CHROME_PATH`, then in `.cache/chrome`, then under `/usr/bin`, and with none it names each place it looked. When `setup:chrome` cannot download and there is no other Chrome, step 3 is `BLOCKED`. `/usr/bin/chromium-browser` on Ubuntu is often only a snap shim, so check that `--version` prints a version.
+A wrong Node major or a dirty tree is `BLOCKED` until fixed. With neither, run `git fetch origin main`. `check:target-size` and `check:accessible-names` look for Chrome at `CHROME_PATH`, then in `.cache/chrome`, then under `/usr/bin`, and with none it names each place it looked. When `setup:chrome` cannot download and there is no other Chrome, step 3 is `BLOCKED`. `/usr/bin/chromium-browser` on Ubuntu is often only a snap shim, so check that `--version` prints a version.
 
 ## Launch and drive
 
@@ -41,7 +41,7 @@ npm run check:fixtures && npm run check
 
 This is the command `AGENTS.md` names. CI runs the same checks split into two jobs, one per product. `check:fixtures` runs every case folder under `packages/harness/fixtures/` against the checks its `case.ts` names, on the fixture product's config (`packages/harness/fixtures/product/harness.config.ts`) with the paths the case changes. It passes only when every illegal case fails with its expected message and every legal case passes with its expected message. The legal cases are the fixture product itself, the stand-in design system in `fixtures/fake-ds/`, which shows a check reads its names from the adapter, and small products of their own, which show a rule reads its product's config and inputs. `check` then runs typecheck, ESLint and the Vitest suite on the whole repository, then `check:product` on each product's config, which runs `check:opt-outs` and every rule check in `check:rules`, then `check:proposals`, `check:retirement` and `check:loop`, which read the whole repository and take no `--config`. The Vitest suite drives Meridian with Testing Library and `user-event` in jsdom: it follows an invoice link, opens Line items, presses Approve, and requests changes with and without a reason.
 
-Each product's rule checks end with `check:target-size`, so without Chrome `check` stops at Meridian's. Then run the rest by hand, one product at a time, and mark step 3 `BLOCKED`:
+Each product's rule checks end with `check:target-size` and `check:accessible-names`, so without Chrome `check` stops at Meridian's. Then run the rest by hand, one product at a time, and mark step 3 `BLOCKED`:
 
 ```sh
 npm run typecheck && npm run lint && npm run test
@@ -71,6 +71,7 @@ When a change adds or edits a proposal, `check:proposals` must pass: a proposal 
 
 ```sh
 npm run check:target-size -- --config products/meridian/harness.config.ts
+npm run check:accessible-names -- --config products/meridian/harness.config.ts
 ```
 
 Use `products/nook/harness.config.ts` for Nook.
@@ -79,9 +80,11 @@ Before building, list the screen's states, the edge cases included, and look for
 
 `check:target-size` builds the app, serves it with `vite preview` on `127.0.0.1:4173` (strict port, so stop any other preview first), and opens every modeled state at 1280 by 900 in headless Chrome, once per preview query the product's `harness.config.ts` lists for it, and opens a disclosure when the page has one. `npm run check:target-size -- --list --config products/meridian/harness.config.ts` prints those previews without Chrome. It fails any control under 24 CSS px that misses the WCAG 2.5.8 spacing exception. It closes the server and the browser itself.
 
+`check:accessible-names` builds and serves the app the same way, opens the same previews, and reads Chrome's accessibility tree on each. It fails a control with no accessible name, an announcement the flow's `accessible-names.ts` declares that a screen reader does not hear, and a node that changes with the state, one with `aria-current` (its entry gives `current`), a live region (by role or `aria-live`) with something to say, or a progress bar or meter, that the file leaves out. When a change alters what a state says, change that file in the same pull request, and say in the pull request what each changed state now announces, so a reviewer can judge the words. `--list` checks the file against the previews without Chrome.
+
 To look at a Meridian change, run `npm run build && npm run preview`. It is ready when Vite prints `http://127.0.0.1:4173/`. Open the URLs in [features/](features/README.md) there, and stop the preview server you started when done.
 
-A Claude Duet thread runs this step too: `npm run setup:chrome` downloads chrome-headless-shell into `.cache/chrome` there, and `check:target-size` measures in it. The step is `BLOCKED` only when no Chrome that starts is found: `setup:chrome` cannot download one or has no build for the platform, there is no other Chrome, or the one found does not start. Then say so in the pull request, link the pull request's CI run (it runs `npm run setup:chrome` and `check:target-size`), and name the URLs a reviewer should open. The three fixture cases that measure, `target-size-whole-document`, `illegal/small-control-outside-page` and `illegal/small-control-in-closed-menu`, are `BLOCKED` with it.
+A Claude Duet thread runs this step too: `npm run setup:chrome` downloads chrome-headless-shell into `.cache/chrome` there, and `check:target-size` and `check:accessible-names` run in it. The step is `BLOCKED` only when no Chrome that starts is found: `setup:chrome` cannot download one or has no build for the platform, there is no other Chrome, or the one found does not start. Then say so in the pull request, link the pull request's CI run (it runs `npm run setup:chrome`, `check:target-size` and `check:accessible-names`), and name the URLs a reviewer should open. The seven fixture cases that open a page, `target-size-whole-document`, `illegal/small-control-outside-page`, `illegal/small-control-in-closed-menu`, `announced-progress`, `illegal/step-read-as-in-progress`, `illegal/undeclared-current-step` and `illegal/unnamed-control`, are `BLOCKED` with it.
 
 #### Screenshots (the same changes, once step 3 passes)
 
@@ -124,7 +127,7 @@ Every row also runs step 4.
 
 ## Evidence
 
-Put the tested commit's full SHA in the pull request body, with each command and the line that gives its verdict: the `fixtures:` summary, each check's verdict line (such as `step budget: within budget.` or `inventory: membership matches <sha>.`), and the Vitest `Tests` count. For step 3, the `target size:` line, and the gallery link from the screenshots. For step 4, the `trace:` line. Proof standards:
+Put the tested commit's full SHA in the pull request body, with each command and the line that gives its verdict: the `fixtures:` summary, each check's verdict line (such as `step budget: within budget.` or `inventory: membership matches <sha>.`), and the Vitest `Tests` count. For step 3, the `target size:` and `accessible names:` lines, and the gallery link from the screenshots. For step 4, the `trace:` line. Proof standards:
 
 - Drive the real path: a check runs against the product as it is, and a journey goes through the rendered controls, never by calling a transition or setting state directly.
 - Check the end state: the flow state the journey lands on, the check's exit code and its message, not only that nothing threw.

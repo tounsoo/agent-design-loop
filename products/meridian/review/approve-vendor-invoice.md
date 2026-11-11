@@ -14,6 +14,7 @@ Task: review a vendor invoice and approve it. Success state `invoice-approved`. 
 - Approve does not require opening Line items first. The product owner decided that on Nov 11, 2026, so a reviewer is never forced into an extra click. [Proposal 0003](../../../proposals/0003-two-step-approve.md) records it and corrects the step counts in proposal 0001.
 - The flow renders loading, empty, error, ready, invoice-approved, and changes-requested. The shell stays up in each.
 - The page types are collection and detail. The app shell is the frame, not a third page type. No page renders inside another.
+- What a screen reader hears on each preview is declared in `features/invoice-approval/accessible-names.ts`, and `check:accessible-names` holds the app to it: the current queue link and invoice, the approved or changes-requested status message, and Approve turned off once the invoice is decided. Every control has a name.
 
 ## What the checks cannot decide
 
@@ -24,5 +25,6 @@ Task: review a vendor invoice and approve it. Success state `invoice-approved`. 
 - What should happen when the lines do not add up to the amount? Nothing flags it today. Flagging a mismatch, or holding Approve on one, would be a new flow state, and that is a proposal.
 - Did we model the states that actually happen? The six states above are the ones this journey names. A partial payment or a duplicate invoice number is not modeled.
 - Should an important control aim for 44 CSS px instead of the 24 CSS px floor? The target-size check enforces the floor only.
+- Should loading and the load error announce themselves? Loading renders no live region or progress bar, and the error is not an alert, so a screen reader hears either only by moving onto it. The accessible-names check compares what is declared and cannot ask for a region that is not there.
 
 No exception is recorded in the product inputs.
