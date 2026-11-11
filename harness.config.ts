@@ -20,6 +20,11 @@ export default {
     rules: "src/rules/ux-rules.ts",
     styles: "src/styles.css",
     app: ["src/harness", "src/App.tsx", "src/main.tsx"],
+    web: ".",
+  },
+  shells: {
+    primarySlots: { detail: "Primary" },
+    collections: { collection: ["Heading", "Description"] },
   },
   flows: [
     {

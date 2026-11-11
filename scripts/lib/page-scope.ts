@@ -4,6 +4,17 @@ import ts from "typescript";
 import { adapter } from "./adapter";
 import { config, importsFrom, loadInputs, memberOf } from "./config";
 import { jsxTagName, listSourceFiles, parseFile, walk } from "./jsx";
+import {
+  collectionShellsOf,
+  primarySlotsOf,
+  shellsOf,
+  valueExports,
+  type CollectionShell,
+  type PrimarySlot,
+  type Shell,
+} from "./shells";
+
+export { valueExports, type CollectionShell, type PrimarySlot, type Shell };
 
 const { allowed_layouts, allowed_page_types } = await loadInputs();
 
@@ -14,8 +25,6 @@ const { allowed_layouts, allowed_page_types } = await loadInputs();
  * the chrome layouts that wrap every page. Caps that say "per page" count over
  * this scope, not over one file.
  */
-
-export type Shell = { readonly pageType: string; readonly name: string };
 
 export type Scope = {
   readonly source: ts.SourceFile;
@@ -47,37 +56,19 @@ export const defaultRoots: PageRoots = {
 
 const DISCLOSURE = adapter.disclosure.root;
 
-/** Names a module exports as values, including re-exports. */
-export function valueExports(file: string): string[] {
-  const source = parseFile(file);
-  const names: string[] = [];
-  walk(source, (node) => {
-    if (!ts.isExportDeclaration(node) || node.isTypeOnly || !node.exportClause || !ts.isNamedExports(node.exportClause)) return;
-    for (const element of node.exportClause.elements) {
-      if (!element.isTypeOnly) names.push(element.name.text);
-    }
-  });
-  return names;
-}
-
 /** Shells come from allowed_page_types. Problems are for the caller to report. */
 export function discoverShells(roots: PageRoots = defaultRoots): { shells: Shell[]; problems: string[] } {
-  const shells: Shell[] = [];
-  const problems: string[] = [];
-  for (const pageType of allowed_page_types) {
-    const modulePath = path.join(roots.pageTypes, pageType, "index.ts");
-    if (!existsSync(modulePath)) {
-      problems.push(`page type "${pageType}" has no shell module.`);
-      continue;
-    }
-    const names = valueExports(modulePath);
-    if (names.length === 0) {
-      problems.push(`page type "${pageType}" does not export a shell.`);
-      continue;
-    }
-    for (const name of names) shells.push({ pageType, name });
-  }
-  return { shells, problems };
+  return shellsOf(allowed_page_types, roots.pageTypes);
+}
+
+/** The primary slots the config's shells.primarySlots gives the shells. */
+export function primarySlots(shells: readonly Shell[]): { slots: PrimarySlot[]; problems: string[] } {
+  return primarySlotsOf(config.shells, shells, allowed_page_types);
+}
+
+/** The collection shells the config's shells.collections names. */
+export function collectionShells(shells: readonly Shell[]): { collections: CollectionShell[]; problems: string[] } {
+  return collectionShellsOf(config.shells, shells, allowed_page_types);
 }
 
 /** Fails when a part a check counts is not a catalog export, so the cap cannot go quiet. */

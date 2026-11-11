@@ -1,7 +1,7 @@
 import path from "node:path";
 import ts from "typescript";
 import { adapter, isDesignSystemImport } from "./lib/adapter";
-import { config, uiRoots } from "./lib/config";
+import { config, configName, uiRoots } from "./lib/config";
 import { attributeValue, jsxTagName, lineOf, listSourceFiles, parseFile, walk } from "./lib/jsx";
 
 
@@ -19,6 +19,32 @@ function isCatalogFile(file: string): boolean {
   return file.split(path.sep).join("/").includes(catalogSegment);
 }
 
+/**
+ * The directories the config gives this product. A relative import that
+ * reaches outside all of them could reach another product's catalog or UI.
+ */
+const ownDirectories = [
+  config.paths.source,
+  config.paths.features,
+  path.dirname(config.paths.catalog),
+  config.paths.pageTypes,
+  config.paths.layouts,
+  config.paths.contentLayouts,
+  ...uiRoots.map((root) => (/\.tsx?$/.test(root) ? path.dirname(root) : root)),
+  ...config.flows.flatMap((flow) => [path.dirname(flow.states), path.dirname(flow.views)]),
+].map((directory) => path.resolve(directory));
+
+function isInside(directory: string, target: string): boolean {
+  const relative = path.relative(directory, target);
+  return !relative.startsWith("..") && !path.isAbsolute(relative);
+}
+
+function leavesProduct(file: string, spec: string): boolean {
+  if (!spec.startsWith(".")) return false;
+  const target = path.resolve(path.dirname(file), spec);
+  return !ownDirectories.some((directory) => isInside(directory, target));
+}
+
 function scan(file: string): void {
   const source = parseFile(file);
   const catalog = isCatalogFile(file);
@@ -32,6 +58,13 @@ function scan(file: string): void {
           file,
           line: lineOf(source, node),
           message: `off-catalog: import "${spec}" directly. Product UI must import from ${path.dirname(config.paths.catalog)}.`,
+        });
+      }
+      if (leavesProduct(file, spec)) {
+        violations.push({
+          file,
+          line: lineOf(source, node),
+          message: `off-catalog: import "${spec}" reaches outside this product's directories in ${configName}. Product UI imports only from its own product.`,
         });
       }
       if (!fromDesignSystem && foreignPackages.some((name) => spec === name.slice(0, -1) || spec.startsWith(name))) {

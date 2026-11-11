@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
 import { build, preview } from "vite";
 import puppeteer from "puppeteer-core";
 import { adapter } from "./lib/adapter";
@@ -29,6 +30,18 @@ type Box = {
   height: number;
 };
 
+// The product's own index.html, inside the repository, built with the repository's Vite config.
+const web = path.resolve(config.paths.web);
+const webFromRoot = path.relative(process.cwd(), web);
+if (webFromRoot.startsWith("..") || path.isAbsolute(webFromRoot)) {
+  console.error(`target size: ${config.paths.web} is outside the repository (paths.web).`);
+  process.exit(1);
+}
+if (!existsSync(path.join(web, "index.html"))) {
+  console.error(`target size: ${config.paths.web} has no index.html to build (paths.web).`);
+  process.exit(1);
+}
+
 const chromeCandidates = [
   process.env.CHROME_PATH,
   "/usr/bin/google-chrome-stable",
@@ -45,8 +58,10 @@ if (!chrome) {
 
 assertButtonTokens();
 
-await build();
+const viteConfig = { root: web, configFile: path.resolve("vite.config.ts") };
+await build(viteConfig);
 const server = await preview({
+  ...viteConfig,
   preview: { host: "127.0.0.1", port: 4173, strictPort: true },
 });
 

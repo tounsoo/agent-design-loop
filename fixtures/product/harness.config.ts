@@ -19,6 +19,11 @@ export default {
     rules: "fixtures/product/rules.ts",
     styles: "fixtures/product/styles.css",
     app: [],
+    web: "fixtures/product",
+  },
+  shells: {
+    primarySlots: { detail: "Primary" },
+    collections: { collection: ["Heading", "Description"] },
   },
   flows: [
     {

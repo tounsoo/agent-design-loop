@@ -4,12 +4,16 @@ import ts from "typescript";
 import { adapter, isPrimaryVariant } from "./lib/adapter";
 import { config, loadRules, memberOf } from "./lib/config";
 import { attributeValue, jsxTagName, lineOf, listSourceFiles, parseFile, walk } from "./lib/jsx";
-import { canonicalTag, discoverShells, missingCatalogParts, openingOf, pagesIn, tagsInScope, unreachedTags } from "./lib/page-scope";
+import { canonicalTag, discoverShells, missingCatalogParts, openingOf, collectionShells as collectionShellsOf, pagesIn, tagsInScope, unreachedTags } from "./lib/page-scope";
 
 /**
  * One job per page. Page-type membership lives in allowed_page_types and
  * check:inventories. This check reads that inventory. It does not keep a
  * second list of page type ids.
+ *
+ * A collection page holds no primary action: it chooses a record, and the
+ * record's page acts on it. Which page types are collections is the config's
+ * shells.collections.
  *
  * A page is one rendered page-type shell (see scripts/lib/page-scope.ts). The
  * rules hold per page, not per product: a product may render as many pages of
@@ -40,7 +44,10 @@ for (const part of missingCatalogParts(catalogFile, QUESTION_PARTS)) {
 const { shells, problems } = discoverShells();
 for (const problem of problems) violations.push(`one thing: ${problem}`);
 
-const collectionShells = new Set(shells.filter((shell) => shell.pageType === "collection").map((shell) => shell.name));
+// Collections are the page types the config names under shells.collections.
+const { collections, problems: ruleProblems } = collectionShellsOf(shells);
+for (const problem of ruleProblems) violations.push(`one thing: ${problem}`);
+const collectionShells = new Set(collections.map(({ shell }) => shell.name));
 const scannedLayouts = new Set<string>();
 
 for (const file of listSourceFiles(featuresRoot)) {

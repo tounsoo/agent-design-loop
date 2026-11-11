@@ -13,7 +13,7 @@ Read, in order:
 7. Flow model: `src/flows/invoice-approval`
 8. Proposals: `proposals/README.md`
 
-The product is **Meridian**, an accounts-payable workspace. The named task is in the product inputs.
+The product is **Meridian**, an accounts-payable workspace. The named task is in the product inputs. A second product, **Nook**, lives under `products/nook/` with its own `harness.config.ts`, which lists its inventories the same way; work on Nook reads those.
 
 Layouts are product-owned shells with named slots, encoded from Todae recipes. Recipes are copyable glue, not package namespaces. Do not invent component names or props. Do not fork [Todae](https://github.com/tounsoo/todae). Import UI only from the catalog.
 

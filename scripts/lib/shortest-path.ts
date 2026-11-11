@@ -1,3 +1,8 @@
+/**
+ * The harness's path search, which check:step-budget measures every task
+ * with. A task graph module's taskEdges are TaskEdge values. A product may
+ * import this too, to measure its own graph in its tests, as Meridian does.
+ */
 export type TaskEdge<T> = {
   readonly step: string;
   readonly when: (node: T) => boolean;

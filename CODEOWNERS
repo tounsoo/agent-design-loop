@@ -7,3 +7,9 @@
 # The design system adapter names the parts every check counts. Swapping a
 # name can empty a check the same way.
 /adapters/ @tounsoo
+# Each product under products/ has a harness config of its own, with the
+# same reach as the root one.
+/products/*/harness.config.ts @tounsoo
+# CI names the config each product job checks. Pointing a job at another
+# config file would check a product against an inventory with no base.
+/.github/workflows/ @tounsoo

@@ -1,0 +1,31 @@
+/*
+ * Layer order is declared before Todae's sheet so Nook's frame does not
+ * override component paint. Component styling stays in the catalog. Only
+ * the layout, the page types and the room cards own classes here.
+ */
+@layer app, todae;
+
+@import "@tounsoo/todae/todae.css";
+
+@layer app {
+  body {
+    margin: 0;
+  }
+
+  .top-bar {
+    padding: 0.75rem 1.5rem;
+    border-block-end: 1px solid var(--todae-color-border, #d9d9de);
+  }
+
+  .top-bar-main {
+    padding: 2rem 1.5rem;
+    max-inline-size: 48rem;
+    margin-inline: auto;
+  }
+
+  .room-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+    gap: 1rem;
+  }
+}

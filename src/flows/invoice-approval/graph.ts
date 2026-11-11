@@ -1,4 +1,4 @@
-import { shortestPath, type TaskEdge } from "./shortest-path";
+import { shortestPath, type TaskEdge } from "../../../scripts/lib/shortest-path";
 import { sampleInvoices, type FlowEvent, type FlowState } from "./states";
 
 /** The task in src/inputs/product.ts#tasks that this graph models. */
