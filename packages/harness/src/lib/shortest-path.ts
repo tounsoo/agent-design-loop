@@ -9,33 +9,65 @@ export type TaskEdge<T> = {
   readonly apply: (node: T) => T;
 };
 
+/**
+ * A state's key, the same for states that hold the same values: object keys
+ * are sorted, and a Set or Map is read as its sorted entries, which plain
+ * JSON.stringify would write as {}.
+ */
+export function stateKey(node: unknown): string {
+  const plain = (value: unknown): unknown => {
+    if (value instanceof Map) return { "<Map>": [...value].map(([key, entry]) => [plain(key), plain(entry)]).sort(byKey) };
+    if (value instanceof Set) return { "<Set>": [...value].map(plain).sort(byKey) };
+    if (Array.isArray(value)) return value.map(plain);
+    if (typeof value === "object" && value !== null) {
+      return Object.fromEntries(
+        Object.keys(value)
+          .sort()
+          .map((key) => [key, plain((value as Record<string, unknown>)[key])]),
+      );
+    }
+    return value;
+  };
+  const byKey = (a: unknown, b: unknown) => (JSON.stringify(a) < JSON.stringify(b) ? -1 : 1);
+  return JSON.stringify(plain(node)) ?? "undefined";
+}
+
+/** A search's result, with how many states it looked at. */
+type Search = ({ readonly kind: "found"; readonly path: readonly string[] } | { readonly kind: "none" } | { readonly kind: "capped" }) & {
+  readonly seen: number;
+};
+
+function search<T>(start: T, edges: readonly TaskEdge<T>[], isSuccess: (node: T) => boolean, maxStates: number): Search {
+  const seen = new Set<string>([stateKey(start)]);
+  const queue: { node: T; path: string[] }[] = [{ node: start, path: [] }];
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current) break;
+    if (isSuccess(current.node)) return { kind: "found", path: current.path, seen: seen.size };
+    for (const edge of edges) {
+      if (!edge.when(current.node)) continue;
+      const next = edge.apply(current.node);
+      const key = stateKey(next);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      // A reducer with unbounded state (a counter, free text) would never end the search.
+      if (seen.size > maxStates) return { kind: "capped", seen: seen.size };
+      queue.push({ node: next, path: [...current.path, edge.step] });
+    }
+  }
+
+  return { kind: "none", seen: seen.size };
+}
+
 export function shortestPath<T>(
   start: T,
   edges: readonly TaskEdge<T>[],
   isSuccess: (node: T) => boolean,
   maxStates = 100_000,
 ): readonly string[] | null {
-  const keyOf = (node: T) => JSON.stringify(node);
-  const seen = new Set<string>([keyOf(start)]);
-  const queue: { node: T; path: string[] }[] = [{ node: start, path: [] }];
-
-  while (queue.length > 0) {
-    const current = queue.shift();
-    if (!current) break;
-    if (isSuccess(current.node)) return current.path;
-    for (const edge of edges) {
-      if (!edge.when(current.node)) continue;
-      const next = edge.apply(current.node);
-      const key = keyOf(next);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      // A reducer with unbounded state (a counter, free text) would never end the search.
-      if (seen.size > maxStates) return null;
-      queue.push({ node: next, path: [...current.path, edge.step] });
-    }
-  }
-
-  return null;
+  const found = search(start, edges, isSuccess, maxStates);
+  return found.kind === "found" ? found.path : null;
 }
 
 /**
@@ -53,7 +85,7 @@ export function eventEdges<S, E extends { readonly type: string }>(
 export type RouteMeasure =
   | { readonly kind: "within"; readonly longest: readonly string[] | null }
   | { readonly kind: "over"; readonly route: readonly string[] }
-  | { readonly kind: "too-many"; readonly limit: number };
+  | { readonly kind: "too-many"; readonly limit: string };
 
 /**
  * Every route to success, not only the shortest. A route takes steps, edges
@@ -67,7 +99,9 @@ export type RouteMeasure =
  * independent settings, reach the same state by many routes. When no state
  * already passed can be reached again from a state, what follows it does not
  * depend on how the route got there, so the search measures it once. It gives
- * up past maxRoutes states measured.
+ * up past maxRoutes states measured, or when finding the shortest finishes
+ * would look at more than maxFinishStates states in all, as a reducer with a
+ * counter and a dead end can.
  */
 export function measureRoutes<T>(
   start: T,
@@ -76,14 +110,20 @@ export function measureRoutes<T>(
   steps: ReadonlySet<string>,
   maxSteps: number,
   maxRoutes = 10_000,
+  maxFinishStates = 200_000,
   maxAhead = 2_000,
 ): RouteMeasure {
-  const keyOf = (node: T) => JSON.stringify(node);
+  const keyOf = stateKey;
   const stepEdges = edges.filter((edge) => steps.has(edge.step));
-  const finishes = new Map<string, readonly string[] | null>();
-  const finish = (node: T, key: string) => {
-    if (!finishes.has(key)) finishes.set(key, shortestPath(node, edges, isSuccess));
-    return finishes.get(key) ?? null;
+  const finishes = new Map<string, Search>();
+  let finishStates = 0;
+  const finish = (node: T, key: string): Search => {
+    const known = finishes.get(key);
+    if (known) return known;
+    const found = search(node, edges, isSuccess, maxFinishStates - finishStates);
+    finishStates += found.seen;
+    finishes.set(key, found);
+    return found;
   };
   /** States reachable from a state by steps, or null past maxAhead, when the search measures that state on every route. */
   const ahead = new Map<string, ReadonlySet<string> | null>();
@@ -112,17 +152,19 @@ export function measureRoutes<T>(
   const measured = new Map<string, { depth: number; suffix: readonly string[] | null }>();
   let routes = 0;
 
-  type Walk = { kind: "over"; route: readonly string[] } | { kind: "too-many" } | { kind: "within"; suffix: readonly string[] | null };
+  type Walk = { kind: "over"; route: readonly string[] } | { kind: "too-many"; limit: string } | { kind: "within"; suffix: readonly string[] | null };
 
   const walk = (node: T, key: string, taken: readonly string[], passed: ReadonlySet<string>): Walk => {
     const known = measured.get(key);
     // No longer route was over budget from deeper, so none is from here.
     if (known && known.depth >= taken.length) return { kind: "within", suffix: known.suffix };
     routes += 1;
-    if (routes > maxRoutes) return { kind: "too-many" };
+    if (routes > maxRoutes) return { kind: "too-many", limit: `${maxRoutes} states` };
+    const finished: Search = isSuccess(node) ? { kind: "found", path: [], seen: 0 } : finish(node, key);
+    if (finished.kind === "capped") return { kind: "too-many", limit: `${maxFinishStates} states searched for a finish` };
     // No finish from here means no step from here finishes either.
-    const rest = isSuccess(node) ? [] : finish(node, key);
-    if (!rest) return { kind: "within", suffix: null };
+    if (finished.kind === "none") return { kind: "within", suffix: null };
+    const rest = finished.path;
     if (taken.length + rest.length > maxSteps) return { kind: "over", route: [...taken, ...rest] };
     let suffix: readonly string[] = rest;
     if (rest.length > 0) {
@@ -145,6 +187,6 @@ export function measureRoutes<T>(
   const startKey = keyOf(start);
   const result = walk(start, startKey, [], new Set([startKey]));
   if (result.kind === "over") return result;
-  if (result.kind === "too-many") return { kind: "too-many", limit: maxRoutes };
+  if (result.kind === "too-many") return result;
   return { kind: "within", longest: result.suffix };
 }

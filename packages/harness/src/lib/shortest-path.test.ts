@@ -73,6 +73,51 @@ describe("measureRoutes", () => {
     expect(measureRoutes(0, edges, (node) => node === -1, new Set(edges.map((edge) => edge.step)), 8).kind).toBe("over");
   });
 
+  it("reads a state rebuilt with its keys in another order as the same state", () => {
+    type Toggle = { readonly on: boolean; readonly done: boolean };
+    const edges = [
+      { step: "go", when: (node: Toggle) => !node.on && !node.done, apply: (node: Toggle) => ({ ...node, on: true }) },
+      { step: "back", when: (node: Toggle) => node.on, apply: (node: Toggle) => ({ done: node.done, on: false }) },
+      { step: "finish", when: (node: Toggle) => node.on, apply: (node: Toggle) => ({ ...node, done: true }) },
+    ];
+    expect(measureRoutes<Toggle>({ on: false, done: false }, edges, (node) => node.done, new Set(["go", "back", "finish"]), 2)).toEqual({
+      kind: "within",
+      longest: ["go", "finish"],
+    });
+  });
+
+  it("tells states apart by what a Set holds", () => {
+    type Pick = { readonly picked: ReadonlySet<string>; readonly looked: boolean; readonly done: boolean };
+    const start: Pick = { picked: new Set(), looked: false, done: false };
+    const edges = [
+      { step: "pick-a", when: (node: Pick) => node.picked.size === 0, apply: (node: Pick) => ({ ...node, picked: new Set(["a"]) }) },
+      { step: "pick-b", when: (node: Pick) => node.picked.size === 0, apply: (node: Pick) => ({ ...node, picked: new Set(["b"]) }) },
+      { step: "look", when: (node: Pick) => node.picked.size > 0, apply: (node: Pick) => ({ ...node, looked: true }) },
+      {
+        step: "finish",
+        when: (node: Pick) => node.picked.has("a") || node.looked,
+        apply: (node: Pick) => ({ ...node, done: true }),
+      },
+    ];
+    expect(measureRoutes(start, edges, (node) => node.done, new Set(["pick-a", "pick-b", "finish"]), 2)).toEqual({
+      kind: "over",
+      route: ["pick-b", "look", "finish"],
+    });
+  });
+
+  it("gives up when the finishes need too many states, as a counter with a dead end does", () => {
+    type Count = { readonly count: number; readonly dead: boolean; readonly done: boolean };
+    const edges = [
+      { step: "dead-end", when: (node: Count) => !node.dead && !node.done, apply: (node: Count) => ({ ...node, dead: true }) },
+      { step: "count", when: () => true, apply: (node: Count) => ({ ...node, count: node.count + 1 }) },
+      { step: "finish", when: (node: Count) => !node.dead, apply: (node: Count) => ({ ...node, done: true }) },
+    ];
+    const started = Date.now();
+    const result = measureRoutes<Count>({ count: 0, dead: false, done: false }, edges, (node) => node.done, new Set(["dead-end", "finish"]), 3, 10_000, 5_000);
+    expect(result).toEqual({ kind: "too-many", limit: "5000 states searched for a finish" });
+    expect(Date.now() - started).toBeLessThan(2_000);
+  });
+
   it("gives up past its route limit instead of searching forever", () => {
     // Six steps from every state, each to a new state, and done finishes from any of them.
     const edges = [
@@ -84,6 +129,6 @@ describe("measureRoutes", () => {
       { step: "done", when: () => true, apply: () => -1 },
     ];
     const result = measureRoutes(0, edges, (node) => node === -1, new Set(edges.map((edge) => edge.step)), 20, 10);
-    expect(result).toEqual({ kind: "too-many", limit: 10 });
+    expect(result).toEqual({ kind: "too-many", limit: "10 states" });
   });
 });

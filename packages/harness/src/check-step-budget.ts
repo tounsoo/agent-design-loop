@@ -97,7 +97,7 @@ function reportRoutes(measure: RouteMeasure, which: string, file: string, taskId
     );
   } else if (measure.kind === "too-many") {
     violations.push(
-      `step budget: the ${which} in ${file} needs more than ${measure.limit} states measured for ${taskId}, so not every route was measured. Cut the steps a person can take before finishing.`,
+      `step budget: the ${which} in ${file} passed the route search's limit of ${measure.limit} for ${taskId}, so not every route was measured. Cut the steps a person can take before finishing.`,
     );
   } else if (measure.longest) {
     console.log(`  longest ${which} route (${measure.longest.length}): ${measure.longest.join(" → ")}`);

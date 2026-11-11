@@ -6,4 +6,4 @@
  */
 export type { FlowConfig, HarnessConfig, ShellRules } from "./src/lib/parse-config";
 export type { DesignSystemAdapter } from "./src/lib/adapter";
-export { eventEdges, measureRoutes, shortestPath, type RouteMeasure, type TaskEdge } from "./src/lib/shortest-path";
+export { eventEdges, measureRoutes, shortestPath, stateKey, type RouteMeasure, type TaskEdge } from "./src/lib/shortest-path";

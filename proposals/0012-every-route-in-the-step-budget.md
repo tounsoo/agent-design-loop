@@ -11,7 +11,8 @@ Rule or input: how `check:step-budget` measures a task. No product input, `max_s
 - **Every route.** The modeled and shipped shortest paths must still fit `max_steps` and be the same steps. Now every other route to the same success must fit too, in the task graph and in the shipped reducer.
 - **What a route is.** A step is an event that a task graph in the same `flows[]` entry names as a step. A route takes any steps the flow allows, in any order, never back to a state it has already passed, then finishes the shortest way any user event allows. In Nook, hold is the hold-room task's step, so choose, hold, book is a route to book-room's success. In the task graph, every edge is a step.
 - **What is not a route.** An event no task names, such as opening Room details, changing the length or Back, is a detour a person chooses, so it counts only when the finish needs it. A reducer that made a held room need a confirm before Book would make choose, hold, confirm, book a 4-step route, and fail.
-- **Bounded.** The search stops a route as soon as it passes the budget, so it never walks deeper than `max_steps`. The shortest finish from each state is computed once. When no state earlier on the route can come back after a state, what follows that state does not depend on how the route reached it, so it is measured once: eight settings that can be made in any order are 256 states, not 40,320 orders. A task that would need more than 10,000 states measured fails with its own message instead of running on.
+- **Bounded.** The search stops a route as soon as it passes the budget, so it never walks deeper than `max_steps`. The shortest finish from each state is computed once. When no state earlier on the route can come back after a state, what follows that state does not depend on how the route reached it, so it is measured once: eight settings that can be made in any order are 256 states, not 40,320 orders. A task that would need more than 10,000 states measured, or more than 200,000 states looked at to find the shortest finishes, as a counter beside a dead end can, fails with its own message instead of running on.
+- **Same state.** Two states are the same when they hold the same values: keys are read in sorted order, and a Set or Map by what it holds, where `JSON.stringify` wrote both as `{}`. The shortest-path search reads states the same way.
 - **Output.** For each task, the check prints the longest modeled and shipped route next to the shortest paths, and a failure names the route and its length.
 
 ## Reason
@@ -20,7 +21,7 @@ The step budget is the harness's measure of interaction cost, and a person does 
 
 ## Preview
 
-`check:step-budget` on Nook with the reducer from the held-room demo:
+`check:step-budget` on Nook with the reducer from the held-room demo, pull request 26, which lets a held room be booked. On main, a held room cannot be booked, so the longest route is still choose-room → book:
 
 ```
 step budget: book-room (max_steps 3), products/nook/flows/booking/book-room.ts
@@ -39,7 +40,7 @@ step budget: the shipped flow route choose-room → hold → book takes 3 steps,
 ## Graduation
 
 - No file changes on approval. These change in the same pull request:
-  - `packages/harness/src/lib/shortest-path.ts` adds `measureRoutes`, exported from the harness package, with its tests in `shortest-path.test.ts`.
+  - `packages/harness/src/lib/shortest-path.ts` adds `measureRoutes` and `stateKey`, exported from the harness package, with their tests in `shortest-path.test.ts`.
   - `packages/harness/src/check-step-budget.ts` measures every route for each task.
   - The fixtures `longer-route`, `illegal/route-over-budget` and `illegal/modeled-route-over-budget`, and the docs: the harness README, `how-it-works.md`, `CLAUDE.md` and the verify skill.
 - What the check still cannot do: tell an abandoned branch from a choice. If a product adds a task whose steps a person can start and then leave, such as writing a change request before approving instead, that route counts against the other task's budget too. And it measures only the routes the reducer allows: whether a route should exist is the reviewer's question.
