@@ -12,7 +12,7 @@ Task: review a vendor invoice and approve it. Success state `invoice-approved`. 
 - The happy path is 2 steps: open an invoice, Approve. The task graph and the shipped reducer agree on it, and the step-budget check fails if they drift apart. `max_steps` is 3.
 - Approve does not require opening Line items first. The product owner decided that on Nov 11, 2026, so a reviewer is never forced into an extra click. [Proposal 0003](../proposals/0003-two-step-approve.md) records it and corrects the step counts in proposal 0001.
 - The flow renders loading, empty, error, ready, invoice-approved, and changes-requested. The shell stays up in each.
-- The page types are collection and detail. The app shell is the frame, not a third page type. Each page shell appears once.
+- The page types are collection and detail. The app shell is the frame, not a third page type. No page renders inside another.
 
 ## What the checks cannot decide
 

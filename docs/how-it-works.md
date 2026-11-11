@@ -30,7 +30,7 @@ Here is how those rungs show up in this repo:
 - **Cannot compile.** `renderedStates` in `src/features/invoice-approval/views.tsx` is `satisfies readonly ModeledState[]`. Drop a modeled state from that list and `npm run typecheck` fails. The view `switch` ends in `never` for the same reason. `success_state` on a task is typed as `ModeledState`.
 - **Fails CI.** `npm run check` is the lint, the UX checks, the inventory check, and the tests. `npm run lint:product-ui` rejects a raw `button`, `input`, `select`, `textarea`, or `a`, a `style` attribute, a direct `@tounsoo/todae` import outside `src/catalog`, and a foreign component kit.
 - **Canonical helper.** The catalog, the page-type shells, and the content layouts are the code the next edit is supposed to copy. There is no second way to build a button.
-- **Runtime check.** `CollectionPage` and `DetailPage` throw while rendering if a required slot is missing or repeated, and the detail primary slot throws unless it holds one button. CI also checks that contract, in `npm run lint:slots`, so a bad slot fails before anyone opens the screen.
+- **Runtime check.** `CollectionPage` and `DetailPage` throw while rendering if a required slot is missing or any slot is repeated, and the detail primary slot throws unless it holds one button. CI checks the detail primary slot in `npm run lint:slots`, so a bad primary fails before anyone opens the screen.
 
 The page's pattern, when the same instruction is about to be written a second time: if it can be a lint rule, a metadata flag, a runtime check, or a script, encode it and delete the instruction. If it genuinely requires judgment, make the instruction prominent and add an example of the failure. The corollary on the page: "If the fix is structural, ONLY use the structural fix. The instruction IS the symptom." That is why `AGENTS.md` stays a pointer. Growing the skill text is the weaker move. Growing an inventory, and a check that reads it, is the stronger one.
 
@@ -96,7 +96,7 @@ Search, filters, sort, and paging live in the data table. The task graph does no
 
 ### One invoice
 
-Choosing an invoice number opens the detail page inside the same app shell. The URL is `?invoice=inv-1842` from To approve, and it keeps `route` when you came from All invoices or Vendors.
+Choosing an invoice number opens the detail page inside the same app shell. The URL is `?invoice=inv-1842` from To approve, and it keeps `route=invoices` when you came from All invoices. Vendors rows have no link.
 
 ```mermaid
 flowchart TB
@@ -212,6 +212,8 @@ flowchart LR
 
 The Todae names below, such as `Button.Root` and its `variant`, `Disclosure.Root`, `Disclosure.Summary` and `Field.Root`, are not in the scripts. Each script reads them from the design system adapter that `harness.config.ts` names, `adapters/todae.ts`. `fixtures/fake-ds/` is UI for a stand-in design system with other names, and `check:fixtures` requires the checks to pass it under its own adapter.
 
+Write a button's variant as a plain string, as in `variant="secondary"`. A braced literal, `variant={"secondary"}`, is read as the variant too, but `check:priority` also reads it as part of the button's text, so "Request changes" becomes "secondary Request changes" and the check fails. A button with no variant is primary, because the adapter says Todae's default is. A variant computed from an expression, such as `variant={tone}`, counts as neither primary nor secondary. So a computed variant on Approve or Request changes fails `check:priority`, and one in the detail primary slot fails `lint:slots`. On a collection page, `check:one-thing` does not count it as a primary, even if it renders as one.
+
 What each script fails, in the words the code implements:
 
 - **Step budget.** Every task maps to one task graph in `harness.config.ts`, every mapped id is a task, and each graph exports that task's id as its `taskId`. For each task, the modeled path and the shipped path must exist, be at most `max_steps`, and be the same steps. `fixtures/illegal/over-budget` has a longer graph. `fixtures/illegal/over-budget-flow` has a 3-step graph and a reducer that needs 4. `fixtures/illegal/graph-flow-drift` has a 3-step graph and a reducer that needs 2. `fixtures/illegal/task-without-graph` maps a graph for only one of two tasks, and `fixtures/illegal/second-task-over-budget` puts the second of two tasks over budget. `fixtures/two-tasks` passes with both tasks measured.
@@ -300,11 +302,13 @@ flowchart TB
 
 Proposal 0001 is the example on main of a request that has been recorded and not applied. It asks for an approval note and `max_steps` 4. Proposal 0003 corrects its step counts rather than editing it. Until a graduating change lands, the budget stays 3 and the note stays out of the UI.
 
+A proposal can also record a decision instead of a request. Proposals 0003 and 0004 say `Status: decided`: each one landed with the change it describes, so nothing graduates later. `proposals/README.md` describes both kinds.
+
 The next round is more capable because the structure grew. The agent reads a longer allowlist and a check that enforces it. The skill text did not have to get longer. The page's words for that move are "encode it. Delete the instruction."
 
 ## When a proposal is required
 
-`npm run check:inventories` compares membership with the pull request base. On CI the base is `INVENTORY_BASE`. Locally, if that variable is unset, the script uses `origin/main` or `main`. If `HEAD` is that commit, it compares the tree with itself. Otherwise it uses the merge-base of `HEAD` and main.
+`npm run check:inventories` compares membership with the pull request base. On CI the base is `INVENTORY_BASE`. If that variable is unset, empty, `true`, `false`, or all zeros (what `github.event.before` holds when a push has no previous commit), the script uses `origin/main`, or a local `main` when the clone has no `origin/main`. If `HEAD` is that commit, it compares the tree with itself. Otherwise it uses the merge-base of `HEAD` and main.
 
 A list the base file does not export is skipped. That is the bootstrap that recorded `allowed_layouts`, and the one that recorded `allowed_content_layouts` in pull request 8. Since pull request 8 both lists exist on main, so a later pull request cannot introduce either list again. Adding or removing an id is a membership change.
 
@@ -328,38 +332,39 @@ Compared values, from `membershipChanges` in `scripts/check-inventories.ts`:
 
 - `allowed_layouts` and `allowed_content_layouts`, only when the base already exports them
 - `allowed_page_types`
-- catalog export names, values and types
+- catalog export names: named exports and re-exports, including `export type { … }`, and exported variables, functions, classes and type aliases. Exported interfaces and enums, and `export *`, are not read. The check compares names only, so pointing an existing name at another component is not a change
 - `modeledStates`
 - each task's `max_steps`
 - each priority item's action, rank, and level
 - `disclosed_sections`, only when the base already exports it
 - `MAX_DISCLOSURE_DEPTH`, `MAX_DISCLOSURES_PER_PAGE`, `MAX_VISIBLE_QUESTIONS`, and `TARGET_MIN_PX`
-- every path in `harness.config.ts`, only when the base already has the file. The base is read at the paths its own config names, or at the head's paths when it has none
+- every path in `harness.config.ts` and its `flows` list, only when the base already has the file, and the adapter path it names, only when the base config already names one. The base is read at the paths its own config names, or at the head's paths when it has none
 - the design system adapter that `harness.config.ts` names, field by field, only when the base config already names one
 
 String lists are sorted and de-duplicated before the comparison, so reordering `allowed_page_types` without adding or removing an id is not a change. Changing `max_steps` from 3 to 4 is a change, even though the task id stays.
 
 **Editing an existing id is not a membership change.** Rewriting `src/layouts/app-shell`, `src/content-layouts/data-table`, or a page-type shell, while the id stays in the allowlist, does not require a proposal. `proposals/README.md` says that in those words. Slot behavior, copy, and invoice fields are outside the membership set.
 
-**A new file is required.** The check ignores `proposals/README.md`. It counts a `proposals/*.md` file that the base does not already have. Editing proposal 0001 does not explain a new membership change. The words are a case-insensitive substring test: the body has to include `reason`, `preview`, and `graduation`. The check does not read whether those sections describe this diff.
+**A new file is required.** The check ignores `proposals/README.md`. It counts any `.md` file under `proposals/`, subfolders included, that the base does not already have. Editing proposal 0001 does not explain a new membership change. The words are a case-insensitive substring test: the body has to include `reason`, `preview`, and `graduation`. The check does not read whether those sections describe this diff.
 
 Two other checks in the same script always run, and a proposal does not waive them:
 
-- Directory names under `src/layouts`, `src/content-layouts`, and `src/page-types` match the allowlists in both directions. Imports of those ids must be on the lists. The `pageTypes` export matches `allowed_page_types`.
+- Directory names under `src/layouts`, `src/content-layouts`, and `src/page-types` match the allowlists in both directions. Any other file directly in those directories, besides `index.ts`, fails too. Imports of those ids must be on the lists. The `pageTypes` export matches `allowed_page_types`, and `src/page-types/index.ts` may not re-export an id that is not on it.
 - In the ready state, a collection body is one registered content layout, and the feature does not pass ad-hoc children into it. Loading, empty, and error may stay in the shell. Page CSS for a class the feature uses fails when no content layout, chrome layout, or page type uses that class.
 
 So a new content layout needs three things that are different jobs: the id in `allowed_content_layouts`, a matching directory, and a new proposal if that id is a membership change against the base. The directory check fails an extra folder even when a proposal is present. The membership check fails a new id when the proposal is missing.
 
 ## Worked example: the tracking board
 
-This is the loop under a real gap, as it stood when [pull request 8](https://github.com/tounsoo/agent-design-loop/pull/8) merged as `4a473ed`. [Pull request 7](https://github.com/tounsoo/agent-design-loop/pull/7) was open and not merged. Main's only content layout was `data-table`. The board was not shipped.
+This is the loop under a real gap, as it stood when [pull request 8](https://github.com/tounsoo/agent-design-loop/pull/8) merged as `4a473ed`. [Pull request 7](https://github.com/tounsoo/agent-design-loop/pull/7) was open then. It was closed on November 11, 2026 (UTC) without merging, so main's only content layout is still `data-table`, the board never shipped, and proposal 0002 is not on main. The example is history: it shows the gate firing, not something main contains.
 
 ```mermaid
 flowchart TB
   opened["PR 7 opens, parent 05c1bda, before content layouts exist. TrackingBoard renders inside CollectionPage.Body. The CI check on 20a3de3 succeeds."]
   merged["PR 8 merges as 4a473ed. A collection ready body has to be a registered content layout. The ad-hoc-content fixture must fail."]
   updated["PR 7, then still open, is brought onto that main. Head 544f73e proposes status-board as a content layout of collection, and rejects a new page type."]
-  opened --> merged --> updated
+  closed["PR 7 is closed without merging. Proposal 0002 never lands."]
+  opened --> merged --> updated --> closed
 ```
 
 **Before content layouts.** The first commit on pull request 7, `20a3de3`, is based on `05c1bda` (pull request 6, the inventory gate, before content layouts). Its tree has no `src/content-layouts` directory. The Tracking route renders `<TrackingBoard />` inside `CollectionPage.Body`. That component lives in `src/features/invoice-approval/tracking.tsx`: columns of cards, not a registered layout id. The GitHub check run on `20a3de3` completed with success. Nothing in the checks of that parent looked at the shape of a collection body. A distinct composition could ship inside `collection` without touching `allowed_layouts` or `allowed_page_types`. That is the gap pull request 8 records in its description.
@@ -368,13 +373,13 @@ flowchart TB
 
 **After the rebase.** Pull request 7's head `544f73e` is updated onto main `4a473ed`. Tracking stays a nav item in the app shell. It is not a step on `approve-vendor-invoice`. The ready body is a new content layout, id `status-board`, used as `<StatusBoard />` with no ad-hoc children. `allowed_page_types` stays `collection` and `detail`. `allowed_layouts` stays `app-shell`. `max_steps` stays 3.
 
-The proposal, `proposals/0002-tracking-board-card.md`, explains why the other inventory was the wrong one to grow. A page type is a new shell. Tracking still uses the collection shell: one heading, a description, a body, and no primary action. Loading, empty, and error stay in that shell. The reader picks one invoice and opens the existing detail. The difference from To approve, All invoices, and Vendors is the body, columns of cards instead of a filter bar and a table. Content layouts are the compositions that fill a page type's body. Adding a page type would duplicate the collection shell for a body the content-layout inventory was added to hold. `check:one-thing` reads `allowed_page_types` for the shells a page can use.
+The proposal on that branch, `proposals/0002-tracking-board-card.md`, explained why the other inventory was the wrong one to grow. A page type is a new shell. Tracking still uses the collection shell: one heading, a description, a body, and no primary action. Loading, empty, and error stay in that shell. The reader picks one invoice and opens the existing detail. The difference from To approve, All invoices, and Vendors is the body, columns of cards instead of a filter bar and a table. Content layouts are the compositions that fill a page type's body. Adding a page type would duplicate the collection shell for a body the content-layout inventory was added to hold. `check:one-thing` reads `allowed_page_types` for the shells a page can use.
 
-The same proposal also asks to export `Card` from the catalog, because the card was not in the catalog on main. The check accepts either a new content layout or a new page type once a proposal file explains it. It does not choose. That judgment is written down in `review/content-layouts.md` on main, and in `review/invoice-tracking.md` on the open pull request.
+The same proposal also asked to export `Card` from the catalog, because the card was not in the catalog on main. The check accepts either a new content layout or a new page type once a proposal file explains it. It does not choose. That judgment is written down in `review/content-layouts.md` on main. Pull request 7 had its own note, `review/invoice-tracking.md`, which closed with it.
 
 ## What this shows, and what it does not
 
-The checks on main pass, and the fixture script requires the known-bad shapes to fail. CI runs both on pull requests. The check run on pull request 8 passed before it merged. The check run on pull request 7's first commit, `20a3de3`, succeeded while the board was still loose markup. The check run on the open head, `544f73e`, succeeded again after the board was registered with proposal 0002.
+The checks on main pass, and the fixture script requires the known-bad shapes to fail. CI runs both on pull requests. The check run on pull request 8 passed before it merged. The check run on pull request 7's first commit, `20a3de3`, succeeded while the board was still loose markup. The check run on its later head, `544f73e`, succeeded again after the board was registered with proposal 0002. Pull request 7 was then closed without merging.
 
 That is a small number of runs. The agents that opened these pull requests were working in a repo that already tells them the theory, in `AGENTS.md` and in the task. A green check shows that these gates fire on the fixtures and on these branches. It does not show what an agent would do if nobody had told it the loop.
 
@@ -392,7 +397,7 @@ flowchart LR
   same --> keywords --> accept
 ```
 
-Pull request 7 is an open example. Proposal 0002 says the `Card` export and `status-board` are applied in that change. The keyword check is written to allow that. `review/inventories.md` says a reviewer has to refuse an edit that should have waited. The check will not.
+Pull request 7 was an example before it closed: proposal 0002 applied the `Card` export and `status-board` in the same change, and the keyword check allowed it. Proposals 0003 and 0004 land with their changes on purpose, marked `Status: decided`. The check cannot tell that from a request graduating early. `review/inventories.md` says a reviewer has to refuse an edit that should have waited. The check will not.
 
 **Judgment stays in `review/`.** The five review questions are unanswered by the checks: whether a step earns its cost, whether the first thing on screen is the right first thing, whether research supports the page split, whether the modeled states are the ones that happen, and whether an important control should aim for 44 CSS px instead of the 24 CSS px floor. The inventory notes add more that the check cannot see. A proposal's reason can be weak and still match the keywords. An implementation edit that keeps the same ids can change the product enough to deserve a proposal, and the membership set will not notice. A redesigned table inside `src/content-layouts/data-table` keeps the id `data-table`, and the check cannot tell that redesign from a different composition that reused the directory. Whether a future board should be a content layout or a page type is a choice the check accepts either way, once a proposal exists.
 

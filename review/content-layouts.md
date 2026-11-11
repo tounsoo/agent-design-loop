@@ -10,7 +10,7 @@ Content layouts are the compositions that fill a page type's body. `allowed_layo
 - After this lands, adding or removing a content layout id fails unless the pull request adds a proposal file with a reason, a preview, and a graduation.
 - In the ready state, a collection body has to be one of those content layouts. Loading, empty, and error still render in the collection shell and are not content layouts.
 - Markup in a feature that is not that layout fails. So does page CSS for a class the feature uses when no registered content layout, chrome layout, or page type uses it. A status board inside the collection body is that failure.
-- `check:one-thing` still requires one shell per page type and no primary button on a collection page. It reads `allowed_page_types` for which shells exist. Graduating a page type is a membership change in that inventory, not an edit to the check.
+- `check:one-thing` requires every page type in `allowed_page_types` to render at least one page, no page rendered inside another, and no primary button on a collection page. A page type may render as many pages as the product needs. The check reads `allowed_page_types` for which shells exist. Graduating a page type is a membership change in that inventory, not an edit to the check.
 - Editing `src/content-layouts/data-table` without changing its id does not require a proposal.
 
 ## What the checks cannot decide
