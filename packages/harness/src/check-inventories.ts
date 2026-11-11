@@ -503,32 +503,47 @@ const termNames = (terms: readonly Term[]): string[] => terms.flatMap((term) => 
  * The proposals this change adds that only add, split by whether they may
  * cover anything here. One that lists, under `adds`, a name this change
  * removes or changes in any other way is not a proposal that only adds, so
- * it covers nothing in this product, not even the members it does add.
+ * it covers nothing in this product, not even the members it does add. Nor
+ * does one that lists a name a proposal on the base already lists under
+ * `adds`: that is a base proposal under a new file name, or a member that
+ * was added before and comes back, and either goes through a decided
+ * proposal.
  */
-function addingProposals(changes: readonly Change[], proposals: ProposalsForChange): { usable: Proposal[]; refused: Map<string, string[]> } {
+function addingProposals(changes: readonly Change[], proposals: ProposalsForChange): { usable: Proposal[]; refused: Map<string, string> } {
   const other = new Set(changes.filter((change) => !change.additions).flatMap((change) => termNames(change.terms)));
+  const addedBefore = new Map([...proposals.base.values()].flatMap((proposal) => proposal.adds.map((name) => [name, proposal.file] as const)));
+  const quoted = (names: readonly string[]) => names.map((name) => `"${name}"`).join(", ");
   const usable: Proposal[] = [];
-  const refused = new Map<string, string[]>();
+  const refused = new Map<string, string>();
   for (const proposal of addingInThisChange(proposals.base, proposals.head)) {
-    const named = proposal.adds.filter((name) => other.has(name));
-    if (named.length > 0) refused.set(proposal.file, named);
-    else usable.push(proposal);
+    const changed = proposal.adds.filter((name) => other.has(name));
+    const again = proposal.adds.filter((name) => addedBefore.has(name));
+    if (changed.length > 0) {
+      refused.set(proposal.file, `lists ${quoted(changed)} under adds, which this change removes or changes rather than adds, so it covers nothing. adds covers only members added to ${addableText}.`);
+    } else if (again.length > 0) {
+      const files = [...new Set(again.map((name) => addedBefore.get(name)))].join(", ");
+      refused.set(
+        proposal.file,
+        `lists ${quoted(again)} under adds, which a proposal on the base already lists under adds (${files}), so it covers nothing. A proposal that only adds is new, and a member added before comes back through a proposal decided on the base.`,
+      );
+    } else usable.push(proposal);
   }
   return { usable, refused };
 }
 
 /** Why a proposal that lists every term of a change still does not cover it. */
-function whyNot(file: string, change: Change, proposals: ProposalsForChange, refused: ReadonlyMap<string, readonly string[]>): string {
+function whyNot(file: string, change: Change, proposals: ProposalsForChange, refused: ReadonlyMap<string, string>): string {
   const key = proposals.key(file);
   const before = proposals.base.get(key);
   const after = proposals.head.get(key);
   const lists = addableText;
   if (after && after.adds.length > 0 && change.terms.some((term) => adds(after, term))) {
-    if (before !== undefined) return `${file} added its members in an earlier pull request. A proposal that only adds covers them in the pull request that adds it, once.`;
-    const names = refused.get(file);
-    if (names) {
-      return `${file} lists ${names.map((name) => `"${name}"`).join(", ")} under adds, which this change removes or changes rather than adds, so it covers nothing. adds covers only members added to ${lists}.`;
+    if (before !== undefined && before.status !== "graduated") {
+      return `${file} is ${before.status} on the base, so it cannot become a proposal that only adds. A proposal that only adds is new in the pull request that makes the addition; this one graduates only what it listed under changes when it was decided.`;
     }
+    if (before !== undefined) return `${file} added its members in an earlier pull request. A proposal that only adds covers them in the pull request that adds it, once.`;
+    const reason = refused.get(file);
+    if (reason) return `${file} ${reason}`;
     if (!change.additions) {
       return `${file} lists it under adds, but this change does more than add members to ${lists}: ${change.text} A removal, a rename or any other change needs a proposal decided on the base.`;
     }
