@@ -1,5 +1,5 @@
-import { CollectionPage } from "../../../src/page-types/collection";
-import { DetailPage } from "../../../src/page-types/detail";
+import { CollectionPage } from "../../product/page-types/collection";
+import { DetailPage } from "../../product/page-types/detail";
 
 /** A queue of other invoices, built as a whole collection page. */
 function OtherInvoices() {

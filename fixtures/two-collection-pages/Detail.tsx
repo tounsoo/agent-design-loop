@@ -1,5 +1,5 @@
-import { Button } from "../../src/catalog";
-import { DetailPage } from "../../src/page-types/detail";
+import { Button } from "../product/catalog";
+import { DetailPage } from "../product/page-types/detail";
 
 /** Legal: one detail page with its one primary. */
 export function Detail() {

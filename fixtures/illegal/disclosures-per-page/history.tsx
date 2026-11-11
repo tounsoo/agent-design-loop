@@ -1,4 +1,4 @@
-import { Disclosure, Text } from "../../../src/catalog";
+import { Disclosure, Text } from "../../product/catalog";
 
 export function History() {
   return (

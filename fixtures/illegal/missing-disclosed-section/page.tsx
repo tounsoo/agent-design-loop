@@ -1,5 +1,5 @@
-import { Button, Table } from "../../../src/catalog";
-import { DetailPage } from "../../../src/page-types/detail";
+import { Button, Table } from "../../product/catalog";
+import { DetailPage } from "../../product/page-types/detail";
 
 /** Illegal: line items shown in the open. disclosed_sections says they sit behind a disclosure. */
 export function OpenLineItems() {

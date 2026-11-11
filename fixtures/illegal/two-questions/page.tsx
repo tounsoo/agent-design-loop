@@ -1,5 +1,5 @@
-import { Field, Label } from "../../../src/catalog";
-import { DetailPage } from "../../../src/page-types/detail";
+import { Field, Label } from "../../product/catalog";
+import { DetailPage } from "../../product/page-types/detail";
 
 function ReasonField() {
   return (

@@ -4,7 +4,7 @@ import path from "node:path";
 import ts from "typescript";
 import { parseAdapter, type DesignSystemAdapter } from "./lib/adapter";
 import { collectionCompositionViolations } from "./lib/collection-body";
-import { CONFIG_FILE, config, memberOf, pageTypesBarrel, parseConfig, type HarnessConfig, type ParsedConfig } from "./lib/config";
+import { config, configName, memberOf, pageTypesBarrel, parseConfig, type HarnessConfig, type ParsedConfig } from "./lib/config";
 import { walk } from "./lib/jsx";
 
 /**
@@ -23,10 +23,16 @@ import { walk } from "./lib/jsx";
  * be one of those. Loading, empty, and error may stay in the page shell.
  *
  * harness.config.ts says where each inventory lives, so it is an inventory
- * too. The base is read with its own config. A base without one is read with
- * the head's paths, once: the pull request that records the config. The
- * design system adapter the config names is an inventory as well, compared
- * field by field. A base whose config names no adapter records it once.
+ * too. The base is read with its own config, at the same path as the head's.
+ * A base without one is read with the head's paths, once: the pull request
+ * that records the config. The design system adapter the config names is an
+ * inventory as well, compared field by field. A base whose config names no
+ * adapter records it once.
+ *
+ * `--base <config>` compares with a product in the working tree instead of
+ * the pull request base. The fixtures have no history of their own, so this
+ * is how they test membership. Two configs in one tree differ in their paths
+ * by necessity, so the config itself is not compared then.
  */
 
 type StepBudget = { id: string; max_steps: number };
@@ -51,7 +57,8 @@ type Inventory = {
   adapter: DesignSystemAdapter | null;
 };
 
-type Root = { kind: "dir"; dir: string } | { kind: "git"; rev: string };
+/** The working tree, read with a config, or a revision, read with the config at configName. */
+type Root = { kind: "tree"; config: ParsedConfig } | { kind: "git"; rev: string };
 
 function fail(message: string): never {
   console.error(message);
@@ -88,10 +95,9 @@ function parseSource(fileName: string, text: string): ts.SourceFile {
 }
 
 function readText(root: Root, file: string): string {
-  if (root.kind === "dir") {
-    const full = path.join(root.dir, file);
-    if (!existsSync(full)) fail(`inventory: missing ${file} under ${root.dir}.`);
-    return readFileSync(full, "utf8");
+  if (root.kind === "tree") {
+    if (!existsSync(path.resolve(file))) fail(`inventory: missing ${file}.`);
+    return readFileSync(path.resolve(file), "utf8");
   }
   try {
     return execFileSync("git", ["show", `${root.rev}:${file}`], { encoding: "utf8" });
@@ -105,19 +111,14 @@ function errorText(error: unknown): string {
 }
 
 function configAt(root: Root): ParsedConfig | null {
-  let text: string | null = null;
-  if (root.kind === "dir") {
-    const full = path.join(root.dir, CONFIG_FILE);
-    if (existsSync(full)) text = readFileSync(full, "utf8");
-  } else {
-    try {
-      text = execFileSync("git", ["show", `${root.rev}:${CONFIG_FILE}`], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
-    } catch {
-      text = null;
-    }
+  if (root.kind === "tree") return root.config;
+  let text: string;
+  try {
+    text = execFileSync("git", ["show", `${root.rev}:${configName}`], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+  } catch {
+    return null;
   }
-  if (text === null) return null;
-  const label = root.kind === "dir" ? path.join(root.dir, CONFIG_FILE) : `${root.rev}:${CONFIG_FILE}`;
+  const label = `${root.rev}:${configName}`;
   try {
     return parseConfig(text, label);
   } catch (error) {
@@ -127,7 +128,7 @@ function configAt(root: Root): ParsedConfig | null {
 
 function adapterAt(root: Root, own: ParsedConfig | null): DesignSystemAdapter | null {
   if (own?.adapter == null) return null;
-  const label = root.kind === "dir" ? path.join(root.dir, own.adapter) : `${root.rev}:${own.adapter}`;
+  const label = root.kind === "tree" ? own.adapter : `${root.rev}:${own.adapter}`;
   try {
     return parseAdapter(readText(root, own.adapter), label);
   } catch (error) {
@@ -275,7 +276,7 @@ function readInventory(root: Root): Inventory {
   };
 }
 
-function membershipChanges(base: Inventory, head: Inventory): string[] {
+function membershipChanges(base: Inventory, head: Inventory, compareConfig: boolean): string[] {
   const lines: string[] = [];
   const compare = (label: string, before: unknown, after: unknown) => {
     const left = JSON.stringify(before);
@@ -295,15 +296,15 @@ function membershipChanges(base: Inventory, head: Inventory): string[] {
   compare("MAX_DISCLOSURES_PER_PAGE", base.disclosuresPerPage, head.disclosuresPerPage);
   compare("MAX_VISIBLE_QUESTIONS", base.visibleQuestions, head.visibleQuestions);
   compare("TARGET_MIN_PX", base.targetMinPx, head.targetMinPx);
-  if (base.config !== null) {
-    if (head.config === null) lines.push(`${CONFIG_FILE} was removed.`);
+  if (compareConfig && base.config !== null) {
+    if (head.config === null) lines.push(`${configName} was removed.`);
     else {
       const keys = sortedUnique([...Object.keys(base.config.paths), ...Object.keys(head.config.paths)]);
       for (const key of keys) {
-        compare(`${CONFIG_FILE} paths.${key}`, base.config.paths[key as keyof HarnessConfig["paths"]], head.config.paths[key as keyof HarnessConfig["paths"]]);
+        compare(`${configName} paths.${key}`, base.config.paths[key as keyof HarnessConfig["paths"]], head.config.paths[key as keyof HarnessConfig["paths"]]);
       }
-      compare(`${CONFIG_FILE} flows`, base.config.flows, head.config.flows);
-      if (base.config.adapter !== null) compare(`${CONFIG_FILE} adapter`, base.config.adapter, head.config.adapter);
+      compare(`${configName} flows`, base.config.flows, head.config.flows);
+      if (base.config.adapter !== null) compare(`${configName} adapter`, base.config.adapter, head.config.adapter);
     }
   }
   if (base.adapter !== null) {
@@ -483,11 +484,20 @@ function resolveBaseRev(): string {
   return tryGit(["merge-base", "HEAD", main])?.trim() || fail("inventory: cannot resolve the pull request base.");
 }
 
-function introducedLists(base: Inventory, head: Inventory): string[] {
+function readBaseConfig(file: string): ParsedConfig {
+  if (!existsSync(path.resolve(file))) fail(`inventory: base config ${file} is missing.`);
+  try {
+    return parseConfig(readFileSync(path.resolve(file), "utf8"), file);
+  } catch (error) {
+    return fail(`inventory: ${file}: ${errorText(error)}`);
+  }
+}
+
+function introducedLists(base: Inventory, head: Inventory, compareConfig: boolean): string[] {
   const introduced: string[] = [];
   if (base.layouts === null) introduced.push("allowed_layouts");
   if (base.contentLayouts === null) introduced.push("allowed_content_layouts");
-  if (base.config === null && head.config !== null) introduced.push(CONFIG_FILE);
+  if (compareConfig && base.config === null && head.config !== null) introduced.push(configName);
   if (base.adapter === null && head.adapter !== null) introduced.push("design system adapter");
   return introduced;
 }
@@ -498,70 +508,10 @@ function summary(inventory: Inventory): string {
   return `layouts ${JSON.stringify(inventory.layouts)}; content layouts ${JSON.stringify(inventory.contentLayouts)}; page types ${JSON.stringify(inventory.pageTypes)}; catalog ${inventory.catalogExports.length} exports; flow states ${JSON.stringify(inventory.flowStates)}; max_steps ${budgets}; priority ${actions}; disclosed sections ${JSON.stringify(inventory.disclosedSections)}; disclosure depth ${inventory.disclosureDepth}, per page ${inventory.disclosuresPerPage}; visible questions ${inventory.visibleQuestions}; target ${inventory.targetMinPx}px.`;
 }
 
-const layoutsFlag = flag("--layouts");
-const contentLayoutsFlag = flag("--content-layouts");
-const featuresFlag = flag("--features");
-const headFlag = flag("--head");
 const baseFlag = flag("--base");
+const headRoot: Root = { kind: "tree", config };
 
-if ((headFlag === null) !== (baseFlag === null)) fail("inventory: pass both --head and --base.");
-
-if (layoutsFlag) {
-  const allowed = readInventory({ kind: "dir", dir: process.cwd() }).layouts;
-  if (!allowed) fail(`inventory: allowed_layouts is missing from ${config.paths.inputs}.`);
-  const violations = directoryDrift("layout", layoutsFlag, allowed);
-  if (violations.length > 0) {
-    for (const violation of violations) console.error(`inventory: ${violation}`);
-    process.exit(1);
-  }
-  console.log("inventory: layout directories match allowed_layouts.");
-  process.exit(0);
-}
-
-if (contentLayoutsFlag) {
-  const allowed = readInventory({ kind: "dir", dir: process.cwd() }).contentLayouts;
-  if (!allowed) fail(`inventory: allowed_content_layouts is missing from ${config.paths.inputs}.`);
-  const violations = directoryDrift("content layout", contentLayoutsFlag, allowed);
-  if (violations.length > 0) {
-    for (const violation of violations) console.error(`inventory: ${violation}`);
-    process.exit(1);
-  }
-  console.log("inventory: content layout directories match allowed_content_layouts.");
-  process.exit(0);
-}
-
-if (featuresFlag) {
-  const allowed = readInventory({ kind: "dir", dir: process.cwd() }).contentLayouts;
-  if (!allowed) fail(`inventory: allowed_content_layouts is missing from ${config.paths.inputs}.`);
-  const dir = path.resolve(featuresFlag);
-  const localStyles = path.join(dir, "styles.css");
-  const stylesPath = existsSync(localStyles) ? localStyles : path.resolve(config.paths.styles);
-  const violations = collectionCompositionViolations(dir, allowed, stylesPath);
-  if (violations.length > 0) {
-    for (const violation of violations) console.error(`inventory: ${violation}`);
-    process.exit(1);
-  }
-  console.log("inventory: collection bodies use a registered content layout.");
-  process.exit(0);
-}
-
-if (headFlag && baseFlag) {
-  const head = readInventory({ kind: "dir", dir: path.resolve(headFlag) });
-  const base = readInventory({ kind: "dir", dir: path.resolve(baseFlag) });
-  if (!head.layouts) fail("inventory: allowed_layouts is missing from the head product inputs.");
-  const changes = membershipChanges(base, head);
-  const explained = explainingProposals(new Set(proposalsOnDisk(path.resolve(baseFlag)).keys()), proposalsOnDisk(path.resolve(headFlag)));
-  if (!reportMembership(changes, explained)) process.exit(1);
-  const introduced = introducedLists(base, head);
-  const note =
-    introduced.length > 0
-      ? `base has no ${introduced.join(" or ")}; recorded the head inventories.`
-      : "membership matches the base.";
-  console.log(`inventory: ${note}`);
-  process.exit(0);
-}
-
-const head = readInventory({ kind: "dir", dir: process.cwd() });
+const head = readInventory(headRoot);
 if (!head.layouts) fail(`inventory: allowed_layouts is missing from ${config.paths.inputs}.`);
 if (!head.contentLayouts) fail(`inventory: allowed_content_layouts is missing from ${config.paths.inputs}.`);
 
@@ -572,7 +522,7 @@ const violations = [
   ...collectionCompositionViolations(path.resolve(config.paths.features), head.contentLayouts, path.resolve(config.paths.styles)),
 ];
 
-const declaredPages = sortedUnique(stringArray(exportedInitializer(parseSource(pageTypesBarrel, readText({ kind: "dir", dir: process.cwd() }, pageTypesBarrel)), "pageTypes"), "pageTypes"));
+const declaredPages = sortedUnique(stringArray(exportedInitializer(parseSource(pageTypesBarrel, readText(headRoot, pageTypesBarrel)), "pageTypes"), "pageTypes"));
 if (JSON.stringify(declaredPages) !== JSON.stringify(head.pageTypes)) {
   violations.push(`pageTypes ${JSON.stringify(declaredPages)} drifted from allowed_page_types ${JSON.stringify(head.pageTypes)}.`);
 }
@@ -592,10 +542,12 @@ for (const id of importedMembers(sourceRoot, config.paths.pageTypes)) {
   if (!head.pageTypes.includes(id)) violations.push(`undeclared page type "${id}" is not in the inventory.`);
 }
 
-const baseRev = resolveBaseRev();
-const base = readInventory({ kind: "git", rev: baseRev });
-const changes = membershipChanges(base, head);
-const explained = explainingProposals(proposalNamesAtRev(baseRev), proposalsOnDisk(process.cwd()));
+const baseRoot: Root = baseFlag ? { kind: "tree", config: readBaseConfig(baseFlag) } : { kind: "git", rev: resolveBaseRev() };
+const compareConfig = baseRoot.kind === "git";
+const base = readInventory(baseRoot);
+const changes = membershipChanges(base, head, compareConfig);
+// A working-tree base shares the head's proposals, so it can add none.
+const explained = baseRoot.kind === "git" ? explainingProposals(proposalNamesAtRev(baseRoot.rev), proposalsOnDisk(process.cwd())) : [];
 const matched = reportMembership(changes, explained);
 
 if (violations.length > 0 || !matched) {
@@ -603,7 +555,8 @@ if (violations.length > 0 || !matched) {
   process.exit(1);
 }
 
-const introduced = introducedLists(base, head);
+const introduced = introducedLists(base, head, compareConfig);
+const baseName = baseRoot.kind === "git" ? baseRoot.rev.slice(0, 7) : baseFlag;
 if (introduced.length > 0) console.log(`inventory: base has no ${introduced.join(" or ")}; recorded the current inventories.`);
-else console.log(`inventory: membership matches ${baseRev.slice(0, 7)}.`);
+else console.log(`inventory: membership matches ${baseName}.`);
 console.log(`inventory: ${summary(head)}`);

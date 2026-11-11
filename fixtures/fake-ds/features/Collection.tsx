@@ -1,6 +1,6 @@
 import { Action, Notice, Spinner } from "../catalog";
-import { DataTable } from "../../../src/content-layouts/data-table";
-import { CollectionPage } from "../../../src/page-types/collection";
+import { DataTable } from "../../product/content-layouts/data-table";
+import { CollectionPage } from "../../product/page-types/collection";
 
 type Status = "loading" | "empty" | "error" | "ready";
 

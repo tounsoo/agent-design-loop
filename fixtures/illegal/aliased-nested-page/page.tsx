@@ -1,5 +1,5 @@
-import { CollectionPage } from "../../../src/page-types/collection";
-import { DetailPage as Invoice } from "../../../src/page-types/detail";
+import { CollectionPage } from "../../product/page-types/collection";
+import { DetailPage as Invoice } from "../../product/page-types/detail";
 
 /** Illegal: a detail page, imported under another name, rendered inside a collection page. An alias must not hide it. */
 export function AliasedNestedPage() {

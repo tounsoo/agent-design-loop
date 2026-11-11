@@ -4,8 +4,6 @@ import { adapter, isDesignSystemImport } from "./lib/adapter";
 import { config, uiRoots } from "./lib/config";
 import { attributeValue, jsxTagName, lineOf, listSourceFiles, parseFile, walk } from "./lib/jsx";
 
-const rootArg = process.argv.indexOf("--root");
-const roots = rootArg === -1 ? uiRoots : [process.argv[rootArg + 1] ?? ""];
 
 const forbiddenTags = new Set(["button", "input", "select", "textarea", "a"]);
 /** Other component kits. The adapter's own packages are not foreign, even when they are on this list. */
@@ -14,7 +12,7 @@ const foreignPackages = ["@mui/", "antd", "@chakra-ui/", "react-bootstrap", "@ra
 type Violation = { file: string; line: number; message: string };
 const violations: Violation[] = [];
 
-/** The catalog directory as a path segment, so a --root tree with its own catalog directory keeps its exemption. */
+/** The catalog directory as a path segment. Files under it may import the design system directly. */
 const catalogSegment = `/${path.dirname(config.paths.catalog).split(path.sep).join("/")}/`;
 
 function isCatalogFile(file: string): boolean {
@@ -70,11 +68,7 @@ function scan(file: string): void {
 
 }
 
-for (const root of roots) {
-  if (!root) {
-    console.error("off-catalog: missing --root path");
-    process.exit(1);
-  }
+for (const root of uiRoots) {
   const absolute = path.resolve(root);
   const files = absolute.endsWith(".ts") || absolute.endsWith(".tsx") ? [absolute] : listSourceFiles(absolute);
   for (const file of files) scan(file);
@@ -87,4 +81,4 @@ if (violations.length > 0) {
   process.exit(1);
 }
 
-console.log(`off-catalog: clean (${roots.join(", ")})`);
+console.log(`off-catalog: clean (${uiRoots.join(", ")})`);

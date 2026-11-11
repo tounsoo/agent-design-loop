@@ -12,19 +12,8 @@ import { discoverShells, missingCatalogParts, pagesIn, tagsInScope, unreachedTag
 const DISCLOSURE = adapter.disclosure.root;
 const { MAX_DISCLOSURE_DEPTH, MAX_DISCLOSURES_PER_PAGE } = await loadRules();
 
-function flag(name: string, fallback: string): string {
-  const index = process.argv.indexOf(name);
-  if (index === -1) return fallback;
-  const value = process.argv[index + 1];
-  if (!value || value.startsWith("--")) {
-    console.error(`disclosure: missing ${name} path`);
-    process.exit(1);
-  }
-  return value;
-}
-
-const featuresRoot = path.resolve(flag("--features", config.paths.features));
-const catalogFile = path.resolve(flag("--catalog", config.paths.catalog));
+const featuresRoot = path.resolve(config.paths.features);
+const catalogFile = path.resolve(config.paths.catalog);
 
 const violations: string[] = [];
 
