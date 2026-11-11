@@ -83,6 +83,17 @@ To look at a Meridian change, run `npm run build && npm run preview`. It is read
 
 A Claude Duet thread runs this step too: `npm run setup:chrome` downloads chrome-headless-shell into `.cache/chrome` there, and `check:target-size` measures in it. The step is `BLOCKED` only when no Chrome that starts is found: `setup:chrome` cannot download one or has no build for the platform, there is no other Chrome, or the one found does not start. Then say so in the pull request, link the pull request's CI run (it runs `npm run setup:chrome` and `check:target-size`), and name the URLs a reviewer should open. The three fixture cases that measure, `target-size-whole-document`, `illegal/small-control-outside-page` and `illegal/small-control-in-closed-menu`, are `BLOCKED` with it.
 
+#### Screenshots (the same changes, once step 3 passes)
+
+The design loop's `screenshots` node comes after the gate passes. Capture every state the change touches, before and after, in the product's `review/screenshots/` folder, named like the change's trace:
+
+```sh
+npm run screenshots -- --config products/meridian/harness.config.ts \
+  --out products/meridian/review/screenshots/<change> --base origin/main --state <state>
+```
+
+Repeat `--state` for each state the change touches, or leave it out for every preview. It takes every preview of each state, so one state can give several shots. Each run replaces the whole folder, so a retake repeats every flag. It opens the previews `check:target-size` opens, at 1280 by 900 in the same Chrome, so it is `BLOCKED` when step 3 is. It writes `before/` and `after/` PNGs and a gallery `README.md` whose images each link to their full-size file. Look at the PNGs yourself before you commit them: a blank or half-loaded screen is a `FAIL`. Commit the folder, push, and put the line the script prints in the pull request description with `<sha>` replaced by the pushed commit's full SHA. Keep its whole `https://github.com/` address: a relative path breaks in the GitHub app and in email, and a branch link breaks once the branch is deleted. Then open the gallery link from the pull request page, in a browser that isn't signed in to GitHub when the repository is public, and click one image: every image must show, and the click must open it full size. Images in the description itself don't come through from an agent, so the description holds the link and no image.
+
 ### 4. Loop trace (every change, before you push)
 
 ```sh
@@ -109,11 +120,11 @@ Every row also runs step 4.
 
 ## Helpers
 
-None. The drive is the repository's own npm scripts and Vitest journeys; [features/](features/README.md) names the command and the expected result for each feature.
+`npm run screenshots`, above, is the one helper; it is not a check and nothing fails without it. The drive is the repository's own npm scripts and Vitest journeys; [features/](features/README.md) names the command and the expected result for each feature.
 
 ## Evidence
 
-Put the tested commit's full SHA in the pull request body, with each command and the line that gives its verdict: the `fixtures:` summary, each check's verdict line (such as `step budget: within budget.` or `inventory: membership matches <sha>.`), and the Vitest `Tests` count. For step 3, the `target size:` line. For step 4, the `trace:` line. Proof standards:
+Put the tested commit's full SHA in the pull request body, with each command and the line that gives its verdict: the `fixtures:` summary, each check's verdict line (such as `step budget: within budget.` or `inventory: membership matches <sha>.`), and the Vitest `Tests` count. For step 3, the `target size:` line, and the gallery link from the screenshots. For step 4, the `trace:` line. Proof standards:
 
 - Drive the real path: a check runs against the product as it is, and a journey goes through the rendered controls, never by calling a transition or setting state directly.
 - Check the end state: the flow state the journey lands on, the check's exit code and its message, not only that nothing threw.
