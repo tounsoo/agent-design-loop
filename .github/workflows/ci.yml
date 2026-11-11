@@ -23,8 +23,8 @@ jobs:
           wget -q -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
           sudo apt-get install -y /tmp/chrome.deb
       - run: npm ci
-      # The harness's fixtures, the repository-wide checks, Meridian's rule checks, then the retirement check across every product.
-      - run: npm run check:fixtures && npm run typecheck && npm run lint && npm run test && npm run check:product -- --config products/meridian/harness.config.ts && npm run check:retirement
+      # The harness's fixtures, the repository-wide checks, Meridian's rule checks, then the retirement check across every product and the design loop graph.
+      - run: npm run check:fixtures && npm run typecheck && npm run lint && npm run test && npm run check:product -- --config products/meridian/harness.config.ts && npm run check:retirement && npm run check:loop
         env:
           INVENTORY_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
 

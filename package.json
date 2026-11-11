@@ -27,12 +27,13 @@
     "check:target-size": "tsx packages/harness/src/check-target-size.ts",
     "check:opt-outs": "tsx packages/harness/src/check-opt-outs.ts",
     "check:retirement": "tsx packages/harness/src/check-retirement.ts",
+    "check:loop": "tsx packages/harness/src/check-loop.ts",
     "test": "vitest run",
     "check:rules": "npm run lint:product-ui && npm run lint:slots && npm run check:step-budget && npm run check:disclosure && npm run check:priority && npm run check:one-thing && npm run check:inventories && npm run check:state-coverage && npm run check:target-size",
     "check:product": "tsx packages/harness/src/check-product.ts",
     "check:meridian": "npm run check:product -- --config products/meridian/harness.config.ts",
     "check:nook": "npm run check:product -- --config products/nook/harness.config.ts",
-    "check": "npm run typecheck && npm run lint && npm run test && npm run check:meridian && npm run check:nook && npm run check:retirement",
+    "check": "npm run typecheck && npm run lint && npm run test && npm run check:meridian && npm run check:nook && npm run check:retirement && npm run check:loop",
     "check:fixtures": "tsx packages/harness/src/check-fixtures.ts"
   },
   "dependencies": {

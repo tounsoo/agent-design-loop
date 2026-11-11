@@ -17,7 +17,7 @@ The named task is in the product inputs. A second product, **Nook**, lives under
 
 Layouts are product-owned shells with named slots, encoded from Todae recipes. Recipes are copyable glue, not package namespaces. Do not invent component names or props. Do not fork [Todae](https://github.com/tounsoo/todae). Import UI only from the catalog.
 
-Loop: read inventories → generate within constraints → run checks and fix → review note for leftover judgment → propose if a rule must break.
+Loop: follow the graph in `packages/harness/design-loop.ts` from its `start` node. Do what each node's label says and take the edge whose `when` matches the outcome. An eval node runs its scripts, and a human node waits for its gate's review. `npm run check:loop` keeps the graph valid. The diagram is in `packages/harness/docs/how-it-works.md`.
 
 Checks: `npm run check:fixtures && npm run check`
 

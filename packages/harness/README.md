@@ -18,9 +18,9 @@ Two products use it in this repository: [Meridian](../../products/meridian/READM
 npm run check:fixtures && npm run check
 ```
 
-`check:fixtures` runs the harness's own tests. `fixtures/product/` is a small product with its own `harness.config.ts` that every check passes. Each folder beside it, and each one under `fixtures/illegal/`, has a `case.ts` that changes some of that config's paths and names the checks to run, with the phrase each must print. The run exits 0 only when the illegal cases fail and the legal ones pass: the fixture product, the stand-in design system in `fixtures/fake-ds/`, and small products of their own (`fixtures/two-tasks/`, `fixtures/two-collection-pages/`, `fixtures/own-sections/`) that show a rule reads its product's config and inputs, not Meridian's. `fixtures/opt-out/` and the `fixtures/illegal/opt-out-*` cases test `check:opt-outs`, and the retirement threshold has Vitest tests in `src/lib/opt-outs.test.ts`. `npm run check:fixtures -- illegal/two-primaries` runs one case.
+`check:fixtures` runs the harness's own tests. `fixtures/product/` is a small product with its own `harness.config.ts` that every check passes. Each folder beside it, and each one under `fixtures/illegal/`, has a `case.ts` that changes some of that config's paths and names the checks to run, with the phrase each must print. The run exits 0 only when the illegal cases fail and the legal ones pass: the fixture product, the stand-in design system in `fixtures/fake-ds/`, and small products of their own (`fixtures/two-tasks/`, `fixtures/two-collection-pages/`, `fixtures/own-sections/`) that show a rule reads its product's config and inputs, not Meridian's. `fixtures/opt-out/` and the `fixtures/illegal/opt-out-*` cases test `check:opt-outs`, the retirement threshold has Vitest tests in `src/lib/opt-outs.test.ts`, and the design loop graph has them in `src/lib/loop.test.ts`. `npm run check:fixtures -- illegal/two-primaries` runs one case.
 
-`check` is the build gate. It runs `typecheck`, `lint`, and `test` once for the whole repository, then `check:meridian` and `check:nook`, then `check:retirement`. Each of the two product scripts runs `check:product` on one product's config.
+`check` is the build gate. It runs `typecheck`, `lint`, and `test` once for the whole repository, then `check:meridian` and `check:nook`, then `check:retirement` and `check:loop`. Each of the two product scripts runs `check:product` on one product's config.
 
 | Command | What it fails |
 | --- | --- |
@@ -44,12 +44,13 @@ The rule checks read one product. `check:rules` lists them, in this order, and e
 
 There is no LLM judge on CI.
 
-Two more checks guard the rules themselves. Neither is in `check:rules`, and a product cannot opt out of either.
+Three more checks guard the rules and the loop themselves. None is in `check:rules`, and a product cannot opt out of any.
 
 | Command | What it fails |
 | --- | --- |
 | `npm run check:opt-outs` | Needs `--config`. An entry in the config's `optOuts` that names a rule `check:rules` does not run, a core rule (`lint:product-ui` or `check:inventories`), or a proposal that is missing, is not directly in `paths.proposals`, is not `Status: decided`, or has no `Opts out:` line naming the rule and the product's `paths.source`. `check:product` runs it before any rule check |
 | `npm run check:retirement` | Takes no flags. Reads every `harness.config.ts` git knows of outside this package, tracked or new. Fails when two configs name the same `paths.source`, when any product's opt-outs fail the rules of `check:opt-outs`, and when a majority of products, and at least two, opt out of the same rule. With two products, both must opt out |
+| `npm run check:loop` | Takes no `--config`. Fails when the design loop graph in `design-loop.ts` is not one an agent can follow: a dangling edge, an unreachable node, an eval node naming a script `package.json` lacks or with no retry on `fail`, a human gate with no `CODEOWNERS` owner, or a path that ends without passing an eval node. Also fails when the diagram in `docs/how-it-works.md` is not the one the graph draws. `--write` redraws it |
 
 ### Check one product
 
