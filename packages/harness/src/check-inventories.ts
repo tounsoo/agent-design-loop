@@ -16,10 +16,14 @@ import { collectionShellsOf, shellsOf } from "./lib/shells";
  * product inputs. Directory sets must match the allowlists. Membership is
  * compared to the pull request base.
  *
- * A list the base does not export may be introduced. That is how allowed_layouts
- * was recorded, and how allowed_content_layouts is recorded. It may not change
- * a set the base already had. After a list exists, a membership change
- * graduates a proposal: one that is decided on the base, that this change
+ * Three lists are optional in the inputs: allowed_layouts,
+ * allowed_content_layouts and disclosed_sections. When the base does not
+ * export one, the change may introduce it without a proposal. That is how
+ * allowed_layouts and allowed_content_layouts were recorded. The other
+ * arrays, allowed_page_types, tasks, priority and the flows' modeledStates,
+ * must exist on the base and in the change, or the check fails. A list the
+ * base already has may not change that way. Its membership changes only by
+ * graduating a proposal: one that is decided on the base, that this change
  * marks graduated, and whose `changes` list what changed. A change that only
  * adds members to the catalog exports, allowed_layouts,
  * allowed_content_layouts, allowed_page_types or the flow states may instead
@@ -31,16 +35,21 @@ import { collectionShellsOf, shellsOf } from "./lib/shells";
  * be one of those. Loading, empty, and error may stay in the page shell.
  *
  * A product's harness config says where each inventory lives, so it is an
- * inventory too. The base is read with its own config, at the same path as the head's.
- * A base without one is read with the head's paths, once: the pull request
- * that records the config. The design system adapter the config names is an
- * inventory as well, compared field by field. A base whose config names no
- * adapter records it once.
+ * inventory too. The base is read with its own config, at the same path as the
+ * head's. A base that has the product's inputs but no config at that path is
+ * read with the head's paths, and the new config is itself a change that needs
+ * a graduating proposal, so renaming a config cannot skip the comparison. The
+ * design system adapter the config names is an inventory as well, compared
+ * field by field. A base whose config names no adapter records it once,
+ * without a proposal.
  *
- * A product the base does not have at all, with neither its config nor its
- * inputs, is new: the pull request that adds it records its inventories,
- * like a list the base does not export. A product moved to new file names
- * reads the same way. Its config is code-owned like every product's.
+ * A product the base has neither the config nor the inputs of is moved or
+ * new. When git sees the inputs module renamed, the check compares with the
+ * base config at the old name, so a move shows as config path changes. A
+ * product with no such rename is new: a whole inventory added at once, which
+ * needs a graduating proposal that lists the product's directory, like any
+ * other membership change. The check then records its inventories without
+ * comparing them.
  *
  * `--base <config>` compares with a product in the working tree instead of
  * the pull request base. The fixtures have no history of their own, so this
