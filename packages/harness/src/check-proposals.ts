@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveBaseRev } from "./lib/base";
 import { DEFAULT_PROPOSALS, parseConfig } from "./lib/parse-config";
-import { nameProblems, parseAll, proposalsAtRev, proposalsInDir, transitionProblems } from "./lib/proposals";
+import { nameProblems, parseAll, sharedNameProblems, proposalsAtRev, proposalsInDir, transitionProblems } from "./lib/proposals";
 
 /**
  * Every proposal parses: front matter with a status and the changes it
@@ -46,9 +46,13 @@ const rev = resolved.rev;
 
 const problems: string[] = [];
 let count = 0;
+const allHead: string[] = [];
+const allBase: string[] = [];
 for (const dir of dirs) {
   const headFiles = proposalsInDir(dir);
   const baseFiles = proposalsAtRev(rev, dir);
+  allHead.push(...headFiles.keys());
+  allBase.push(...baseFiles.keys());
   const head = parseAll(headFiles);
   const base = parseAll(baseFiles);
   count += head.proposals.size;
@@ -58,6 +62,8 @@ for (const dir of dirs) {
     ...transitionProblems(base.proposals, head.proposals, base.legacy, head.unparsed),
   );
 }
+
+problems.push(...sharedNameProblems(allBase, allHead));
 
 if (problems.length > 0) {
   console.error(`proposals: compared with ${rev.slice(0, 7)}:`);

@@ -247,6 +247,30 @@ export function nameProblems(base: Iterable<string>, head: Iterable<string>, tod
   return problems;
 }
 
+/**
+ * Each new proposal whose file name another proposal folder also holds. Git
+ * catches two pull requests that add the same name to one folder, but not to
+ * two folders, and either way the ID would name two proposals. `head` and
+ * `base` are paths across every folder the check reads.
+ */
+export function sharedNameProblems(base: Iterable<string>, head: Iterable<string>): string[] {
+  const before = new Set(base);
+  const byName = new Map<string, string[]>();
+  for (const file of head) {
+    const name = path.posix.basename(file);
+    byName.set(name, [...(byName.get(name) ?? []), file]);
+  }
+  const problems: string[] = [];
+  for (const files of [...byName.values()].filter((list) => list.length > 1)) {
+    const sorted = [...files].sort();
+    for (const file of sorted.filter((candidate) => !before.has(candidate))) {
+      const others = sorted.filter((other) => other !== file);
+      problems.push(`${file} is a new proposal with the same name as ${others.join(" and ")}. A file name is the proposal's ID, so give it another slug.`);
+    }
+  }
+  return problems;
+}
+
 /** True when a proposal's file name makes it a proposal: a .md file other than README.md. */
 export function isProposalFile(file: string): boolean {
   return file.endsWith(".md") && path.posix.basename(file) !== "README.md";

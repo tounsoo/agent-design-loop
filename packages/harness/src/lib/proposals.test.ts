@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addingInThisChange, graduating, nameProblems, parseAll, parseProposal, transitionProblems, type Proposal } from "./proposals";
+import { addingInThisChange, graduating, nameProblems, parseAll, sharedNameProblems, parseProposal, transitionProblems, type Proposal } from "./proposals";
 
 const BODY = "# Proposal 0102: Add a side panel\n\n## Reason\n\nA frame beside the page.\n\n## Preview\n\n```\n[page | panel]\n```\n\n## Graduation, after approval\n\n- inputs\n";
 
@@ -250,5 +250,20 @@ describe("nameProblems", () => {
   it("fails a date that is not on the calendar, a slug with capitals, and a name with no slug", () => {
     const head = ["proposals/2026-02-30-steps.md", "proposals/2026-11-12-Steps.md", "proposals/2026-11-12.md", "proposals/26-11-12-steps.md"];
     expect(nameProblems([], head)).toHaveLength(4);
+  });
+});
+
+describe("sharedNameProblems", () => {
+  it("fails a new proposal whose name another proposal folder also holds", () => {
+    const head = ["proposals/2026-11-12-steps.md", "products/nook/proposals/2026-11-12-steps.md"];
+    expect(sharedNameProblems(["proposals/2026-11-12-steps.md"], head)).toEqual([
+      "products/nook/proposals/2026-11-12-steps.md is a new proposal with the same name as proposals/2026-11-12-steps.md. A file name is the proposal's ID, so give it another slug.",
+    ]);
+  });
+
+  it("passes the same day with different slugs, and leaves names already on the base alone", () => {
+    expect(sharedNameProblems([], ["proposals/2026-11-12-steps.md", "products/nook/proposals/2026-11-12-hold.md"])).toEqual([]);
+    const both = ["proposals/0001-a.md", "products/nook/proposals/0001-a.md"];
+    expect(sharedNameProblems(both, both)).toEqual([]);
   });
 });
