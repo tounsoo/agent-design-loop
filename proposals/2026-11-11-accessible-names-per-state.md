@@ -2,7 +2,7 @@
 status: graduated
 changes: []
 ---
-# Proposal 0016: Hold what a screen reader hears to what each state declares
+# Hold what a screen reader hears to what each state declares
 
 Decided, and graduated with its own pull request. Ben asked for this check on Nov 11, 2026, after Meridian's pull request 32 shipped a bug no check could see: after Approve, Todae's `Steps` read the waiting Payment stage as "In progress: Payment due Nov 18, 2026", and only one of three reviewers caught it. This adds a rule to `check:rules`. No inventory changes, so it lists no changes and graduates at once.
 
