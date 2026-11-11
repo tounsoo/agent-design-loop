@@ -5,12 +5,14 @@
 {"node":"graduate","at":"2026-11-11T22:08:53.460Z"}
 {"node":"build","at":"2026-11-11T22:10:51.390Z"}
 {"node":"checks","when":"pass","at":"2026-11-11T22:17:42.425Z"}
+{"node":"screenshots","at":"2026-11-11T22:17:42.425Z"}
 {"node":"note","at":"2026-11-11T22:17:42.639Z"}
 {"node":"pull-request","at":"2026-11-11T22:17:42.865Z"}
 {"node":"read","at":"2026-11-11T22:33:20.362Z"}
 {"node":"route","when":"fits","at":"2026-11-11T22:33:20.590Z"}
 {"node":"build","at":"2026-11-11T22:33:20.782Z"}
 {"node":"checks","when":"pass","at":"2026-11-11T22:36:28.436Z"}
+{"node":"screenshots","at":"2026-11-11T22:36:28.436Z"}
 {"node":"note","at":"2026-11-11T22:36:28.671Z"}
 {"node":"pull-request","at":"2026-11-11T22:36:28.895Z"}
 {"node":"read","at":"2026-11-11T22:51:19.752Z"}
@@ -20,5 +22,12 @@
 {"node":"graduate","at":"2026-11-11T22:51:20.574Z"}
 {"node":"build","at":"2026-11-11T22:51:20.780Z"}
 {"node":"checks","when":"pass","at":"2026-11-11T22:54:33.811Z"}
+{"node":"screenshots","at":"2026-11-11T22:54:33.811Z"}
 {"node":"note","at":"2026-11-11T22:54:34.032Z"}
 {"node":"pull-request","at":"2026-11-11T22:54:34.260Z"}
+{"node":"read","at":"2026-11-11T23:23:34.259Z"}
+{"node":"route","when":"needs a new pattern","at":"2026-11-11T23:23:34.489Z"}
+{"node":"propose","at":"2026-11-11T23:23:34.727Z"}
+{"node":"scope","when":"only adds","at":"2026-11-11T23:23:34.955Z"}
+{"node":"graduate","at":"2026-11-11T23:23:35.180Z"}
+{"node":"build","at":"2026-11-11T23:23:35.404Z"}

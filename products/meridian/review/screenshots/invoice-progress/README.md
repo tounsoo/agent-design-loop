@@ -1,33 +1,15 @@
-# Invoice progress screenshots
+# Screenshots
 
-Meridian's invoice page for INV-1842, before and after [proposal 2026-11-11-invoice-progress-steps](../../../../../proposals/2026-11-11-invoice-progress-steps.md) added the invoice progress list. Each was taken at 1280 by 900 in headless Chrome. Select an image to open it full size.
+Taken by `npm run screenshots` with `products/meridian/harness.config.ts`, at 1280 by 900 CSS px in headless Chrome, one per preview. Click an image to open it full size.
 
-## Pending
+Before is `origin/main (d6dcf1e)`. After is the change.
 
-Before:
-
-[![Pending invoice, before](before-pending.png)](before-pending.png)
-
-After:
-
-[![Pending invoice, after: Received done, Approval current, Payment pending](after-pending.png)](after-pending.png)
-
-## Approved
-
-Before:
-
-[![Approved invoice, before](before-approved.png)](before-approved.png)
-
-After:
-
-[![Approved invoice, after: Received and Approval done, Payment next](after-approved.png)](after-approved.png)
-
-## Changes requested
-
-Before:
-
-[![Changes requested, before](before-changes.png)](before-changes.png)
-
-After:
-
-[![Changes requested, after: Received done, Approval marked changes requested, Payment pending](after-changes.png)](after-changes.png)
+| Preview | Before | After |
+| --- | --- | --- |
+| changes-requested--page-detail | [![changes-requested--page-detail, before](before/changes-requested--page-detail.png)](before/changes-requested--page-detail.png) | [![changes-requested--page-detail, after](after/changes-requested--page-detail.png)](after/changes-requested--page-detail.png) |
+| invoice-approved--page-detail | [![invoice-approved--page-detail, before](before/invoice-approved--page-detail.png)](before/invoice-approved--page-detail.png) | [![invoice-approved--page-detail, after](after/invoice-approved--page-detail.png)](after/invoice-approved--page-detail.png) |
+| ready--page-collection | [![ready--page-collection, before](before/ready--page-collection.png)](before/ready--page-collection.png) | [![ready--page-collection, after](after/ready--page-collection.png)](after/ready--page-collection.png) |
+| ready--page-detail--branch-request | [![ready--page-detail--branch-request, before](before/ready--page-detail--branch-request.png)](before/ready--page-detail--branch-request.png) | [![ready--page-detail--branch-request, after](after/ready--page-detail--branch-request.png)](after/ready--page-detail--branch-request.png) |
+| ready--page-detail | [![ready--page-detail, before](before/ready--page-detail.png)](before/ready--page-detail.png) | [![ready--page-detail, after](after/ready--page-detail.png)](after/ready--page-detail.png) |
+| ready--route-invoices | [![ready--route-invoices, before](before/ready--route-invoices.png)](before/ready--route-invoices.png) | [![ready--route-invoices, after](after/ready--route-invoices.png)](after/ready--route-invoices.png) |
+| ready--route-vendors | [![ready--route-vendors, before](before/ready--route-vendors.png)](before/ready--route-vendors.png) | [![ready--route-vendors, after](after/ready--route-vendors.png)](after/ready--route-vendors.png) |
