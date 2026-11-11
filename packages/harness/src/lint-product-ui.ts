@@ -44,6 +44,38 @@ function leavesProduct(file: string, spec: string): boolean {
   return !ownDirectories.some((directory) => isInside(directory, target));
 }
 
+/** Vite's `import.meta.glob(...)`, which loads modules by pattern. */
+function isMetaGlob(expression: ts.Expression): boolean {
+  return (
+    ts.isPropertyAccessExpression(expression) &&
+    expression.name.text === "glob" &&
+    ts.isMetaProperty(expression.expression) &&
+    expression.expression.keywordToken === ts.SyntaxKind.ImportKeyword
+  );
+}
+
+/** `require` stored in a variable or assigned, as in `const load = require`, so a later call loads through another name. */
+function requireAsValue(node: ts.Node): boolean {
+  if (!ts.isIdentifier(node) || node.text !== "require") return false;
+  const parent = node.parent;
+  if (ts.isVariableDeclaration(parent)) return parent.initializer === node;
+  if (ts.isBinaryExpression(parent)) return parent.operatorToken.kind === ts.SyntaxKind.EqualsToken && parent.right === node;
+  if (ts.isPropertyAssignment(parent)) return parent.initializer === node;
+  return ts.isShorthandPropertyAssignment(parent) || (ts.isCallExpression(parent) && parent.arguments.includes(node));
+}
+
+/** `require`, reached directly, as a property (`globalThis.require`, `module.require`), or through parentheses and a comma (`(0, require)`). */
+function isRequire(expression: ts.Expression): boolean {
+  let current = expression;
+  while (ts.isParenthesizedExpression(current) || (ts.isBinaryExpression(current) && current.operatorToken.kind === ts.SyntaxKind.CommaToken)) {
+    current = ts.isParenthesizedExpression(current) ? current.expression : current.right;
+  }
+  if (ts.isIdentifier(current)) return current.text === "require";
+  if (ts.isPropertyAccessExpression(current)) return current.name.text === "require";
+  if (ts.isElementAccessExpression(current)) return ts.isStringLiteral(current.argumentExpression) && current.argumentExpression.text === "require";
+  return false;
+}
+
 /**
  * The module a statement or expression loads: an import, an `export ... from`
  * re-export, a dynamic `import()`, or `require()`. Each reaches the design
@@ -58,8 +90,7 @@ function moduleSpecifierOf(node: ts.Node): string | "computed" | null {
     return ts.isStringLiteral(expression) ? expression.text : "computed";
   }
   const loads =
-    ts.isCallExpression(node) &&
-    (node.expression.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(node.expression) && node.expression.text === "require"));
+    ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword || isRequire(node.expression) || isMetaGlob(node.expression));
   if (loads) {
     const argument = node.arguments[0];
     return argument && (ts.isStringLiteral(argument) || ts.isNoSubstitutionTemplateLiteral(argument)) ? argument.text : "computed";
@@ -103,6 +134,13 @@ function scan(file: string): void {
       });
     } else if (specifier !== null) {
       checkSpecifier(file, source, node, specifier, catalog);
+    }
+    if (requireAsValue(node)) {
+      violations.push({
+        file,
+        line: lineOf(source, node),
+        message: "off-catalog: require is held under another name, so what it loads cannot be checked. Call require directly.",
+      });
     }
 
     const opening = ts.isJsxElement(node)

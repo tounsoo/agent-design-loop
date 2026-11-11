@@ -85,6 +85,7 @@ function aliasesOf(source: ts.SourceFile): Map<string, string> {
   for (const statement of source.statements) {
     if (!ts.isImportDeclaration(statement) || !statement.importClause) continue;
     const named = statement.importClause.namedBindings;
+    if (named && ts.isNamespaceImport(named)) aliases.set(named.name.text, NAMESPACE);
     if (!named || !ts.isNamedImports(named)) continue;
     for (const element of named.elements) {
       if (element.propertyName) aliases.set(element.name.text, element.propertyName.text);
@@ -94,12 +95,15 @@ function aliasesOf(source: ts.SourceFile): Map<string, string> {
   return aliases;
 }
 const aliasCache = new WeakMap<ts.SourceFile, Map<string, string>>();
+/** Marks a namespace import, `import * as UI`, whose name is dropped from a tag: `UI.Button.Root` is `Button.Root`. */
+const NAMESPACE = "\0namespace";
 
 /** A JSX tag name as the catalog spells it, with import aliases undone. */
 export function canonicalTag(opening: ts.JsxOpeningLikeElement): string {
   const tag = jsxTagName(opening.tagName);
   const [root, ...rest] = tag.split(".");
   const original = aliasesOf(opening.getSourceFile()).get(root ?? "");
+  if (original === NAMESPACE) return rest.join(".");
   return original ? [original, ...rest].join(".") : tag;
 }
 
@@ -175,7 +179,8 @@ function collectScopes(source: ts.SourceFile, shellNode: ts.Node, shell: Shell, 
   // Whole-file scopes are walked as they are. Local components inside them are
   // already counted, so only relative imports out of them are followed.
   const queue: { scope: Scope; stack: readonly ts.Node[] }[] = scopes.map((scope) => ({ scope, stack: [] }));
-  const shellScope: Scope = { source, node: shellNode, inheritedDisclosures: 0 };
+  // A disclosure around the shell in its own file wraps everything on the page.
+  const shellScope: Scope = { source, node: shellNode, inheritedDisclosures: disclosureAncestors(shellNode, source) };
   scopes.push(shellScope);
   queue.push({ scope: shellScope, stack: [] });
 
@@ -189,7 +194,8 @@ function collectScopes(source: ts.SourceFile, shellNode: ts.Node, shell: Shell, 
       const helperCall = ts.isCallExpression(node) && ts.isIdentifier(node.expression) ? node.expression.text : null;
       if (!opening && !helperCall) return;
       const rootName = opening ? (jsxTagName(opening.tagName).split(".")[0] ?? "") : (helperCall ?? "");
-      const specifier = imports.get(rootName);
+      const imported = imports.get(rootName);
+      const specifier = imported?.specifier;
       const contentLayout = specifier ? memberOf(specifier, roots.contentLayouts) : null;
       if (contentLayout) {
         const before = scopes.length;
@@ -199,7 +205,7 @@ function collectScopes(source: ts.SourceFile, shellNode: ts.Node, shell: Shell, 
       }
       if (specifier && importsFrom(specifier, roots.pageTypes)) return;
       const target = specifier
-        ? importedDeclaration(scope.source.fileName, specifier, rootName)
+        ? importedDeclaration(scope.source.fileName, specifier, imported?.imported ?? rootName)
         : wholeFiles.has(scope.source.fileName)
           ? null
           : localDeclaration(scope.source, rootName);
@@ -217,19 +223,33 @@ function collectScopes(source: ts.SourceFile, shellNode: ts.Node, shell: Shell, 
   return scopes;
 }
 
-function importsOf(source: ts.SourceFile): Map<string, string> {
-  const imports = new Map<string, string>();
+/** Local name → the module it comes from and the name that module exports it under. */
+function importsOf(source: ts.SourceFile): Map<string, { specifier: string; imported: string }> {
+  const imports = new Map<string, { specifier: string; imported: string }>();
   for (const statement of source.statements) {
     if (!ts.isImportDeclaration(statement) || !statement.importClause || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
     const specifier = statement.moduleSpecifier.text;
     const named = statement.importClause.namedBindings;
-    if (statement.importClause.name) imports.set(statement.importClause.name.text, specifier);
+    if (statement.importClause.name) imports.set(statement.importClause.name.text, { specifier, imported: "default" });
     if (!named || !ts.isNamedImports(named)) continue;
     for (const element of named.elements) {
-      if (!element.isTypeOnly) imports.set(element.name.text, specifier);
+      if (!element.isTypeOnly) imports.set(element.name.text, { specifier, imported: element.propertyName?.text ?? element.name.text });
     }
   }
   return imports;
+}
+
+/** The declaration a module exports as default: `export default function`, or `export default Name`. */
+function defaultDeclaration(source: ts.SourceFile): { source: ts.SourceFile; node: ts.Node } | null {
+  for (const statement of source.statements) {
+    if (ts.isFunctionDeclaration(statement) && statement.modifiers?.some((m) => m.kind === ts.SyntaxKind.DefaultKeyword)) {
+      return { source, node: statement };
+    }
+    if (ts.isExportAssignment(statement) && !statement.isExportEquals) {
+      return ts.isIdentifier(statement.expression) ? localDeclaration(source, statement.expression.text) : { source, node: statement.expression };
+    }
+  }
+  return null;
 }
 
 function localDeclaration(source: ts.SourceFile, name: string): { source: ts.SourceFile; node: ts.Node } | null {
@@ -262,16 +282,27 @@ function importedDeclaration(
   const file = resolveModule(fromFile, specifier);
   if (!file || depth > 3) return null;
   const source = parseFile(file);
-  const local = localDeclaration(source, name);
+  const local = name === "default" ? defaultDeclaration(source) : localDeclaration(source, name);
   if (local) return local;
+  const starred: string[] = [];
   for (const statement of source.statements) {
     if (!ts.isExportDeclaration(statement) || !statement.moduleSpecifier || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
-    if (!statement.exportClause || !ts.isNamedExports(statement.exportClause)) continue;
+    if (!statement.exportClause) {
+      starred.push(statement.moduleSpecifier.text);
+      continue;
+    }
+    if (!ts.isNamedExports(statement.exportClause)) continue;
     for (const element of statement.exportClause.elements) {
       if (element.name.text !== name) continue;
       const original = element.propertyName?.text ?? name;
       return importedDeclaration(file, statement.moduleSpecifier.text, original, depth + 1);
     }
+  }
+  // `export *` never re-exports a default.
+  if (name === "default") return null;
+  for (const specifier of starred) {
+    const found = importedDeclaration(file, specifier, name, depth + 1);
+    if (found) return found;
   }
   return null;
 }

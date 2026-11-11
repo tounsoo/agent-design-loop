@@ -1,4 +1,4 @@
-/** Legal: the page and the chrome around it have controls of at least 24 CSS px. check:target-size builds this folder's index.html. */
+/** Legal: the page, the chrome around it, and a closed menu in the chrome have controls of at least 24 CSS px. check:target-size builds this folder's index.html. */
 export default {
   config: {
     paths: {

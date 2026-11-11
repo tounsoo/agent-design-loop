@@ -352,8 +352,14 @@ function membershipChanges(base: Inventory, head: Inventory, compareConfig: bool
         (field) => JSON.stringify(base.config?.shells?.[field]) !== JSON.stringify(head.config?.shells?.[field]),
       );
       compare(`${configName} shells`, base.config.shells, head.config.shells, shellFields.map((field) => `shells.${field}`));
-      compare(`${configName} flows`, base.config.flows, head.config.flows, ["flows"]);
-      if (base.config.adapter !== null) compare(`${configName} adapter`, base.config.adapter, head.config.adapter, ["adapter"]);
+      const flowStrings = (flows: unknown) => new Set(stringLeaves(flows));
+      const baseFlows = flowStrings(base.config.flows);
+      const headFlows = flowStrings(head.config.flows);
+      const flowTerms = sortedUnique([...headFlows].filter((value) => !baseFlows.has(value)).concat([...baseFlows].filter((value) => !headFlows.has(value))));
+      compare(`${configName} flows`, base.config.flows, head.config.flows, ["flows", ...flowTerms]);
+      if (base.config.adapter !== null) {
+        compare(`${configName} adapter`, base.config.adapter, head.config.adapter, [head.config.adapter ?? "adapter"]);
+      }
     }
   }
   if (base.adapter !== null) {
@@ -361,7 +367,7 @@ function membershipChanges(base: Inventory, head: Inventory, compareConfig: bool
     else {
       const keys = sortedUnique([...Object.keys(base.adapter), ...Object.keys(head.adapter)]);
       for (const key of keys) {
-        compare(`adapter ${key}`, base.adapter[key as keyof DesignSystemAdapter], head.adapter[key as keyof DesignSystemAdapter], ["adapter", key]);
+        compare(`adapter ${key}`, base.adapter[key as keyof DesignSystemAdapter], head.adapter[key as keyof DesignSystemAdapter], [`adapter.${key}`]);
       }
     }
   }
@@ -492,14 +498,24 @@ function explainingProposals(baseNames: Set<string>, head: Map<string, string>):
   return added;
 }
 
+/** Every string inside a value, keys of records included, as in a flow's module paths, task ids and preview queries. */
+function stringLeaves(value: unknown): string[] {
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value)) return value.flatMap(stringLeaves);
+  if (typeof value === "object" && value !== null) {
+    return Object.entries(value).flatMap(([key, inner]) => [key, ...stringLeaves(inner)]);
+  }
+  return [];
+}
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/** True when the text names the term, or one of its alternatives, as a whole word: `side-panel`, not `side-panels`. */
+/** True when the text names the term, or one of its alternatives, as a whole word: `side-panel` or `layouts/side-panel/`, not `side-panels`. */
 function names(text: string, term: Term): boolean {
   const options = typeof term === "string" ? [term] : term;
-  return options.some((option) => new RegExp(`(?<![A-Za-z0-9_./-])${escapeRegExp(option)}(?![A-Za-z0-9_/-])`).test(text));
+  return options.some((option) => new RegExp(`(?<![A-Za-z0-9_.-])${escapeRegExp(option)}(?![A-Za-z0-9_-])`).test(text));
 }
 
 function termText(term: Term): string {

@@ -42,6 +42,9 @@ function actionOf(node: ts.Node, disclosures: number): Action {
   };
 }
 
+const computedVariant = (action: Action) =>
+  `priority: "${action.text}" at ${action.where} has a computed ${adapter.action.variantProp}, so the check cannot tell whether it is primary. Write the ${adapter.action.variantProp} as a string.`;
+
 const quoted = (actions: readonly Action[]) => actions.map((action) => `"${action.text}" at ${action.where}`).join(", ");
 
 const violations: string[] = [];
@@ -56,6 +59,9 @@ let rankTwoShown = 0;
 for (const page of pages) {
   const actions = page.scopes.flatMap((scope) => tagsInScope(scope, ACTION).map((found) => actionOf(found.node, found.disclosures)));
   const primaries = actions.filter((action) => isPrimaryVariant(action.variant));
+  for (const action of actions) {
+    if (action.variant === "dynamic") violations.push(computedVariant(action));
+  }
   const rankTwo = actions.filter((action) => action.text === secondaryItem.action);
   const label = `${page.file}:${page.line} ${page.shell.name} page`;
 
@@ -88,7 +94,8 @@ if (pages.length > 0 && rankTwoShown === 0) {
 
 for (const { node } of unreachedElements(featuresRoot, pages, ACTION)) {
   const action = actionOf(node, 0);
-  if (isPrimaryVariant(action.variant) || action.text === secondaryItem.action) {
+  if (action.variant === "dynamic") violations.push(computedVariant(action));
+  else if (isPrimaryVariant(action.variant) || action.text === primaryItem.action || action.text === secondaryItem.action) {
     violations.push(`priority: ${action.where}: "${action.text}" is not reached from any page, so its page's priority cannot be checked. Render it in a component or in the shell's JSX.`);
   }
 }

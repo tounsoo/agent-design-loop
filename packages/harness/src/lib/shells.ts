@@ -80,16 +80,37 @@ function assignedSlots(source: ts.SourceFile, name: string): Set<string> | null 
  * The slots the module that defines `name` gives it, following re-exports
  * from the page type's index.ts. Null when they cannot be read.
  */
+/** The module and exported name a local binding was imported from, for a named import. */
+function importedFrom(source: ts.SourceFile, local: string): { specifier: string; name: string } | null {
+  for (const statement of source.statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
+    const named = statement.importClause?.namedBindings;
+    if (!named || !ts.isNamedImports(named)) continue;
+    const element = named.elements.find((item) => item.name.text === local);
+    if (element) return { specifier: statement.moduleSpecifier.text, name: element.propertyName?.text ?? local };
+  }
+  return null;
+}
+
 function slotsOf(file: string, name: string, depth = 0): Set<string> | null {
   if (depth > 3 || !existsSync(file)) return null;
   const source = parseFile(file);
   for (const statement of source.statements) {
-    if (!ts.isExportDeclaration(statement) || !statement.moduleSpecifier || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
-    if (!statement.exportClause || !ts.isNamedExports(statement.exportClause)) continue;
+    if (!ts.isExportDeclaration(statement) || !statement.exportClause || !ts.isNamedExports(statement.exportClause)) continue;
     const element = statement.exportClause.elements.find((item) => item.name.text === name);
     if (!element) continue;
-    const next = resolveRelative(file, statement.moduleSpecifier.text);
-    return next ? slotsOf(next, element.propertyName?.text ?? name, depth + 1) : null;
+    const local = element.propertyName?.text ?? name;
+    if (statement.moduleSpecifier && ts.isStringLiteral(statement.moduleSpecifier)) {
+      const next = resolveRelative(file, statement.moduleSpecifier.text);
+      return next ? slotsOf(next, local, depth + 1) : null;
+    }
+    // `import { X } from "./X"; export { X };`: follow the import.
+    const imported = importedFrom(source, local);
+    if (imported) {
+      const next = resolveRelative(file, imported.specifier);
+      return next ? slotsOf(next, imported.name, depth + 1) : null;
+    }
+    return assignedSlots(source, local);
   }
   return assignedSlots(source, name);
 }
