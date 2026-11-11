@@ -19,19 +19,21 @@ import { collectionShellsOf, shellsOf } from "./lib/shells";
  * Three lists may be introduced without a proposal when the base does not
  * export them: allowed_layouts, allowed_content_layouts and
  * disclosed_sections. That is how allowed_layouts and allowed_content_layouts
- * were recorded. The change must export allowed_layouts and
- * allowed_content_layouts. It may leave out disclosed_sections only while
- * the base has none or an empty one, since dropping members the base has is
- * a change. The
- * other arrays, allowed_page_types, tasks, priority and the flows'
- * modeledStates, must exist on the base and in the change, or the check
- * fails. A list the base already has may not change that way. Its
- * membership changes only by graduating a proposal: one that is decided on
- * the base, that this change marks graduated, and whose `changes` list what
- * changed. A change that only adds members to the catalog exports,
- * allowed_layouts, allowed_content_layouts, allowed_page_types or the flow
- * states may instead graduate a proposal this change adds, already
- * graduated, that lists those members under `adds`: proposal 0012.
+ * were recorded. A file exports a list when it declares it with `export const`
+ * or names a local declaration in an export clause; `exportedBinding` says how
+ * every other form is read, so a re-export cannot pass for a missing list. The
+ * change must export allowed_layouts and allowed_content_layouts. It may leave
+ * out disclosed_sections only while the base has none or an empty one, since
+ * dropping members the base has is a change. The other arrays,
+ * allowed_page_types, tasks, priority and the flows' modeledStates, must exist
+ * on the base and in the change, or the check fails. A list the base already
+ * has may not change that way. Its membership changes only by graduating a
+ * proposal: one that is decided on the base, that this change marks graduated,
+ * and whose `changes` list what changed. A change that only adds members to
+ * the catalog exports, allowed_layouts, allowed_content_layouts,
+ * allowed_page_types or the flow states may instead graduate a proposal this
+ * change adds, already graduated, that lists those members under `adds`:
+ * proposal 0012.
  *
  * allowed_layouts is the app frame. allowed_content_layouts are the
  * compositions that fill a page type's body. A collection ready body has to
@@ -162,17 +164,62 @@ function adapterAt(root: Root, own: ParsedConfig | null): DesignSystemAdapter | 
   }
 }
 
-function exportedInitializer(source: ts.SourceFile, name: string): ts.Expression | null {
-  let found: ts.Expression | null = null;
-  walk(source, (node) => {
-    if (!ts.isVariableStatement(node) || !hasExport(node)) return;
-    for (const declaration of node.declarationList.declarations) {
-      if (ts.isIdentifier(declaration.name) && declaration.name.text === name && declaration.initializer) {
-        found = unwrap(declaration.initializer);
+/**
+ * How a module exports `name`. Absent means no export by that name at all.
+ * Present carries the expression bound to it, or null when that is not a
+ * local `const`, `let` or `var` with an initializer this check can read: a
+ * destructured binding, an import, or a re-export from another module.
+ * `export const name = …`, `export { name }` and `export { local as name }`
+ * over a local declaration all count. A module with `export * from` or
+ * `export =` may export anything, so a name it does not declare itself fails
+ * the check instead of reading as absent.
+ */
+type ExportedBinding = { readonly present: false } | { readonly present: true; readonly initializer: ts.Expression | null };
+
+function bindingNames(name: ts.BindingName): string[] {
+  if (ts.isIdentifier(name)) return [name.text];
+  return name.elements.flatMap((element) => (ts.isOmittedExpression(element) ? [] : bindingNames(element.name)));
+}
+
+function exportedBinding(source: ts.SourceFile, name: string): ExportedBinding {
+  const locals = new Map<string, ts.Expression | null>();
+  let direct: { initializer: ts.Expression | null } | null = null;
+  let clause: { local: string | null } | null = null;
+  let opaque = false;
+  for (const statement of source.statements) {
+    if (ts.isVariableStatement(statement)) {
+      for (const declaration of statement.declarationList.declarations) {
+        const simple = ts.isIdentifier(declaration.name);
+        for (const bound of bindingNames(declaration.name)) {
+          const initializer = simple && declaration.initializer ? unwrap(declaration.initializer) : null;
+          locals.set(bound, initializer);
+          if (bound === name && hasExport(statement)) direct = { initializer };
+        }
       }
+    } else if (ts.isExportDeclaration(statement)) {
+      if (statement.isTypeOnly) continue;
+      if (!statement.exportClause) opaque = true;
+      else if (ts.isNamespaceExport(statement.exportClause)) {
+        if (statement.exportClause.name.text === name) clause = { local: null };
+      } else {
+        for (const element of statement.exportClause.elements) {
+          if (element.isTypeOnly || element.name.text !== name) continue;
+          clause = { local: statement.moduleSpecifier ? null : (element.propertyName ?? element.name).text };
+        }
+      }
+    } else if (ts.isExportAssignment(statement) && statement.isExportEquals) {
+      opaque = true;
     }
-  });
-  return found;
+  }
+  if (direct) return { present: true, initializer: direct.initializer };
+  if (clause) return { present: true, initializer: clause.local === null ? null : (locals.get(clause.local) ?? null) };
+  if (opaque) fail(`inventory: ${source.fileName} uses export * or export =, so whether it exports ${name} cannot be read. Export ${name} from this file by name.`);
+  return { present: false };
+}
+
+function exportedInitializer(source: ts.SourceFile, name: string): ts.Expression | null {
+  const binding = exportedBinding(source, name);
+  return binding.present ? binding.initializer : null;
 }
 
 function stringArray(expression: ts.Expression | null, label: string): string[] {
@@ -187,15 +234,9 @@ function stringArray(expression: ts.Expression | null, label: string): string[] 
 }
 
 function optionalStringArray(source: ts.SourceFile, name: string): string[] | null {
-  let present = false;
-  walk(source, (node) => {
-    if (!ts.isVariableStatement(node) || !hasExport(node)) return;
-    for (const declaration of node.declarationList.declarations) {
-      if (ts.isIdentifier(declaration.name) && declaration.name.text === name) present = true;
-    }
-  });
-  if (!present) return null;
-  return sortedUnique(stringArray(exportedInitializer(source, name), name));
+  const binding = exportedBinding(source, name);
+  if (!binding.present) return null;
+  return sortedUnique(stringArray(binding.initializer, name));
 }
 
 function objectRecords(expression: ts.Expression | null, label: string): Map<string, string | number>[] {
