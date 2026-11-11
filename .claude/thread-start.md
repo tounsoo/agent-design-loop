@@ -37,7 +37,7 @@ pstack is written for a plugin install, so these adaptations apply to every thre
 - **Read-only subagents.** `Agent` has no `readonly` parameter. Where a skill spawns one with `readonly: true`, tell it in its prompt not to edit files, commit or push.
 - **Pull requests.** The thread's own session, never a subagent, does every write to a pull request: opening, pushing, replying, marking ready and subscribing. A thread drives one pull request.
 - **GitHub.** Use the GitHub MCP tools for pull requests. For CI, subscribe to the pull request's activity and let GitHub events wake the thread. No scheduled checks.
-- **Verify.** The project verify skill is `.claude/skills/verify/SKILL.md` in this repository. Where pstack names the project `verify` skill or `/create-verification-skill`, read that file. Threads have no Chrome, so its browser step is `BLOCKED` there and the pull request's CI run covers it.
+- **Verify.** The project verify skill is `.claude/skills/verify/SKILL.md` in this repository. Where pstack names the project `verify` skill or `/create-verification-skill`, read that file. `npm run setup:chrome` downloads chrome-headless-shell in a thread, so run its browser step there. The step is `BLOCKED` only when no Chrome that starts is found, as the verify skill says; then the pull request's CI run covers it.
 - **Scripts.** Upstream scripts under `$pstack` are downloaded code, and the session may block them. If one is blocked, work without it and say so in the reply.
 - **Precedence.** Ben's direct requests, `CLAUDE.md` and `AGENTS.md` win over pstack. Nothing merges, deletes, rebases or force-pushes without Ben's yes, whatever a pstack playbook says.
 
