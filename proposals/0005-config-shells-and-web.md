@@ -1,5 +1,5 @@
 ---
-status: graduated
+status: adopted
 changes:
   - shells.primarySlots
   - shells.collections
@@ -58,7 +58,7 @@ shells: {
 
 Meridian's results do not change. Every check prints what it printed on `e4339f0`, except `check:inventories`, which reports the config change with this proposal.
 
-## Graduation
+## Adoption
 
 - No file changes on approval. These change in the same pull request:
   - `harness.config.ts`, `fixtures/product/harness.config.ts` and `scripts/lib/config.ts`, which parses the two fields.

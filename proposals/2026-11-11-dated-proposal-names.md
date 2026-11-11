@@ -1,5 +1,5 @@
 ---
-status: graduated
+status: adopted
 changes: []
 ---
 # Proposals are named by date and slug, not by the next number
@@ -33,7 +33,7 @@ proposals: compared with f1ed1b0:
 
 The same proposal renamed to `proposals/2026-11-12-invoice-progress-steps.md` passes, and so does a parallel `proposals/2026-11-12-nook-hold-ends.md`.
 
-## Graduation
+## Adoption
 
 - No file changes on approval. These change in the same pull request:
   - `packages/harness/src/lib/proposals.ts` adds `nameProblems` and `sharedNameProblems`, with its tests in `proposals.test.ts`.

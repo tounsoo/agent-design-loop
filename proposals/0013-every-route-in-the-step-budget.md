@@ -1,5 +1,5 @@
 ---
-status: graduated
+status: adopted
 changes: []
 ---
 # Proposal 0013: The step budget measures every route, not only the shortest
@@ -37,7 +37,7 @@ The same reducer with book-room at `max_steps` 2:
 step budget: the shipped flow route choose-room → hold → book takes 3 steps, which exceeds max_steps 2 for book-room. Every route that finishes the task must fit, not only the shortest.
 ```
 
-## Graduation
+## Adoption
 
 - No file changes on approval. These change in the same pull request:
   - `packages/harness/src/lib/shortest-path.ts` adds `measureRoutes` and `stateKey`, exported from the harness package, with their tests in `shortest-path.test.ts`.

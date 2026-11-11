@@ -1,5 +1,5 @@
 ---
-status: graduated
+status: adopted
 changes: []
 ---
 # Proposal 0007: Close six gaps in the checks
@@ -39,7 +39,7 @@ inventory: allowed_layouts changed from ["app-shell"] to ["app-shell","side-pane
 
 Each new rule has a legal and an illegal case under `packages/harness/fixtures/`, listed in the harness's [How this design loop works](../packages/harness/docs/how-it-works.md).
 
-## Graduation
+## Adoption
 
 - No file changes on approval. These change in the same pull request:
   - `packages/harness/src/`: `check-target-size.ts`, `check-priority.ts`, `check-step-budget.ts`, `check-inventories.ts`, `lint-product-ui.ts`, `check-fixtures.ts`, and `lib/shells.ts`, `lib/page-scope.ts`, `lib/config.ts` and `lib/parse-config.ts`.

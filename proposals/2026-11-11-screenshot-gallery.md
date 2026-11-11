@@ -1,5 +1,5 @@
 ---
-status: graduated
+status: adopted
 changes: []
 ---
 # A change that renders shows each state in a screenshot gallery
@@ -35,6 +35,6 @@ It writes `before/invoice-approved--page-detail.png`, `after/invoice-approved--p
 
 The loop, from the gate on: `checks` (pass), `screenshots`, `note`, `pull-request`.
 
-## Graduation
+## Adoption
 
 `packages/harness/design-loop.ts` gains the `screenshots` node and its edges, and the diagram in `packages/harness/docs/how-it-works.md` is redrawn. `packages/harness/src/screenshots.ts` and `packages/harness/src/lib/screenshots.ts` are the script, `package.json` names it, and `packages/harness/src/lib/config.ts` lets it read `--out`, `--state` and `--base`. The verify skill, `CLAUDE.md`, `AGENTS.md`, the harness README and walkthrough, and the new `.github/pull_request_template.md` describe the step.

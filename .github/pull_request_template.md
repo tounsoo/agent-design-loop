@@ -4,7 +4,7 @@
 
 ## What changed
 
-<!-- The files or behavior, with each proposal it opens, decides or graduates. -->
+<!-- The files or behavior, with each proposal it opens, decides or adopts. -->
 
 ## Screenshots
 

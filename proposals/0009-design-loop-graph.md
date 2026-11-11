@@ -1,5 +1,5 @@
 ---
-status: graduated
+status: adopted
 changes: []
 ---
 # Proposal 0009: The design loop is a graph in the harness
@@ -63,7 +63,7 @@ The eval node runs `check:fixtures` and `check`, the build gate. The human node 
 
 A broken graph fails the build. If the eval node named `check:colors`, `check:loop` prints `eval node checks runs check:colors, which is not an npm script.`
 
-## Graduation
+## Adoption
 
 No file changes later. These change in the same pull request:
 

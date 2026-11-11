@@ -1,5 +1,5 @@
 ---
-status: graduated
+status: adopted
 changes: []
 ---
 # Proposal 0003: Record the approve path as 2 steps
@@ -31,7 +31,7 @@ Proposal 0001's path, corrected:
 2. Write an approval note
 3. Approve → `invoice-approved`
 
-## Graduation
+## Adoption
 
 - No file changes on approval. The files below change in the same pull request as this proposal, because none of them is an inventory:
   - `src/flows/invoice-approval/graph.ts` models open-invoice → approve.

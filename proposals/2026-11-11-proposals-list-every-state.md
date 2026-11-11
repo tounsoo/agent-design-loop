@@ -1,5 +1,5 @@
 ---
-status: graduated
+status: adopted
 changes: []
 ---
 # Proposals list every state before building
@@ -40,6 +40,6 @@ proposals: compared with 1caa889:
 - proposals/2026-11-12-steps.md is new and adds Steps, but has no "## States" section. List every state the change shows before it is built, the edge cases Empty, Loading, Error, Long content, Permissions, Over time included, or "- None: <why>" when it shows on no screen.
 ```
 
-## Graduation
+## Adoption
 
 In the pull request that adds this proposal: `packages/harness/src/lib/proposals.ts` reads `## States` and requires it, with Vitest cases in `proposals.test.ts`; `proposals/README.md` gives the format; `AGENTS.md`, the `propose` node in `packages/harness/design-loop.ts` and the verify skill ask for the states before building and check them after; `CLAUDE.md`, the harness README and `packages/harness/docs/how-it-works.md` describe the check.
