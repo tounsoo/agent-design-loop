@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { graduating, parseAll, parseProposal, transitionProblems, type Proposal } from "./proposals";
+import { addingInThisChange, graduating, parseAll, parseProposal, transitionProblems, type Proposal } from "./proposals";
 
 const BODY = "# Proposal 0102: Add a side panel\n\n## Reason\n\nA frame beside the page.\n\n## Preview\n\n```\n[page | panel]\n```\n\n## Graduation, after approval\n\n- inputs\n";
 
@@ -8,7 +8,7 @@ function text(front: string, body = BODY): string {
 }
 
 function proposal(file: string, status: Proposal["status"], changes: string[] = [], retires: string[] = []): Proposal {
-  return { file, status, changes, retires, optsOut: [] };
+  return { file, status, changes, retires, optsOut: [], adds: [] };
 }
 
 describe("parseProposal", () => {
@@ -24,6 +24,7 @@ describe("parseProposal", () => {
       changes: ["side-panel", "allowed_layouts"],
       retires: ["check:disclosure"],
       optsOut: [{ rule: "check:priority", source: "products/nook" }],
+      adds: [],
     });
   });
 
@@ -82,6 +83,43 @@ describe("parseProposal", () => {
     expect(parseProposal("p.md", text("status: graduated\nchanges: []\nopts-out:\n  - check:priority")).problems.join("\n")).toContain(
       'is not "<rule> for <product paths.source>"',
     );
+  });
+});
+
+describe("a proposal that only adds", () => {
+  it("reads adds on a graduated proposal that lists nothing else", () => {
+    const parsed = parseProposal("p.md", text("status: graduated\nchanges: []\nadds:\n  - side-panel"));
+    expect(parsed.problems).toEqual([]);
+    expect(parsed.proposal).toMatchObject({ status: "graduated", changes: [], adds: ["side-panel"] });
+  });
+
+  it("fails adds alongside changes, retires or opts-out, so a mixed proposal cannot skip approval", () => {
+    for (const extra of ["changes:\n  - TARGET_MIN_PX", "changes: []\nretires:\n  - check:disclosure", "changes: []\nopts-out:\n  - check:priority for products/nook"]) {
+      const parsed = parseProposal("p.md", text(`status: graduated\n${extra}\nadds:\n  - side-panel`));
+      expect(parsed.proposal).toBeNull();
+      expect(parsed.problems.join("\n")).toContain("lists adds alongside");
+    }
+  });
+
+  it("fails adds on an open or decided proposal: it graduates in the pull request that adds it", () => {
+    for (const status of ["open", "decided"]) {
+      const parsed = parseProposal("p.md", text(`status: ${status}\nchanges: []\nadds:\n  - side-panel`));
+      expect(parsed.problems.join("\n")).toContain("lists adds, so its status is graduated");
+    }
+  });
+
+  it("passes check:proposals as a new graduated proposal, and pins its adds once merged", () => {
+    const adding: Proposal = { ...proposal("p.md", "graduated"), adds: ["side-panel"] };
+    expect(transitionProblems(new Map(), new Map([["p.md", adding]]))).toEqual([]);
+    const widened: Proposal = { ...adding, adds: ["side-panel", "Card"] };
+    expect(transitionProblems(new Map([["p.md", adding]]), new Map([["p.md", widened]])).join("\n")).toContain("its adds cannot change");
+  });
+
+  it("covers only in the pull request that adds it", () => {
+    const adding: Proposal = { ...proposal("p.md", "graduated"), adds: ["side-panel"] };
+    const plain = proposal("q.md", "graduated");
+    expect(addingInThisChange(new Map(), new Map([["p.md", adding], ["q.md", plain]]))).toEqual([adding]);
+    expect(addingInThisChange(new Map([["p.md", adding]]), new Map([["p.md", adding]]))).toEqual([]);
   });
 });
 

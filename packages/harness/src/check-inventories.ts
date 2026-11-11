@@ -7,7 +7,7 @@ import { resolveBaseRev, tryGit } from "./lib/base";
 import { collectionCompositionViolations } from "./lib/collection-body";
 import { config, configName, memberOf, pageTypesBarrel, parseConfig, type HarnessConfig, type ParsedConfig } from "./lib/config";
 import { walk } from "./lib/jsx";
-import { byBaseName, graduating, parseAll, proposalsAtRev, proposalsInDir, type Proposal } from "./lib/proposals";
+import { addingInThisChange, byBaseName, graduating, parseAll, proposalsAtRev, proposalsInDir, type Proposal } from "./lib/proposals";
 import { collectionShellsOf, shellsOf } from "./lib/shells";
 
 /**
@@ -20,7 +20,11 @@ import { collectionShellsOf, shellsOf } from "./lib/shells";
  * was recorded, and how allowed_content_layouts is recorded. It may not change
  * a set the base already had. After a list exists, a membership change
  * graduates a proposal: one that is decided on the base, that this change
- * marks graduated, and whose `changes` list what changed.
+ * marks graduated, and whose `changes` list what changed. A change that only
+ * adds members to the catalog exports, allowed_layouts,
+ * allowed_content_layouts, allowed_page_types or the flow states may instead
+ * graduate a proposal this change adds, already graduated, that lists those
+ * members under `adds`: proposal 0012.
  *
  * allowed_layouts is the app frame. allowed_content_layouts are the
  * compositions that fill a page type's body. A collection ready body has to
@@ -302,9 +306,17 @@ function readInventory(root: Root): Inventory | null {
  * cap or config field. A term that lists alternatives is named when any one
  * of them is: a config path is named by its field, `paths.catalog`, or by its
  * new value. A proposal about something else does not cover it.
+ *
+ * `additions` is set only on a change to one of the lists that may grow in
+ * one pull request, when every member in it was added and none removed. Its
+ * terms are then exactly those members.
  */
 type Term = string | readonly string[];
-type Change = { readonly text: string; readonly terms: readonly Term[] };
+type Change = { readonly text: string; readonly terms: readonly Term[]; readonly additions?: true };
+
+/** The inventory lists a proposal that only adds may grow in the pull request that adds it. Every other change waits for a decided proposal. */
+const ADDABLE_LISTS = ["catalog exports", "allowed_layouts", "allowed_content_layouts", "allowed_page_types", "flow states"] as const;
+const addableText = `${ADDABLE_LISTS.slice(0, -1).join(", ")} or ${ADDABLE_LISTS.at(-1)}`;
 
 function differingMembers(before: readonly string[], after: readonly string[]): string[] {
   return sortedUnique([...before.filter((item) => !after.includes(item)), ...after.filter((item) => !before.includes(item))]);
@@ -324,7 +336,13 @@ function membershipChanges(base: Inventory, head: Inventory, compareConfig: bool
     const right = JSON.stringify(after);
     if (left !== right) changes.push({ text: `${label} changed from ${left} to ${right}.`, terms });
   };
-  const list = (label: string, before: readonly string[], after: readonly string[]) => compare(label, before, after, differingMembers(before, after));
+  const list = (label: string, before: readonly string[], after: readonly string[]) => {
+    const count = changes.length;
+    compare(label, before, after, differingMembers(before, after));
+    const change = changes[count];
+    // A renamed or reordered member is not an addition: only a list whose every difference is a new member qualifies.
+    if (change && (ADDABLE_LISTS as readonly string[]).includes(label) && before.every((member) => after.includes(member))) changes[count] = { ...change, additions: true };
+  };
   // A missing list on the base is the bootstrap that records it.
   if (base.layouts !== null) list("allowed_layouts", base.layouts, head.layouts ?? []);
   if (base.contentLayouts !== null) list("allowed_content_layouts", base.contentLayouts, head.contentLayouts ?? []);
@@ -472,12 +490,53 @@ function lists(proposal: Proposal, term: Term): boolean {
   return options.some((option) => proposal.changes.includes(option));
 }
 
+/** True when the proposal's `adds` list the term, or one of its alternatives. Only a change that is all additions reads these. */
+function adds(proposal: Proposal, term: Term): boolean {
+  const options = typeof term === "string" ? [term] : term;
+  return options.some((option) => proposal.adds.includes(option));
+}
+
+/** Every name a change's terms give, alternatives included. */
+const termNames = (terms: readonly Term[]): string[] => terms.flatMap((term) => (typeof term === "string" ? [term] : [...term]));
+
+/**
+ * The proposals this change adds that only add, split by whether they may
+ * cover anything here. One that lists, under `adds`, a name this change
+ * removes or changes in any other way is not a proposal that only adds, so
+ * it covers nothing in this product, not even the members it does add.
+ */
+function addingProposals(changes: readonly Change[], proposals: ProposalsForChange): { usable: Proposal[]; refused: Map<string, string[]> } {
+  const other = new Set(changes.filter((change) => !change.additions).flatMap((change) => termNames(change.terms)));
+  const usable: Proposal[] = [];
+  const refused = new Map<string, string[]>();
+  for (const proposal of addingInThisChange(proposals.base, proposals.head)) {
+    const named = proposal.adds.filter((name) => other.has(name));
+    if (named.length > 0) refused.set(proposal.file, named);
+    else usable.push(proposal);
+  }
+  return { usable, refused };
+}
+
 /** Why a proposal that lists every term of a change still does not cover it. */
-function whyNot(file: string, proposals: ProposalsForChange): string {
+function whyNot(file: string, change: Change, proposals: ProposalsForChange, refused: ReadonlyMap<string, readonly string[]>): string {
   const key = proposals.key(file);
   const before = proposals.base.get(key);
   const after = proposals.head.get(key);
-  if (before === undefined) return `${file} is added in this change. A proposal cannot graduate in the pull request that adds it: merge it as "status: decided" first.`;
+  const lists = addableText;
+  if (after && after.adds.length > 0 && change.terms.some((term) => adds(after, term))) {
+    if (before !== undefined) return `${file} added its members in an earlier pull request. A proposal that only adds covers them in the pull request that adds it, once.`;
+    const names = refused.get(file);
+    if (names) {
+      return `${file} lists ${names.map((name) => `"${name}"`).join(", ")} under adds, which this change removes or changes rather than adds, so it covers nothing. adds covers only members added to ${lists}.`;
+    }
+    if (!change.additions) {
+      return `${file} lists it under adds, but this change does more than add members to ${lists}: ${change.text} A removal, a rename or any other change needs a proposal decided on the base.`;
+    }
+    return `${file} does not list every new member of this change under adds.`;
+  }
+  if (before === undefined) {
+    return `${file} is added in this change. A proposal cannot graduate in the pull request that adds it: merge it as "status: decided" first. Only a proposal that adds members to ${lists}, and lists them under adds alone, graduates in the pull request that adds it.`;
+  }
   if (before.status === "open") return `${file} is an open request on the base. A designer approves it (status: decided) in its own pull request before it graduates.`;
   if (before.status === "graduated") return `${file} graduated before. A proposal graduates once.`;
   if (after?.status !== "graduated") return `${file} is decided on the base. Mark it "status: graduated" in this change.`;
@@ -490,40 +549,51 @@ function whyNot(file: string, proposals: ProposalsForChange): string {
  * change in their `changes`, as the base has them. Two approved proposals may
  * graduate together, each covering its own term. A proposal for one change
  * does not let another through, and a proposal added in the same change
- * covers nothing.
+ * covers nothing, unless it only adds: then it covers the members it lists
+ * under `adds` of a change that is all additions.
  */
 function reportMembership(changes: readonly Change[], proposals: ProposalsForChange): boolean {
   if (changes.length === 0) return true;
   const graduates = graduating(proposals.base, proposals.head);
+  const { usable, refused } = addingProposals(changes, proposals);
   const uncovered: string[] = [];
+  const used = new Set<string>();
   for (const change of changes) {
-    const covering = change.terms.map((term) => graduates.find((proposal) => lists(proposal, term)));
+    const covering = change.terms.map(
+      (term) => graduates.find((proposal) => lists(proposal, term)) ?? (change.additions ? usable.find((proposal) => adds(proposal, term)) : undefined),
+    );
     if (covering.every((proposal) => proposal !== undefined)) {
-      console.log(`inventory: ${change.text} Graduates ${[...new Set(covering.map((proposal) => proposal.file))].join(", ")}.`);
+      const files = [...new Set(covering.map((proposal) => proposal.file))];
+      for (const file of files) used.add(file);
+      const named = files.map((file) =>
+        usable.some((proposal) => proposal.file === file) ? `${file} (only adds, so it graduates in the pull request that adds it, which a designer reviews)` : file,
+      );
+      console.log(`inventory: ${change.text} Graduates ${named.join(", ")}.`);
       continue;
     }
     const candidates = [...proposals.base.values(), ...proposals.head.values()]
-      .filter((proposal) => change.terms.some((term) => lists(proposal, term)))
+      .filter((proposal) => change.terms.some((term) => lists(proposal, term) || adds(proposal, term)))
       .map((proposal) => proposal.file);
-    const reasons = [...new Set(candidates)].map((file) => whyNot(file, proposals));
+    const reasons = [...new Set(candidates)].map((file) => whyNot(file, change, proposals, refused));
     const missing = change.terms.filter((term) => !graduates.some((proposal) => lists(proposal, term)));
     const none = reasons.length === 0 && graduates.length > 0 && missing.length > 0 ? `, and none graduating lists ${missing.map(termText).join(", ")}` : "";
+    const orAdds = change.additions ? `, or a proposal this change adds must list ${change.terms.map(termText).join(", ")} under adds alone` : "";
     uncovered.push(
-      `inventory: ${change.text} No graduating proposal covers it: a decided proposal must list ${change.terms.map(termText).join(", ")} under changes${none}.`,
+      `inventory: ${change.text} No graduating proposal covers it: a decided proposal must list ${change.terms.map(termText).join(", ")} under changes${none}${orAdds}.`,
       ...reasons.map((reason) => `inventory:   ${reason}`),
     );
   }
   if (uncovered.length > 0) {
     console.error(
-      graduates.length === 0
+      graduates.length === 0 && usable.length === 0
         ? "inventory: set changed without a proposal. An inventory grows only by graduating a proposal a designer already approved."
-        : `inventory: set changed without a proposal that covers it. Graduating: ${graduates.map((proposal) => proposal.file).join(", ")}.`,
+        : `inventory: set changed without a proposal that covers it. Graduating: ${[...graduates, ...usable].map((proposal) => proposal.file).join(", ")}.`,
     );
     for (const line of uncovered) console.error(line);
     for (const problem of proposals.problems) console.error(`inventory: ${problem}`);
     return false;
   }
-  console.log(`inventory: set changed with ${graduates.map((proposal) => proposal.file).join(", ")}.`);
+  console.log(`inventory: set changed with ${[...used].sort().join(", ")}.`);
   return true;
 }
 

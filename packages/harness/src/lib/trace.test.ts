@@ -54,6 +54,7 @@ describe("traceProblems", () => {
       { node: "read" },
       { node: "route", when: "needs a new pattern" },
       { node: "propose" },
+      { node: "scope", when: "anything else" },
       { node: "proposal-pull-request" },
       { node: "approval", when: "approved" },
       { node: "graduate" },
@@ -63,6 +64,23 @@ describe("traceProblems", () => {
       { node: "pull-request" },
     );
     expect(traceProblems(designLoop, walk)).toEqual([]);
+  });
+
+  it("passes a proposal that only adds, graduated in the same run, and fails one that skips the approval otherwise", () => {
+    const oneRun = lines(
+      { node: "read" },
+      { node: "route", when: "needs a new pattern" },
+      { node: "propose" },
+      { node: "scope", when: "only adds" },
+      { node: "graduate" },
+      { node: "build" },
+      { node: "checks", when: "pass" },
+      { node: "note" },
+      { node: "pull-request" },
+    );
+    expect(traceProblems(designLoop, oneRun)).toEqual([]);
+    const skips = lines({ node: "read" }, { node: "route", when: "needs a new pattern" }, { node: "propose" }, { node: "graduate" });
+    expect(traceProblems(designLoop, skips).join("\n")).toContain("propose");
   });
 
   it("fails an empty trace", () => {
@@ -131,6 +149,7 @@ describe("traceProblems", () => {
       { node: "checks", when: "fail" },
       { node: "triage", when: "outside" },
       { node: "propose" },
+      { node: "scope", when: "anything else" },
       { node: "proposal-pull-request" },
     );
     expect(traceProblems(designLoop, paused)).toEqual([]);
