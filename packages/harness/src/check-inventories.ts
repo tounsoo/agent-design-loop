@@ -20,7 +20,7 @@ import { collectionShellsOf, shellsOf } from "./lib/shells";
  * export them: allowed_layouts, allowed_content_layouts and
  * disclosed_sections. That is how allowed_layouts and allowed_content_layouts
  * were recorded. A file exports a list when it declares it with `export const`
- * or names a local declaration in an export clause; `exportedBinding` says how
+ * or names a local `const` in an export clause; `exportedBinding` says how
  * every other form is read, so a re-export cannot pass for a missing list. The
  * change must export allowed_layouts and allowed_content_layouts. It may leave
  * out disclosed_sections only while the base has none or an empty one, since
@@ -167,10 +167,11 @@ function adapterAt(root: Root, own: ParsedConfig | null): DesignSystemAdapter | 
 /**
  * How a module exports `name`. Absent means no export by that name at all.
  * Present carries the expression bound to it, or null when that is not a
- * local `const`, `let` or `var` with an initializer this check can read: a
- * destructured binding, an import, or a re-export from another module.
+ * local `const` with an initializer this check can read: a `let` or `var`,
+ * which can be reassigned, a destructured binding, a function, class, enum
+ * or namespace, an import, or a re-export from another module.
  * `export const name = …`, `export { name }` and `export { local as name }`
- * over a local declaration all count. A module with `export * from` or
+ * over a local `const` all count. A module with `export * from` or
  * `export =` may export anything, so a name it does not declare itself fails
  * the check instead of reading as absent.
  */
@@ -189,7 +190,8 @@ function exportedBinding(source: ts.SourceFile, name: string): ExportedBinding {
   for (const statement of source.statements) {
     if (ts.isVariableStatement(statement)) {
       for (const declaration of statement.declarationList.declarations) {
-        const simple = ts.isIdentifier(declaration.name);
+        // Only a `const` binds the value it is declared with; a `let` or `var` can be reassigned before the module exports it.
+        const simple = ts.isIdentifier(declaration.name) && (statement.declarationList.flags & ts.NodeFlags.Const) !== 0;
         for (const bound of bindingNames(declaration.name)) {
           const initializer = simple && declaration.initializer ? unwrap(declaration.initializer) : null;
           locals.set(bound, initializer);
@@ -209,6 +211,15 @@ function exportedBinding(source: ts.SourceFile, name: string): ExportedBinding {
       }
     } else if (ts.isExportAssignment(statement) && statement.isExportEquals) {
       opaque = true;
+    } else if (
+      (ts.isFunctionDeclaration(statement) || ts.isClassDeclaration(statement) || ts.isEnumDeclaration(statement) || ts.isModuleDeclaration(statement) || ts.isImportEqualsDeclaration(statement)) &&
+      statement.name !== undefined &&
+      ts.isIdentifier(statement.name) &&
+      statement.name.text === name &&
+      hasExport(statement)
+    ) {
+      // A function, class, enum, namespace or `export import` exports the name at runtime, but not as a list this check can read.
+      direct = { initializer: null };
     }
   }
   if (direct) return { present: true, initializer: direct.initializer };
