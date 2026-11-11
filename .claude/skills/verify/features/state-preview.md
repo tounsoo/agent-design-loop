@@ -25,7 +25,6 @@ Preconditions:
 - **Coverage.** Run `npm run check:state-coverage -- --config products/meridian/harness.config.ts`. It prints `6 modeled states have views` and lists them.
 - **Previews.** Run `npm run check:target-size -- --list --config products/meridian/harness.config.ts`. It prints each preview URL and `target size: 10 previews from modeledStates.` without Chrome.
 - **Browser.** Run `CHROME_PATH=<chrome> npm run check:target-size -- --config products/meridian/harness.config.ts`. It opens every preview and prints `target size: controls on 10 previews meet 24 CSS px (or the WCAG spacing exception).`
-- **Announcements.** Run `CHROME_PATH=<chrome> npm run check:accessible-names -- --config products/meridian/harness.config.ts`. It opens every preview, reads what a screen reader hears, and prints `accessible names: 10 previews announce the 36 things their flows declare, and every control has a name.` The declarations are in `products/meridian/features/invoice-approval/accessible-names.ts`.
 
 ## Gotchas
 

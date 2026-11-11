@@ -11,10 +11,12 @@ import { configName, type FlowConfig } from "./config";
  * without anyone remembering to add it, and a previews entry for a state that
  * is not modeled is a problem, not a URL that quietly opens the default page.
  */
-export async function previewQueries(flows: readonly FlowConfig[]): Promise<{ queries: string[]; problems: string[] }> {
+export async function previewQueries(flows: readonly FlowConfig[], firstIndex = 0): Promise<{ queries: string[]; problems: string[] }> {
   const queries: string[] = [];
   const problems: string[] = [];
-  for (const [index, flow] of flows.entries()) {
+  for (const [position, flow] of flows.entries()) {
+    // A caller that reads one flow at a time passes its place in config.flows, so a message names the right entry.
+    const index = firstIndex + position;
     const module = (await import(pathToFileURL(path.resolve(flow.states)).href)) as { modeledStates?: unknown };
     const states = module.modeledStates;
     if (!Array.isArray(states) || !states.every((state) => typeof state === "string")) {

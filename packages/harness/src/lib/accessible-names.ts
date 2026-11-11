@@ -6,7 +6,14 @@ import path from "node:path";
  * check reads Chrome's accessibility tree for each preview and holds it to
  * three rules: every control has a name, every declared announcement is in
  * the tree, and every node whose announcement depends on the state (an
- * `aria-current` item or a live region with something to say) is declared.
+ * `aria-current` item, a live region with something to say, or progress) is
+ * declared.
+ *
+ * Text is the node's runs in order, joined by a space, with no space inside
+ * brackets or before closing punctuation, and an image's name read in its
+ * place. The tree does not say which runs sit on one line, so "<b>In</b>voice"
+ * reads "In voice". Declare text the way the check reads it: a failure lists
+ * what the page's nodes read, word for word.
  */
 
 /** One thing a preview announces, as the product declares it. */
@@ -40,6 +47,8 @@ export type AxNode = {
   readonly checked: boolean | "mixed" | null;
   readonly pressed: boolean | "mixed" | null;
   readonly selected: boolean | null;
+  /** A live region: a live role, or `aria-live` polite or assertive on its element. */
+  readonly live: boolean;
   /** The DOM element behind it, as a short tag for messages. */
   readonly html: string;
 };
@@ -85,11 +94,31 @@ const CONTROL_ROLES = new Set([
 /** Live regions and progress, which announce the state as it changes. */
 const LIVE_ROLES = new Set(["status", "alert", "log", "timer", "marquee", "progressbar", "meter"]);
 
+/** The aria-current tokens ARIA defines. Any other non-empty value means "true". */
+const CURRENT_TOKENS = new Set(["page", "step", "location", "date", "time", "true"]);
+
+/** aria-current as a screen reader reads it: an empty or "false" value is none, and an unknown token is "true". */
+function currentOf(value: string | undefined): string | null {
+  if (value === undefined) return null;
+  const token = value.trim().toLowerCase();
+  if (token === "" || token === "false") return null;
+  return CURRENT_TOKENS.has(token) ? token : "true";
+}
+
 const ANNOUNCEMENT_KEYS = new Set(["role", "name", "text", "current", "disabled", "expanded", "checked", "pressed", "selected"]);
 
 /** The declarations module for a flow: accessible-names.ts beside the flow's views module. */
 export function declarationsFile(views: string): string {
   return path.join(path.dirname(views), "accessible-names.ts").split(path.sep).join("/");
+}
+
+/**
+ * Text as a screen reader reads it: whitespace collapsed, and runs joined by
+ * spaces, so a run that only closes a sentence, like React's "." after
+ * "{duration}", keeps to the word before it. Declared text is read the same way.
+ */
+function spoken(value: string): string {
+  return collapse(value).replace(/ ([.,;:!?)\]])/g, "$1").replace(/([([]) /g, "$1");
 }
 
 function collapse(value: string): string {
@@ -140,10 +169,13 @@ function announcementProblem(item: unknown): string | null {
   if (!isRecord(item)) return "must be an object.";
   const unknown = Object.keys(item).filter((key) => !ANNOUNCEMENT_KEYS.has(key));
   if (unknown.length > 0) return `has unknown keys: ${unknown.join(", ")}. It reads ${[...ANNOUNCEMENT_KEYS].join(", ")}.`;
-  if (typeof item.role !== "string" || item.role === "") return "needs a role.";
+  if (typeof item.role !== "string" || collapse(item.role) === "") return "needs a role.";
   if (item.name === undefined && item.text === undefined) return "needs a name or a text to compare.";
+  if (typeof item.current === "string" && item.current.trim() === "") return 'current "" is the same as no aria-current. Leave current out.';
+  if (typeof item.current === "string" && currentOf(item.current) !== item.current) return `current must be one of ${[...CURRENT_TOKENS].join(", ")}, as the check reads aria-current.`;
   for (const key of ["name", "text", "current"] as const) {
     if (item[key] !== undefined && typeof item[key] !== "string") return `${key} must be a string.`;
+    if (typeof item[key] === "string" && collapse(item[key] as string) === "") return `${key} is empty, so it would match anything with nothing to say. Give the words, or leave ${key} out.`;
   }
   if (item.current === "false") return 'current "false" is the same as no aria-current. Leave current out.';
   for (const key of ["disabled", "expanded", "selected"] as const) {
@@ -168,7 +200,7 @@ function shortTag(element: DomElement | undefined): string {
     .filter(([name]) => name === "id" || name === "class" || name.startsWith("data-") || name.startsWith("aria-") || name === "href" || name === "type")
     .map(([name, value]) => (value === "" ? name : `${name}="${value}"`));
   const tag = `<${[element.tag.toLowerCase(), ...attributes].join(" ")}>`;
-  return tag.length > 120 ? `${tag.slice(0, 117)}...>` : tag;
+  return tag.length > 120 ? `${tag.slice(0, 116)}...>` : tag;
 }
 
 /**
@@ -190,9 +222,10 @@ export function flattenAxTree(nodes: readonly CdpAxNode[], elements: ReadonlyMap
     let text: string;
     if (role === "StaticText") text = node.ignored ? "" : String(node.name?.value ?? "");
     else if (role === "InlineTextBox") text = "";
+    // An image says its name where it sits, as a screen reader reading the line would.
+    else if ((role === "image" || role === "img") && !node.ignored) text = String(node.name?.value ?? "");
     else text = (node.childIds ?? []).map((id) => byId.get(id)).flatMap((child) => (child ? [textOf(child)] : [])).join(" ");
-    // Runs are joined by spaces, so a run that only closes a sentence, like React's "." after "{duration}", keeps to the word before it.
-    text = collapse(text).replace(/ ([.,;:!?)\]])/g, "$1");
+    text = spoken(text);
     texts.set(node.nodeId, text);
     return text;
   };
@@ -202,17 +235,18 @@ export function flattenAxTree(nodes: readonly CdpAxNode[], elements: ReadonlyMap
     if (!node.ignored && role !== "StaticText" && role !== "InlineTextBox") {
       const properties = new Map((node.properties ?? []).map((property) => [property.name, property.value?.value]));
       const element = node.backendDOMNodeId === undefined ? undefined : elements.get(node.backendDOMNodeId);
-      const current = element?.attributes["aria-current"];
+      const live = element?.attributes["aria-live"]?.trim().toLowerCase();
       found.push({
         role,
         name: collapse(String(node.name?.value ?? "")),
         text: textOf(node),
-        current: current === undefined || current === "false" ? null : current === "" ? "true" : current,
+        current: currentOf(element?.attributes["aria-current"]),
         disabled: properties.get("disabled") === true,
         expanded: properties.has("expanded") ? properties.get("expanded") === true : null,
         checked: tristate(properties.get("checked")),
         pressed: tristate(properties.get("pressed")),
         selected: properties.has("selected") ? properties.get("selected") === true : null,
+        live: LIVE_ROLES.has(role) || live === "polite" || live === "assertive",
         html: shortTag(element),
       });
     }
@@ -228,7 +262,7 @@ export function flattenAxTree(nodes: readonly CdpAxNode[], elements: ReadonlyMap
 function matches(node: AxNode, announcement: Announcement): boolean {
   if (node.role !== announcement.role) return false;
   if (announcement.name !== undefined && node.name !== collapse(announcement.name)) return false;
-  if (announcement.text !== undefined && node.text !== collapse(announcement.text)) return false;
+  if (announcement.text !== undefined && node.text !== spoken(announcement.text)) return false;
   if (announcement.current !== undefined && node.current !== announcement.current) return false;
   if (announcement.disabled !== undefined && node.disabled !== announcement.disabled) return false;
   for (const key of ["expanded", "checked", "pressed", "selected"] as const) {
@@ -249,13 +283,14 @@ function states(item: Announcement | AxNode): string {
 }
 
 function describe(announcement: Announcement): string {
-  const said = announcement.name !== undefined ? `named "${collapse(announcement.name)}"` : `reading "${collapse(announcement.text ?? "")}"`;
-  const text = announcement.name !== undefined && announcement.text !== undefined ? ` and reading "${collapse(announcement.text)}"` : "";
+  const said = announcement.name !== undefined ? `named "${collapse(announcement.name)}"` : `reading "${spoken(announcement.text ?? "")}"`;
+  const text = announcement.name !== undefined && announcement.text !== undefined ? ` and reading "${spoken(announcement.text)}"` : "";
   return `${announcement.role} ${said}${text}${states(announcement)}`;
 }
 
 function heard(node: AxNode): string {
-  return node.name !== "" ? `named "${node.name}"` : `reading "${node.text}"`;
+  if (node.name !== "") return `named "${node.name}"`;
+  return node.text !== "" ? `reading "${node.text}"` : `${node.html}, with no name or text,`;
 }
 
 /**
@@ -268,15 +303,15 @@ export function auditPreview(tree: readonly AxNode[], declared: readonly Announc
   const problems: string[] = [];
   for (const node of tree) {
     if (CONTROL_ROLES.has(node.role) && node.name === "") {
-      problems.push(`${node.role} ${node.html} has no accessible name, so a screen reader announces only "${node.role}".`);
+      problems.push(`${node.role} ${node.html} has no accessible name, so a screen reader announces only "${node.role}". Give it visible text or an aria-label in the component; the declarations cannot name it.`);
     }
   }
-  // A role whose declaration failed already lists what its nodes say, so they are not reported again as undeclared.
-  const listed = new Set<string>();
+  // A node a failed declaration already lists is not reported again as undeclared; nodes it does not list still are.
+  const listed = new Set<AxNode>();
   for (const announcement of declared) {
     if (tree.some((node) => matches(node, announcement))) continue;
-    listed.add(announcement.role);
     const sameRole = tree.filter((node) => node.role === announcement.role);
+    for (const node of sameRole.slice(0, 6)) listed.add(node);
     const instead =
       sameRole.length === 0
         ? `The page has no ${announcement.role}.`
@@ -287,10 +322,13 @@ export function auditPreview(tree: readonly AxNode[], declared: readonly Announc
     problems.push(`${file} expects ${describe(announcement)}, and a screen reader does not hear it. ${instead}`);
   }
   for (const node of tree) {
-    const live = LIVE_ROLES.has(node.role) && (node.text !== "" || node.name !== "" || node.role === "progressbar" || node.role === "meter");
-    if ((node.current === null && !live) || listed.has(node.role)) continue;
-    if (declared.some((announcement) => matches(node, announcement))) continue;
-    problems.push(`${node.role} ${heard(node)}${states(node)} changes with the state, and ${file} does not declare it.`);
+    const live = node.live && (node.text !== "" || node.name !== "" || node.role === "progressbar" || node.role === "meter");
+    if ((node.current === null && !live) || listed.has(node)) continue;
+    // A node with aria-current is declared only by an entry that gives current too, so moving where the reader is fails the check.
+    const matching = declared.filter((announcement) => matches(node, announcement));
+    if (matching.some((announcement) => node.current === null || announcement.current !== undefined)) continue;
+    const missing = matching.length > 0 ? ` with current: "${node.current}"` : "";
+    problems.push(`${node.role} ${heard(node)}${states(node)} changes with the state, and ${file} does not declare it${missing}.`);
   }
   return problems;
 }

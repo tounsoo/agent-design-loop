@@ -23,17 +23,34 @@ import { withServedApp } from "./lib/served-app";
 const problems: string[] = [];
 const declared = new Map<string, { announcements: Announcement[]; files: string[] }>();
 
-for (const flow of config.flows) {
-  const { queries, problems: previewProblems } = await previewQueries([flow]);
+// Flows whose views share a folder share one declarations file, so each file is read against all their previews.
+const byFile = new Map<string, { queries: string[]; failed: boolean }>();
+for (const [index, flow] of config.flows.entries()) {
+  const { queries, problems: previewProblems } = await previewQueries([flow], index);
   problems.push(...previewProblems);
   const file = declarationsFile(flow.views);
+  const entry = byFile.get(file) ?? { queries: [], failed: false };
+  for (const query of queries) if (!entry.queries.includes(query)) entry.queries.push(query);
+  // A flow whose previews cannot be read has no list to hold its file to, so its file waits for that fix.
+  if (previewProblems.length > 0) entry.failed = true;
+  byFile.set(file, entry);
+}
+
+for (const [file, { queries, failed }] of byFile) {
+  if (failed) continue;
   if (!existsSync(file)) {
     problems.push(
       `${file} is missing. Beside the flow's views module, export const accessibleNames = { "<preview>": [{ role, name or text }] } satisfies AccessibleNames, with one entry for each of its ${queries.length} previews.`,
     );
     continue;
   }
-  const module = (await import(pathToFileURL(path.resolve(file)).href)) as { accessibleNames?: unknown };
+  let module: { accessibleNames?: unknown };
+  try {
+    module = (await import(pathToFileURL(path.resolve(file)).href)) as { accessibleNames?: unknown };
+  } catch (error) {
+    problems.push(`${file} does not load: ${error instanceof Error ? error.message : String(error)}`);
+    continue;
+  }
   const parsed = parseDeclarations(module.accessibleNames, file, queries);
   problems.push(...parsed.problems);
   for (const query of queries) {
