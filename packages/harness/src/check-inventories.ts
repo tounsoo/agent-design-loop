@@ -16,19 +16,21 @@ import { collectionShellsOf, shellsOf } from "./lib/shells";
  * product inputs. Directory sets must match the allowlists. Membership is
  * compared to the pull request base.
  *
- * Three lists are optional in the inputs: allowed_layouts,
- * allowed_content_layouts and disclosed_sections. When the base does not
- * export one, the change may introduce it without a proposal. That is how
- * allowed_layouts and allowed_content_layouts were recorded. The other
- * arrays, allowed_page_types, tasks, priority and the flows' modeledStates,
- * must exist on the base and in the change, or the check fails. A list the
- * base already has may not change that way. Its membership changes only by
- * graduating a proposal: one that is decided on the base, that this change
- * marks graduated, and whose `changes` list what changed. A change that only
- * adds members to the catalog exports, allowed_layouts,
- * allowed_content_layouts, allowed_page_types or the flow states may instead
- * graduate a proposal this change adds, already graduated, that lists those
- * members under `adds`: proposal 0012.
+ * Three lists may be introduced without a proposal when the base does not
+ * export them: allowed_layouts, allowed_content_layouts and
+ * disclosed_sections. That is how allowed_layouts and allowed_content_layouts
+ * were recorded. The change must export allowed_layouts and
+ * allowed_content_layouts. It may leave out disclosed_sections only while
+ * the base has none, since dropping a list the base has is a change. The
+ * other arrays, allowed_page_types, tasks, priority and the flows'
+ * modeledStates, must exist on the base and in the change, or the check
+ * fails. A list the base already has may not change that way. Its
+ * membership changes only by graduating a proposal: one that is decided on
+ * the base, that this change marks graduated, and whose `changes` list what
+ * changed. A change that only adds members to the catalog exports,
+ * allowed_layouts, allowed_content_layouts, allowed_page_types or the flow
+ * states may instead graduate a proposal this change adds, already
+ * graduated, that lists those members under `adds`: proposal 0012.
  *
  * allowed_layouts is the app frame. allowed_content_layouts are the
  * compositions that fill a page type's body. A collection ready body has to
@@ -45,8 +47,9 @@ import { collectionShellsOf, shellsOf } from "./lib/shells";
  *
  * A product the base has neither the config nor the inputs of is moved or
  * new. When git sees the inputs module renamed, the check compares with the
- * base config at the old name, so a move shows as config path changes. A
- * product with no such rename is new: a whole inventory added at once, which
+ * base's harness.config.ts whose paths.inputs names the old file, so a move
+ * shows as config path changes. A product with no such rename, or whose base
+ * config has another file name, is new: a whole inventory added at once, which
  * needs a graduating proposal that lists the product's directory, like any
  * other membership change. The check then records its inventories without
  * comparing them.
