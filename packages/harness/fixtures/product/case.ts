@@ -1,6 +1,7 @@
 /** Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes. */
 export default {
   checks: [
+    { run: "check:opt-outs", passes: "has no opt-outs, so every harness rule applies" },
     { run: "lint:product-ui", passes: "off-catalog: clean" },
     { run: "lint:slots", passes: "exactly one primary button on 1 detail page" },
     { run: "check:step-budget", passes: "step budget: within budget." },

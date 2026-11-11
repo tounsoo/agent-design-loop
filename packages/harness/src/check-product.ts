@@ -1,5 +1,7 @@
 import { spawnSync } from "node:child_process";
-import { checkFile, scripts } from "./lib/scripts";
+import { readFileSync } from "node:fs";
+import { parseConfig } from "./lib/parse-config";
+import { checkFile, ruleChecks, scripts } from "./lib/scripts";
 
 /**
  * Runs every rule check on one product: `npm run check:product -- --config
@@ -8,20 +10,10 @@ import { checkFile, scripts } from "./lib/scripts";
  * cannot drift. Each gets the same `--config`. Typecheck, ESLint and the
  * Vitest suite read the whole repository, so `npm run check` runs them once
  * and then this script once for every product.
+ *
+ * check:opt-outs runs first. A rule the product opts out of is skipped only
+ * after it passes, so every skip stands on a decided proposal.
  */
-
-function ruleChecks(name: string, seen: Set<string>): string[] {
-  const command = scripts[name];
-  if (command === undefined) throw new Error(`package.json has no script "${name}".`);
-  if (seen.has(name)) throw new Error(`package.json script "${name}" runs itself.`);
-  const found: string[] = [];
-  for (const part of command.split("&&").map((step) => step.trim())) {
-    const nested = /^npm run ([\w:-]+)$/.exec(part);
-    if (nested?.[1]) found.push(...ruleChecks(nested[1], new Set([...seen, name])));
-    else if (checkFile(part) !== null) found.push(name);
-  }
-  return found;
-}
 
 const args = process.argv.slice(2);
 const index = args.indexOf("--config");
@@ -31,15 +23,29 @@ if (!config || config.startsWith("--") || args.length !== 2) {
   process.exit(1);
 }
 
-const checks = ruleChecks("check:rules", new Set());
-for (const check of checks) {
+function run(check: string): void {
   const script = checkFile(scripts[check] ?? "") ?? "";
   console.log(`check:product: ${check}`);
-  const result = spawnSync(process.execPath, ["--import", "tsx", script, "--config", config], { stdio: "inherit" });
+  const result = spawnSync(process.execPath, ["--import", "tsx", script, "--config", config ?? ""], { stdio: "inherit" });
   if (result.status !== 0) {
     console.error(`check:product: ${check} failed on ${config}.`);
     process.exit(1);
   }
 }
 
-console.log(`check:product: ${checks.length} checks passed on ${config}.`);
+run("check:opt-outs");
+const { optOuts } = parseConfig(readFileSync(config, "utf8"), config);
+const checks = ruleChecks();
+let skipped = 0;
+for (const check of checks) {
+  const proposal = optOuts[check];
+  if (proposal !== undefined) {
+    skipped += 1;
+    console.log(`check:product: skipped ${check}, which this product opts out of in ${proposal}.`);
+    continue;
+  }
+  run(check);
+}
+
+const ran = checks.length - skipped;
+console.log(`check:product: ${ran} checks passed on ${config}${skipped > 0 ? `, ${skipped} opted out` : ""}.`);

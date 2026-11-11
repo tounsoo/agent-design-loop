@@ -18,8 +18,8 @@ import { checkFile, scripts as packageScripts } from "./lib/scripts";
  * case.ts is plain literals:
  *
  *   export default {
- *     config: { adapter?, paths?: { <key>: path }, shells?, flows? },
- *     base?: { adapter?, paths?, shells?, flows? },
+ *     config: { adapter?, paths?: { <key>: path }, shells?, flows?, optOuts? },
+ *     base?: { adapter?, paths?, shells?, flows?, optOuts? },
  *     checks: [{ run: "check:one-thing", args?: ["--list"], fails | passes: "<phrase>" }],
  *   };
  *
@@ -35,7 +35,7 @@ const FIXTURES = path.relative(process.cwd(), fileURLToPath(new URL("../fixtures
 const PRODUCT_CONFIG = `${FIXTURES}/product/harness.config.ts`;
 const CONTAINERS = new Set([FIXTURES, `${FIXTURES}/illegal`]);
 
-type Overrides = { adapter?: string; paths?: Record<string, string | string[]>; shells?: unknown; flows?: unknown[] };
+type Overrides = { adapter?: string; paths?: Record<string, string | string[]>; shells?: unknown; flows?: unknown[]; optOuts?: Record<string, string> };
 type Check = { run: string; args: string[]; expect: "fails" | "passes"; phrase: string };
 type Case = { dir: string; config: Overrides; base: Overrides | null; checks: Check[] };
 
@@ -51,7 +51,7 @@ function scriptFiles(): Map<string, string> {
 function overrides(value: unknown, where: string, product: ParsedConfig): Overrides {
   if (value === undefined) return {};
   if (!isRecord(value)) throw new Error(`${where} must be an object.`);
-  const unknown = Object.keys(value).filter((key) => !["adapter", "paths", "shells", "flows"].includes(key));
+  const unknown = Object.keys(value).filter((key) => !["adapter", "paths", "shells", "flows", "optOuts"].includes(key));
   if (unknown.length > 0) throw new Error(`${where} has unknown keys: ${unknown.join(", ")}.`);
   const result: Overrides = {};
   if (value.adapter !== undefined) result.adapter = requireString(value, "adapter", where);
@@ -69,6 +69,11 @@ function overrides(value: unknown, where: string, product: ParsedConfig): Overri
   if (value.flows !== undefined) {
     if (!Array.isArray(value.flows)) throw new Error(`${where}.flows must be an array.`);
     result.flows = value.flows;
+  }
+  // optOuts replaces the product's whole, and writeConfig parses the result.
+  if (value.optOuts !== undefined) {
+    if (!isRecord(value.optOuts)) throw new Error(`${where}.optOuts must be an object.`);
+    result.optOuts = value.optOuts as Record<string, string>;
   }
   return result;
 }
@@ -97,8 +102,10 @@ function parseCase(dir: string, product: ParsedConfig, scripts: Map<string, stri
   // phrase found in a path could pass a case that never ran its rule.
   const named = [dir, ...pathsIn(config), ...(base ? pathsIn(base) : [])];
   for (const missing of named.filter((name) => !existsSync(name))) throw new Error(`${file} names ${missing}, which does not exist.`);
+  // An opt-out may name a proposal that is missing on purpose, so its path is only guarded against echoes.
+  const echoes = [...named, ...Object.values(config.optOuts ?? {}), ...Object.values(base?.optOuts ?? {})];
   for (const check of checks) {
-    const echoed = named.find((name) => name.includes(check.phrase));
+    const echoed = echoes.find((name) => typeof name === "string" && name.includes(check.phrase));
     if (echoed) throw new Error(`${file} expects "${check.phrase}", which is part of the path ${echoed}, so it cannot show the rule ran.`);
   }
   return { dir, config, base, checks };
@@ -148,6 +155,7 @@ function writeConfig(product: ParsedConfig, change: Overrides, file: string): st
     paths: { ...product.paths, ...change.paths },
     shells: change.shells ?? product.shells,
     flows: change.flows ?? product.flows,
+    optOuts: change.optOuts ?? product.optOuts,
   };
   const text = `export default ${JSON.stringify(merged, null, 2)};\n`;
   parseConfig(text, file);

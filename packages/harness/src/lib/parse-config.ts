@@ -71,9 +71,25 @@ export type HarnessConfig = {
     readonly app: readonly string[];
     /** The directory with the product's index.html, which check:target-size builds and serves with Vite. */
     readonly web: string;
+    /** Where proposals live, so check:opt-outs can find the proposal behind an opt-out. Defaults to `proposals`. */
+    readonly proposals?: string;
   };
   readonly shells: ShellRules;
   readonly flows: readonly FlowConfig[];
+  /**
+   * Harness rules this product does not follow: rule → the decided proposal
+   * that says why, under `paths.proposals`. A rule is a check that
+   * `check:rules` in package.json lists, such as `check:disclosure`.
+   * check:product skips it for this product, and check:opt-outs fails when the
+   * proposal is missing, undecided, or does not name the rule and this product.
+   */
+  readonly optOuts?: { readonly [rule: string]: string };
+};
+
+/** A config as the checks read it, with the defaults filled in. */
+export type LoadedConfig = Omit<HarnessConfig, "paths" | "optOuts"> & {
+  readonly paths: HarnessConfig["paths"] & { readonly proposals: string };
+  readonly optOuts: { readonly [rule: string]: string };
 };
 
 /** What the checks read from the product inputs module. */
@@ -183,11 +199,14 @@ export function defaultExportLiteral(text: string, label: string, where: string)
  * adapter before the adapter, paths.web and shells before the second product.
  * check:inventories reads such a config at the pull request base.
  */
-export type ParsedConfig = Omit<HarnessConfig, "adapter" | "paths" | "shells"> & {
+export type ParsedConfig = Omit<LoadedConfig, "adapter" | "paths" | "shells"> & {
   readonly adapter: string | null;
-  readonly paths: Omit<HarnessConfig["paths"], "web"> & { readonly web: string | null };
+  readonly paths: Omit<LoadedConfig["paths"], "web"> & { readonly web: string | null };
   readonly shells: ShellRules | null;
 };
+
+/** Where proposals live when a config does not say. */
+export const DEFAULT_PROPOSALS = "proposals";
 
 function parseShells(value: unknown, where: string): ShellRules | null {
   if (value === undefined) return null;
@@ -220,6 +239,7 @@ export function parseConfig(text: string, label: string): ParsedConfig {
       styles: requireString(paths, "styles", "config.paths"),
       app: requireStrings(paths, "app", "config.paths"),
       web: paths.web === undefined ? null : requireString(paths, "web", "config.paths"),
+      proposals: paths.proposals === undefined ? DEFAULT_PROPOSALS : requireString(paths, "proposals", "config.paths"),
     },
     shells: parseShells(value.shells, "config.shells"),
     flows: value.flows.map((flow, index) => {
@@ -233,6 +253,7 @@ export function parseConfig(text: string, label: string): ParsedConfig {
         previews: stringListRecord(flow, "previews", where),
       };
     }),
+    optOuts: stringRecord(value, "optOuts", "config"),
   };
 }
 

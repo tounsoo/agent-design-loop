@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { parseConfig, type HarnessConfig, type ProductInputs, type UxRules } from "./parse-config";
+import { parseConfig, type LoadedConfig, type ProductInputs, type UxRules } from "./parse-config";
 
 export * from "./parse-config";
 
@@ -49,7 +49,7 @@ function configFile(): string {
   return value;
 }
 
-function loadConfig(): { name: string; config: HarnessConfig } {
+function loadConfig(): { name: string; config: LoadedConfig } {
   try {
     const name = configFile();
     const file = path.resolve(name);
@@ -71,7 +71,7 @@ function loadConfig(): { name: string; config: HarnessConfig } {
 const loaded = loadConfig();
 
 /** The product's config, read from the working directory or from `--config`. */
-export const config: HarnessConfig = loaded.config;
+export const config: LoadedConfig = loaded.config;
 
 /** The config file this run read, as `--config` names it. */
 export const configName: string = loaded.name;
