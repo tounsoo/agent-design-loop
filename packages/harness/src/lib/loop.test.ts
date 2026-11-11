@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import designLoop from "../../design-loop";
-import { loopMermaid, loopProblems, type LoopEdge, type LoopGraph, type LoopNode } from "./loop";
+import { DIAGRAM_END, DIAGRAM_START, loopMermaid, loopProblems, redrawDiagram, type LoopEdge, type LoopGraph, type LoopNode } from "./loop";
 
 const context = { scripts: { check: "npm run test", dev: "vite" }, codeowners: "/proposals/ @owner\n/unowned/\n/disowned/ @owner\n/disowned/\n" };
 
@@ -128,8 +128,39 @@ describe("loopProblems", () => {
     expect(problems).toContain("state ui is never read or written.");
   });
 
+  it("fails an eval node reached from a node that writes nothing it checks", () => {
+    const edges = base.edges.map((edge) => (edge.when === "inside" ? { ...edge, to: "checks" } : edge));
+    expect(loopProblems(graph({ edges }), context)).toContain(
+      "eval node checks is reached from fork, which writes none of the state checks reads, so the checks would run on unchanged work.",
+    );
+  });
+
+  it("fails an llm node with two edges out, and a checkpoint with two", () => {
+    const edges = [...base.edges, { from: "build", to: "done" }, { from: "done", to: "build" }, { from: "done", to: "checks" }];
+    const problems = loopProblems(graph({ edges }), context);
+    expect(problems).toContain("llm node build needs 1 edges out, found 2.");
+    expect(problems).toContain("checkpoint node done needs 0 to 1 edges out, found 2.");
+  });
+
   it("fails a start that is not a node", () => {
     expect(loopProblems(graph({ start: "begin" }), context)).toContain("start begin is not a node.");
+  });
+});
+
+describe("redrawDiagram", () => {
+  const block = (body: string): string => `# Doc\n\n${DIAGRAM_START}\n${body}${DIAGRAM_END}\n`;
+
+  it("finds a stale diagram, and leaves a redrawn one alone", () => {
+    const redrawn = redrawDiagram(block("```mermaid\nflowchart TB\n```\n"), base);
+    expect(redrawn).toMatchObject({ stale: true });
+    if (!("text" in redrawn)) throw new Error("expected a redrawn doc");
+    expect(redrawn.text).toContain(loopMermaid(base));
+    expect(redrawDiagram(redrawn.text, base)).toEqual({ text: redrawn.text, stale: false });
+  });
+
+  it("fails a doc with no block or two", () => {
+    expect(redrawDiagram("# Doc\n", base)).toHaveProperty("problem");
+    expect(redrawDiagram(block("") + block(""), base)).toHaveProperty("problem");
   });
 });
 

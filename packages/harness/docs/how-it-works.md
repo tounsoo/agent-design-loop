@@ -133,14 +133,16 @@ The graph's `state` lists what the nodes read and write: the inventories, the ha
 `npm run check:loop` fails the build when the graph is not one an agent can follow:
 
 - an edge names a node that does not exist, or a node is unreachable from the start or cannot reach an end
-- an eval node runs a script `package.json` does not have, lacks a `pass` or `fail` edge, or its `fail` edge never comes back to it, so a failing run has no retry
-- a human node's gate has no `CODEOWNERS` line with an owner, or it lacks an `approved` or `declined` edge
+- an eval node runs a script `package.json` does not have or one that is not `check` or a `check:` script, lacks a `pass` or `fail` edge, or its `fail` edge never comes back to it, so a failing run has no retry
+- an edge reaches an eval node from a node that writes none of the state the eval node reads, so the checks would run on unchanged work
+- a human node's gate has no `CODEOWNERS` line with an owner, or its last line names none, or it lacks an `approved` or `declined` edge
 - a router has fewer than two answers or repeats one, or an llm or checkpoint node has the wrong number of edges
 - a node names state the graph does not declare, or declared state is never used
+- two node ids draw as one node in the diagram, or a label or `when` holds a double quote or a `|`
 - a path reaches an end without passing an eval node
 - the diagram above is not the one the graph draws. `npm run check:loop -- --write` redraws it.
 
-Its Vitest tests, in `packages/harness/src/lib/loop.test.ts`, give one broken graph for each failure. `check:loop` takes no `--config`, because every product follows the same loop.
+Its Vitest tests, in `packages/harness/src/lib/loop.test.ts`, give a broken graph or doc for each failure above. `check:loop` takes no `--config`, because every product follows the same loop.
 
 The inventories to read, in order, are the product inputs, the UX rules, the catalog, layouts, content layouts, page types, the flow model, and `proposals/README.md`.
 

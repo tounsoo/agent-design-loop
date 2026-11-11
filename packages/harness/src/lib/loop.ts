@@ -145,6 +145,12 @@ export function loopProblems(graph: LoopGraph, context: LoopContext): string[] {
         if (!Object.hasOwn(context.scripts, script)) problems.push(`eval node ${node.id} runs ${script}, which is not an npm script.`);
         else if (script !== "check" && !script.startsWith("check:")) problems.push(`eval node ${node.id} runs ${script}, which is not a check. An eval node runs check or a check: script.`);
       }
+      for (const edge of edges.filter((edge) => edge.to === node.id)) {
+        const writes = nodes.get(edge.from)?.writes ?? [];
+        if (!writes.some((id) => node.reads?.includes(id))) {
+          problems.push(`eval node ${node.id} is reached from ${edge.from}, which writes none of the state ${node.id} reads, so the checks would run on unchanged work.`);
+        }
+      }
       const fail = out.find((edge) => edge.when === "fail");
       if (fail && !reachable(fail.to, edges).has(node.id)) problems.push(`eval node ${node.id}'s fail edge never comes back to it, so a failing run has no retry.`);
     }
@@ -192,4 +198,22 @@ export function loopMermaid(graph: LoopGraph): string {
     lines.push(`  ${mermaidId(edge.from)} -->${label} ${mermaidId(edge.to)}`);
   }
   return lines.join("\n");
+}
+
+export const DIAGRAM_START = "<!-- design-loop:start, drawn by npm run check:loop -- --write -->";
+export const DIAGRAM_END = "<!-- design-loop:end -->";
+
+/**
+ * The doc with its diagram block redrawn from the graph, or a problem when
+ * the doc has no single block between the markers. `stale` says whether the
+ * block differed from the drawing.
+ */
+export function redrawDiagram(doc: string, graph: LoopGraph): { text: string; stale: boolean } | { problem: string } {
+  const from = doc.indexOf(DIAGRAM_START);
+  const to = doc.indexOf(DIAGRAM_END);
+  if (from === -1 || to < from || doc.indexOf(DIAGRAM_START, from + 1) !== -1 || doc.indexOf(DIAGRAM_END, to + 1) !== -1) {
+    return { problem: `needs one diagram block between ${DIAGRAM_START} and ${DIAGRAM_END}.` };
+  }
+  const drawn = `${DIAGRAM_START}\n\n\`\`\`mermaid\n${loopMermaid(graph)}\n\`\`\`\n\n`;
+  return { text: doc.slice(0, from) + drawn + doc.slice(to), stale: doc.slice(from, to) !== drawn };
 }
