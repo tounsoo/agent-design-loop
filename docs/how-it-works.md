@@ -146,7 +146,7 @@ flowchart TB
   ready -->|"submit a non-empty reason"| changes
 ```
 
-`transition` ignores `approve` on the collection screen and in `error`. An empty reason cannot reach `changes-requested`. `invoice-approved` and `changes-requested` have no further moves. Approve in the transition function does not itself require the line-item disclosure to be open. The step budget measures both this reducer and a separate task graph, below.
+`transition` ignores `approve` on the collection screen and in `error`. An empty reason cannot reach `changes-requested`. `invoice-approved` and `changes-requested` have no further moves. Approve in the transition function does not require the line-item disclosure to be open, by decision. The step budget measures both this reducer and a separate task graph, below.
 
 ### Product-owned inputs
 
@@ -165,17 +165,17 @@ The rules read numbers and names the product owns, so a check can fail without a
 
 The budget check measures two paths for every task in `tasks`. Each task needs one `graph.ts` under `src/flows` that exports its `taskId`.
 
-- **Modeled path.** The shortest path through the task graph in `src/flows/invoice-approval/graph.ts`. This is the reviewed path the budget is set for. Request changes is not an edge. There is no approval-note step.
-- **Shipped path.** The shortest path through the real `transition` reducer, from `flowStart` (the loaded To approve queue) over `userEvents` (the events a person can cause) to `success_state`. Today it is `open-invoice → approve`, 2 steps, because the reducer does not require Line items before Approve.
+- **Modeled path.** The shortest path through the task graph in `src/flows/invoice-approval/graph.ts`. This is the reviewed path the budget is set for. Request changes is not an edge. Opening Line items is optional, so it is not an edge either. There is no approval-note step.
+- **Shipped path.** The shortest path through the real `transition` reducer, from `flowStart` (the loaded To approve queue) over `userEvents` (the events a person can cause) to `success_state`. Today it is `open-invoice → approve`, 2 steps.
 
-Both must fit `max_steps`. A reducer that grows a step fails the build even if nobody updates the graph.
+Both must fit `max_steps`, and they must be the same steps. Graph step names are the event types they stand for. A reducer that grows a step fails the build even if nobody updates the graph. A reducer that drops or swaps a step, or a graph that keeps one the reducer never needed, fails too.
 
 ```mermaid
 flowchart LR
-  open["1. open-invoice"] --> lines["2. open-line-items"] --> approve["3. approve"]
+  open["1. open-invoice"] --> approve["2. approve"]
 ```
 
-The modeled path length is 3, and `max_steps` is 3. Success is the state `invoice-approved`, which is not an extra counted step. [Proposal 0001](../proposals/0001-approval-note.md) asks to require an approval note and raise the budget to 4. It is open. It is not applied. The shipped invoice does not ask for a note.
+The modeled path length is 2, and `max_steps` is 3. Success is the state `invoice-approved`, which is not an extra counted step. [Proposal 0001](../proposals/0001-approval-note.md) asks to require an approval note and raise the budget to 4. It is open. It is not applied. The shipped invoice does not ask for a note. [Proposal 0003](../proposals/0003-two-step-approve.md) records the 2-step path and corrects 0001: with the note, the path is 3, inside the current budget.
 
 ## Which check enforces which rule
 
@@ -212,7 +212,7 @@ flowchart LR
 
 What each script fails, in the words the code implements:
 
-- **Step budget.** Every task has exactly one task graph, and every graph's `taskId` is a task. For each task, the modeled path and the shipped path must exist and be at most `max_steps`. `fixtures/illegal/over-budget` has a longer graph. `fixtures/illegal/over-budget-flow` has a 3-step graph and a reducer that needs 4. `fixtures/illegal/task-without-graph` has no graph for `approve-vendor-invoice`.
+- **Step budget.** Every task has exactly one task graph, and every graph's `taskId` is a task. For each task, the modeled path and the shipped path must exist, be at most `max_steps`, and be the same steps. `fixtures/illegal/over-budget` has a longer graph. `fixtures/illegal/over-budget-flow` has a 3-step graph and a reducer that needs 4. `fixtures/illegal/graph-flow-drift` has a 3-step graph and a reducer that needs 2. `fixtures/illegal/task-without-graph` has no graph for `approve-vendor-invoice`.
 - **Slots.** Every `DetailPage` has exactly one `DetailPage.Primary`, and that slot has exactly one primary `Button.Root`. `fixtures/illegal/two-primaries` puts two buttons there.
 - **Disclosure.** A page is one rendered page-type shell in `src/features`, plus what renders on it: components its JSX uses (local, or imported from a relative path), its content layouts, the page-type shell module, and the chrome layouts. `scripts/lib/page-scope.ts` builds that scope. It follows JSX tags and calls to helper functions, and it undoes import aliases such as `Field as F`. A `Disclosure.Root` or `Field.Root` in `src/features` that no page reaches, such as JSX held in a variable outside the shell, fails both checks, because a per-page cap cannot count it. The checks also fail when no page is found. On each page, the number of `Disclosure.Root` elements is at most `MAX_DISCLOSURES_PER_PAGE`, and nesting, followed across components, is at most `MAX_DISCLOSURE_DEPTH`. `fixtures/illegal/disclosures-per-page` puts one disclosure in each of two component files on one page. The check also fails if the catalog stops exporting `Disclosure`.
 - **Priority.** The only primary button's text is the rank-1 action, Approve, and it is not inside a disclosure. The rank-2 action, Request changes, is one `variant="secondary"` button. Each entry in `disclosed_sections` is the text of a `Disclosure.Summary`. `fixtures/illegal/missing-disclosed-section` shows line items in the open.
@@ -253,6 +253,7 @@ The fixtures the gate has to reject:
 | `two-primaries` | Two buttons in the detail primary slot | `primary slot` |
 | `over-budget` | A task graph with an approval-note step | `modeled path length 4 exceeds max_steps` |
 | `over-budget-flow` | A 3-step graph, and a reducer that needs Line items and a note before Approve | `shipped flow path length 4 exceeds max_steps` |
+| `graph-flow-drift` | A 3-step graph that requires Line items, and a reducer that lets Approve through without them | `does not match the modeled path` |
 | `task-without-graph` | The only graph models a task that is not in `tasks` | `has no task graph` |
 | `two-questions` | A note field and a reason field outside a disclosure on one detail page | `questions outside a disclosure` |
 | `hoisted-question` | Two fields built in variables outside the shell | `is not reached from any page` |
@@ -288,7 +289,7 @@ flowchart TB
 
 `proposals/README.md` requires four things in the file: the rule or input it wants to change, a reason, a preview of the UI or the path, and the graduation, meaning which file would change on approval. `CODEOWNERS` requests review from `@tounsoo` for everything under `proposals/`.
 
-Proposal 0001 is the example on main of a request that has been recorded and not applied. It asks for an approval note and `max_steps` 4. Until a graduating change lands, the budget stays 3 and the note stays out of the UI.
+Proposal 0001 is the example on main of a request that has been recorded and not applied. It asks for an approval note and `max_steps` 4. Proposal 0003 corrects its step counts rather than editing it. Until a graduating change lands, the budget stays 3 and the note stays out of the UI.
 
 The next round is more capable because the structure grew. The agent reads a longer allowlist and a check that enforces it. The skill text did not have to get longer. The page's words for that move are "encode it. Delete the instruction."
 

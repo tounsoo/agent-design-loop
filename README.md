@@ -53,7 +53,7 @@ On an invoice (`?invoice=inv-1842`):
 
 Search, filters, sort, and paging are available on collections. They are not steps on the happy path.
 
-The reviewed happy path is three steps: open an invoice, open Line items, Approve. That lands on `invoice-approved`. `max_steps` stays 3. There is no approval note and no confirm step. The shipped reducer also lets Approve through without opening Line items, so its shortest path is two steps. `check:step-budget` measures both.
+The happy path is two steps: open an invoice, Approve. That lands on `invoice-approved`. Opening Line items is optional and not counted. `max_steps` stays 3. There is no approval note and no confirm step. `check:step-budget` measures the task graph and the shipped reducer, and fails when either is over budget or the two paths are not the same steps.
 
 The shell stays up in every modeled state. Loading, empty, and error render inside `main`. A **Preview** menu in the header is a developer aid for opening those states without clicking through. The default URL does not depend on it.
 
@@ -82,14 +82,14 @@ npm run check:fixtures && npm run check
 | --- | --- |
 | `npm run typecheck` | A modeled state with no exhaustive view, and ordinary type errors |
 | `npm run lint` | ESLint, plus off-catalog UI and the detail primary-slot contract |
-| `npm run check:step-budget` | A task path longer than that task's `max_steps` |
+| `npm run check:step-budget` | A task path longer than that task's `max_steps`, or a task graph and shipped reducer whose paths differ |
 | `npm run check:disclosure` | Disclosure depth or count above the cap |
 | `npm run check:priority` | A primary action that is not Approve, or Request changes shown as primary |
 | `npm run check:one-thing` | More than one shell for a page type, or a primary on a collection page. Page-type membership is `allowed_page_types`, which this check reads |
 | `npm run check:inventories` | A chrome layout, content layout, or page type outside the allowlists; a collection body that is not a registered content layout; or an inventory-set change versus the pull request base with no new proposal. A list the base does not export yet may be recorded once. That bootstrap covered `allowed_layouts` and `allowed_content_layouts`, and it covers `harness.config.ts`, which is an inventory too |
 | `npm run check:state-coverage` | A modeled flow state with no view |
 | `npm run check:target-size` | An invoice control under WCAG 2.5.8 (24 CSS px), spacing exception included. Needs Chrome. |
-| `npm run test` | The flow, the three-step journey, the request-changes branch, and the rendered states |
+| `npm run test` | The flow, the two-step journey, the request-changes branch, and the rendered states |
 
 There is no LLM judge on CI.
 
@@ -101,7 +101,7 @@ There is no LLM judge on CI.
 4. What the checks cannot decide goes in `review/` as a short note.
 5. If a rule has to break, or the work needs a catalog export, layout, content layout, page type, flow state, or rule input that is not already recorded, the agent adds a file under `proposals/` with a reason, a preview, and a graduation. It does not invent the missing piece, and it does not edit the inventory to sneak the change through. The inventory check fails that membership change when the pull request has no new proposal. See [proposals/README.md](proposals/README.md).
 
-[Proposal 0001](proposals/0001-approval-note.md) asks to require an approval note before Approve and raise the budget to 4. It is not applied.
+[Proposal 0001](proposals/0001-approval-note.md) asks to require an approval note before Approve and raise the budget to 4. It is not applied. [Proposal 0003](proposals/0003-two-step-approve.md) corrects its counts: the shipped path is 2 steps, so the note would make 3, inside the current budget.
 
 When a human approves a proposal, a separate change graduates it into the inventory data and the checks: the catalog, a layout, a content layout, a page-type shell, the flow model, or `src/inputs/product.ts`. The next run is constrained by that change. See [proposals/README.md](proposals/README.md).
 
