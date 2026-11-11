@@ -19,7 +19,7 @@ Preconditions:
 
 - The baseline preconditions hold, and `origin/main` (or a local `main`) is in the clone.
 
-- **Fixtures.** Run `npm run check:fixtures`. Nine lines read `<case> failed the check as required (exit 1).`, then `fixtures: illegal cases failed the checks.`
+- **Fixtures.** Run `npm run check:fixtures`. One line per listed case reads `<case> failed the check as required (exit 1).`, then `fixtures: illegal cases failed the checks.`
 - **One failing case.** Run `npx tsx scripts/check-slots.ts --root fixtures/illegal/two-primaries`. It exits 1 and names the primary slot.
 - **Inventories.** Run `npm run check:inventories`. It prints `inventory: membership matches <base sha>.` and the current layouts, content layouts, page types, catalog count and flow states.
 

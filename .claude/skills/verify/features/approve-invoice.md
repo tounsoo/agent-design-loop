@@ -21,12 +21,13 @@ Preconditions:
 - The baseline preconditions hold, and Meridian is on To approve.
 
 - **Journey.** Choose `Northwind Office Supply`, open `Line items`, choose `Approve`. Run `npx vitest run -t "approves after opening an invoice and its line items"`. The heading reads `Northwind Office Supply`, `Printer toner` appears under Line items, then the status `Invoice approved` shows and `Approve` is disabled.
-- **Budget.** Run `npm run check:step-budget`. It prints `path (3): open-invoice → open-line-items → approve` and `within budget.`
-- **Priority and disclosure.** Run `npm run check:priority` and `npm run check:disclosure`. They print `"Approve" is the primary button; "Request changes" is secondary; line items are disclosed.` and `depth ≤ 1`.
+- **Budget.** Run `npm run check:step-budget`. It prints `modeled path (3): open-invoice → open-line-items → approve`, the shorter `shipped path`, and `within budget.`
+- **Priority and disclosure.** Run `npm run check:priority` and `npm run check:disclosure`. They print `"Approve" is the primary button; "Request changes" is secondary; disclosed: "Line items".` and `depth ≤ 1`.
 - **Browser.** Open `?invoice=inv-1842` in the preview, open `Line items`, choose `Approve`. The status `Invoice approved` shows inside the shell.
 
 ## Gotchas
 
+- The reviewed path is three steps, but the reducer also lets Approve go through without opening Line items, so the shipped path is two (`open-invoice → approve`). `check:step-budget` holds both to `max_steps`.
 - Proposal 0001 asks for an approval note and a budget of 4. It is not applied, so a change that adds a note step must fail `check:step-budget`.
 - Approve from the queue or from an error state does nothing.
 - The Vitest journey opens Line items by setting `open` on the `<details>` and dispatching `toggle`, not by clicking its summary. `check:target-size` clicks the summary in Chrome.
