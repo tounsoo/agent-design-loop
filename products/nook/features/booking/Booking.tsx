@@ -5,8 +5,8 @@ import { BookingView, type Actions } from "./views";
 
 /**
  * Nook's one feature. A preview state from the URL is shown as it is. With
- * none, the room list loads, and `?fail` shows the load error instead. A hold
- * ends by itself after HOLD_MINUTES.
+ * none, the room list loads, and `?fail` shows the load error instead, and a
+ * hold ends by itself after HOLD_MINUTES.
  */
 export function Booking({ initial, fail }: { initial: FlowState | null; fail: boolean }) {
   const [state, dispatch] = useReducer(transition, initial ?? { status: "loading" });
@@ -21,12 +21,12 @@ export function Booking({ initial, fail }: { initial: FlowState | null; fail: bo
   }, [fail, previewing, state.status]);
 
   useEffect(() => {
-    if (state.status !== "held") return;
+    if (previewing || state.status !== "held") return;
     const timer = window.setTimeout(() => {
       dispatch({ type: "hold-ended" });
     }, HOLD_MINUTES * 60_000);
     return () => window.clearTimeout(timer);
-  }, [state.status]);
+  }, [previewing, state.status]);
 
   const actions: Actions = {
     retry: () => dispatch({ type: "retry" }),

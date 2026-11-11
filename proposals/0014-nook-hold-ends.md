@@ -23,7 +23,7 @@ The booking page in `expired`, at `?state=expired`:
 - A warning alert, "Hold ended", that says the room is no longer held and to book it or pick another room.
 - Book room stays the one primary action and books the room for the length chosen before the hold.
 - All rooms is enabled again, so the person can pick another room.
-- Hold room stays disabled, so one hold cannot be renewed into an open-ended one.
+- Hold room stays disabled on this screen, so the ended hold is not renewed in one click. Going back through All rooms and choosing the room again starts a new hold, at the default length, as it would for any room.
 - The length field stays locked, as it is on a held room.
 
 `check:inventories` on the pull request that adds it:
@@ -36,4 +36,4 @@ Screenshots of the held and expired previews are in that pull request.
 
 ## Graduation
 
-`products/nook/flows/booking/states.ts` adds `expired` to `modeledStates`, an `expired` flow state, a `hold-ended` system event and the hold's length, `HOLD_MINUTES`. `transition.ts` moves a hold to `expired` on `hold-ended`, and books or goes back from `expired`. `shipped.ts` lists `hold-ended` as a system event. `Booking.tsx` sends `hold-ended` once a hold has lasted `HOLD_MINUTES`. `views.tsx` renders `expired`, and `readPreview.ts` opens it. `App.test.tsx` covers the hold ending and booking after it. A review note, `products/nook/review/hold-ends.md`, records what the checks leave open.
+`products/nook/flows/booking/states.ts` adds `expired` to `modeledStates`, an `expired` flow state, a `hold-ended` system event and the hold's length, `HOLD_MINUTES`. `transition.ts` moves a hold to `expired` on `hold-ended`, and books or goes back from `expired`. `shipped.ts` lists `hold-ended` as a system event. `Booking.tsx` sends `hold-ended` once a hold has lasted `HOLD_MINUTES`, except on a preview opened from the URL, which stays as it is. `views.tsx` renders `expired`, and `readPreview.ts` opens it. `App.test.tsx` covers the hold ending and booking after it. A review note, `products/nook/review/hold-ends.md`, records what the checks leave open.
