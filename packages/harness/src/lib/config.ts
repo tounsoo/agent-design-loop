@@ -22,6 +22,7 @@ export * from "./parse-config";
 const CHECK_FLAGS: Record<string, readonly string[]> = {
   "check-inventories.ts": ["--base", "--proposals", "--base-proposals"],
   "check-target-size.ts": ["--list"],
+  "check-accessible-names.ts": ["--list"],
 };
 
 function rejectUnknownFlags(): void {

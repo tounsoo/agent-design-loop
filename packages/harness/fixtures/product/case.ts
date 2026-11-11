@@ -11,5 +11,6 @@ export default {
     { run: "check:inventories", passes: "membership matches" },
     { run: "check:state-coverage", passes: "6 modeled states have views" },
     { run: "check:target-size", args: ["--list"], passes: "7 previews from modeledStates" },
+    { run: "check:accessible-names", args: ["--list"], passes: "7 previews declare 7 announcements" },
   ],
 };

@@ -3,7 +3,8 @@ import { pathToFileURL } from "node:url";
 import { configName, type FlowConfig } from "./config";
 
 /**
- * The preview query strings check:target-size opens, derived from each flow's
+ * The preview query strings check:target-size and check:accessible-names
+ * open, derived from each flow's
  * modeledStates rather than kept as a hand list. Every modeled state is opened:
  * `state=<state>` once when the flow's previews has no entry for it, or once
  * per query string that entry lists. A modeled state added later is opened
