@@ -21,7 +21,8 @@ import { collectionShellsOf, shellsOf } from "./lib/shells";
  * disclosed_sections. That is how allowed_layouts and allowed_content_layouts
  * were recorded. The change must export allowed_layouts and
  * allowed_content_layouts. It may leave out disclosed_sections only while
- * the base has none, since dropping a list the base has is a change. The
+ * the base has none or an empty one, since dropping members the base has is
+ * a change. The
  * other arrays, allowed_page_types, tasks, priority and the flows'
  * modeledStates, must exist on the base and in the change, or the check
  * fails. A list the base already has may not change that way. Its
