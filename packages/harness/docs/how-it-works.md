@@ -255,7 +255,7 @@ Anything the checks cannot decide goes in the product's `review/` folder as a sh
 
 ### Screenshots
 
-A reviewer judges a screen by looking at it, so once the build gate passes, the loop's `screenshots` node captures each state the change touches. [Proposal 0016](../../../proposals/0016-screenshot-gallery.md) records the decision.
+A reviewer judges a screen by looking at it, so once the build gate passes, the loop's `screenshots` node captures each state the change touches. [Proposal 2026-11-11-screenshot-gallery](../../../proposals/2026-11-11-screenshot-gallery.md) records the decision.
 
 ```sh
 npm run screenshots -- --config products/meridian/harness.config.ts --out products/meridian/review/screenshots/<change> --base origin/main --state invoice-approved

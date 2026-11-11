@@ -2,7 +2,7 @@
 status: graduated
 changes: []
 ---
-# Proposal 0016: A change that renders shows each state in a screenshot gallery
+# A change that renders shows each state in a screenshot gallery
 
 Decided, and graduated with its own pull request. Ben decided on Nov 11 that every pull request that changes a screen shows a screenshot of each preview of every state it touches, each opening full size on a click, and picked a gallery page the pull request links as the way to show them. This records that change, which lands with its own pull request, so nothing graduates later.
 
