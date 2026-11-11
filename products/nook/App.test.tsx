@@ -26,8 +26,10 @@ describe("Nook", () => {
     const user = userEvent.setup();
     window.history.replaceState(null, "", "/?state=choosing&page=booking");
     render(<App />);
+    await user.selectOptions(screen.getByLabelText("How long?"), "90");
     await user.click(screen.getByRole("button", { name: "Hold room" }));
     expect(screen.getByText("Room held")).toBeInTheDocument();
+    expect(screen.getByLabelText("How long?")).toHaveValue("90");
   });
 
   it("goes back from a room to the list", async () => {

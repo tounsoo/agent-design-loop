@@ -22,6 +22,6 @@ export function transition(state: FlowState, event: FlowEvent): FlowState {
     case "book":
       return state.status === "choosing" && state.page === "booking" ? { status: "booked", roomId: state.roomId, duration: state.duration } : state;
     case "hold":
-      return state.status === "choosing" && state.page === "booking" ? { status: "held", roomId: state.roomId } : state;
+      return state.status === "choosing" && state.page === "booking" ? { status: "held", roomId: state.roomId, duration: state.duration } : state;
   }
 }

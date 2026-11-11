@@ -126,7 +126,13 @@ function literal(node: ts.Expression, where: string): Literal {
         throw new Error(`${where} must use plain key: value properties.`);
       }
       if (Object.hasOwn(record, property.name.text)) throw new Error(`${where}.${property.name.text} is set twice.`);
-      record[property.name.text] = literal(property.initializer, `${where}.${property.name.text}`);
+      // defineProperty, so a key like __proto__ is an own key the field checks see, not the record's prototype.
+      Object.defineProperty(record, property.name.text, {
+        value: literal(property.initializer, `${where}.${property.name.text}`),
+        enumerable: true,
+        writable: true,
+        configurable: true,
+      });
     }
     return record;
   }

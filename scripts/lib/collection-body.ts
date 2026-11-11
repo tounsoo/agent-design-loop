@@ -28,6 +28,9 @@ type Scan = {
   seen: Set<string>;
   /** The collection shell whose page is being read. */
   page: CollectionShell | null;
+  /** Per collection shell: its pages, and the slots outside its chrome that those pages fill. */
+  pages: Map<string, number>;
+  bodySlots: Map<string, number>;
 };
 
 function tagRoot(tag: string): string {
@@ -276,6 +279,7 @@ function visitElement(
   if (mode === "page" && scan.page) {
     if (scan.page.chrome.has(tag)) return;
     if (tag.startsWith(`${scan.page.shell.name}.`)) {
+      scan.bodySlots.set(scan.page.shell.name, (scan.bodySlots.get(scan.page.shell.name) ?? 0) + 1);
       for (const child of jsxChildNodes(node)) visitNode(child, "body", file, source, bindings, scan);
       return;
     }
@@ -350,7 +354,7 @@ export function collectionCompositionViolations(
 ): string[] {
   if (!existsSync(featuresDir)) return [`content layout features directory ${featuresDir} is missing.`];
   const files = listSourceFiles(featuresDir).filter((file) => file.endsWith(".tsx"));
-  const scan: Scan = { root: featuresDir, allowed, violations: [], seen: new Set(), page: null };
+  const scan: Scan = { root: featuresDir, allowed, violations: [], seen: new Set(), page: null, pages: new Map(), bodySlots: new Map() };
   const byName = new Map(collections.map((collection) => [collection.shell.name, collection]));
   for (const file of files) {
     const source = parseFile(file);
@@ -360,9 +364,14 @@ export function collectionCompositionViolations(
       const collection = byName.get(jsxTagName(node.openingElement.tagName));
       if (!collection) return;
       scan.page = collection;
+      scan.pages.set(collection.shell.name, (scan.pages.get(collection.shell.name) ?? 0) + 1);
       for (const child of node.children) visitNode(child, "page", file, source, bindings, scan);
       scan.page = null;
     });
   }
-  return [...scan.violations, ...pageCssViolations(files, stylesPath)];
+  // A page whose every slot is chrome has no body to check, so naming the body slot as chrome would switch the rule off.
+  const noBody = collections
+    .filter(({ shell }) => (scan.pages.get(shell.name) ?? 0) > 0 && (scan.bodySlots.get(shell.name) ?? 0) === 0)
+    .map(({ shell, chrome }) => `${shell.name} pages fill no slot outside the chrome slots ${[...chrome].join(", ")}, so no collection body is checked.`);
+  return [...scan.violations, ...noBody, ...pageCssViolations(files, stylesPath)];
 }

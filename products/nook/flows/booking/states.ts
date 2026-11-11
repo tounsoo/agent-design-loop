@@ -48,7 +48,7 @@ export type FlowState =
       readonly detailsOpen: boolean;
     }
   | { readonly status: "booked"; readonly roomId: string; readonly duration: Duration }
-  | { readonly status: "held"; readonly roomId: string };
+  | { readonly status: "held"; readonly roomId: string; readonly duration: Duration };
 
 export type FlowEvent =
   | { readonly type: "loaded"; readonly rooms: readonly Room[] }

@@ -576,7 +576,11 @@ if (base === null) {
     process.exit(1);
   }
   const rev = baseRoot.kind === "git" ? baseRoot.rev.slice(0, 7) : baseFlag;
-  console.log(`inventory: base ${rev} has no ${configName} or ${config.paths.inputs}; recorded a new product's inventories.`);
+  // A new product is a whole inventory added at once, and so is an existing one moved to new file names, so it needs a new proposal like any other membership change.
+  const added = [`base ${rev} has no ${configName} or ${config.paths.inputs}, so this is a new product.`];
+  const newExplained = baseRoot.kind === "git" ? explainingProposals(proposalNamesAtRev(baseRoot.rev), proposalsOnDisk(process.cwd())) : [];
+  if (!reportMembership(added, newExplained)) process.exit(1);
+  console.log(`inventory: recorded a new product's inventories.`);
   console.log("inventory: collection bodies use a registered content layout.");
   console.log(`inventory: ${summary(head)}`);
   process.exit(0);

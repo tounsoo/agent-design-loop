@@ -124,7 +124,6 @@ function Booking({ state, actions }: { state: BookingState; actions: Actions }) 
   const room = roomById(state.roomId) ?? sampleRooms[0];
   if (!room) throw new Error("Nook has no rooms to book.");
   const choosing = state.status === "choosing";
-  const duration = state.status === "held" ? "60" : state.duration;
   return (
     <BookingPage state={state.status}>
       <BookingPage.Back>
@@ -153,7 +152,7 @@ function Booking({ state, actions }: { state: BookingState; actions: Actions }) 
             </Alert.Root>
           ) : null}
         </Stack.Root>
-        <DurationField disabled={!choosing} duration={duration} onDuration={actions.setDuration} />
+        <DurationField disabled={!choosing} duration={state.duration} onDuration={actions.setDuration} />
         <RoomDetails open={state.status === "choosing" && state.detailsOpen} room={room} onToggle={actions.setDetailsOpen} />
       </BookingPage.Body>
       <BookingPage.Alternate>

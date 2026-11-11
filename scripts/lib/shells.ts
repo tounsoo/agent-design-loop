@@ -59,6 +59,25 @@ function unknownPageTypes(rule: keyof ShellRules, named: readonly string[], allo
     .map((pageType) => `${configName} shells.${rule} names page type "${pageType}", which is not in allowed_page_types.`);
 }
 
+/**
+ * Every allowed page type is either a primary-slot page or a collection, never
+ * both and never neither. A page type in neither would be read by no shell rule,
+ * so leaving it out of the config would switch its rules off.
+ */
+function unclassifiedPageTypes(rules: ShellRules, allowed: readonly string[]): string[] {
+  return allowed.flatMap((pageType) => {
+    const primary = Object.hasOwn(rules.primarySlots, pageType);
+    const collection = Object.hasOwn(rules.collections, pageType);
+    if (primary && collection) {
+      return [`${configName} shells names page type "${pageType}" in both primarySlots and collections, but a collection has no primary action.`];
+    }
+    if (!primary && !collection) {
+      return [`${configName} shells names page type "${pageType}" in neither primarySlots nor collections, so no shell rule reads its pages.`];
+    }
+    return [];
+  });
+}
+
 /** The primary slot of every shell whose page type has one in the config. */
 export function primarySlotsOf(
   rules: ShellRules,
@@ -66,7 +85,7 @@ export function primarySlotsOf(
   allowed: readonly string[],
 ): { slots: PrimarySlot[]; problems: string[] } {
   const named = Object.keys(rules.primarySlots);
-  const problems = unknownPageTypes("primarySlots", named, allowed);
+  const problems = [...unknownPageTypes("primarySlots", named, allowed), ...unclassifiedPageTypes(rules, allowed)];
   if (named.length === 0) problems.push(`${configName} shells.primarySlots names no page type, so no primary slot is checked.`);
   const slots = shells.flatMap((shell) => {
     const slot = rules.primarySlots[shell.pageType];
@@ -81,7 +100,7 @@ export function collectionShellsOf(
   shells: readonly Shell[],
   allowed: readonly string[],
 ): { collections: CollectionShell[]; problems: string[] } {
-  const problems = unknownPageTypes("collections", Object.keys(rules.collections), allowed);
+  const problems = [...unknownPageTypes("collections", Object.keys(rules.collections), allowed), ...unclassifiedPageTypes(rules, allowed)];
   const collections = shells.flatMap((shell) => {
     const chrome = rules.collections[shell.pageType];
     return chrome === undefined ? [] : [{ shell, chrome: new Set(chrome.map((slot) => `${shell.name}.${slot}`)) }];

@@ -30,6 +30,18 @@ type Box = {
   height: number;
 };
 
+// The product's own index.html, inside the repository, built with the repository's Vite config.
+const web = path.resolve(config.paths.web);
+const webFromRoot = path.relative(process.cwd(), web);
+if (webFromRoot.startsWith("..") || path.isAbsolute(webFromRoot)) {
+  console.error(`target size: ${config.paths.web} is outside the repository (paths.web).`);
+  process.exit(1);
+}
+if (!existsSync(path.join(web, "index.html"))) {
+  console.error(`target size: ${config.paths.web} has no index.html to build (paths.web).`);
+  process.exit(1);
+}
+
 const chromeCandidates = [
   process.env.CHROME_PATH,
   "/usr/bin/google-chrome-stable",
@@ -46,12 +58,6 @@ if (!chrome) {
 
 assertButtonTokens();
 
-// The product's own index.html, built with the repository's Vite config.
-const web = path.resolve(config.paths.web);
-if (!existsSync(path.join(web, "index.html"))) {
-  console.error(`target size: ${config.paths.web} has no index.html to build (paths.web).`);
-  process.exit(1);
-}
 const viteConfig = { root: web, configFile: path.resolve("vite.config.ts") };
 await build(viteConfig);
 const server = await preview({
