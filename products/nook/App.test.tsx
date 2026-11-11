@@ -32,7 +32,7 @@ describe("Nook", () => {
     expect(screen.getByLabelText("How long?")).toHaveValue("90");
   });
 
-  it("books a held room for the length it was held for", async () => {
+  it("books a held room for the length chosen before the hold", async () => {
     const user = userEvent.setup();
     window.history.replaceState(null, "", "/?state=choosing&page=booking");
     render(<App />);
