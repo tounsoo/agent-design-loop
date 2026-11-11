@@ -1,6 +1,6 @@
 # Screenshots: a hold that ends
 
-The booking page for [proposal 0015](../../../../proposals/0015-nook-hold-ends.md), one image per state, at 1280 px in the light theme. Click an image to open it full size. The review note is [a hold that ends](../hold-ends.md).
+The booking page for [proposal 2026-11-11-nook-hold-ends](../../../../proposals/2026-11-11-nook-hold-ends.md), one image per state, at 1280 px in the light theme. Click an image to open it full size. The review note is [a hold that ends](../hold-ends.md).
 
 ## Held, unchanged by this change
 
