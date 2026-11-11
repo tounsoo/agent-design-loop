@@ -83,6 +83,8 @@ export function parseAdapter(text: string, label: string): DesignSystemAdapter {
   const primary = requireStrings(action, "primary", "adapter.action");
   const primaryByDefault = requireBoolean(action, "primaryByDefault", "adapter.action");
   if (primary.length === 0 && !primaryByDefault) throw new Error("adapter.action has no way to be primary.");
+  const secondary = requireString(action, "secondary", "adapter.action");
+  if (primary.includes(secondary)) throw new Error(`adapter.action.secondary "${secondary}" is also a primary variant.`);
   return {
     name: requireString(value, "name", "adapter"),
     packages: requireList(value, "packages", "adapter"),
@@ -91,7 +93,7 @@ export function parseAdapter(text: string, label: string): DesignSystemAdapter {
       variantProp: requireString(action, "variantProp", "adapter.action"),
       primary,
       primaryByDefault,
-      secondary: requireString(action, "secondary", "adapter.action"),
+      secondary,
     },
     disclosure: {
       root: requireString(disclosure, "root", "adapter.disclosure"),
@@ -109,6 +111,7 @@ export function parseAdapter(text: string, label: string): DesignSystemAdapter {
 }
 
 function adapterFile(): string {
+  if (process.argv.some((arg) => arg.startsWith("--adapter="))) throw new Error("write --adapter <file>, not --adapter=<file>.");
   const index = process.argv.indexOf("--adapter");
   if (index === -1) return config.adapter;
   const value = process.argv[index + 1];

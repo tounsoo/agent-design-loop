@@ -114,6 +114,69 @@ const cases = [
     phrase: "found 2 primary and 2 Action",
   },
   {
+    name: "fake-ds-nested-reveal",
+    args: [
+      "scripts/check-disclosure.ts",
+      "--features",
+      "fixtures/illegal/fake-ds-nested-reveal",
+      "--catalog",
+      fakeCatalog,
+      ...fakeAdapter,
+    ],
+    phrase: "disclosure depth 2 exceeds 1",
+  },
+  {
+    name: "fake-ds-over-caps disclosures",
+    args: [
+      "scripts/check-disclosure.ts",
+      "--features",
+      "fixtures/illegal/fake-ds-over-caps",
+      "--catalog",
+      fakeCatalog,
+      ...fakeAdapter,
+    ],
+    phrase: "page has 2 disclosures",
+  },
+  {
+    name: "fake-ds-over-caps questions",
+    args: [
+      "scripts/check-one-thing.ts",
+      "--features",
+      "fixtures/illegal/fake-ds-over-caps",
+      "--catalog",
+      fakeCatalog,
+      ...fakeAdapter,
+    ],
+    phrase: "shows 2 questions outside a disclosure",
+  },
+  {
+    name: "fake-ds-over-caps priority",
+    args: ["scripts/check-priority.ts", "--features", "fixtures/illegal/fake-ds-over-caps", ...fakeAdapter],
+    phrase: "a primary button is inside a disclosure",
+  },
+  {
+    name: "fake-ds-collection-primary",
+    args: [
+      "scripts/check-one-thing.ts",
+      "--features",
+      "fixtures/illegal/fake-ds-collection-primary",
+      "--catalog",
+      fakeCatalog,
+      ...fakeAdapter,
+    ],
+    phrase: "puts a primary button on the collection page",
+  },
+  {
+    name: "fake-ds-hoisted disclosure",
+    args: ["scripts/check-disclosure.ts", "--features", "fixtures/illegal/fake-ds-hoisted", "--catalog", fakeCatalog, ...fakeAdapter],
+    phrase: "Reveal.Root is not reached from any page",
+  },
+  {
+    name: "fake-ds-hoisted question",
+    args: ["scripts/check-one-thing.ts", "--features", "fixtures/illegal/fake-ds-hoisted", "--catalog", fakeCatalog, ...fakeAdapter],
+    phrase: "Ask is not reached from any page",
+  },
+  {
     name: "fake-ds-off-catalog",
     args: ["scripts/lint-product-ui.ts", "--root", "fixtures/illegal/fake-ds-off-catalog", ...fakeAdapter],
     phrase: 'off-catalog: import "@fake/ds" directly',
@@ -122,9 +185,9 @@ const cases = [
 
 /**
  * Legal cases must pass. fixtures/fake-ds is UI for a stand-in design system
- * that shares no name with Todae. Every check below but the off-catalog lint
- * fails it under the Todae adapter, so passing here shows the check reads its
- * names from the adapter.
+ * that shares no name with Todae. Run with the same arguments but no
+ * --adapter, every check below but the off-catalog lint fails it, so passing
+ * here shows the check reads its names from the adapter.
  */
 const legalCases = [
   {
