@@ -6,26 +6,32 @@
   "engines": {
     "node": ">=22"
   },
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --config vite.config.ts products/meridian",
     "dev:nook": "vite --config vite.config.ts products/nook",
-    "build": "vite build",
-    "preview": "vite preview",
+    "build": "vite build --config vite.config.ts products/meridian",
+    "preview": "vite preview --config vite.config.ts products/meridian",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint . && npm run lint:product-ui && npm run lint:slots",
-    "lint:product-ui": "tsx scripts/lint-product-ui.ts",
-    "lint:slots": "tsx scripts/check-slots.ts",
-    "check:step-budget": "tsx scripts/check-step-budget.ts",
-    "check:state-coverage": "tsx scripts/check-state-coverage.ts",
-    "check:disclosure": "tsx scripts/check-disclosure.ts",
-    "check:priority": "tsx scripts/check-priority.ts",
-    "check:one-thing": "tsx scripts/check-one-thing.ts",
-    "check:inventories": "tsx scripts/check-inventories.ts",
-    "check:target-size": "tsx scripts/check-target-size.ts",
+    "lint": "eslint .",
+    "lint:product-ui": "tsx packages/harness/src/lint-product-ui.ts",
+    "lint:slots": "tsx packages/harness/src/check-slots.ts",
+    "check:step-budget": "tsx packages/harness/src/check-step-budget.ts",
+    "check:state-coverage": "tsx packages/harness/src/check-state-coverage.ts",
+    "check:disclosure": "tsx packages/harness/src/check-disclosure.ts",
+    "check:priority": "tsx packages/harness/src/check-priority.ts",
+    "check:one-thing": "tsx packages/harness/src/check-one-thing.ts",
+    "check:inventories": "tsx packages/harness/src/check-inventories.ts",
+    "check:target-size": "tsx packages/harness/src/check-target-size.ts",
     "test": "vitest run",
-    "check": "npm run typecheck && npm run lint && npm run check:step-budget && npm run check:disclosure && npm run check:priority && npm run check:one-thing && npm run check:inventories && npm run check:state-coverage && npm run check:target-size && npm run test",
-    "check:fixtures": "tsx scripts/check-fixtures.ts",
-    "check:product": "tsx scripts/check-product.ts"
+    "check:rules": "npm run lint:product-ui && npm run lint:slots && npm run check:step-budget && npm run check:disclosure && npm run check:priority && npm run check:one-thing && npm run check:inventories && npm run check:state-coverage && npm run check:target-size",
+    "check:product": "tsx packages/harness/src/check-product.ts",
+    "check:meridian": "npm run check:product -- --config products/meridian/harness.config.ts",
+    "check:nook": "npm run check:product -- --config products/nook/harness.config.ts",
+    "check": "npm run typecheck && npm run lint && npm run test && npm run check:meridian && npm run check:nook",
+    "check:fixtures": "tsx packages/harness/src/check-fixtures.ts"
   },
   "dependencies": {
     "@tounsoo/todae": "0.10.1",

@@ -22,8 +22,8 @@ Preconditions:
 
 - **Journey.** Choose `Northwind Office Supply`, then `Approve`. Run `npx vitest run -t "approves in two steps, with Line items left closed"`. Line items stay closed, and the status `Invoice approved` shows.
 - **Line items.** Choose `Northwind Office Supply`, open `Line items`, choose `Approve`. Run `npx vitest run -t "approves after opening an invoice and its line items"`. The heading reads `Northwind Office Supply`, `Printer toner` appears under Line items, then the status `Invoice approved` shows and `Approve` is disabled.
-- **Budget.** Run `npm run check:step-budget`. It prints `modeled path (2): open-invoice → approve`, the same `shipped path (2)`, and `within budget.`
-- **Priority and disclosure.** Run `npm run check:priority` and `npm run check:disclosure`. They print `"Approve" is the primary button; "Request changes" is secondary; disclosed: "Line items".` and `depth ≤ 1`.
+- **Budget.** Run `npm run check:step-budget -- --config products/meridian/harness.config.ts`. It prints `modeled path (2): open-invoice → approve`, the same `shipped path (2)`, and `within budget.`
+- **Priority and disclosure.** Run `npm run check:priority -- --config products/meridian/harness.config.ts` and `npm run check:disclosure -- --config products/meridian/harness.config.ts`. They print `"Approve" is the primary button; "Request changes" is secondary; disclosed: "Line items".` and `depth ≤ 1`.
 - **Browser.** Open `?invoice=inv-1842` in the preview and choose `Approve`. The status `Invoice approved` shows inside the shell.
 
 ## Gotchas

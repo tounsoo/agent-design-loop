@@ -1,0 +1,58 @@
+import path from "node:path";
+import { adapter } from "./lib/adapter";
+import { config, loadRules } from "./lib/config";
+import { lineOf } from "./lib/jsx";
+import { discoverShells, missingCatalogParts, pagesIn, tagsInScope, unreachedTags } from "./lib/page-scope";
+
+/**
+ * Disclosures are counted per page: one rendered page-type shell in the
+ * features path, the components it renders, its content layouts, the shell
+ * module, and the chrome layouts around it. See lib/page-scope.ts.
+ */
+const DISCLOSURE = adapter.disclosure.root;
+const { MAX_DISCLOSURE_DEPTH, MAX_DISCLOSURES_PER_PAGE } = await loadRules();
+
+const featuresRoot = path.resolve(config.paths.features);
+const catalogFile = path.resolve(config.paths.catalog);
+
+const violations: string[] = [];
+
+for (const part of missingCatalogParts(catalogFile, [DISCLOSURE])) {
+  violations.push(`${part} is not exported by the catalog, so the disclosure caps cannot fire.`);
+}
+
+const { shells, problems } = discoverShells();
+for (const problem of problems) violations.push(problem);
+const pages = pagesIn(featuresRoot, shells);
+if (pages.length === 0) violations.push(`no page-type shell is rendered in ${path.relative(process.cwd(), featuresRoot)}, so no page was checked.`);
+for (const where of unreachedTags(featuresRoot, pages, DISCLOSURE)) {
+  violations.push(`${where}: ${DISCLOSURE} is not reached from any page, so the per-page cap cannot count it. Render it in a component or in the shell's JSX.`);
+}
+
+for (const page of pages) {
+  let count = 0;
+  for (const scope of page.scopes) {
+    for (const found of tagsInScope(scope, DISCLOSURE)) {
+      count += 1;
+      const depth = found.disclosures + 1;
+      if (depth > MAX_DISCLOSURE_DEPTH) {
+        const where = `${path.relative(process.cwd(), scope.source.fileName)}:${lineOf(scope.source, found.node)}`;
+        violations.push(`${where}: disclosure depth ${depth} exceeds ${MAX_DISCLOSURE_DEPTH}.`);
+      }
+    }
+  }
+  if (count > MAX_DISCLOSURES_PER_PAGE) {
+    violations.push(
+      `${page.file}:${page.line}: ${page.shell.name} page has ${count} disclosures, more than ${MAX_DISCLOSURES_PER_PAGE} per page.`,
+    );
+  }
+}
+
+if (violations.length > 0) {
+  for (const violation of [...new Set(violations)]) console.error(`disclosure: ${violation}`);
+  process.exit(1);
+}
+
+console.log(
+  `disclosure: depth ≤ ${MAX_DISCLOSURE_DEPTH} and at most ${MAX_DISCLOSURES_PER_PAGE} per page, across ${pages.length} pages.`,
+);

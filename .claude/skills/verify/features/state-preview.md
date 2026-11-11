@@ -22,11 +22,11 @@ Preconditions:
 
 - **States.** Open `?state=loading`, `?state=empty` and `?state=error`. Run `npx vitest run -t "renders loading, empty, and error"` and `npx vitest run -t "shows the load error with a secondary retry"`. They show `Loading invoices`, the heading `No invoices waiting`, and `Couldn't load invoices.` with a secondary `Try again`.
 - **Parameters.** Run `npx vitest run -t "state preview harness"`. Both cases pass: a modeled state with a page, an unknown name ignored, a route and an invoice id.
-- **Coverage.** Run `npm run check:state-coverage`. It prints `6 modeled states have views` and lists them.
-- **Previews.** Run `npx tsx scripts/check-target-size.ts --list`. It prints each preview URL and `target size: 10 previews from modeledStates.` without Chrome.
-- **Browser.** Run `CHROME_PATH=<chrome> npm run check:target-size`. It opens every preview and prints `target size: controls on 10 previews meet 24 CSS px (or the WCAG spacing exception).`
+- **Coverage.** Run `npm run check:state-coverage -- --config products/meridian/harness.config.ts`. It prints `6 modeled states have views` and lists them.
+- **Previews.** Run `npm run check:target-size -- --list --config products/meridian/harness.config.ts`. It prints each preview URL and `target size: 10 previews from modeledStates.` without Chrome.
+- **Browser.** Run `CHROME_PATH=<chrome> npm run check:target-size -- --config products/meridian/harness.config.ts`. It opens every preview and prints `target size: controls on 10 previews meet 24 CSS px (or the WCAG spacing exception).`
 
 ## Gotchas
 
-- `check:target-size` opens every state in `modeledStates`: bare, or once per query string that `flows[].previews` in `harness.config.ts` lists for it. A new modeled state is opened without editing the script. A preview for a state that is not modeled, or one that sets `state` itself, fails.
+- `check:target-size` opens every state in `modeledStates`: bare, or once per query string that `flows[].previews` in `products/meridian/harness.config.ts` lists for it. A new modeled state is opened without editing the script. A preview for a state that is not modeled, or one that sets `state` itself, fails.
 - The Preview menu has no entry for `?route=invoices`, `?route=vendors` or `branch=request`. Type those URLs.

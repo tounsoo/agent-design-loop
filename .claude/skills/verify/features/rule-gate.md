@@ -5,13 +5,13 @@ The harness itself, the surface an agent meets. Rules and inventories live in th
 ## Sub-features
 
 - `gate-checks` prints a verdict line for each check on success and names the problem on failure.
-- `gate-fixtures` proves every case folder under `fixtures/` gets the result its `case.ts` expects, with the expected phrase.
+- `gate-fixtures` proves every case folder under `packages/harness/fixtures/` gets the result its `case.ts` expects, with the expected phrase.
 - `gate-inventories` compares inventory membership with the pull request base and fails a change without a new proposal.
 
 ## How to get to it (user POV)
 
 - Run `npm run check:fixtures && npm run check`, as `AGENTS.md` says.
-- Run one check on its own, as `npm run check:<name>`.
+- Run one check on its own, as `npm run check:<name> -- --config <product config>`.
 
 ## Driving it with the build gate and fixtures
 
@@ -21,10 +21,10 @@ Preconditions:
 
 - **Fixtures.** Run `npm run check:fixtures`. One line per check of each case reads `<case> <check> failed as required.` or `<case> <check> passed as required.`, then `fixtures: <n> checks ran on their cases as required.`
 - **One failing case.** Run `npm run check:fixtures -- illegal/two-primaries`. It prints `fixtures: illegal/two-primaries lint:slots failed as required.` and exits 0.
-- **Inventories.** Run `npm run check:inventories`. It prints `inventory: membership matches <base sha>.` and the current layouts, content layouts, page types, catalog count and flow states.
+- **Inventories.** Run `npm run check:inventories -- --config products/meridian/harness.config.ts`. It prints `inventory: membership matches <base sha>.` and the current layouts, content layouts, page types, catalog count and flow states.
 
 ## Gotchas
 
 - `check:inventories` uses `INVENTORY_BASE` when set (CI sets the pull request base, or the previous commit on a push to `main`). Otherwise it uses the merge base with `origin/main`, or with a local `main`.
-- A new folder under `fixtures/` or `fixtures/illegal/` fails `check:fixtures` until it has a `case.ts`.
-- There is no LLM judge. What the checks cannot decide goes in `review/` as a short note.
+- A new folder under `packages/harness/fixtures/` or its `illegal/` fails `check:fixtures` until it has a `case.ts`.
+- There is no LLM judge. What the checks cannot decide goes in the product's `review/` folder as a short note.

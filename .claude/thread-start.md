@@ -7,7 +7,7 @@ A Claude Duet thread reads this page after `CLAUDE.md`. The thread attaches the 
 Run this block once, from the root of the checkout, in one shell call: save it to a scratch file and run `sh` on that file. It installs the latest pstack-claude skills into a new temp folder outside the repository and fetches the pstack agent files at the same commit.
 
 ```sh
-[ -f src/inputs/product.ts ] && grep -q '"name": "agent-design-loop"' package.json || { echo "Run this from the root of the agent-design-loop checkout."; exit 1; }
+[ -f products/meridian/inputs/product.ts ] && grep -q '"name": "agent-design-loop"' package.json || { echo "Run this from the root of the agent-design-loop checkout."; exit 1; }
 repo=https://github.com/michael-denyer/pstack-claude
 sha=$(git ls-remote "$repo" HEAD | cut -f1)
 [ -n "$sha" ] || { echo "pstack: could not read the upstream HEAD."; exit 1; }

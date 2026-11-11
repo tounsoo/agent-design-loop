@@ -16,5 +16,6 @@
     "allowImportingTsExtensions": false,
     "types": ["node", "vite/client"]
   },
-  "include": ["src", "products", "scripts", "adapters", "harness.config.ts", "vite.config.ts"]
+  "include": ["packages", "products", "vitest.setup.ts", "vite.config.ts"],
+  "exclude": ["packages/harness/fixtures"]
 }
