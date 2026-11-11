@@ -61,12 +61,10 @@ describe("loopProblems", () => {
     expect(loopProblems(graph({ nodes }), context)).toContain("eval node checks runs dev, which is not a check. An eval node runs check or a check: script.");
   });
 
-  it("fails two node ids the diagram would draw as one node", () => {
-    const twins = [{ id: "pull_request", kind: "checkpoint", label: "One" } as const, { id: "pull-request", kind: "checkpoint", label: "Two" } as const];
-    const edges = [...base.edges, ...twins.map((twin) => ({ from: "fork", to: twin.id, when: twin.label }))];
-    expect(loopProblems(graph({ nodes: [...base.nodes, ...twins], edges }), context)).toContain(
-      "nodes pull_request and pull-request draw as the same node in the diagram.",
-    );
+  it("fails a node id that is not lowercase words joined by hyphens", () => {
+    const nodes = base.nodes.map((node) => (node.id === "done" ? { ...node, id: "pull_request" } : node));
+    const edges = base.edges.map((edge) => (edge.to === "done" ? { ...edge, to: "pull_request" } : edge));
+    expect(loopProblems(graph({ nodes, edges }), context)).toContain("node pull_request needs an id of lowercase words joined by hyphens.");
   });
 
   it("fails a label or a when the diagram cannot draw", () => {
@@ -112,7 +110,20 @@ describe("loopProblems", () => {
 
   it("fails a run that can end without passing an eval node", () => {
     const edges = [...base.edges.filter((edge) => edge.when !== "approved"), { from: "ask", to: "done", when: "approved" }];
-    expect(loopProblems(graph({ edges }), context)).toContain("node done ends the run on a path that passes no eval node.");
+    expect(loopProblems(graph({ edges, start: "fork" }), context)).toContain("node done is reached from the start, fork, without passing an eval node.");
+  });
+
+  it("fails work after the checks pass that reaches an end unchecked", () => {
+    const polish = { id: "polish", kind: "llm", label: "Polish", writes: ["ui"] } as const;
+    const edges = [...base.edges.filter((edge) => edge.when !== "pass"), { from: "checks", to: "polish", when: "pass" }, { from: "polish", to: "done" }];
+    expect(loopProblems(graph({ nodes: [...base.nodes, polish], edges }), context)).toContain(
+      "node done is reached from polish, which writes checked state, without passing an eval node.",
+    );
+  });
+
+  it("fails a failing eval that can still end the run", () => {
+    const edges = [...base.edges.filter((edge) => edge.when !== "outside"), { from: "fork", to: "done", when: "outside" }];
+    expect(loopProblems(graph({ edges }), context)).toContain("node done is reached from checks's fail edge without passing an eval node.");
   });
 
   it("fails a loop that never ends", () => {
@@ -167,9 +178,9 @@ describe("redrawDiagram", () => {
 describe("loopMermaid", () => {
   it("draws each node in its kind's shape and each edge with its when", () => {
     const drawn = loopMermaid(base);
-    expect(drawn).toContain('checks[["eval: Check"]]');
-    expect(drawn).toContain('fork{"router: Inside?"}');
-    expect(drawn).toContain("checks -->|fail| fork");
-    expect(drawn).toContain("build --> checks");
+    expect(drawn).toContain('n_checks[["eval: Check"]]');
+    expect(drawn).toContain('n_fork{"router: Inside?"}');
+    expect(drawn).toContain("n_checks -->|fail| n_fork");
+    expect(drawn).toContain("n_build --> n_checks");
   });
 });

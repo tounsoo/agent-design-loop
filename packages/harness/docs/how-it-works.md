@@ -93,29 +93,31 @@ The loop is a graph in [`packages/harness/design-loop.ts`](../design-loop.ts). N
 
 ```mermaid
 flowchart TB
-  read["llm: Read the inventories in the order AGENTS.md lists"]
-  route{"router: Does the screen fit an approved pattern?"}
-  build["llm: Build the screen from the catalog, inside the inventories"]
-  checks[["eval: Run the build gate"]]
-  triage{"router: Can the fix stay inside the inventories?"}
-  propose["llm: Write a proposal with a reason, a preview and a graduation"]
-  approval(["human: A designer reviews the proposal"])
-  graduate["llm: Graduate it into the inventory data or a harness rule"]
-  note["llm: Write the leftover judgment in the review notes"]
-  pull_request[("checkpoint: Open the pull request for review")]
-  read --> route
-  route -->|fits| build
-  route -->|needs a new pattern| propose
-  build --> checks
-  checks -->|pass| note
-  checks -->|fail| triage
-  triage -->|inside| build
-  triage -->|outside| propose
-  propose --> approval
-  approval -->|approved| graduate
-  approval -->|declined| build
-  graduate --> checks
-  note --> pull_request
+  n_read["llm: Read the inventories in the order AGENTS.md lists"]
+  n_route{"router: Does the screen fit an approved pattern?"}
+  n_build["llm: Build the screen from the catalog, inside the inventories"]
+  n_checks[["eval: Run the build gate"]]
+  n_triage{"router: Can the fix stay inside the inventories?"}
+  n_propose["llm: Write a proposal with a reason, a preview and a graduation"]
+  n_proposal_pull_request[("checkpoint: Open a pull request with the proposal")]
+  n_approval(["human: A designer reviews the proposal's pull request"])
+  n_graduate["llm: Graduate it into the inventory data or a harness rule"]
+  n_note["llm: Write the leftover judgment in the review notes"]
+  n_pull_request[("checkpoint: Open the pull request for review")]
+  n_read --> n_route
+  n_route -->|fits| n_build
+  n_route -->|needs a new pattern| n_propose
+  n_build --> n_checks
+  n_checks -->|pass| n_note
+  n_checks -->|fail| n_triage
+  n_triage -->|inside| n_build
+  n_triage -->|outside| n_propose
+  n_propose --> n_proposal_pull_request
+  n_proposal_pull_request --> n_approval
+  n_approval -->|approved| n_graduate
+  n_approval -->|declined| n_build
+  n_graduate --> n_build
+  n_note --> n_pull_request
 ```
 
 <!-- design-loop:end -->
@@ -125,8 +127,8 @@ Each node has a kind, and the shape in the diagram shows it.
 - **llm.** The agent's own work, such as building the screen or writing a proposal. It has one edge out.
 - **router.** A question the agent answers. Each edge out is one answer, named by its `when`.
 - **eval.** npm scripts. The `pass` edge is taken when every script exits 0, and the `fail` edge otherwise. The eval node here runs the build gate, `npm run check:fixtures` and `npm run check`.
-- **human.** The run stops until a person decides. Its `gate` is a `CODEOWNERS` pattern, and that review is the approval. Its edges are `approved` and `declined`.
-- **checkpoint.** The work is saved where the next run and the reviewer read it. A checkpoint with no edge out ends the run.
+- **human.** The run stops until a person decides. Its `gate` is a `CODEOWNERS` pattern, and the review `CODEOWNERS` requests on that pull request is the approval. Its edges are `approved` and `declined`. `main` has no branch protection, so GitHub requests the review but does not block a merge without it.
+- **checkpoint.** The work is saved where the next run and the reviewer read it, as a pull request. A checkpoint with no edge out ends the run. The proposal's checkpoint opens the pull request the human node reviews.
 
 The graph's `state` lists what the nodes read and write: the inventories, the harness rules, the proposals, the product's UI and its review notes. A graduated proposal writes the inventories or the rules, so the next run reads a larger set.
 
@@ -138,8 +140,8 @@ The graph's `state` lists what the nodes read and write: the inventories, the ha
 - a human node's gate has no `CODEOWNERS` line with an owner, or its last line names none, or it lacks an `approved` or `declined` edge
 - a router has fewer than two answers or repeats one, or an llm or checkpoint node has the wrong number of edges
 - a node names state the graph does not declare, or declared state is never used
-- two node ids draw as one node in the diagram, or a label or `when` holds a double quote or a `|`
-- a path reaches an end without passing an eval node
+- a node id is not lowercase words joined by hyphens, or a label or `when` holds a double quote or a `|`
+- an end is reachable without crossing an eval node from the start, from a node that writes state an eval node reads, or from an eval node's `fail` edge. The last eval node before an end must have passed, with no work since
 - the diagram above is not the one the graph draws. `npm run check:loop -- --write` redraws it.
 
 Its Vitest tests, in `packages/harness/src/lib/loop.test.ts`, give a broken graph or doc for each failure above. `check:loop` takes no `--config`, because every product follows the same loop.

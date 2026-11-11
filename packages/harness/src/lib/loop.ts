@@ -69,7 +69,9 @@ function ownedPatterns(codeowners: string): Set<string> {
   return owned;
 }
 
-const mermaidId = (id: string): string => id.replace(/[^\w]/g, "_");
+/** Node ids are lowercase words joined by hyphens, so the drawn id below is unique, and its prefix keeps clear of Mermaid's keywords such as `end`. */
+const NODE_ID = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
+const mermaidId = (id: string): string => `n_${id.replace(/-/g, "_")}`;
 
 function reachable(from: string, edges: readonly LoopEdge[]): Set<string> {
   const seen = new Set<string>([from]);
@@ -89,13 +91,10 @@ function reachable(from: string, edges: readonly LoopEdge[]): Set<string> {
 export function loopProblems(graph: LoopGraph, context: LoopContext): string[] {
   const problems: string[] = [];
   const nodes = new Map<string, LoopNode>();
-  const drawn = new Map<string, string>();
   for (const node of graph.nodes) {
     if (nodes.has(node.id)) problems.push(`node ${node.id} is defined twice.`);
+    if (!NODE_ID.test(node.id)) problems.push(`node ${node.id} needs an id of lowercase words joined by hyphens.`);
     nodes.set(node.id, node);
-    const other = drawn.get(mermaidId(node.id));
-    if (other !== undefined && other !== node.id) problems.push(`nodes ${other} and ${node.id} draw as the same node in the diagram.`);
-    drawn.set(mermaidId(node.id), node.id);
   }
   const stateIds = new Set<string>();
   for (const state of graph.state) {
@@ -172,8 +171,22 @@ export function loopProblems(graph: LoopGraph, context: LoopContext): string[] {
     for (const node of graph.nodes) {
       if (fromStart.has(node.id) && !ends.some((end) => reachable(node.id, edges).has(end))) problems.push(`node ${node.id} cannot reach an end.`);
     }
-    const unchecked = reachable(graph.start, edges.filter((edge) => !(nodes.get(edge.from)?.kind === "eval" && edge.when === "pass")));
-    for (const end of ends.filter((id) => unchecked.has(id))) problems.push(`node ${end} ends the run on a path that passes no eval node.`);
+    // The last eval node before an end must have passed, with no work since. So an end must not be
+    // reachable without crossing an eval node from the start, from a node that writes state an eval
+    // node reads, or from an eval node's fail edge.
+    const checked = new Set(graph.nodes.flatMap((node) => (node.kind === "eval" ? (node.reads ?? []) : [])));
+    const insideEvals = edges.filter((edge) => nodes.get(edge.from)?.kind !== "eval");
+    const sources: [string, string][] = [[graph.start, `the start, ${graph.start},`]];
+    for (const node of graph.nodes) {
+      if (node.kind !== "eval" && (node.writes ?? []).some((id) => checked.has(id))) sources.push([node.id, `${node.id}, which writes checked state,`]);
+    }
+    for (const edge of edges) {
+      if (nodes.get(edge.from)?.kind === "eval" && edge.when === "fail") sources.push([edge.to, `${edge.from}'s fail edge`]);
+    }
+    for (const [source, what] of sources) {
+      const unchecked = reachable(source, insideEvals);
+      for (const end of ends.filter((id) => unchecked.has(id))) problems.push(`node ${end} is reached from ${what} without passing an eval node.`);
+    }
   }
   return problems;
 }
