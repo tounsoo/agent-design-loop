@@ -332,7 +332,7 @@ Compared values, from `membershipChanges` in `scripts/check-inventories.ts`:
 
 - `allowed_layouts` and `allowed_content_layouts`, only when the base already exports them
 - `allowed_page_types`
-- catalog export names, value and type exports alike. The check compares names only, so pointing an existing name at another component is not a change
+- catalog export names: named exports and re-exports, including `export type { … }`, and exported variables, functions, classes and type aliases. Exported interfaces and enums, and `export *`, are not read. The check compares names only, so pointing an existing name at another component is not a change
 - `modeledStates`
 - each task's `max_steps`
 - each priority item's action, rank, and level
