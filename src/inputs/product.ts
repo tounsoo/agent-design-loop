@@ -23,6 +23,12 @@ export const priority = [
   readonly level: "primary" | "secondary";
 }[];
 
+/**
+ * Sections that sit behind a disclosure, by the disclosure's summary text.
+ * check:priority requires each one to be a Disclosure.Summary in src/features.
+ */
+export const disclosed_sections = ["Line items"] as const;
+
 export const allowed_page_types = ["collection", "detail"] as const;
 
 /** Chrome around the page. Not the composition inside a page body. */
@@ -33,6 +39,7 @@ export const allowed_content_layouts = ["data-table"] as const;
 
 export type Task = (typeof tasks)[number];
 export type PriorityItem = (typeof priority)[number];
+export type DisclosedSection = (typeof disclosed_sections)[number];
 export type AllowedPageType = (typeof allowed_page_types)[number];
 export type AllowedLayout = (typeof allowed_layouts)[number];
 export type AllowedContentLayout = (typeof allowed_content_layouts)[number];

@@ -38,6 +38,7 @@ type Inventory = {
   flowStates: string[];
   maxSteps: StepBudget[];
   priority: PriorityItem[];
+  disclosedSections: string[] | null;
   disclosureDepth: number;
   disclosuresPerPage: number;
   visibleQuestions: number;
@@ -219,6 +220,7 @@ function readInventory(root: Root): Inventory {
         level: requiredString(item, "level", "priority"),
       }))
       .sort((left, right) => left.rank - right.rank || left.action.localeCompare(right.action)),
+    disclosedSections: optionalStringArray(product, "disclosed_sections"),
     disclosureDepth: exportedNumber(rules, "MAX_DISCLOSURE_DEPTH"),
     disclosuresPerPage: exportedNumber(rules, "MAX_DISCLOSURES_PER_PAGE"),
     visibleQuestions: exportedNumber(rules, "MAX_VISIBLE_QUESTIONS"),
@@ -241,6 +243,7 @@ function membershipChanges(base: Inventory, head: Inventory): string[] {
   compare("flow states", base.flowStates, head.flowStates);
   compare("max_steps", base.maxSteps, head.maxSteps);
   compare("priority", base.priority, head.priority);
+  if (base.disclosedSections !== null) compare("disclosed_sections", base.disclosedSections, head.disclosedSections);
   compare("MAX_DISCLOSURE_DEPTH", base.disclosureDepth, head.disclosureDepth);
   compare("MAX_DISCLOSURES_PER_PAGE", base.disclosuresPerPage, head.disclosuresPerPage);
   compare("MAX_VISIBLE_QUESTIONS", base.visibleQuestions, head.visibleQuestions);
@@ -428,7 +431,7 @@ function introducedLists(base: Inventory): string[] {
 function summary(inventory: Inventory): string {
   const budgets = inventory.maxSteps.map((task) => `${task.id}=${task.max_steps}`).join(", ");
   const actions = inventory.priority.map((item) => item.action).join(", ");
-  return `layouts ${JSON.stringify(inventory.layouts)}; content layouts ${JSON.stringify(inventory.contentLayouts)}; page types ${JSON.stringify(inventory.pageTypes)}; catalog ${inventory.catalogExports.length} exports; flow states ${JSON.stringify(inventory.flowStates)}; max_steps ${budgets}; priority ${actions}; disclosure depth ${inventory.disclosureDepth}, per page ${inventory.disclosuresPerPage}; visible questions ${inventory.visibleQuestions}; target ${inventory.targetMinPx}px.`;
+  return `layouts ${JSON.stringify(inventory.layouts)}; content layouts ${JSON.stringify(inventory.contentLayouts)}; page types ${JSON.stringify(inventory.pageTypes)}; catalog ${inventory.catalogExports.length} exports; flow states ${JSON.stringify(inventory.flowStates)}; max_steps ${budgets}; priority ${actions}; disclosed sections ${JSON.stringify(inventory.disclosedSections)}; disclosure depth ${inventory.disclosureDepth}, per page ${inventory.disclosuresPerPage}; visible questions ${inventory.visibleQuestions}; target ${inventory.targetMinPx}px.`;
 }
 
 const layoutsFlag = flag("--layouts");

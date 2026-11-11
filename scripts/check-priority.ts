@@ -1,6 +1,6 @@
 import path from "node:path";
 import ts from "typescript";
-import { priority } from "../src/inputs/product";
+import { disclosed_sections, priority } from "../src/inputs/product";
 import { attributeValue, elementText, jsxTagName, lineOf, listSourceFiles, parseFile, walk } from "./lib/jsx";
 
 const primaryItem = priority.find((item) => item.rank === 1);
@@ -10,6 +10,19 @@ if (!primaryItem || primaryItem.level !== "primary" || !secondaryItem || seconda
   console.error("priority: expected rank 1 primary and rank 2 secondary.");
   process.exit(1);
 }
+
+function flag(name: string, fallback: string): string {
+  const index = process.argv.indexOf(name);
+  if (index === -1) return fallback;
+  const value = process.argv[index + 1];
+  if (!value || value.startsWith("--")) {
+    console.error(`priority: missing ${name} path`);
+    process.exit(1);
+  }
+  return value;
+}
+
+const featuresRoot = path.resolve(flag("--features", "src/features"));
 
 type Hit = { file: string; line: number; text: string; inDisclosure: boolean; variant: string | null | "dynamic" };
 
@@ -26,7 +39,7 @@ function insideDisclosure(node: ts.Node): boolean {
   return false;
 }
 
-for (const file of listSourceFiles(path.resolve("src/features"))) {
+for (const file of listSourceFiles(featuresRoot)) {
   const source = parseFile(file);
   const relative = path.relative(process.cwd(), file);
   walk(source, (node) => {
@@ -77,8 +90,10 @@ if (secondaryButtons.length !== 1 || secondaryButtons[0]?.variant !== "secondary
   );
 }
 
-if (!summaries.some((summary) => summary.text === "Line items")) {
-  violations.push("priority: line items are not behind a disclosure.");
+for (const section of disclosed_sections) {
+  if (!summaries.some((summary) => summary.text.trim() === section)) {
+    violations.push(`priority: "${section}" is not behind a disclosure (disclosed_sections).`);
+  }
 }
 
 if (primaryButtons.some((button) => button.text === secondaryItem.action)) {
@@ -91,5 +106,5 @@ if (violations.length > 0) {
 }
 
 console.log(
-  `priority: "${primaryItem.action}" is the primary button; "${secondaryItem.action}" is secondary; line items are disclosed.`,
+  `priority: "${primaryItem.action}" is the primary button; "${secondaryItem.action}" is secondary; disclosed: ${disclosed_sections.map((section) => `"${section}"`).join(", ")}.`,
 );

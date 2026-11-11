@@ -53,7 +53,7 @@ On an invoice (`?invoice=inv-1842`):
 
 Search, filters, sort, and paging are available on collections. They are not steps on the happy path.
 
-The happy path is three steps: open an invoice, open Line items, Approve. That lands on `invoice-approved`. `max_steps` stays 3. There is no approval note and no confirm step.
+The reviewed happy path is three steps: open an invoice, open Line items, Approve. That lands on `invoice-approved`. `max_steps` stays 3. There is no approval note and no confirm step. The shipped reducer also lets Approve through without opening Line items, so its shortest path is two steps. `check:step-budget` measures both.
 
 The shell stays up in every modeled state. Loading, empty, and error render inside `main`. A **Preview** menu in the header is a developer aid for opening those states without clicking through. The default URL does not depend on it.
 
@@ -114,11 +114,13 @@ src/content-layouts/data-table/     collection body: filter bar, table, paginati
 src/page-types/collection/           heading and body; no primary. Ready body is a content layout
 src/page-types/detail/               breadcrumbs, meta, body, one primary, secondary
 src/flows/invoice-approval/          loading, empty, error, ready, invoice-approved, changes-requested
-src/inputs/product.ts                tasks, priority, allowed layouts, content layouts, page types
+src/inputs/product.ts                tasks, priority, disclosed sections, allowed layouts, content layouts, page types
 src/rules/ux-rules.ts                check, input, and review question for each rule
 src/features/invoice-approval/       To approve, All invoices, Vendors, and the invoice
-src/harness/state-preview/           ?state=, ?page=, ?route=, and ?invoice=
-fixtures/illegal/                    two primaries, over budget, off catalog, missing view, undeclared layout, inventory expansion, undeclared content layout, content layout expansion, ad-hoc content
+src/harness/state-preview/           Meridian's state preview: ?state=, ?page=, ?route=, and ?invoice=
+fixtures/illegal/                    known-bad shapes; check:fixtures proves each one still fails
 proposals/                           escape hatch
 review/                              judgment the checks cannot make
 ```
+
+Despite the name, `src/harness/` is not the generic loop. It is Meridian's state preview: it reads invoice ids and Meridian routes. The generic parts are the check scripts, `fixtures/`, `proposals/`, and `review/`.

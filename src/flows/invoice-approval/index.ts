@@ -20,6 +20,6 @@ export {
   routeHref,
 } from "./location";
 export type { AppLocation, CollectionRoute } from "./location";
-export { isTaskSuccess, taskEdges, taskHappyPath, taskStart } from "./graph";
-export { shortestPath } from "./shortest-path";
+export { flowStart, isTaskSuccess, taskEdges, taskHappyPath, taskId, taskStart, userEvents } from "./graph";
+export { eventEdges, shortestPath } from "./shortest-path";
 export type { TaskEdge } from "./shortest-path";

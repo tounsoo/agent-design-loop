@@ -1,0 +1,309 @@
+import { existsSync, statSync } from "node:fs";
+import path from "node:path";
+import ts from "typescript";
+import { allowed_layouts, allowed_page_types } from "../../src/inputs/product";
+import { jsxTagName, listSourceFiles, parseFile, walk } from "./jsx";
+
+/**
+ * A page is one rendered page-type shell in src/features, plus everything that
+ * renders on it: components the shell's JSX uses (local, or imported from a
+ * relative path), the content layouts it uses, the page-type shell module, and
+ * the chrome layouts that wrap every page. Caps that say "per page" count over
+ * this scope, not over one file.
+ */
+
+export type Shell = { readonly pageType: string; readonly name: string };
+
+export type Scope = {
+  readonly source: ts.SourceFile;
+  readonly node: ts.Node;
+  /** Disclosures the scope sits inside, from the component that rendered it. */
+  readonly inheritedDisclosures: number;
+};
+
+export type Page = {
+  readonly file: string;
+  readonly line: number;
+  readonly shell: Shell;
+  readonly scopes: readonly Scope[];
+};
+
+export type PageRoots = {
+  readonly pageTypes: string;
+  readonly layouts: string;
+  readonly contentLayouts: string;
+};
+
+export const defaultRoots: PageRoots = {
+  pageTypes: path.resolve("src/page-types"),
+  layouts: path.resolve("src/layouts"),
+  contentLayouts: path.resolve("src/content-layouts"),
+};
+
+const DISCLOSURE = "Disclosure.Root";
+
+/** Names a module exports as values, including re-exports. */
+export function valueExports(file: string): string[] {
+  const source = parseFile(file);
+  const names: string[] = [];
+  walk(source, (node) => {
+    if (!ts.isExportDeclaration(node) || node.isTypeOnly || !node.exportClause || !ts.isNamedExports(node.exportClause)) return;
+    for (const element of node.exportClause.elements) {
+      if (!element.isTypeOnly) names.push(element.name.text);
+    }
+  });
+  return names;
+}
+
+/** Shells come from allowed_page_types. Problems are for the caller to report. */
+export function discoverShells(roots: PageRoots = defaultRoots): { shells: Shell[]; problems: string[] } {
+  const shells: Shell[] = [];
+  const problems: string[] = [];
+  for (const pageType of allowed_page_types) {
+    const modulePath = path.join(roots.pageTypes, pageType, "index.ts");
+    if (!existsSync(modulePath)) {
+      problems.push(`page type "${pageType}" has no shell module.`);
+      continue;
+    }
+    const names = valueExports(modulePath);
+    if (names.length === 0) {
+      problems.push(`page type "${pageType}" does not export a shell.`);
+      continue;
+    }
+    for (const name of names) shells.push({ pageType, name });
+  }
+  return { shells, problems };
+}
+
+/** Fails when a part a check counts is not a catalog export, so the cap cannot go quiet. */
+export function missingCatalogParts(catalogFile: string, parts: readonly string[]): string[] {
+  const exported = new Set(valueExports(catalogFile));
+  return parts.filter((part) => !exported.has(part.split(".")[0] ?? part));
+}
+
+/** Local import names mapped back to the exported name: `import { Field as F }` gives F → Field. */
+function aliasesOf(source: ts.SourceFile): Map<string, string> {
+  const cached = aliasCache.get(source);
+  if (cached) return cached;
+  const aliases = new Map<string, string>();
+  for (const statement of source.statements) {
+    if (!ts.isImportDeclaration(statement) || !statement.importClause) continue;
+    const named = statement.importClause.namedBindings;
+    if (!named || !ts.isNamedImports(named)) continue;
+    for (const element of named.elements) {
+      if (element.propertyName) aliases.set(element.name.text, element.propertyName.text);
+    }
+  }
+  aliasCache.set(source, aliases);
+  return aliases;
+}
+const aliasCache = new WeakMap<ts.SourceFile, Map<string, string>>();
+
+/** A JSX tag name as the catalog spells it, with import aliases undone. */
+export function canonicalTag(opening: ts.JsxOpeningLikeElement): string {
+  const tag = jsxTagName(opening.tagName);
+  const [root, ...rest] = tag.split(".");
+  const original = aliasesOf(opening.getSourceFile()).get(root ?? "");
+  return original ? [original, ...rest].join(".") : tag;
+}
+
+export function openingOf(node: ts.Node): ts.JsxOpeningLikeElement | null {
+  if (ts.isJsxElement(node)) return node.openingElement;
+  if (ts.isJsxSelfClosingElement(node)) return node;
+  return null;
+}
+
+/** Disclosure.Root elements between node and the scope root, not counting node itself. */
+export function disclosureAncestors(node: ts.Node, root: ts.Node): number {
+  let count = 0;
+  let current = node.parent;
+  while (current && current !== root.parent) {
+    if (ts.isJsxElement(current) && canonicalTag(current.openingElement) === DISCLOSURE) count += 1;
+    if (current === root) break;
+    current = current.parent;
+  }
+  return count;
+}
+
+/** Elements with the tag in the scope, with the disclosures around each. */
+export function tagsInScope(scope: Scope, tag: string): { node: ts.Node; disclosures: number }[] {
+  const found: { node: ts.Node; disclosures: number }[] = [];
+  walk(scope.node, (node) => {
+    const opening = openingOf(node);
+    if (!opening || canonicalTag(opening) !== tag) return;
+    found.push({ node, disclosures: scope.inheritedDisclosures + disclosureAncestors(node, scope.node) });
+  });
+  return found;
+}
+
+export function pagesIn(featuresRoot: string, shells: readonly Shell[], roots: PageRoots = defaultRoots): Page[] {
+  const pages: Page[] = [];
+  const shellNames = new Map(shells.map((shell) => [shell.name, shell]));
+  for (const file of listSourceFiles(featuresRoot)) {
+    const source = parseFile(file);
+    walk(source, (node) => {
+      const opening = openingOf(node);
+      if (!opening) return;
+      const shell = shellNames.get(jsxTagName(opening.tagName));
+      if (!shell) return;
+      pages.push({
+        file: path.relative(process.cwd(), file),
+        line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1,
+        shell,
+        scopes: collectScopes(source, node, shell, roots),
+      });
+    });
+  }
+  return pages;
+}
+
+function collectScopes(source: ts.SourceFile, shellNode: ts.Node, shell: Shell, roots: PageRoots): Scope[] {
+  const scopes: Scope[] = [];
+  const wholeFiles = new Set<string>();
+
+  const addWholeDir = (dir: string) => {
+    if (!existsSync(dir)) return;
+    for (const file of listSourceFiles(dir)) {
+      if (wholeFiles.has(file)) continue;
+      wholeFiles.add(file);
+      const whole = parseFile(file);
+      scopes.push({ source: whole, node: whole, inheritedDisclosures: 0 });
+    }
+  };
+
+  // Chrome layouts wrap every page. The shell's own module renders on it too.
+  for (const layout of allowed_layouts) addWholeDir(path.join(roots.layouts, layout));
+  addWholeDir(path.join(roots.pageTypes, shell.pageType));
+
+  // Whole-file scopes are walked as they are. Local components inside them are
+  // already counted, so only relative imports out of them are followed.
+  const queue: { scope: Scope; stack: readonly ts.Node[] }[] = scopes.map((scope) => ({ scope, stack: [] }));
+  const shellScope: Scope = { source, node: shellNode, inheritedDisclosures: 0 };
+  scopes.push(shellScope);
+  queue.push({ scope: shellScope, stack: [] });
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current) break;
+    const { scope, stack } = current;
+    const imports = importsOf(scope.source);
+    walk(scope.node, (node) => {
+      const opening = openingOf(node);
+      const helperCall = ts.isCallExpression(node) && ts.isIdentifier(node.expression) ? node.expression.text : null;
+      if (!opening && !helperCall) return;
+      const rootName = opening ? (jsxTagName(opening.tagName).split(".")[0] ?? "") : (helperCall ?? "");
+      const specifier = imports.get(rootName);
+      const contentLayout = specifier ? /(?:^|\/)content-layouts\/([^/"']+)/.exec(specifier) : null;
+      if (contentLayout?.[1]) {
+        const before = scopes.length;
+        addWholeDir(path.join(roots.contentLayouts, contentLayout[1]));
+        for (const added of scopes.slice(before)) queue.push({ scope: added, stack: [] });
+        return;
+      }
+      if (specifier && /(?:^|\/)page-types\//.test(specifier)) return;
+      const target = specifier
+        ? importedDeclaration(scope.source.fileName, specifier, rootName)
+        : wholeFiles.has(scope.source.fileName)
+          ? null
+          : localDeclaration(scope.source, rootName);
+      if (!target || wholeFiles.has(target.source.fileName) || stack.includes(target.node)) return;
+      const child: Scope = {
+        source: target.source,
+        node: target.node,
+        inheritedDisclosures: scope.inheritedDisclosures + disclosureAncestors(node, scope.node),
+      };
+      scopes.push(child);
+      queue.push({ scope: child, stack: [...stack, target.node] });
+    });
+  }
+
+  return scopes;
+}
+
+function importsOf(source: ts.SourceFile): Map<string, string> {
+  const imports = new Map<string, string>();
+  for (const statement of source.statements) {
+    if (!ts.isImportDeclaration(statement) || !statement.importClause || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
+    const specifier = statement.moduleSpecifier.text;
+    const named = statement.importClause.namedBindings;
+    if (statement.importClause.name) imports.set(statement.importClause.name.text, specifier);
+    if (!named || !ts.isNamedImports(named)) continue;
+    for (const element of named.elements) {
+      if (!element.isTypeOnly) imports.set(element.name.text, specifier);
+    }
+  }
+  return imports;
+}
+
+function localDeclaration(source: ts.SourceFile, name: string): { source: ts.SourceFile; node: ts.Node } | null {
+  for (const statement of source.statements) {
+    if (ts.isFunctionDeclaration(statement) && statement.name?.text === name) return { source, node: statement };
+    if (!ts.isVariableStatement(statement)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      if (ts.isIdentifier(declaration.name) && declaration.name.text === name) return { source, node: declaration };
+    }
+  }
+  return null;
+}
+
+function resolveModule(fromFile: string, specifier: string): string | null {
+  if (!specifier.startsWith(".")) return null;
+  const base = path.resolve(path.dirname(fromFile), specifier);
+  for (const candidate of [base, `${base}.tsx`, `${base}.ts`, path.join(base, "index.tsx"), path.join(base, "index.ts")]) {
+    if (existsSync(candidate) && statSync(candidate).isFile() && /\.tsx?$/.test(candidate)) return candidate;
+  }
+  return null;
+}
+
+/** Follows a relative import to the declaration, through one level of re-export. */
+function importedDeclaration(
+  fromFile: string,
+  specifier: string,
+  name: string,
+  depth = 0,
+): { source: ts.SourceFile; node: ts.Node } | null {
+  const file = resolveModule(fromFile, specifier);
+  if (!file || depth > 3) return null;
+  const source = parseFile(file);
+  const local = localDeclaration(source, name);
+  if (local) return local;
+  for (const statement of source.statements) {
+    if (!ts.isExportDeclaration(statement) || !statement.moduleSpecifier || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
+    if (!statement.exportClause || !ts.isNamedExports(statement.exportClause)) continue;
+    for (const element of statement.exportClause.elements) {
+      if (element.name.text !== name) continue;
+      const original = element.propertyName?.text ?? name;
+      return importedDeclaration(file, statement.moduleSpecifier.text, original, depth + 1);
+    }
+  }
+  return null;
+}
+
+/** True when node sits inside one of the scopes, or is one of their roots. */
+function covered(node: ts.Node, scopes: readonly Scope[]): boolean {
+  const file = node.getSourceFile().fileName;
+  return scopes.some((scope) => {
+    if (scope.source.fileName !== file) return false;
+    return node.getStart() >= scope.node.getStart() && node.getEnd() <= scope.node.getEnd();
+  });
+}
+
+/**
+ * Elements with the tag in src/features that no page scope reaches: JSX held
+ * in a variable, built outside the shell, or in a file no page renders. A
+ * per-page cap cannot count them, so the checks fail them instead.
+ */
+export function unreachedTags(featuresRoot: string, pages: readonly Page[], tag: string): string[] {
+  const scopes = pages.flatMap((page) => page.scopes);
+  const found: string[] = [];
+  for (const file of listSourceFiles(featuresRoot)) {
+    const source = parseFile(file);
+    walk(source, (node) => {
+      const opening = openingOf(node);
+      if (!opening || canonicalTag(opening) !== tag || covered(node, scopes)) return;
+      const line = source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
+      found.push(`${path.relative(process.cwd(), file)}:${line}`);
+    });
+  }
+  return found;
+}

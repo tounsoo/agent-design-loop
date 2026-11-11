@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { tasks } from "../../inputs/product";
-import { taskHappyPath } from "./graph";
-import { shortestPath, type TaskEdge } from "./shortest-path";
+import { flowStart, taskHappyPath, taskId, transition, userEvents } from "./graph";
+import { eventEdges, shortestPath, type TaskEdge } from "./shortest-path";
 
 describe("approve-vendor-invoice happy path", () => {
   it("is the three steps the task allows", () => {
@@ -47,5 +47,17 @@ describe("approve-vendor-invoice happy path", () => {
     expect(path).toEqual(["open-invoice", "open-line-items", "write-approval-note", "approve"]);
     expect(task).toBeDefined();
     expect((path?.length ?? 0) > (task?.max_steps ?? 0)).toBe(true);
+  });
+});
+
+describe("approve-vendor-invoice shipped flow", () => {
+  it("reaches invoice-approved without opening line items", () => {
+    const path = shortestPath(flowStart, eventEdges(userEvents, transition), (state) => state.status === "invoice-approved");
+    expect(path).toEqual(["open-invoice", "approve"]);
+    expect(path?.length ?? Infinity).toBeLessThanOrEqual(taskHappyPath().length);
+  });
+
+  it("models the task the product inputs name", () => {
+    expect(tasks.some((task) => task.id === taskId)).toBe(true);
   });
 });
