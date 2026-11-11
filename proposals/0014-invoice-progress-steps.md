@@ -25,7 +25,7 @@ The invoice page gets a three-stage list under its facts, labelled "Invoice prog
 | Invoice status | Received | Approval | Payment |
 | --- | --- | --- | --- |
 | Pending | done | current | pending |
-| Approved | done | done | current |
+| Approved | done | done | current, read out as "Next" |
 | Changes requested | done | error, read out as "Changes requested" | pending |
 
 The Payment stage reads "Payment due" and the invoice's due date in every state.

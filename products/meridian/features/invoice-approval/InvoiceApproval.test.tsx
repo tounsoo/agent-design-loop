@@ -155,6 +155,7 @@ describe("invoice approval views", () => {
     expect(stageStatuses()).toEqual(["done", "current", "pending"]);
     await user.click(screen.getByRole("button", { name: "Approve" }));
     expect(stageStatuses()).toEqual(["done", "done", "current"]);
+    expect(within(progress).getAllByRole("listitem")[2]).toHaveTextContent("Next: Payment due Nov 18, 2026");
   });
 
   it("marks the approval stage when changes are requested", async () => {

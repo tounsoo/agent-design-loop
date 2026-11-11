@@ -156,7 +156,9 @@ function InvoiceProgress({ invoice, status }: { invoice: Invoice; status: Invoic
       <Steps.Item status={approval} statusLabel={approval === "error" ? "Changes requested" : undefined}>
         Approval
       </Steps.Item>
-      <Steps.Item status={payment}>Payment due {invoice.due}</Steps.Item>
+      <Steps.Item status={payment} statusLabel={payment === "current" ? "Next" : undefined}>
+        Payment due {invoice.due}
+      </Steps.Item>
     </Steps.Root>
   );
 }
