@@ -22,6 +22,7 @@ if (args.length > 0 && !write) {
 const harnessDir = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const doc = path.join(harnessDir, "docs", "how-it-works.md");
 const docName = path.relative(process.cwd(), doc).split(path.sep).join("/");
+
 const problems = loopProblems(designLoop, { scripts, codeowners: readFileSync("CODEOWNERS", "utf8") });
 if (problems.length > 0) {
   console.error("loop: the design loop graph is not valid:");
