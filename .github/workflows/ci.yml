@@ -17,7 +17,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      # check:target-size measures in the chrome-headless-shell build puppeteer-core pins, the same build npm run setup:chrome installs locally.
+      # check:target-size and check:accessible-names run in the chrome-headless-shell build puppeteer-core pins, the same build npm run setup:chrome installs locally.
       - uses: actions/cache@v4
         with:
           path: .cache/chrome
@@ -43,7 +43,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      # check:target-size measures in the chrome-headless-shell build puppeteer-core pins, the same build npm run setup:chrome installs locally.
+      # check:target-size and check:accessible-names run in the chrome-headless-shell build puppeteer-core pins, the same build npm run setup:chrome installs locally.
       - uses: actions/cache@v4
         with:
           path: .cache/chrome
