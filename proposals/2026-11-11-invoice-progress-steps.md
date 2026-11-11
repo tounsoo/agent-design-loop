@@ -1,12 +1,12 @@
 ---
-status: graduated
+status: adopted
 changes: []
 adds:
   - Steps
 ---
 # Show where an invoice is on its way to payment
 
-Graduated in the pull request that adds it, because it only adds a member to an inventory list ([proposal 0012](0012-additions-in-one-pull-request.md)). A designer's review of that pull request is its approval.
+Adopted in the pull request that adds it, because it only adds a member to an inventory list ([proposal 0012](0012-additions-in-one-pull-request.md)). A designer's review of that pull request is its approval.
 
 Inventory: Meridian's component catalog, `products/meridian/catalog/index.ts`, gains Todae's `Steps`. No layout, content layout, page type, flow state, rule input, config or adapter changes. Nook's catalog does not change.
 
@@ -48,7 +48,7 @@ Screenshots of the four invoice pages, and the three queue pages the change leav
 
 The happy path stays open an invoice, then Approve. The list is read-only and changes with the invoice's status.
 
-## Graduation
+## Adoption
 
 - `products/meridian/catalog/index.ts` exports `Steps` from `@tounsoo/todae`.
 - `products/meridian/features/invoice-approval/views.tsx` renders `Steps.Root variant="progress"` with three `Steps.Item`s on the detail page.
