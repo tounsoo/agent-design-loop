@@ -286,7 +286,7 @@ flowchart TB
   gap --> adds --> next
 ```
 
-[`proposals/README.md`](../../../proposals/README.md) gives the format: front matter with `status` and `changes`, the exact inventory names the proposal changes, then `## Reason`, `## Preview` and `## Graduation`, each with text. `npm run check:proposals` fails a file without them, and fails a status that moves more than one step or backwards. `CODEOWNERS` requests review from `@tounsoo` for everything under `proposals/`.
+[`proposals/README.md`](../../../proposals/README.md) gives the format: front matter with `status` and `changes`, the exact inventory names the proposal changes, then `## Reason`, `## Preview` and `## Graduation`, each with text. `npm run check:proposals` fails a file without them, and fails a status that moves more than one step or backwards. A proposal's file name is its ID: a new one is named for the UTC day it was written and a slug, such as `2026-11-12-side-panel.md`, so two pull requests written in parallel pick different names without a shared counter, and the check fails a new proposal named any other way or dated after tomorrow in UTC. The proposals that merged with a number, from 0001, keep those names. `CODEOWNERS` requests review from `@tounsoo` for everything under `proposals/`.
 
 Proposal 0001 is the example on main of a request that has been recorded and not applied. It asks for an approval note and `max_steps` 4. Proposal 0003 corrects its step counts rather than editing it. Until a graduating change lands, the budget stays 3 and the note stays out of the UI.
 
