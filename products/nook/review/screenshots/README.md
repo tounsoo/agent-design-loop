@@ -6,10 +6,10 @@ The booking page for [proposal 2026-11-11-nook-hold-ends](../../../../proposals/
 
 `?state=held`. Before this change, the page still read like this 15 minutes into a hold.
 
-[![The held booking page: Room held, Book room enabled, Hold room disabled](hold-ends-before.png)](hold-ends-before.png?raw=true)
+[![The held booking page: Room held, Book room enabled, Hold room disabled](hold-ends-before.png)](https://raw.githubusercontent.com/tounsoo/agent-design-loop/e035d818d835937f25f2c00247452a39d4799b19/products/nook/review/screenshots/hold-ends-before.png)
 
 ## Hold ended, new in this change
 
 `?state=expired`. What the page reads once the hold has lasted 15 minutes.
 
-[![The hold-ended booking page: Hold ended, Book room and All rooms enabled, Hold room disabled](hold-ends-after.png)](hold-ends-after.png?raw=true)
+[![The hold-ended booking page: Hold ended, Book room and All rooms enabled, Hold room disabled](hold-ends-after.png)](https://raw.githubusercontent.com/tounsoo/agent-design-loop/e035d818d835937f25f2c00247452a39d4799b19/products/nook/review/screenshots/hold-ends-after.png)
