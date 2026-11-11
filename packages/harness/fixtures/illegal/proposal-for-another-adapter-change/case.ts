@@ -1,4 +1,4 @@
-/** Illegal: the adapter makes "ghost" a primary variant, and the one graduating proposal is about a Toast. It names neither adapter.action nor the new adapter path. */
+/** Illegal: the adapter makes "ghost" a primary variant, and the one adopted proposal is about a Toast. It names neither adapter.action nor the new adapter path. */
 export default {
   config: { adapter: "packages/harness/fixtures/illegal/proposal-for-another-adapter-change/adapter.ts" },
   base: {},

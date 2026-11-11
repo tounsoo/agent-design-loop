@@ -1,4 +1,4 @@
-/** Illegal: the change graduates a proposal that is an open request on the base. Approval, open to decided, is its own pull request. */
+/** Illegal: the change adopts a proposal that is an open request on the base. Approval, open to decided, is its own pull request. */
 export default {
   config: {
     paths: {
@@ -7,8 +7,8 @@ export default {
     },
   },
   base: {},
-  proposals: "packages/harness/fixtures/illegal/graduates-open-request/proposals",
-  baseProposals: "packages/harness/fixtures/illegal/graduates-open-request/base-proposals",
+  proposals: "packages/harness/fixtures/illegal/adopts-open-request/proposals",
+  baseProposals: "packages/harness/fixtures/illegal/adopts-open-request/base-proposals",
   checks: [
     { run: "check:inventories", fails: "is an open request on the base" },
   ],

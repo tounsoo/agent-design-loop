@@ -57,7 +57,7 @@ describe("traceProblems", () => {
       { node: "scope", when: "anything else" },
       { node: "proposal-pull-request" },
       { node: "approval", when: "approved" },
-      { node: "graduate" },
+      { node: "adopt" },
       { node: "build" },
       { node: "checks", when: "pass" },
       { node: "note" },
@@ -66,20 +66,20 @@ describe("traceProblems", () => {
     expect(traceProblems(designLoop, walk)).toEqual([]);
   });
 
-  it("passes a proposal that only adds, graduated in the same run, and fails one that skips the approval otherwise", () => {
+  it("passes a proposal that only adds, adopted in the same run, and fails one that skips the approval otherwise", () => {
     const oneRun = lines(
       { node: "read" },
       { node: "route", when: "needs a new pattern" },
       { node: "propose" },
       { node: "scope", when: "only adds" },
-      { node: "graduate" },
+      { node: "adopt" },
       { node: "build" },
       { node: "checks", when: "pass" },
       { node: "note" },
       { node: "pull-request" },
     );
     expect(traceProblems(designLoop, oneRun)).toEqual([]);
-    const skips = lines({ node: "read" }, { node: "route", when: "needs a new pattern" }, { node: "propose" }, { node: "graduate" });
+    const skips = lines({ node: "read" }, { node: "route", when: "needs a new pattern" }, { node: "propose" }, { node: "adopt" });
     expect(traceProblems(designLoop, skips).join("\n")).toContain("propose");
   });
 

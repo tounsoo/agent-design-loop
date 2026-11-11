@@ -3,7 +3,7 @@ import { parseProposal, type Proposal } from "./proposals";
 
 /**
  * A harness rule applies to every product. A product turns one off only with
- * an opt-out: the rule's name in its config's `optOuts`, pointing at a graduated
+ * an opt-out: the rule's name in its config's `optOuts`, pointing at an adopted
  * proposal that says why. When most products opt out of the same rule, the
  * rule is a candidate for retirement, so the harness can shrink as well as
  * grow.
@@ -57,9 +57,9 @@ export function optOutProblems(product: OptOutProduct, rules: readonly string[],
       problems.push(...parsed.problems.map((problem) => `${where}: ${proposal} ${problem}`));
       continue;
     }
-    if (parsed.proposal.status !== "graduated") {
+    if (parsed.proposal.status !== "adopted") {
       problems.push(
-        `${where}: ${proposal} is ${parsed.proposal.status}, not graduated. An opt-out applies now, so the change that adds it marks its decided proposal "status: graduated".`,
+        `${where}: ${proposal} is ${parsed.proposal.status}, not adopted. An opt-out applies now, so the change that adds it marks its decided proposal "status: adopted".`,
       );
     }
     if (!parsed.proposal.optsOut.some((line) => line.rule === rule && line.source === product.source)) {
@@ -88,39 +88,39 @@ export function retirementCandidates(products: readonly OptOutProduct[]): Retire
 
 /**
  * Rules the base's `check:rules` ran that the head's does not. Each must be
- * retired by a proposal this change graduates whose `retires` lists it, so a
+ * retired by a proposal this change adopts whose `retires` lists it, so a
  * rule leaves the harness only on a designer's decision.
  */
-export function unretiredRemovals(baseRules: readonly string[], headRules: readonly string[], graduates: readonly Proposal[]): string[] {
+export function unretiredRemovals(baseRules: readonly string[], headRules: readonly string[], adopts: readonly Proposal[]): string[] {
   return [...new Set(baseRules)]
     .filter((rule) => !headRules.includes(rule))
-    .filter((rule) => !graduates.some((proposal) => proposal.retires.includes(rule)))
+    .filter((rule) => !adopts.some((proposal) => proposal.retires.includes(rule)))
     .map(
       (rule) =>
-        `${rule} left check:rules without a proposal that retires it. Retire a rule by graduating a proposal, decided on the base, that lists it under retires.`,
+        `${rule} left check:rules without a proposal that retires it. Retire a rule by adopting a proposal, decided on the base, that lists it under retires.`,
     );
 }
 
 /**
  * Opt-outs the head's config has that the base's does not, or that now name
- * another proposal. Each must name a proposal this change graduates, whose
+ * another proposal. Each must name a proposal this change adopts, whose
  * `opts-out`, as the base has it, lists that rule for this product.
  */
-export function ungraduatedOptOuts(
+export function unadoptedOptOuts(
   product: OptOutProduct,
   baseOptOuts: { readonly [rule: string]: string } | null,
-  graduates: readonly Proposal[],
+  adopts: readonly Proposal[],
 ): string[] {
   const problems: string[] = [];
   for (const [rule, proposal] of Object.entries(product.optOuts)) {
     if (baseOptOuts?.[rule] === proposal) continue;
     const file = path.posix.normalize(proposal);
-    const graduate = graduates.find((candidate) => path.posix.normalize(candidate.file) === file);
-    if (graduate === undefined) {
+    const adopt = adopts.find((candidate) => path.posix.normalize(candidate.file) === file);
+    if (adopt === undefined) {
       problems.push(
-        `optOuts["${rule}"] is new, and ${proposal} does not graduate in this change. An opt-out graduates a proposal that is decided on the base: this change marks it "status: graduated".`,
+        `optOuts["${rule}"] is new, and ${proposal} is not adopted in this change. An opt-out adopts a proposal that is decided on the base: this change marks it "status: adopted".`,
       );
-    } else if (!graduate.optsOut.some((entry) => entry.rule === rule && entry.source === product.source)) {
+    } else if (!adopt.optsOut.some((entry) => entry.rule === rule && entry.source === product.source)) {
       problems.push(`optOuts["${rule}"] is new, and ${proposal} did not opt out ${rule} for ${product.source} when it was decided.`);
     }
   }

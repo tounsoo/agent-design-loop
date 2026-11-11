@@ -7,7 +7,7 @@ import { resolveBaseRev, tryGit } from "./lib/base";
 import { collectionCompositionViolations } from "./lib/collection-body";
 import { config, configName, memberOf, pageTypesBarrel, parseConfig, type HarnessConfig, type ParsedConfig } from "./lib/config";
 import { walk } from "./lib/jsx";
-import { addingInThisChange, byBaseName, graduating, parseAll, proposalsAtRev, proposalsInDir, type Proposal } from "./lib/proposals";
+import { addingInThisChange, byBaseName, adopting, parseAll, proposalsAtRev, proposalsInDir, type Proposal } from "./lib/proposals";
 import { collectionShellsOf, shellsOf } from "./lib/shells";
 
 /**
@@ -27,12 +27,12 @@ import { collectionShellsOf, shellsOf } from "./lib/shells";
  * dropping members the base has is a change. The other arrays,
  * allowed_page_types, tasks, priority and the flows' modeledStates, must exist
  * on the base and in the change, or the check fails. A list the base already
- * has may not change that way. Its membership changes only by graduating a
- * proposal: one that is decided on the base, that this change marks graduated,
+ * has may not change that way. Its membership changes only by adopting a
+ * proposal: one that is decided on the base, that this change marks adopted,
  * and whose `changes` list what changed. A change that only adds members to
  * the catalog exports, allowed_layouts, allowed_content_layouts,
- * allowed_page_types or the flow states may instead graduate a proposal this
- * change adds, already graduated, that lists those members under `adds`:
+ * allowed_page_types or the flow states may instead adopt a proposal this
+ * change adds, already adopted, that lists those members under `adds`:
  * proposal 0012.
  *
  * allowed_layouts is the app frame. allowed_content_layouts are the
@@ -43,7 +43,7 @@ import { collectionShellsOf, shellsOf } from "./lib/shells";
  * inventory too. The base is read with its own config, at the same path as the
  * head's. A base that has the product's inputs but no config at that path is
  * read with the head's paths, and the new config is itself a change that needs
- * a graduating proposal, so renaming a config cannot skip the comparison. The
+ * an adopted proposal, so renaming a config cannot skip the comparison. The
  * design system adapter the config names is an inventory as well, compared
  * field by field. A base whose config names no adapter records it once,
  * without a proposal.
@@ -53,7 +53,7 @@ import { collectionShellsOf, shellsOf } from "./lib/shells";
  * base's harness.config.ts whose paths.inputs names the old file, so a move
  * shows as config path changes. A product with no such rename, or whose base
  * config has another file name, is new: a whole inventory added at once, which
- * needs a graduating proposal that lists the product's directory, like any
+ * needs an adopted proposal that lists the product's directory, like any
  * other membership change. The check then records its inventories without
  * comparing them.
  *
@@ -604,8 +604,8 @@ function whyNot(file: string, change: Change, proposals: ProposalsForChange, ref
   const after = proposals.head.get(key);
   const lists = addableText;
   if (after && after.adds.length > 0 && change.terms.some((term) => adds(after, term))) {
-    if (before !== undefined && before.status !== "graduated") {
-      return `${file} is ${before.status} on the base, so it cannot become a proposal that only adds. A proposal that only adds is new in the pull request that makes the addition; this one graduates only what it listed under changes when it was decided.`;
+    if (before !== undefined && before.status !== "adopted") {
+      return `${file} is ${before.status} on the base, so it cannot become a proposal that only adds. A proposal that only adds is new in the pull request that makes the addition; this one adopts only what it listed under changes when it was decided.`;
     }
     if (before !== undefined) return `${file} added its members in an earlier pull request. A proposal that only adds covers them in the pull request that adds it, once.`;
     const reason = refused.get(file);
@@ -616,59 +616,59 @@ function whyNot(file: string, change: Change, proposals: ProposalsForChange, ref
     return `${file} does not list every new member of this change under adds.`;
   }
   if (before === undefined) {
-    return `${file} is added in this change. A proposal cannot graduate in the pull request that adds it: merge it as "status: decided" first. Only a proposal that adds members to ${lists}, and lists them under adds alone, graduates in the pull request that adds it.`;
+    return `${file} is added in this change. A proposal cannot be adopted in the pull request that adds it: merge it as "status: decided" first. Only a proposal that adds members to ${lists}, and lists them under adds alone, is adopted in the pull request that adds it.`;
   }
-  if (before.status === "open") return `${file} is an open request on the base. A designer approves it (status: decided) in its own pull request before it graduates.`;
-  if (before.status === "graduated") return `${file} graduated before. A proposal graduates once.`;
-  if (after?.status !== "graduated") return `${file} is decided on the base. Mark it "status: graduated" in this change.`;
+  if (before.status === "open") return `${file} is an open request on the base. A designer approves it (status: decided) in its own pull request before it is adopted.`;
+  if (before.status === "adopted") return `${file} was adopted before. A proposal is adopted once.`;
+  if (after?.status !== "adopted") return `${file} is decided on the base. Mark it "status: adopted" in this change.`;
   return `${file} does not cover it.`;
 }
 
 /**
- * A membership change passes only when proposals this change graduates cover
- * it: decided on the base, marked graduated here, and listing each term of the
+ * A membership change passes only when proposals this change adopts cover
+ * it: decided on the base, marked adopted here, and listing each term of the
  * change in their `changes`, as the base has them. Two approved proposals may
- * graduate together, each covering its own term. A proposal for one change
+ * be adopted together, each covering its own term. A proposal for one change
  * does not let another through, and a proposal added in the same change
  * covers nothing, unless it only adds: then it covers the members it lists
  * under `adds` of a change that is all additions.
  */
 function reportMembership(changes: readonly Change[], proposals: ProposalsForChange): boolean {
   if (changes.length === 0) return true;
-  const graduates = graduating(proposals.base, proposals.head);
+  const adopts = adopting(proposals.base, proposals.head);
   const { usable, refused } = addingProposals(changes, proposals);
   const uncovered: string[] = [];
   const used = new Set<string>();
   for (const change of changes) {
     const covering = change.terms.map(
-      (term) => graduates.find((proposal) => lists(proposal, term)) ?? (change.additions ? usable.find((proposal) => adds(proposal, term)) : undefined),
+      (term) => adopts.find((proposal) => lists(proposal, term)) ?? (change.additions ? usable.find((proposal) => adds(proposal, term)) : undefined),
     );
     if (covering.every((proposal) => proposal !== undefined)) {
       const files = [...new Set(covering.map((proposal) => proposal.file))];
       for (const file of files) used.add(file);
       const named = files.map((file) =>
-        usable.some((proposal) => proposal.file === file) ? `${file} (only adds, so it graduates in the pull request that adds it, which a designer reviews)` : file,
+        usable.some((proposal) => proposal.file === file) ? `${file} (only adds, so it is adopted in the pull request that adds it, which a designer reviews)` : file,
       );
-      console.log(`inventory: ${change.text} Graduates ${named.join(", ")}.`);
+      console.log(`inventory: ${change.text} Adopts ${named.join(", ")}.`);
       continue;
     }
     const candidates = [...proposals.base.values(), ...proposals.head.values()]
       .filter((proposal) => change.terms.some((term) => lists(proposal, term) || adds(proposal, term)))
       .map((proposal) => proposal.file);
     const reasons = [...new Set(candidates)].map((file) => whyNot(file, change, proposals, refused));
-    const missing = change.terms.filter((term) => !graduates.some((proposal) => lists(proposal, term)));
-    const none = reasons.length === 0 && graduates.length > 0 && missing.length > 0 ? `, and none graduating lists ${missing.map(termText).join(", ")}` : "";
+    const missing = change.terms.filter((term) => !adopts.some((proposal) => lists(proposal, term)));
+    const none = reasons.length === 0 && adopts.length > 0 && missing.length > 0 ? `, and none adopted lists ${missing.map(termText).join(", ")}` : "";
     const orAdds = change.additions ? `, or a proposal this change adds must list ${change.terms.map(termText).join(", ")} under adds alone` : "";
     uncovered.push(
-      `inventory: ${change.text} No graduating proposal covers it: a decided proposal must list ${change.terms.map(termText).join(", ")} under changes${none}${orAdds}.`,
+      `inventory: ${change.text} No adopted proposal covers it: a decided proposal must list ${change.terms.map(termText).join(", ")} under changes${none}${orAdds}.`,
       ...reasons.map((reason) => `inventory:   ${reason}`),
     );
   }
   if (uncovered.length > 0) {
     console.error(
-      graduates.length === 0 && usable.length === 0
-        ? "inventory: set changed without a proposal. An inventory grows only by graduating a proposal a designer already approved."
-        : `inventory: set changed without a proposal that covers it. Graduating: ${[...graduates, ...usable].map((proposal) => proposal.file).join(", ")}.`,
+      adopts.length === 0 && usable.length === 0
+        ? "inventory: set changed without a proposal. An inventory grows only by adopting a proposal a designer already approved."
+        : `inventory: set changed without a proposal that covers it. Adopting: ${[...adopts, ...usable].map((proposal) => proposal.file).join(", ")}.`,
     );
     for (const line of uncovered) console.error(line);
     for (const problem of proposals.problems) console.error(`inventory: ${problem}`);
@@ -756,7 +756,7 @@ type ProposalsForChange = {
  * Against a revision, the proposals in the config's `paths.proposals` at that
  * revision and in the working tree. A working-tree base has no history, so
  * `--base-proposals <dir>` and `--proposals <dir>` name the two sides, lined
- * up by file name: the fixtures test graduation that way.
+ * up by file name: the fixtures test adoption that way.
  */
 /** The proposals folder the base's config named, or null when the base has no config there. */
 function baseProposalsDir(rev: string, file: string): string | null {
@@ -771,9 +771,9 @@ function baseProposalsDir(rev: string, file: string): string | null {
 
 function proposalsForChange(root: Root): ProposalsForChange {
   if (root.kind === "git") {
-    // A change that moves paths.proposals graduates from the folder the base config named, so read both.
+    // A change that moves paths.proposals adopts from the folder the base config named, so read both.
     const dirs = [...new Set([config.paths.proposals, baseProposalsDir(root.rev, root.config) ?? config.paths.proposals])];
-    const base = dirs.map((dir) => parseAll(proposalsAtRev(root.rev, dir)));
+    const base = dirs.map((dir) => parseAll(proposalsAtRev(root.rev, dir), { base: true }));
     const head = dirs.map((dir) => parseAll(proposalsInDir(dir)));
     return {
       base: new Map(base.flatMap((parsed) => [...parsed.proposals])),
@@ -782,12 +782,12 @@ function proposalsForChange(root: Root): ProposalsForChange {
       problems: head.flatMap((parsed) => parsed.problems),
     };
   }
-  const read = (dir: string | null) => {
+  const read = (dir: string | null, options: { base?: boolean } = {}) => {
     if (dir === null) return parseAll(new Map());
     if (!existsSync(path.resolve(dir))) fail(`inventory: proposals directory ${dir} is missing.`);
-    return parseAll(proposalsInDir(dir));
+    return parseAll(proposalsInDir(dir), options);
   };
-  const base = read(baseProposalsFlag);
+  const base = read(baseProposalsFlag, { base: true });
   const head = read(proposalsFlag);
   return { base: byBaseName(base.proposals), head: byBaseName(head.proposals), key: (file) => path.posix.basename(file), problems: head.problems };
 }
@@ -840,7 +840,7 @@ if (base === null) {
     process.exit(1);
   }
   const rev = baseRoot.kind === "git" ? baseRoot.rev.slice(0, 7) : baseFlag;
-  // A new product is a whole inventory added at once, and so is an existing one moved to new file names, so it needs a graduating proposal like any other membership change.
+  // A new product is a whole inventory added at once, and so is an existing one moved to new file names, so it needs an adopted proposal like any other membership change.
   const added: Change[] = [
     { text: `base ${rev} has no ${configName} or ${config.paths.inputs}, so this is a new product.`, terms: [path.posix.dirname(configName.split(path.sep).join("/"))] },
   ];

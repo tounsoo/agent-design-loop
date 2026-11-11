@@ -3,9 +3,9 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveBaseRev, tryGit } from "./lib/base";
-import { optOutProblems, retirementCandidates, RETIREMENT_MIN_PRODUCTS, ungraduatedOptOuts, unretiredRemovals, type OptOutProduct } from "./lib/opt-outs";
+import { optOutProblems, retirementCandidates, RETIREMENT_MIN_PRODUCTS, unadoptedOptOuts, unretiredRemovals, type OptOutProduct } from "./lib/opt-outs";
 import { DEFAULT_PROPOSALS, parseConfig } from "./lib/parse-config";
-import { graduating, parseAll, proposalsAtRev, proposalsInDir, type Proposal } from "./lib/proposals";
+import { adopting, parseAll, proposalsAtRev, proposalsInDir, type Proposal } from "./lib/proposals";
 import { ruleChecks } from "./lib/scripts";
 
 /**
@@ -19,13 +19,13 @@ import { ruleChecks } from "./lib/scripts";
  *
  * It also checks every product's opt-outs the way check:opt-outs does, so a
  * product that no `check:<name>` script runs cannot carry an opt-out with no
- * graduated proposal behind it.
+ * adopted proposal behind it.
  *
  * Against the pull request base, read as check:inventories reads it, it
  * fails a rule taken out of `check:rules` unless a proposal this change
- * graduates lists it under `retires`, and an opt-out the base's config does
- * not have unless it names a proposal this change graduates. Graduating
- * means decided on the base and marked graduated here.
+ * adopts lists it under `retires`, and an opt-out the base's config does
+ * not have unless it names a proposal this change adopts. Adopting
+ * means decided on the base and marked adopted here.
  */
 
 if (process.argv.length > 2) {
@@ -71,7 +71,7 @@ const invalid = files.flatMap((file, index) => {
   return product ? optOutProblems(product, rules, read).map((problem) => `${file} ${problem}`) : [];
 });
 if (invalid.length > 0) {
-  console.error("retirement: these opt-outs have no graduated proposal behind them, so they are not counted:");
+  console.error("retirement: these opt-outs have no adopted proposal behind them, so they are not counted:");
   for (const problem of invalid) console.error(`- ${problem}`);
   process.exit(1);
 }
@@ -87,8 +87,8 @@ const rev = resolved.rev;
 const proposalDirs = [
   ...new Set([DEFAULT_PROPOSALS, ...products.map((product) => product.proposals)].map((dir) => path.posix.normalize(dir).replace(/\/+$/, ""))),
 ].sort();
-const graduates: Proposal[] = proposalDirs.flatMap((dir) =>
-  graduating(parseAll(proposalsAtRev(rev, dir)).proposals, parseAll(proposalsInDir(dir)).proposals),
+const adopts: Proposal[] = proposalDirs.flatMap((dir) =>
+  adopting(parseAll(proposalsAtRev(rev, dir), { base: true }).proposals, parseAll(proposalsInDir(dir)).proposals),
 );
 
 function baseScripts(): Record<string, string> | null {
@@ -99,23 +99,23 @@ function baseScripts(): Record<string, string> | null {
 
 const before = baseScripts();
 const baseRules = before !== null && before["check:rules"] !== undefined ? ruleChecks("check:rules", new Set(), before) : [];
-const ungraduated = [
-  ...unretiredRemovals(baseRules, rules, graduates),
+const unadopted = [
+  ...unretiredRemovals(baseRules, rules, adopts),
   ...files.flatMap((file, index) => {
     const product = products[index];
     if (!product) return [];
     const text = tryGit(["show", `${rev}:${file}`]);
     const baseOptOuts = text === null ? null : parseConfig(text, `${rev.slice(0, 7)}:${file}`).optOuts;
-    return ungraduatedOptOuts(product, baseOptOuts, graduates).map((problem) => `${file} ${problem}`);
+    return unadoptedOptOuts(product, baseOptOuts, adopts).map((problem) => `${file} ${problem}`);
   }),
 ];
-if (ungraduated.length > 0) {
-  console.error(`retirement: compared with ${rev.slice(0, 7)}, these rule changes graduate no decided proposal:`);
-  for (const problem of ungraduated) console.error(`- ${problem}`);
+if (unadopted.length > 0) {
+  console.error(`retirement: compared with ${rev.slice(0, 7)}, these rule changes adopt no decided proposal:`);
+  for (const problem of unadopted) console.error(`- ${problem}`);
   process.exit(1);
 }
 const retired = baseRules.filter((rule) => !rules.includes(rule));
-if (retired.length > 0) console.log(`retirement: ${retired.join(", ")} retired by ${graduates.map((proposal) => proposal.file).join(", ")}.`);
+if (retired.length > 0) console.log(`retirement: ${retired.join(", ")} retired by ${adopts.map((proposal) => proposal.file).join(", ")}.`);
 
 const candidates = retirementCandidates(products);
 
@@ -124,7 +124,7 @@ if (candidates.length > 0) {
   for (const candidate of candidates) {
     console.error(`- ${candidate.rule}: opted out by ${candidate.products.length} of ${candidate.of} products (${candidate.products.join(", ")}).`);
   }
-  console.error("Retire a rule by graduating a decided proposal that lists it under retires and takes it out of check:rules, or withdraw an opt-out.");
+  console.error("Retire a rule by adopting a decided proposal that lists it under retires and takes it out of check:rules, or withdraw an opt-out.");
   process.exit(1);
 }
 

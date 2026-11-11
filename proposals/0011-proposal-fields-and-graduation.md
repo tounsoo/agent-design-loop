@@ -1,5 +1,5 @@
 ---
-status: graduated
+status: adopted
 changes: []
 ---
 # Proposal 0011: Proposals carry fields, and a graduation follows an approval
@@ -56,7 +56,7 @@ Looked for CHROME_PATH (unset), .cache/chrome/chrome-headless-shell/linux-148.0.
 Fix it with one of: npm run setup:chrome, which downloads chrome-headless-shell 148.0.7778.97 into .cache/chrome; or CHROME_PATH=/path/to/chrome npm run check:target-size -- --config <product config>.
 ```
 
-## Graduation
+## Adoption
 
 - No file changes on approval. These change in the same pull request:
   - `packages/harness/src/lib/proposals.ts` reads the fields and sections, and `lib/base.ts` resolves the pull request base for the three checks that compare with it.

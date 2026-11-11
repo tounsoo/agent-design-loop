@@ -1,5 +1,5 @@
 ---
-status: graduated
+status: adopted
 changes: []
 opts-out:
   - check:disclosure for packages/harness/fixtures/product
@@ -14,6 +14,6 @@ A test of check:opt-outs, not a product decision.
 
 check:product skips `check:disclosure` for this product and runs every other rule.
 
-## Graduation
+## Adoption
 
 The product's config names this proposal in `optOuts`.

@@ -8,11 +8,11 @@ import { nameProblems, parseAll, sharedNameProblems, proposalsAtRev, proposalsIn
 
 /**
  * Every proposal parses: front matter with a status and the changes it
- * covers, and a Reason, a Preview and a Graduation with text under each. And
+ * covers, and a Reason, a Preview and an Adoption with text under each. And
  * against the pull request base, read as check:inventories reads it, every
- * status moved only open → decided → graduated, one step per change, with
- * nothing an approved proposal covers widened. A new proposal cannot graduate
- * what it names in the change that adds it, and is named for the UTC day it
+ * status moved only open → decided → adopted, one step per change, with
+ * nothing an approved proposal covers widened. A new proposal cannot be adopted
+ * with what it names in the change that adds it, and is named for the UTC day it
  * was written and a slug, so parallel changes cannot pick the same name.
  *
  * The folders read are `proposals/` and every product config's
@@ -54,7 +54,7 @@ for (const dir of dirs) {
   allHead.push(...headFiles.keys());
   allBase.push(...baseFiles.keys());
   const head = parseAll(headFiles);
-  const base = parseAll(baseFiles);
+  const base = parseAll(baseFiles, { base: true });
   count += head.proposals.size;
   problems.push(
     ...nameProblems(baseFiles.keys(), headFiles.keys()),

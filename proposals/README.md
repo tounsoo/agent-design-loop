@@ -15,7 +15,7 @@ The inventories are listed here with Meridian's paths, under `products/meridian/
 
 Editing a layout, content layout, or page-type implementation without changing its id is not an inventory change.
 
-A proposal's file name is its ID. Name a new one for the day you write it, in UTC, and a short lowercase slug: `2026-11-12-side-panel.md`. Cite it by that name, as proposal 2026-11-12-side-panel, and give it a plain title such as `# Add a side panel`. No check follows a link to a proposal, so renaming one means editing every link and citation to it by hand. Two pull requests written in parallel then pick different names without knowing about each other, where both used to reach for the next free number. Two that pick the same day and slug add the same file, which git refuses to merge when the texts differ, and `check:proposals` fails a new proposal whose name another proposal folder already holds. The proposals that merged with a number, from 0001, keep those names, because a decided or graduated proposal keeps its file name.
+A proposal's file name is its ID. Name a new one for the day you write it, in UTC, and a short lowercase slug: `2026-11-12-side-panel.md`. Cite it by that name, as proposal 2026-11-12-side-panel, and give it a plain title such as `# Add a side panel`. No check follows a link to a proposal, so renaming one means editing every link and citation to it by hand. Two pull requests written in parallel then pick different names without knowing about each other, where both used to reach for the next free number. Two that pick the same day and slug add the same file, which git refuses to merge when the texts differ, and `check:proposals` fails a new proposal whose name another proposal folder already holds. The proposals that merged with a number, from 0001, keep those names, because a decided or adopted proposal keeps its file name.
 
 A proposal starts with front matter the checks read, then three sections with text under each:
 
@@ -38,36 +38,36 @@ Why the work needs it.
 
 A preview of the UI or the path after the change.
 
-## Graduation
+## Adoption
 
 Which files change on approval.
 ```
 
-- `status` is `open`, `decided` or `graduated`.
+- `status` is `open`, `decided` or `adopted`.
 - `changes` lists each inventory name the proposal changes, each matched exactly: the member added or removed, the constant, the config field or its new value, each changed string in `flows`, `adapter.<field>`, the new adapter path, or a new product's directory. A name matches only as listed, so `layouts/side-panel/` does not name `side-panel`. A proposal that changes no inventory writes `changes: []`.
 - `retires`, optional, lists rules the proposal takes out of `check:rules`.
 - `opts-out`, optional, lists opt-outs as `<rule> for <product paths.source>`, as the next section shows.
-- `adds`, optional, lists members a proposal adds in one pull request, as [Adding in one pull request](#adding-in-one-pull-request) shows. A proposal with `adds` lists nothing under `changes`, `retires` or `opts-out`, and its status is `graduated`.
+- `adds`, optional, lists members a proposal adds in one pull request, as [Adding in one pull request](#adding-in-one-pull-request) shows. A proposal with `adds` lists nothing under `changes`, `retires` or `opts-out`, and its status is `adopted`.
 
-`npm run check:proposals` fails a proposal the change adds or renames whose file name is not a real calendar day, no later than tomorrow in UTC, and a lowercase slug, and it fails a proposal with a missing or unknown field, a field that is not a list, `adds` beside anything under `changes`, `retires` or `opts-out` or on a proposal that is not `graduated`, or a missing or empty `## Reason`, `## Preview` or `## Graduation`. A heading inside a fenced code block or an HTML comment does not count, and a list item or value is a bare name, with no quotes or `#` comment. The check reads `proposals/`, every folder a product config names in `paths.proposals`, and any other folder named `proposals`. `CODEOWNERS` requests review for everything under `proposals/`.
+`npm run check:proposals` fails a proposal the change adds or renames whose file name is not a real calendar day, no later than tomorrow in UTC, and a lowercase slug, and it fails a proposal with a missing or unknown field, a field that is not a list, `adds` beside anything under `changes`, `retires` or `opts-out` or on a proposal that is not `adopted`, or a missing or empty `## Reason`, `## Preview` or `## Adoption`. A heading inside a fenced code block or an HTML comment does not count, and a list item or value is a bare name, with no quotes or `#` comment. The check reads `proposals/`, every folder a product config names in `paths.proposals`, and any other folder named `proposals`. `CODEOWNERS` requests review for everything under `proposals/`.
 
-### From request to graduation
+### From request to adoption
 
 A proposal moves one step at a time, each in its own pull request, unless it only adds (next section):
 
 1. **Open.** The agent adds the file as `status: open`. Merging it records the request and applies nothing. [Proposal 0001](0001-approval-note.md) is open. Open requests are not shipped behavior.
 2. **Decided.** A pull request a designer reviews moves it to `status: decided`. That is the approval. It may still edit the proposal. A proposal may also start as `decided`, when the pull request that adds it is the one the designer approves. Once it merges, what the proposal covers is fixed, and its file keeps its name.
-3. **Graduated.** A later pull request makes the change and moves the proposal to `status: graduated`.
+3. **Adopted.** A later pull request makes the change and moves the proposal to `status: adopted`.
 
-`npm run check:inventories` passes an inventory change only when it graduates a proposal: one that is `decided` on the pull request base and `graduated` in the change, and that lists what changed under `changes` as the base has them. A proposal added in the same pull request covers nothing unless it only adds (next section), an open request on the base covers nothing, and a graduating pull request cannot add a name the approval did not list. The check pins names, not values: whether `TARGET_MIN_PX` became the number the preview showed is the reviewer's to compare. `check:proposals` fails any other status move, such as `open` to `graduated` or `graduated` back to `decided`, any change to a decided or graduated proposal's `changes`, `retires`, `opts-out` or `adds`, and a decided or graduated proposal that is renamed or deleted, because its file is the record of what was approved. A new proposal may start as `graduated` only when all three are empty, because then it gates nothing: it records a harness change that `CODEOWNERS` review covers, as [proposal 0003](0003-two-step-approve.md) and [proposal 0007](0007-check-gaps.md) through [proposal 0013](0013-every-route-in-the-step-budget.md) do, or when it only adds.
+`npm run check:inventories` passes an inventory change only when it adopts a proposal: one that is `decided` on the pull request base and `adopted` in the change, and that lists what changed under `changes` as the base has them. A proposal added in the same pull request covers nothing unless it only adds (next section), an open request on the base covers nothing, and an adopting pull request cannot add a name the approval did not list. The check pins names, not values: whether `TARGET_MIN_PX` became the number the preview showed is the reviewer's to compare. `check:proposals` fails any other status move, such as `open` to `adopted` or `adopted` back to `decided`, any change to a decided or adopted proposal's `changes`, `retires`, `opts-out` or `adds`, and a decided or adopted proposal that is renamed or deleted, because its file is the record of what was approved. A new proposal may start as `adopted` only when all three are empty, because then it gates nothing: it records a harness change that `CODEOWNERS` review covers, as [proposal 0003](0003-two-step-approve.md) and [proposal 0007](0007-check-gaps.md) through [proposal 0013](0013-every-route-in-the-step-budget.md) do, or when it only adds.
 
 ### Adding in one pull request
 
-An addition may skip the approval pull request. A change is an addition when it only adds members to the catalog exports, `allowed_layouts`, `allowed_content_layouts`, `allowed_page_types` or the flow states: every member the base had is still there. The proposal for it lists those members under `adds`, writes `changes: []`, and starts as `graduated` in the same pull request as the change:
+An addition may skip the approval pull request. A change is an addition when it only adds members to the catalog exports, `allowed_layouts`, `allowed_content_layouts`, `allowed_page_types` or the flow states: every member the base had is still there. The proposal for it lists those members under `adds`, writes `changes: []`, and starts as `adopted` in the same pull request as the change:
 
 ```md
 ---
-status: graduated
+status: adopted
 changes: []
 adds:
   - side-panel
@@ -78,7 +78,9 @@ adds:
 
 The approval on this path is the designer's review of that one pull request, which `CODEOWNERS` requests for any folder named `proposals`. A product whose `paths.proposals` names a folder with another name needs its own `CODEOWNERS` line. The check cannot see that review. It blocks the merge only once branch protection on `main` requires code owner review; until then it is requested, not required. [Proposal 0012](0012-additions-in-one-pull-request.md) records the path and that limit.
 
-Proposals 0001 and 0003 to 0010 were written before the fields. [Proposal 0011](0011-proposal-fields-and-graduation.md) gave them their fields, and their `Status:` lines became plain prose. A proposal's status is the one field that changes after it merges. Its text stays as it merged, with one exception: a path, proposal number or example that no longer matches the code may be corrected, with a sentence in the proposal saying so. What it decided does not change. This replaces the line in proposal 0011 that names the only edits a merged proposal takes. Proposals 0001 and 0008 were corrected that way. The files a graduated proposal's pull request changed keep the paths they had then: before [proposal 0006](0006-move-into-packages.md), Meridian lived under `src/` with its config, `index.html` and `review/` at the root, the checks under `scripts/` and the fixtures under `fixtures/`. Proposal 0006 moved them to `products/meridian/` and `packages/harness/`.
+Proposals 0001 and 0003 to 0010 were written before the fields. [Proposal 0011](0011-proposal-fields-and-graduation.md) gave them their fields, and their `Status:` lines became plain prose. A proposal's status is the one field that changes after it merges. Its text stays as it merged, with one exception: a path, proposal number or example that no longer matches the code may be corrected, with a sentence in the proposal saying so. What it decided does not change. This replaces the line in proposal 0011 that names the only edits a merged proposal takes. Proposals 0001 and 0008 were corrected that way. The files an adopted proposal's pull request changed keep the paths they had then: before [proposal 0006](0006-move-into-packages.md), Meridian lived under `src/` with its config, `index.html` and `review/` at the root, the checks under `scripts/` and the fixtures under `fixtures/`. Proposal 0006 moved them to `products/meridian/` and `packages/harness/`.
+
+The last step was called graduating until [proposal 2026-11-11-adopt-not-graduate](2026-11-11-adopt-not-graduate.md) renamed it adopting: `status: graduated` became `status: adopted`, and `## Graduation` became `## Adoption`. That rename changed both names in every merged proposal, and in the example in proposal 0008, because the checks read them; their prose still says graduate, and means adopt. `check:proposals` fails the old names in the change, and every check still reads them on a base written before the rename.
 
 The next design round is more capable because that inventory grew.
 
@@ -95,6 +97,6 @@ opts-out:
 ---
 ```
 
-The opt-out graduates like any other change: the proposal merges as `decided`, and the pull request that adds the entry to `optOuts` moves it to `graduated`. `npm run check:opt-outs` fails an opt-out whose proposal is missing, is not directly in the config's `paths.proposals` folder (`proposals/` unless the config names another), is not `graduated`, or has no `opts-out` entry for that rule and that product. `npm run check:retirement` fails a new opt-out whose proposal does not graduate in that pull request, or was decided without that entry. `lint:product-ui` and `check:inventories` cannot be opted out.
+An opt-out is adopted like any other change: the proposal merges as `decided`, and the pull request that adds the entry to `optOuts` moves it to `adopted`. `npm run check:opt-outs` fails an opt-out whose proposal is missing, is not directly in the config's `paths.proposals` folder (`proposals/` unless the config names another), is not `adopted`, or has no `opts-out` entry for that rule and that product. `npm run check:retirement` fails a new opt-out whose proposal is not adopted in that pull request, or was decided without that entry. `lint:product-ui` and `check:inventories` cannot be opted out.
 
-When a majority of products, and at least two, opt out of the same rule, `check:retirement` fails. Retire the rule, or withdraw an opt-out. A rule leaves `check:rules` only when a pull request graduates a proposal, decided on the base, that lists it under `retires`; `check:retirement` fails any other removal. It compares the rule names in `check:rules`, not what each one runs, so pointing a rule's script at other code is a harness change that `CODEOWNERS` review covers. [Proposal 0008](0008-rule-opt-out-and-retirement.md) records opt-outs and retirement, [proposal 0011](0011-proposal-fields-and-graduation.md) ties both to graduation, and [How this design loop works](../packages/harness/docs/how-it-works.md#how-a-pattern-becomes-a-rule) has the whole lifecycle.
+When a majority of products, and at least two, opt out of the same rule, `check:retirement` fails. Retire the rule, or withdraw an opt-out. A rule leaves `check:rules` only when a pull request adopts a proposal, decided on the base, that lists it under `retires`; `check:retirement` fails any other removal. It compares the rule names in `check:rules`, not what each one runs, so pointing a rule's script at other code is a harness change that `CODEOWNERS` review covers. [Proposal 0008](0008-rule-opt-out-and-retirement.md) records opt-outs and retirement, [proposal 0011](0011-proposal-fields-and-graduation.md) ties both to adoption, and [How this design loop works](../packages/harness/docs/how-it-works.md#how-a-pattern-becomes-a-rule) has the whole lifecycle.

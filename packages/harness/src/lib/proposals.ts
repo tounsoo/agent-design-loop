@@ -19,34 +19,34 @@ import path from "node:path";
  * or, for a proposal that only adds members to an inventory:
  *
  *   ---
- *   status: graduated
+ *   status: adopted
  *   changes: []
  *   adds:
  *     - side-panel
  *   ---
  *
  * `status` is `open` (a request), `decided` (approved, not yet applied) or
- * `graduated` (applied). `changes` lists, exactly, each inventory name the
+ * `adopted` (applied). `changes` lists, exactly, each inventory name the
  * proposal changes: a member, a constant, a config field, a new product's
  * directory. `retires` lists rules it takes out of `check:rules`. `opts-out`
  * lists `<rule> for <product paths.source>`. `adds` lists members the
  * proposal adds to an inventory list in the pull request that adds the
  * proposal. `status` and `changes` are required; an empty list is written
  * `[]`. The body needs a `## Reason`, a
- * `## Preview` and a `## Graduation` section, each with text under it.
+ * `## Preview` and a `## Adoption` section, each with text under it.
  *
  * A change the checks gate, an inventory change, a new opt-out or a retired
- * rule, graduates a proposal: the proposal must already be `decided` on the
- * pull request base, and the pull request marks it `graduated`. What it
- * covers is read from the base, so the graduating pull request cannot widen
+ * rule, adopts a proposal: the proposal must already be `decided` on the
+ * pull request base, and the pull request marks it `adopted`. What it
+ * covers is read from the base, so the adopting pull request cannot widen
  * it. A proposal added in the same pull request covers nothing, with one
  * exception: a proposal that only adds. It lists the new members under `adds`
  * and nothing under `changes`, `retires` or `opts-out`, starts as
- * `graduated`, and covers those members in the pull request that adds it,
+ * `adopted`, and covers those members in the pull request that adds it,
  * and only there. check:inventories decides what counts as an addition.
  */
 
-export const STATUSES = ["open", "decided", "graduated"] as const;
+export const STATUSES = ["open", "decided", "adopted"] as const;
 export type ProposalStatus = (typeof STATUSES)[number];
 
 export type OptOutEntry = { readonly rule: string; readonly source: string };
@@ -66,7 +66,18 @@ export type ParsedProposal = { readonly proposal: Proposal | null; readonly prob
 const LIST_KEYS = ["changes", "retires", "opts-out", "adds"] as const;
 const KEYS = ["status", ...LIST_KEYS] as const;
 const REQUIRED_KEYS = ["status", "changes"] as const;
-export const SECTIONS = ["Reason", "Preview", "Graduation"] as const;
+export const SECTIONS = ["Reason", "Preview", "Adoption"] as const;
+
+/**
+ * Names the checks used before "graduate" was renamed "adopt". A proposal on
+ * the base, written before the rename, may still say `status: graduated` and
+ * `## Graduation`, so a base read takes them as `adopted` and `## Adoption`.
+ * A proposal in the change must use the new names.
+ */
+const RENAMED_SECTIONS: Readonly<Record<string, string>> = { Adoption: "Graduation" };
+
+/** `base: true` reads a proposal as it stands on the base, where the names before the rename still count. */
+export type ParseOptions = { readonly base?: boolean };
 
 function frontMatter(lines: readonly string[]): { block: string[]; rest: string[] } | null {
   if (lines[0]?.trim() !== "---") return null;
@@ -121,7 +132,7 @@ function readFields(block: readonly string[], problems: string[]): Map<string, s
 }
 
 /** The body's `## ` sections that start with each required name, and whether each has text under it. */
-function sectionProblems(lines: readonly string[]): string[] {
+function sectionProblems(lines: readonly string[], base: boolean): string[] {
   // A comment is not text a reader sees, and a heading inside one is not a section. Blank it, keeping its lines so indexes hold.
   const body = lines
     .join("\n")
@@ -143,10 +154,16 @@ function sectionProblems(lines: readonly string[]): string[] {
   });
   const problems: string[] = [];
   for (const name of SECTIONS) {
-    const position = headings.findIndex((heading) => heading.level === 2 && new RegExp(`^${name}\\b`).test(heading.text));
+    const named = (title: string) => headings.findIndex((heading) => heading.level === 2 && new RegExp(`^${title}\\b`).test(heading.text));
+    const old = RENAMED_SECTIONS[name];
+    const position = named(name) !== -1 || old === undefined || !base ? named(name) : named(old);
     const start = headings[position];
     if (start === undefined) {
-      problems.push(`has no "## ${name}" section.`);
+      problems.push(
+        old !== undefined && named(old) !== -1
+          ? `has "## ${old}", which was renamed: call the section "## ${name}".`
+          : `has no "## ${name}" section.`,
+      );
       continue;
     }
     const end = headings.slice(position + 1).find((heading) => heading.level <= 2)?.index;
@@ -157,7 +174,7 @@ function sectionProblems(lines: readonly string[]): string[] {
 }
 
 /** Reads a proposal's front matter and sections. Every problem names what is missing or wrong. */
-export function parseProposal(file: string, text: string): ParsedProposal {
+export function parseProposal(file: string, text: string, options: ParseOptions = {}): ParsedProposal {
   const problems: string[] = [];
   const lines = text.split(/\r?\n/);
   const split = frontMatter(lines);
@@ -166,8 +183,12 @@ export function parseProposal(file: string, text: string): ParsedProposal {
   }
   const fields = readFields(split.block, problems);
   for (const key of REQUIRED_KEYS) if (!fields.has(key)) problems.push(`front matter has no "${key}".`);
-  const status = fields.get("status");
-  if (fields.has("status") && (typeof status !== "string" || !(STATUSES as readonly string[]).includes(status))) {
+  const written = fields.get("status");
+  const renamed = written === "graduated" ? "adopted" : undefined;
+  const status = renamed !== undefined && options.base ? renamed : written;
+  if (renamed !== undefined && !options.base) {
+    problems.push(`status ${JSON.stringify(written)} was renamed: write "status: ${renamed}".`);
+  } else if (fields.has("status") && (typeof status !== "string" || !(STATUSES as readonly string[]).includes(status))) {
     problems.push(`status must be one of ${STATUSES.join(", ")}, not ${JSON.stringify(status)}.`);
   }
   const lists = new Map<string, string[]>();
@@ -188,14 +209,14 @@ export function parseProposal(file: string, text: string): ParsedProposal {
     const mixed = (["changes", "retires", "opts-out"] as const).filter((key) => (lists.get(key) ?? []).length > 0);
     if (mixed.length > 0) {
       problems.push(
-        `lists adds alongside ${mixed.join(", ")}. A proposal that adds in one pull request lists nothing else: put the rest in its own proposal, decided before it graduates.`,
+        `lists adds alongside ${mixed.join(", ")}. A proposal that adds in one pull request lists nothing else: put the rest in its own proposal, decided before it is adopted.`,
       );
     }
-    if (fields.has("status") && status !== "graduated") {
-      problems.push(`lists adds, so its status is graduated: it graduates in the pull request that adds it. A request that waits for approval lists its members under changes.`);
+    if (fields.has("status") && status !== "adopted" && renamed === undefined) {
+      problems.push(`lists adds, so its status is adopted: it is adopted in the pull request that adds it. A request that waits for approval lists its members under changes.`);
     }
   }
-  problems.push(...sectionProblems(split.rest));
+  problems.push(...sectionProblems(split.rest, options.base === true));
   if (problems.length > 0) return { proposal: null, problems };
   return {
     proposal: {
@@ -215,7 +236,7 @@ export function parseProposal(file: string, text: string): ParsedProposal {
  * written and a slug, `2026-11-12-side-panel.md`, so two pull requests
  * written in parallel never reach for the same name the way they did for the
  * next free number. Proposals already on the base keep the numbered names
- * they merged with, because a decided or graduated proposal cannot be renamed.
+ * they merged with, because a decided or adopted proposal cannot be renamed.
  */
 const DATED_NAME = /^(\d{4})-(\d{2})-(\d{2})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
 
@@ -314,7 +335,10 @@ export function proposalsAtRev(rev: string, dir: string): Map<string, string> {
 }
 
 /** Each file parsed, keyed by path. A file that does not parse is left out and its problems returned. */
-export function parseAll(files: ReadonlyMap<string, string>): {
+export function parseAll(
+  files: ReadonlyMap<string, string>,
+  options: ParseOptions = {},
+): {
   proposals: Map<string, Proposal>;
   unparsed: Set<string>;
   legacy: Set<string>;
@@ -325,7 +349,7 @@ export function parseAll(files: ReadonlyMap<string, string>): {
   const legacy = new Set<string>();
   const problems: string[] = [];
   for (const [file, text] of [...files].sort(([left], [right]) => left.localeCompare(right))) {
-    const parsed = parseProposal(file, text);
+    const parsed = parseProposal(file, text, options);
     if (parsed.proposal) proposals.set(file, parsed.proposal);
     else {
       unparsed.add(file);
@@ -343,29 +367,29 @@ export function byBaseName(files: ReadonlyMap<string, Proposal>): Map<string, Pr
 }
 
 /**
- * The proposals this change graduates: `decided` on the base and `graduated`
+ * The proposals this change adopts: `decided` on the base and `adopted`
  * in the head. Each is returned as the base has it, under the head's file
- * name, so what it covers is what was approved, not what the graduating
+ * name, so what it covers is what was approved, not what the adopting
  * change says it covers.
  */
-export function graduating(base: ReadonlyMap<string, Proposal>, head: ReadonlyMap<string, Proposal>): Proposal[] {
+export function adopting(base: ReadonlyMap<string, Proposal>, head: ReadonlyMap<string, Proposal>): Proposal[] {
   const found: Proposal[] = [];
   for (const [key, before] of base) {
     const after = head.get(key);
-    if (before.status === "decided" && after?.status === "graduated") found.push({ ...before, file: after.file });
+    if (before.status === "decided" && after?.status === "adopted") found.push({ ...before, file: after.file });
   }
   return found.sort((left, right) => left.file.localeCompare(right.file));
 }
 
 /**
  * The proposals that only add and that this change adds: not on the base,
- * graduated in the head, with members under `adds`. A proposal that only
+ * adopted in the head, with members under `adds`. A proposal that only
  * adds covers its members in the pull request that adds it, never later, so
  * one already on the base covers nothing.
  */
 export function addingInThisChange(base: ReadonlyMap<string, Proposal>, head: ReadonlyMap<string, Proposal>): Proposal[] {
   return [...head]
-    .filter(([key, proposal]) => !base.has(key) && proposal.status === "graduated" && proposal.adds.length > 0)
+    .filter(([key, proposal]) => !base.has(key) && proposal.status === "adopted" && proposal.adds.length > 0)
     .map(([, proposal]) => proposal)
     .sort((left, right) => left.file.localeCompare(right.file));
 }
@@ -374,10 +398,10 @@ const sameList = (left: readonly string[], right: readonly string[]) => JSON.str
 
 /**
  * What is wrong with how the head's proposals moved from the base's. A
- * request is approved by moving it from `open` to `decided`, and graduated by
- * moving it from `decided` to `graduated`, each in its own pull request. Once
+ * request is approved by moving it from `open` to `decided`, and adopted by
+ * moving it from `decided` to `adopted`, each in its own pull request. Once
  * decided, what a proposal covers does not change. A new proposal may be
- * `graduated` at once only when it covers nothing the checks gate, as a
+ * `adopted` at once only when it covers nothing the checks gate, as a
  * change to the harness's own code does, or when it only adds, which
  * check:inventories holds to additions. `legacy` names base files that
  * exist but have no fields, which are not compared.
@@ -389,33 +413,33 @@ export function transitionProblems(
   headUnparsed: ReadonlySet<string> = new Set(),
 ): string[] {
   const problems: string[] = [];
-  // A decided or graduated proposal is the record of what was approved, so it keeps its file name. Renaming one would let a new file widen its lists or graduate it again.
+  // A decided or adopted proposal is the record of what was approved, so it keeps its file name. Renaming one would let a new file widen its lists or adopt it again.
   for (const [key, before] of [...base].sort(([left], [right]) => left.localeCompare(right))) {
     if (before.status === "open" || head.has(key) || headUnparsed.has(key)) continue;
     problems.push(
-      `${before.file} is ${before.status} on the base and is gone from this change. A decided or graduated proposal keeps its file name: it is the record of what was approved.`,
+      `${before.file} is ${before.status} on the base and is gone from this change. A decided or adopted proposal keeps its file name: it is the record of what was approved.`,
     );
   }
   for (const [key, after] of [...head].sort(([left], [right]) => left.localeCompare(right))) {
-    // A base file with no fields predates them, so there is no status to move from. It cannot cover a change either: graduating() reads the base.
+    // A base file with no fields predates them, so there is no status to move from. It cannot cover a change either: adopting() reads the base.
     if (legacy.has(key)) continue;
     const before = base.get(key);
     const gated = after.changes.length > 0 || after.retires.length > 0 || after.optsOut.length > 0;
     if (before === undefined) {
-      if (after.status === "graduated" && gated) {
+      if (after.status === "adopted" && gated) {
         problems.push(
-          `${after.file} is new and already graduated. A proposal cannot graduate in the pull request that adds it: merge it as "status: decided" first, then graduate it in a later pull request. Only a proposal that lists nothing but adds may.`,
+          `${after.file} is new and already adopted. A proposal cannot be adopted in the pull request that adds it: merge it as "status: decided" first, then adopt it in a later pull request. Only a proposal that lists nothing but adds may.`,
         );
       }
       continue;
     }
     const move = `${before.status} → ${after.status}`;
-    const allowed = before.status === after.status || move === "open → decided" || move === "decided → graduated";
+    const allowed = before.status === after.status || move === "open → decided" || move === "decided → adopted";
     if (!allowed) {
       const why =
-        move === "open → graduated"
-          ? "A request is approved (open → decided) in its own pull request before it graduates."
-          : "Status moves only open → decided → graduated.";
+        move === "open → adopted"
+          ? "A request is approved (open → decided) in its own pull request before it is adopted."
+          : "Status moves only open → decided → adopted.";
       problems.push(`${after.file} moved ${move}. ${why}`);
       continue;
     }

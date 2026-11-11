@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { addingInThisChange, graduating, nameProblems, parseAll, sharedNameProblems, parseProposal, transitionProblems, type Proposal } from "./proposals";
+import { addingInThisChange, adopting, nameProblems, parseAll, sharedNameProblems, parseProposal, transitionProblems, type Proposal } from "./proposals";
 
-const BODY = "# Proposal 0102: Add a side panel\n\n## Reason\n\nA frame beside the page.\n\n## Preview\n\n```\n[page | panel]\n```\n\n## Graduation, after approval\n\n- inputs\n";
+const BODY = "# Proposal 0102: Add a side panel\n\n## Reason\n\nA frame beside the page.\n\n## Preview\n\n```\n[page | panel]\n```\n\n## Adoption, after approval\n\n- inputs\n";
 
 function text(front: string, body = BODY): string {
   return `---\n${front}\n---\n${body}`;
@@ -33,7 +33,7 @@ describe("parseProposal", () => {
   });
 
   it("fails a file whose words match the old keywords but has no front matter", () => {
-    const parsed = parseProposal("p.md", "Status: decided.\n\nThe reason is a preview of the graduation for side-panel.\n");
+    const parsed = parseProposal("p.md", "Status: decided.\n\nThe reason is a preview of the adoption for side-panel.\n");
     expect(parsed.proposal).toBeNull();
     expect(parsed.problems.join("\n")).toContain("has no front matter");
   });
@@ -45,7 +45,7 @@ describe("parseProposal", () => {
   it("fails an unknown status or key", () => {
     const problems = parseProposal("p.md", text("status: approved\nchanges: []\nowner: ben")).problems.join("\n");
     expect(problems).toContain('unknown key "owner"');
-    expect(problems).toContain("status must be one of open, decided, graduated");
+    expect(problems).toContain("status must be one of open, decided, adopted");
   });
 
   it("fails changes written as a sentence instead of a list", () => {
@@ -55,12 +55,12 @@ describe("parseProposal", () => {
   it("fails a missing or empty section", () => {
     const body = "## Reason\n\n## Preview\n\nA preview.\n";
     const problems = parseProposal("p.md", text("status: open\nchanges: []", body)).problems;
-    expect(problems).toEqual(['"## Reason" section is empty.', 'has no "## Graduation" section.']);
+    expect(problems).toEqual(['"## Reason" section is empty.', 'has no "## Adoption" section.']);
   });
 
   it("does not take a section heading inside a code block", () => {
-    const body = "## Reason\n\nWhy.\n\n## Preview\n\n```md\n## Graduation\n\nNothing.\n```\n";
-    expect(parseProposal("p.md", text("status: open\nchanges: []", body)).problems).toEqual(['has no "## Graduation" section.']);
+    const body = "## Reason\n\nWhy.\n\n## Preview\n\n```md\n## Adoption\n\nNothing.\n```\n";
+    expect(parseProposal("p.md", text("status: open\nchanges: []", body)).problems).toEqual(['has no "## Adoption" section.']);
   });
 
   it("fails a quoted value or a comment, which would match nothing", () => {
@@ -70,8 +70,8 @@ describe("parseProposal", () => {
   });
 
   it("does not take a section heading inside an HTML comment", () => {
-    const body = "## Reason\n\nWhy.\n\n<!--\n## Preview\n\nTODO\n\n## Graduation\n\nTODO\n-->\n";
-    expect(parseProposal("p.md", text("status: open\nchanges: []", body)).problems).toEqual(['has no "## Preview" section.', 'has no "## Graduation" section.']);
+    const body = "## Reason\n\nWhy.\n\n<!--\n## Preview\n\nTODO\n\n## Adoption\n\nTODO\n-->\n";
+    expect(parseProposal("p.md", text("status: open\nchanges: []", body)).problems).toEqual(['has no "## Preview" section.', 'has no "## Adoption" section.']);
   });
 
   it("keeps a code block open past a fence line with an info string", () => {
@@ -80,54 +80,54 @@ describe("parseProposal", () => {
   });
 
   it("fails an opts-out entry that does not name a rule and a product", () => {
-    expect(parseProposal("p.md", text("status: graduated\nchanges: []\nopts-out:\n  - check:priority")).problems.join("\n")).toContain(
+    expect(parseProposal("p.md", text("status: adopted\nchanges: []\nopts-out:\n  - check:priority")).problems.join("\n")).toContain(
       'is not "<rule> for <product paths.source>"',
     );
   });
 });
 
 describe("a proposal that only adds", () => {
-  it("reads adds on a graduated proposal that lists nothing else", () => {
-    const parsed = parseProposal("p.md", text("status: graduated\nchanges: []\nadds:\n  - side-panel"));
+  it("reads adds on an adopted proposal that lists nothing else", () => {
+    const parsed = parseProposal("p.md", text("status: adopted\nchanges: []\nadds:\n  - side-panel"));
     expect(parsed.problems).toEqual([]);
-    expect(parsed.proposal).toMatchObject({ status: "graduated", changes: [], adds: ["side-panel"] });
+    expect(parsed.proposal).toMatchObject({ status: "adopted", changes: [], adds: ["side-panel"] });
   });
 
   it("fails adds alongside changes, retires or opts-out, so a mixed proposal cannot skip approval", () => {
     for (const extra of ["changes:\n  - TARGET_MIN_PX", "changes: []\nretires:\n  - check:disclosure", "changes: []\nopts-out:\n  - check:priority for products/nook"]) {
-      const parsed = parseProposal("p.md", text(`status: graduated\n${extra}\nadds:\n  - side-panel`));
+      const parsed = parseProposal("p.md", text(`status: adopted\n${extra}\nadds:\n  - side-panel`));
       expect(parsed.proposal).toBeNull();
       expect(parsed.problems.join("\n")).toContain("lists adds alongside");
     }
   });
 
-  it("fails adds on an open or decided proposal: it graduates in the pull request that adds it", () => {
+  it("fails adds on an open or decided proposal: it is adopted in the pull request that adds it", () => {
     for (const status of ["open", "decided"]) {
       const parsed = parseProposal("p.md", text(`status: ${status}\nchanges: []\nadds:\n  - side-panel`));
-      expect(parsed.problems.join("\n")).toContain("lists adds, so its status is graduated");
+      expect(parsed.problems.join("\n")).toContain("lists adds, so its status is adopted");
     }
   });
 
-  it("passes check:proposals as a new graduated proposal, and pins its adds once merged", () => {
-    const adding: Proposal = { ...proposal("p.md", "graduated"), adds: ["side-panel"] };
+  it("passes check:proposals as a new adopted proposal, and pins its adds once merged", () => {
+    const adding: Proposal = { ...proposal("p.md", "adopted"), adds: ["side-panel"] };
     expect(transitionProblems(new Map(), new Map([["p.md", adding]]))).toEqual([]);
     const widened: Proposal = { ...adding, adds: ["side-panel", "Card"] };
     expect(transitionProblems(new Map([["p.md", adding]]), new Map([["p.md", widened]])).join("\n")).toContain("its adds cannot change");
   });
 
   it("covers only in the pull request that adds it", () => {
-    const adding: Proposal = { ...proposal("p.md", "graduated"), adds: ["side-panel"] };
-    const plain = proposal("q.md", "graduated");
+    const adding: Proposal = { ...proposal("p.md", "adopted"), adds: ["side-panel"] };
+    const plain = proposal("q.md", "adopted");
     expect(addingInThisChange(new Map(), new Map([["p.md", adding], ["q.md", plain]]))).toEqual([adding]);
     expect(addingInThisChange(new Map([["p.md", adding]]), new Map([["p.md", adding]]))).toEqual([]);
   });
 });
 
-describe("graduating", () => {
-  it("returns proposals decided on the base and graduated in the head, as the base has them", () => {
+describe("adopting", () => {
+  it("returns proposals decided on the base and adopted in the head, as the base has them", () => {
     const base = new Map([["a.md", proposal("base/a.md", "decided", ["side-panel"])]]);
-    const head = new Map([["a.md", proposal("head/a.md", "graduated", ["side-panel", "toast"])]]);
-    expect(graduating(base, head)).toEqual([proposal("head/a.md", "decided", ["side-panel"])]);
+    const head = new Map([["a.md", proposal("head/a.md", "adopted", ["side-panel", "toast"])]]);
+    expect(adopting(base, head)).toEqual([proposal("head/a.md", "decided", ["side-panel"])]);
   });
 
   it("does not return a proposal the head adds, an open request, or one still decided", () => {
@@ -136,51 +136,51 @@ describe("graduating", () => {
       ["still.md", proposal("still.md", "decided", ["y"])],
     ]);
     const head = new Map([
-      ["new.md", proposal("new.md", "graduated", ["z"])],
-      ["open.md", proposal("open.md", "graduated", ["x"])],
+      ["new.md", proposal("new.md", "adopted", ["z"])],
+      ["open.md", proposal("open.md", "adopted", ["x"])],
       ["still.md", proposal("still.md", "decided", ["y"])],
     ]);
-    expect(graduating(base, head)).toEqual([]);
+    expect(adopting(base, head)).toEqual([]);
   });
 });
 
 describe("transitionProblems", () => {
-  it("allows open → decided and decided → graduated", () => {
+  it("allows open → decided and decided → adopted", () => {
     const base = new Map([
       ["a.md", proposal("a.md", "open", ["x"])],
       ["b.md", proposal("b.md", "decided", ["y"])],
     ]);
     const head = new Map([
       ["a.md", proposal("a.md", "decided", ["x", "x2"])],
-      ["b.md", proposal("b.md", "graduated", ["y"])],
+      ["b.md", proposal("b.md", "adopted", ["y"])],
     ]);
     expect(transitionProblems(base, head)).toEqual([]);
   });
 
-  it("fails a new proposal that graduates what it names in the same pull request", () => {
-    const head = new Map([["n.md", proposal("n.md", "graduated", ["side-panel"])]]);
-    expect(transitionProblems(new Map(), head).join("\n")).toContain("cannot graduate in the pull request that adds it");
+  it("fails a new proposal that adopts what it names in the same pull request", () => {
+    const head = new Map([["n.md", proposal("n.md", "adopted", ["side-panel"])]]);
+    expect(transitionProblems(new Map(), head).join("\n")).toContain("cannot be adopted in the pull request that adds it");
   });
 
-  it("allows a new graduated proposal that covers nothing the checks gate", () => {
-    expect(transitionProblems(new Map(), new Map([["n.md", proposal("n.md", "graduated")]]))).toEqual([]);
+  it("allows a new adopted proposal that covers nothing the checks gate", () => {
+    expect(transitionProblems(new Map(), new Map([["n.md", proposal("n.md", "adopted")]]))).toEqual([]);
   });
 
   it("fails a request that skips approval", () => {
-    const problems = transitionProblems(new Map([["a.md", proposal("a.md", "open")]]), new Map([["a.md", proposal("a.md", "graduated")]]));
-    expect(problems.join("\n")).toContain("moved open → graduated");
+    const problems = transitionProblems(new Map([["a.md", proposal("a.md", "open")]]), new Map([["a.md", proposal("a.md", "adopted")]]));
+    expect(problems.join("\n")).toContain("moved open → adopted");
   });
 
-  it("fails a graduation that widens what was approved", () => {
+  it("fails an adoption that widens what was approved", () => {
     const problems = transitionProblems(
       new Map([["a.md", proposal("a.md", "decided", ["side-panel"])]]),
-      new Map([["a.md", proposal("a.md", "graduated", ["side-panel", "toast"])]]),
+      new Map([["a.md", proposal("a.md", "adopted", ["side-panel", "toast"])]]),
     );
     expect(problems.join("\n")).toContain("its changes cannot change");
   });
 
   it("does not compare a base file that has no fields yet", () => {
-    const head = new Map([["a.md", proposal("a.md", "graduated", ["paths.web"])]]);
+    const head = new Map([["a.md", proposal("a.md", "adopted", ["paths.web"])]]);
     expect(transitionProblems(new Map(), head, new Set(["a.md"]))).toEqual([]);
   });
 
@@ -196,9 +196,44 @@ describe("transitionProblems", () => {
     expect(transitionProblems(new Map([["a.md", proposal("a.md", "open", ["x"])]]), new Map())).toEqual([]);
   });
 
-  it("fails moving a graduated proposal back", () => {
-    const problems = transitionProblems(new Map([["a.md", proposal("a.md", "graduated")]]), new Map([["a.md", proposal("a.md", "decided")]]));
-    expect(problems.join("\n")).toContain("moved graduated → decided");
+  it("fails moving an adopted proposal back", () => {
+    const problems = transitionProblems(new Map([["a.md", proposal("a.md", "adopted")]]), new Map([["a.md", proposal("a.md", "decided")]]));
+    expect(problems.join("\n")).toContain("moved adopted → decided");
+  });
+});
+
+describe("names before graduate was renamed adopt", () => {
+  const legacy = text("status: graduated\nchanges: []", BODY.replace("## Adoption", "## Graduation"));
+
+  it("fails status: graduated and a ## Graduation section in the change, naming the new names", () => {
+    const problems = parseProposal("p.md", legacy).problems;
+    expect(problems).toEqual(['status "graduated" was renamed: write "status: adopted".', 'has "## Graduation", which was renamed: call the section "## Adoption".']);
+  });
+
+  it("reads them on the base as adopted and ## Adoption", () => {
+    const parsed = parseProposal("p.md", legacy, { base: true });
+    expect(parsed.problems).toEqual([]);
+    expect(parsed.proposal?.status).toBe("adopted");
+  });
+
+  it("still fails a base proposal with neither section name", () => {
+    expect(parseProposal("p.md", text("status: graduated\nchanges: []", "## Reason\n\nWhy.\n\n## Preview\n\nA frame.\n"), { base: true }).problems).toEqual([
+      'has no "## Adoption" section.',
+    ]);
+  });
+
+  it("lets a base proposal written before the rename be adopted, and keep its status, in a change that uses the new names", () => {
+    const decided = text("status: decided\nchanges:\n  - side-panel", BODY.replace("## Adoption", "## Graduation"));
+    const base = parseAll(new Map([["a.md", decided], ["b.md", legacy]]), { base: true });
+    const head = parseAll(
+      new Map([
+        ["a.md", text("status: adopted\nchanges:\n  - side-panel")],
+        ["b.md", text("status: adopted\nchanges: []")],
+      ]),
+    );
+    expect([...base.unparsed, ...head.unparsed]).toEqual([]);
+    expect(adopting(base.proposals, head.proposals).map((proposal) => proposal.file)).toEqual(["a.md"]);
+    expect(transitionProblems(base.proposals, head.proposals)).toEqual([]);
   });
 });
 
