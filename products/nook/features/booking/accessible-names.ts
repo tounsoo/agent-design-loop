@@ -30,4 +30,10 @@ export const accessibleNames = {
     { role: "button", name: "Hold room", disabled: true },
     { role: "button", name: "Book room", disabled: false },
   ],
+  "state=expired": [
+    { role: "status", text: "Hold ended Harbor is no longer held for you. Book it now, or pick another room." },
+    { role: "button", name: "Hold room", disabled: true },
+    { role: "button", name: "Book room", disabled: false },
+    { role: "button", name: "All rooms", disabled: false },
+  ],
 } satisfies AccessibleNames;

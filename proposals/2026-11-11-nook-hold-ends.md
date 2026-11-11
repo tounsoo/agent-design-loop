@@ -19,7 +19,7 @@ The ending comes from the clock, not from the person, so it is a system event li
 ## States
 
 - **Held:** unchanged. "Room held" says the room is held for 15 minutes, Book room is the primary action, and Hold room and the length field are locked.
-- **Hold ended:** new. A warning alert, "Hold ended", replaces the held alert. Book room books the room for the length chosen before the hold, All rooms is enabled, and Hold room and the length field stay locked.
+- **Hold ended:** new. A warning alert, "Hold ended", replaces the held alert in the same status region, so a screen reader announces it. Book room books the room for the length chosen before the hold, All rooms is enabled, and Hold room and the length field stay locked.
 - **Booked after the hold ended:** the booked page, such as "Harbor is yours for 30 minutes.", the same as booking from a live hold.
 - **Empty:** Out of scope, a hold ends only on a room the person already chose, so there is always a room on the page.
 - **Loading:** Out of scope, the hold ends on the device's clock, with no request to wait for.
@@ -49,4 +49,4 @@ Screenshots of the held and expired previews, before and after, are in the galle
 
 ## Graduation
 
-`products/nook/flows/booking/states.ts` adds `expired` to `modeledStates`, an `expired` flow state, a `hold-ended` system event and the hold's length, `HOLD_MINUTES`. `transition.ts` moves a hold to `expired` on `hold-ended`, and books or goes back from `expired`. `shipped.ts` lists `hold-ended` as a system event. `Booking.tsx` sends `hold-ended` once a hold has lasted `HOLD_MINUTES`, except on a held preview opened from the URL, which stays as it is. `views.tsx` renders `expired`, and `readPreview.ts` opens it. `App.test.tsx` covers the hold ending and booking after it. A review note, `products/nook/review/hold-ends.md`, records what the checks leave open.
+`products/nook/flows/booking/states.ts` adds `expired` to `modeledStates`, an `expired` flow state, a `hold-ended` system event and the hold's length, `HOLD_MINUTES`. `transition.ts` moves a hold to `expired` on `hold-ended`, and books or goes back from `expired`. `shipped.ts` lists `hold-ended` as a system event. `Booking.tsx` sends `hold-ended` once a hold has lasted `HOLD_MINUTES`, except on a held preview opened from the URL, which stays as it is. `views.tsx` renders `expired`, and `readPreview.ts` opens it. `accessible-names.ts` declares what a screen reader hears on it. `App.test.tsx` covers the hold ending and booking after it. A review note, `products/nook/review/hold-ends.md`, records what the checks leave open.
