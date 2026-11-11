@@ -19,8 +19,4 @@ A hold lasts 15 minutes, and the held alert says so, but until this change a hol
 
 ## Screenshots
 
-The booking page at 1280 px, light theme. Before, a held room 15 minutes in still read "Room held". After, the same moment reads "Hold ended". The held preview itself renders pixel for pixel as before.
-
-![Before: the held booking page](screenshots/hold-ends-before.png)
-
-![After: the hold-ended booking page](screenshots/hold-ends-after.png)
+The [screenshot gallery](screenshots/hold-ends/README.md) shows the held and hold-ended previews at 1280 by 900. Before, a held room 15 minutes in still read "Room held". After, the same moment reads "Hold ended". The held preview itself renders as it did before this change.

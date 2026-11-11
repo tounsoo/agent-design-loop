@@ -16,6 +16,18 @@ The held alert promises "Harbor is held for you for 15 minutes", but Nook had no
 
 The ending comes from the clock, not from the person, so it is a system event like `loaded` and `failed`, not a step. Neither task's route gets longer, and `check:step-budget` measures the same routes as before.
 
+## States
+
+- **Held:** unchanged. "Room held" says the room is held for 15 minutes, Book room is the primary action, and Hold room and the length field are locked.
+- **Hold ended:** new. A warning alert, "Hold ended", replaces the held alert. Book room books the room for the length chosen before the hold, All rooms is enabled, and Hold room and the length field stay locked.
+- **Booked after the hold ended:** the booked page, such as "Harbor is yours for 30 minutes.", the same as booking from a live hold.
+- **Empty:** Out of scope, a hold ends only on a room the person already chose, so there is always a room on the page.
+- **Loading:** Out of scope, the hold ends on the device's clock, with no request to wait for.
+- **Error:** Out of scope, booking is local to Nook's flow and cannot fail after a hold ends.
+- **Long content:** Out of scope, room names come from Nook's fixed list of three short names.
+- **Permissions:** Out of scope, Nook has no accounts, so anyone on the page may book.
+- **Over time:** a hold made by the person ends after 15 minutes and the page moves from Held to Hold ended. A held preview opened from the URL never ends. Hold ended does not change with more time.
+
 ## Preview
 
 The booking page in `expired`, at `?state=expired`:
@@ -25,6 +37,7 @@ The booking page in `expired`, at `?state=expired`:
 - All rooms is enabled again, so the person can pick another room.
 - Hold room stays disabled on this screen, so the ended hold is not renewed in one click. Going back through All rooms and choosing the room again starts a new hold, at the default length, as it would for any room.
 - The length field stays locked, as it is on a held room.
+- The page shows one status at a time: "Hold ended" replaces "Room held" rather than sitting beside it.
 
 `check:inventories` on the pull request that adds it:
 
@@ -32,7 +45,7 @@ The booking page in `expired`, at `?state=expired`:
 inventory: flow states changed from ["booked","choosing","error","held","loading","no-rooms"] to ["booked","choosing","error","expired","held","loading","no-rooms"]. Graduates proposals/2026-11-11-nook-hold-ends.md (only adds, so it graduates in the pull request that adds it, which a designer reviews).
 ```
 
-Screenshots of the held and expired previews are in that pull request.
+Screenshots of the held and expired previews, before and after, are in the gallery at `products/nook/review/screenshots/hold-ends/`.
 
 ## Graduation
 
