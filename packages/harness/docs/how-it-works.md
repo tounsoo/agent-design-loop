@@ -108,13 +108,14 @@ flowchart TB
   n_proposal_pull_request[("checkpoint: Open a pull request with the proposal")]
   n_approval(["human: A designer reviews the proposal's pull request"])
   n_graduate["llm: Graduate it into the inventory data or a harness rule"]
+  n_screenshots["llm: Capture each state the change touches, with a gallery the pull request links"]
   n_note["llm: Write the leftover judgment in the review notes"]
   n_pull_request[("checkpoint: Open the pull request for review")]
   n_read --> n_route
   n_route -->|fits| n_build
   n_route -->|needs a new pattern| n_propose
   n_build --> n_checks
-  n_checks -->|pass| n_note
+  n_checks -->|pass| n_screenshots
   n_checks -->|fail| n_triage
   n_triage -->|inside| n_build
   n_triage -->|outside| n_propose
@@ -125,6 +126,7 @@ flowchart TB
   n_approval -->|approved| n_graduate
   n_approval -->|declined| n_build
   n_graduate --> n_build
+  n_screenshots --> n_note
   n_note --> n_pull_request
 ```
 
@@ -138,7 +140,7 @@ Each node has a kind, and the shape in the diagram shows it.
 - **human.** The run stops until a person decides. Its `gate` is a `CODEOWNERS` pattern, and the review `CODEOWNERS` requests on that pull request is the approval. Its edges are `approved` and `declined`. `main` has no branch protection, so GitHub requests the review but does not block a merge without it.
 - **checkpoint.** The work is saved where the next run and the reviewer read it, as a pull request. A checkpoint with no edge out ends the run. The proposal's checkpoint opens the pull request the human node reviews.
 
-The graph's `state` lists what the nodes read and write: the inventories, the harness rules, the proposals, the product's UI and its review notes. A graduated proposal writes the inventories or the rules, so the next run reads a larger set.
+The graph's `state` lists what the nodes read and write: the inventories, the harness rules, the proposals, the product's UI and its `review/` folder, which holds the review notes and each change's screenshots. A graduated proposal writes the inventories or the rules, so the next run reads a larger set.
 
 `npm run check:loop` fails the build when the graph is not one an agent can follow:
 
@@ -262,6 +264,18 @@ The cases the gate has to pass, directly under `packages/harness/fixtures/`:
 `products/nook/` is a second product, a room booking app called Nook, with its own `harness.config.ts`, inputs, rules, catalog, flow, page types (`booking` and `rooms`), layout and content layout. It is not a copy of Meridian: its record page is `BookingPage`, with its one primary action, Book room, in `BookingPage.Action`, and its list is `RoomsPage`. It passes every rule check without a change to a rule. CI runs it as its own job with `npm run check:product -- --config products/nook/harness.config.ts`, which runs each check in `check:rules` against that config, `check:target-size` and `check:accessible-names` included. `npm run check:nook` runs the same command, and `npm run dev:nook` starts the app.
 
 Anything the checks cannot decide goes in the product's `review/` folder as a short note. Meridian's notes are [`approve-vendor-invoice.md`](../../../products/meridian/review/approve-vendor-invoice.md), [`inventories.md`](../../../products/meridian/review/inventories.md), and [`content-layouts.md`](../../../products/meridian/review/content-layouts.md), in `products/meridian/review/`. Each one splits "what the checks already decided" from "what the checks cannot decide."
+
+### Screenshots
+
+A reviewer judges a screen by looking at it, so once the build gate passes, the loop's `screenshots` node captures each state the change touches. [Proposal 2026-11-11-screenshot-gallery](../../../proposals/2026-11-11-screenshot-gallery.md) records the decision.
+
+```sh
+npm run screenshots -- --config products/meridian/harness.config.ts --out products/meridian/review/screenshots/<change> --base origin/main --state invoice-approved
+```
+
+`<change>` is the name the change's trace uses, `traces/<change>.jsonl`. The script builds the product, serves it on port 4173 and opens the same previews `check:target-size` does, every modeled state once per query string its flow's `previews` lists, at 1280 by 900 CSS px in the same headless Chrome. It saves one full-page PNG per preview, named by its query, such as `ready--page-detail.png`. A state can have several previews: Meridian's `ready` has five. Each run replaces the whole folder, so a retake repeats every flag. `--state <name>` keeps one state's previews and repeats, and leaving it out takes every preview. `--base <ref>` takes the same previews at that commit too, from a temporary git worktree that borrows the installed packages, so the folder holds `before/` and `after/`. A base built with packages newer than its own lockfile asks for can differ from what shipped then, which matters only for a change to a package version.
+
+The folder also gets a `README.md`, the gallery: a table of before and after, or one section per preview without a base, with each image wrapped in a link to its own file. GitHub renders it with the images, and a click opens one full size. [`screenshots-example/`](screenshots-example/README.md) is one, of two Meridian states without a base. An agent's pull request description may not carry images, so it carries none: one plain link to the gallery, pinned to the pushed commit's full SHA, is enough. The script prints that line, with a `<sha>` to replace, and the whole `https://github.com/` address: a relative path resolves only on github.com itself, so it breaks in the GitHub app and in email, and a branch link breaks once the branch is deleted. No check requires the screenshots: the trace records the step, and the reviewer sees whether the description links a gallery.
 
 ### The trace
 
