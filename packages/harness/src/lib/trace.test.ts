@@ -60,6 +60,7 @@ describe("traceProblems", () => {
       { node: "graduate" },
       { node: "build" },
       { node: "checks", when: "pass" },
+      { node: "screenshots" },
       { node: "note" },
       { node: "pull-request" },
     );
@@ -75,6 +76,7 @@ describe("traceProblems", () => {
       { node: "graduate" },
       { node: "build" },
       { node: "checks", when: "pass" },
+      { node: "screenshots" },
       { node: "note" },
       { node: "pull-request" },
     );
@@ -153,7 +155,7 @@ describe("traceProblems", () => {
       { node: "proposal-pull-request" },
     );
     expect(traceProblems(designLoop, paused)).toEqual([]);
-    const next = lines({ node: "read" }, { node: "route", when: "fits" }, { node: "build" }, { node: "checks", when: "pass" }, { node: "note" }, { node: "pull-request" });
+    const next = lines({ node: "read" }, { node: "route", when: "fits" }, { node: "build" }, { node: "checks", when: "pass" }, { node: "screenshots" }, { node: "note" }, { node: "pull-request" });
     expect(traceProblems(designLoop, `${paused}${next}`)).toEqual([]);
   });
 
