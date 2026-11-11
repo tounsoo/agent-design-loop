@@ -1,9 +1,10 @@
 import path from "node:path";
 import ts from "typescript";
+import { config } from "./lib/config";
 import { attributeValue, elementText, jsxElements, jsxTagName, lineOf, listSourceFiles, parseFile, walk } from "./lib/jsx";
 
 const rootArg = process.argv.indexOf("--root");
-const roots = rootArg === -1 ? ["src/features"] : [process.argv[rootArg + 1] ?? ""];
+const roots = rootArg === -1 ? [config.paths.features] : [process.argv[rootArg + 1] ?? ""];
 
 type ButtonHit = {
   line: number;
@@ -76,7 +77,7 @@ for (const root of roots) {
 }
 
 if (rootArg === -1 && pages < 1) {
-  violations.push("primary slot: src/features does not render a DetailPage.");
+  violations.push(`primary slot: ${config.paths.features} does not render a DetailPage.`);
 }
 
 if (rootArg !== -1 && pages < 1) {

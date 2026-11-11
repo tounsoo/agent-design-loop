@@ -1,3 +1,6 @@
 # Proposals change the rules the next run is constrained by.
 # Review is required. Merging a proposal does not apply it.
 /proposals/ @tounsoo
+# The harness config says where every inventory lives. Changing a path can
+# empty a check, so it needs a proposal and the same review.
+/harness.config.ts @tounsoo

@@ -1,7 +1,9 @@
 import path from "node:path";
 import ts from "typescript";
-import { disclosed_sections, priority } from "../src/inputs/product";
+import { config, loadInputs } from "./lib/config";
 import { attributeValue, elementText, jsxTagName, lineOf, listSourceFiles, parseFile, walk } from "./lib/jsx";
+
+const { disclosed_sections, priority } = await loadInputs();
 
 const primaryItem = priority.find((item) => item.rank === 1);
 const secondaryItem = priority.find((item) => item.rank === 2);
@@ -22,7 +24,7 @@ function flag(name: string, fallback: string): string {
   return value;
 }
 
-const featuresRoot = path.resolve(flag("--features", "src/features"));
+const featuresRoot = path.resolve(flag("--features", config.paths.features));
 
 type Hit = { file: string; line: number; text: string; inDisclosure: boolean; variant: string | null | "dynamic" };
 

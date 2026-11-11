@@ -86,7 +86,7 @@ npm run check:fixtures && npm run check
 | `npm run check:disclosure` | Disclosure depth or count above the cap |
 | `npm run check:priority` | A primary action that is not Approve, or Request changes shown as primary |
 | `npm run check:one-thing` | More than one shell for a page type, or a primary on a collection page. Page-type membership is `allowed_page_types`, which this check reads |
-| `npm run check:inventories` | A chrome layout, content layout, or page type outside the allowlists; a collection body that is not a registered content layout; or an inventory-set change versus the pull request base with no new proposal. A list the base does not export yet may be recorded once. That bootstrap covered `allowed_layouts`, and it covers `allowed_content_layouts` |
+| `npm run check:inventories` | A chrome layout, content layout, or page type outside the allowlists; a collection body that is not a registered content layout; or an inventory-set change versus the pull request base with no new proposal. A list the base does not export yet may be recorded once. That bootstrap covered `allowed_layouts` and `allowed_content_layouts`, and it covers `harness.config.ts`, which is an inventory too |
 | `npm run check:state-coverage` | A modeled flow state with no view |
 | `npm run check:target-size` | An invoice control under WCAG 2.5.8 (24 CSS px), spacing exception included. Needs Chrome. |
 | `npm run test` | The flow, the three-step journey, the request-changes branch, and the rendered states |
@@ -108,6 +108,7 @@ When a human approves a proposal, a separate change graduates it into the invent
 ## Where the constraints live
 
 ```
+harness.config.ts                    where the checks find Meridian's inventories, flows and UI
 src/catalog/                         only UI entry; re-exports @tounsoo/todae
 src/layouts/app-shell/               Meridian frame: header, nav, drawer; no page type
 src/content-layouts/data-table/     collection body: filter bar, table, pagination
@@ -123,4 +124,4 @@ proposals/                           escape hatch
 review/                              judgment the checks cannot make
 ```
 
-Despite the name, `src/harness/` is not the generic loop. It is Meridian's state preview: it reads invoice ids and Meridian routes. The generic parts are the check scripts, `fixtures/`, `proposals/`, and `review/`.
+Despite the name, `src/harness/` is not the generic loop. It is Meridian's state preview: it reads invoice ids and Meridian routes. The generic parts are the check scripts, `fixtures/`, `proposals/`, and `review/`. The checks read Meridian's paths from `harness.config.ts`, not from constants of their own.

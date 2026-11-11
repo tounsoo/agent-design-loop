@@ -1,12 +1,12 @@
 import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { tasks } from "../src/inputs/product";
+import { config, loadInputs } from "./lib/config";
 import { eventEdges, shortestPath, type TaskEdge } from "../src/flows/invoice-approval/shortest-path";
 
 /**
- * Every task in src/inputs/product.ts#tasks has one task graph, a graph.ts
- * under src/flows that exports its taskId. The check measures two paths per
+ * Every task in the product inputs' tasks has one task graph, a graph.ts
+ * under the flows path that exports its taskId. The check measures two paths per
  * task against max_steps:
  *
  * - the modeled path: the shortest path through the task graph;
@@ -38,8 +38,9 @@ function flag(name: string): string | null {
   return value;
 }
 
+const { tasks } = await loadInputs();
 const graphFlag = flag("--graph");
-const flowsRoot = path.resolve(flag("--flows") ?? "src/flows");
+const flowsRoot = path.resolve(flag("--flows") ?? config.paths.flows);
 const violations: string[] = [];
 
 async function load(file: string): Promise<GraphModule> {

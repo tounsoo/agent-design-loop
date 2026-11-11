@@ -3,6 +3,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import ts from "typescript";
 import { collectionCompositionViolations } from "./lib/collection-body";
+import { CONFIG_FILE, config, memberOf, pageTypesBarrel, parseConfig, type HarnessConfig } from "./lib/config";
 import { walk } from "./lib/jsx";
 
 /**
@@ -19,13 +20,11 @@ import { walk } from "./lib/jsx";
  * allowed_layouts is the app frame. allowed_content_layouts are the
  * compositions that fill a page type's body. A collection ready body has to
  * be one of those. Loading, empty, and error may stay in the page shell.
+ *
+ * harness.config.ts says where each inventory lives, so it is an inventory
+ * too. The base is read with its own config. A base without one is read with
+ * the head's paths, once: the pull request that records the config.
  */
-
-const PRODUCT = "src/inputs/product.ts";
-const RULES = "src/rules/ux-rules.ts";
-const CATALOG = "src/catalog/index.ts";
-const STATES = "src/flows/invoice-approval/states.ts";
-const PAGE_TYPES = "src/page-types/index.ts";
 
 type StepBudget = { id: string; max_steps: number };
 type PriorityItem = { action: string; rank: number; level: string };
@@ -43,6 +42,8 @@ type Inventory = {
   disclosuresPerPage: number;
   visibleQuestions: number;
   targetMinPx: number;
+  /** The root's own harness config, or null when the root has none. */
+  config: HarnessConfig | null;
 };
 
 type Root = { kind: "dir"; dir: string } | { kind: "git"; rev: string };
@@ -91,6 +92,31 @@ function readText(root: Root, file: string): string {
     return execFileSync("git", ["show", `${root.rev}:${file}`], { encoding: "utf8" });
   } catch {
     return fail(`inventory: base ${root.rev} is missing ${file}.`);
+  }
+}
+
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function configAt(root: Root): HarnessConfig | null {
+  let text: string | null = null;
+  if (root.kind === "dir") {
+    const full = path.join(root.dir, CONFIG_FILE);
+    if (existsSync(full)) text = readFileSync(full, "utf8");
+  } else {
+    try {
+      text = execFileSync("git", ["show", `${root.rev}:${CONFIG_FILE}`], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+    } catch {
+      text = null;
+    }
+  }
+  if (text === null) return null;
+  const label = root.kind === "dir" ? path.join(root.dir, CONFIG_FILE) : `${root.rev}:${CONFIG_FILE}`;
+  try {
+    return parseConfig(text, label);
+  } catch (error) {
+    return fail(`inventory: ${label}: ${errorText(error)}`);
   }
 }
 
@@ -198,10 +224,14 @@ function catalogExports(source: ts.SourceFile): string[] {
 }
 
 function readInventory(root: Root): Inventory {
-  const product = parseSource(PRODUCT, readText(root, PRODUCT));
-  const rules = parseSource(RULES, readText(root, RULES));
-  const catalog = parseSource(CATALOG, readText(root, CATALOG));
-  const states = parseSource(STATES, readText(root, STATES));
+  const own = configAt(root);
+  const { paths, flows } = own ?? config;
+  const product = parseSource(paths.inputs, readText(root, paths.inputs));
+  const rules = parseSource(paths.rules, readText(root, paths.rules));
+  const catalog = parseSource(paths.catalog, readText(root, paths.catalog));
+  const flowStates = flows.flatMap((flow) =>
+    stringArray(exportedInitializer(parseSource(flow.states, readText(root, flow.states)), "modeledStates"), "modeledStates"),
+  );
   const tasks = objectRecords(exportedInitializer(product, "tasks"), "tasks");
   const priority = objectRecords(exportedInitializer(product, "priority"), "priority");
   return {
@@ -209,7 +239,7 @@ function readInventory(root: Root): Inventory {
     contentLayouts: optionalStringArray(product, "allowed_content_layouts"),
     pageTypes: sortedUnique(stringArray(exportedInitializer(product, "allowed_page_types"), "allowed_page_types")),
     catalogExports: catalogExports(catalog),
-    flowStates: sortedUnique(stringArray(exportedInitializer(states, "modeledStates"), "modeledStates")),
+    flowStates: sortedUnique(flowStates),
     maxSteps: tasks
       .map((task) => ({ id: requiredString(task, "id", "tasks"), max_steps: requiredNumber(task, "max_steps", "tasks") }))
       .sort((left, right) => left.id.localeCompare(right.id)),
@@ -225,6 +255,7 @@ function readInventory(root: Root): Inventory {
     disclosuresPerPage: exportedNumber(rules, "MAX_DISCLOSURES_PER_PAGE"),
     visibleQuestions: exportedNumber(rules, "MAX_VISIBLE_QUESTIONS"),
     targetMinPx: exportedNumber(rules, "TARGET_MIN_PX"),
+    config: own,
   };
 }
 
@@ -248,6 +279,16 @@ function membershipChanges(base: Inventory, head: Inventory): string[] {
   compare("MAX_DISCLOSURES_PER_PAGE", base.disclosuresPerPage, head.disclosuresPerPage);
   compare("MAX_VISIBLE_QUESTIONS", base.visibleQuestions, head.visibleQuestions);
   compare("TARGET_MIN_PX", base.targetMinPx, head.targetMinPx);
+  if (base.config !== null) {
+    if (head.config === null) lines.push(`${CONFIG_FILE} was removed.`);
+    else {
+      const keys = sortedUnique([...Object.keys(base.config.paths), ...Object.keys(head.config.paths)]);
+      for (const key of keys) {
+        compare(`${CONFIG_FILE} paths.${key}`, base.config.paths[key as keyof HarnessConfig["paths"]], head.config.paths[key as keyof HarnessConfig["paths"]]);
+      }
+      compare(`${CONFIG_FILE} flows`, base.config.flows, head.config.flows);
+    }
+  }
   return lines;
 }
 
@@ -290,12 +331,7 @@ function listTypeScript(root: string): string[] {
   return files;
 }
 
-function memberFromSpecifier(specifier: string, segment: string): string | null {
-  const match = new RegExp(`(?:^|/)${segment}/([^/"']+)`).exec(specifier);
-  return match?.[1] ?? null;
-}
-
-function importedMembers(root: string, segment: string): string[] {
+function importedMembers(root: string, inventoryDir: string): string[] {
   const ids: string[] = [];
   for (const file of listTypeScript(root)) {
     const source = parseSource(file, readFileSync(file, "utf8"));
@@ -307,7 +343,7 @@ function importedMembers(root: string, segment: string): string[] {
           ? node.moduleSpecifier.text
           : null;
       if (!specifier) return;
-      const id = memberFromSpecifier(specifier, segment);
+      const id = memberOf(specifier, inventoryDir);
       if (id) ids.push(id);
     });
   }
@@ -421,10 +457,11 @@ function resolveBaseRev(): string {
   return tryGit(["merge-base", "HEAD", main])?.trim() || fail("inventory: cannot resolve the pull request base.");
 }
 
-function introducedLists(base: Inventory): string[] {
+function introducedLists(base: Inventory, head: Inventory): string[] {
   const introduced: string[] = [];
   if (base.layouts === null) introduced.push("allowed_layouts");
   if (base.contentLayouts === null) introduced.push("allowed_content_layouts");
+  if (base.config === null && head.config !== null) introduced.push(CONFIG_FILE);
   return introduced;
 }
 
@@ -444,7 +481,7 @@ if ((headFlag === null) !== (baseFlag === null)) fail("inventory: pass both --he
 
 if (layoutsFlag) {
   const allowed = readInventory({ kind: "dir", dir: process.cwd() }).layouts;
-  if (!allowed) fail("inventory: allowed_layouts is missing from src/inputs/product.ts.");
+  if (!allowed) fail(`inventory: allowed_layouts is missing from ${config.paths.inputs}.`);
   const violations = directoryDrift("layout", layoutsFlag, allowed);
   if (violations.length > 0) {
     for (const violation of violations) console.error(`inventory: ${violation}`);
@@ -456,7 +493,7 @@ if (layoutsFlag) {
 
 if (contentLayoutsFlag) {
   const allowed = readInventory({ kind: "dir", dir: process.cwd() }).contentLayouts;
-  if (!allowed) fail("inventory: allowed_content_layouts is missing from src/inputs/product.ts.");
+  if (!allowed) fail(`inventory: allowed_content_layouts is missing from ${config.paths.inputs}.`);
   const violations = directoryDrift("content layout", contentLayoutsFlag, allowed);
   if (violations.length > 0) {
     for (const violation of violations) console.error(`inventory: ${violation}`);
@@ -468,10 +505,10 @@ if (contentLayoutsFlag) {
 
 if (featuresFlag) {
   const allowed = readInventory({ kind: "dir", dir: process.cwd() }).contentLayouts;
-  if (!allowed) fail("inventory: allowed_content_layouts is missing from src/inputs/product.ts.");
+  if (!allowed) fail(`inventory: allowed_content_layouts is missing from ${config.paths.inputs}.`);
   const dir = path.resolve(featuresFlag);
   const localStyles = path.join(dir, "styles.css");
-  const stylesPath = existsSync(localStyles) ? localStyles : path.resolve("src/styles.css");
+  const stylesPath = existsSync(localStyles) ? localStyles : path.resolve(config.paths.styles);
   const violations = collectionCompositionViolations(dir, allowed, stylesPath);
   if (violations.length > 0) {
     for (const violation of violations) console.error(`inventory: ${violation}`);
@@ -488,7 +525,7 @@ if (headFlag && baseFlag) {
   const changes = membershipChanges(base, head);
   const explained = explainingProposals(new Set(proposalsOnDisk(path.resolve(baseFlag)).keys()), proposalsOnDisk(path.resolve(headFlag)));
   if (!reportMembership(changes, explained)) process.exit(1);
-  const introduced = introducedLists(base);
+  const introduced = introducedLists(base, head);
   const note =
     introduced.length > 0
       ? `base has no ${introduced.join(" or ")}; recorded the head inventories.`
@@ -498,32 +535,33 @@ if (headFlag && baseFlag) {
 }
 
 const head = readInventory({ kind: "dir", dir: process.cwd() });
-if (!head.layouts) fail("inventory: allowed_layouts is missing from src/inputs/product.ts.");
-if (!head.contentLayouts) fail("inventory: allowed_content_layouts is missing from src/inputs/product.ts.");
+if (!head.layouts) fail(`inventory: allowed_layouts is missing from ${config.paths.inputs}.`);
+if (!head.contentLayouts) fail(`inventory: allowed_content_layouts is missing from ${config.paths.inputs}.`);
 
 const violations = [
-  ...directoryDrift("layout", "src/layouts", head.layouts),
-  ...directoryDrift("content layout", "src/content-layouts", head.contentLayouts),
-  ...directoryDrift("page type", "src/page-types", head.pageTypes),
-  ...collectionCompositionViolations(path.resolve("src/features"), head.contentLayouts, path.resolve("src/styles.css")),
+  ...directoryDrift("layout", config.paths.layouts, head.layouts),
+  ...directoryDrift("content layout", config.paths.contentLayouts, head.contentLayouts),
+  ...directoryDrift("page type", config.paths.pageTypes, head.pageTypes),
+  ...collectionCompositionViolations(path.resolve(config.paths.features), head.contentLayouts, path.resolve(config.paths.styles)),
 ];
 
-const declaredPages = sortedUnique(stringArray(exportedInitializer(parseSource(PAGE_TYPES, readText({ kind: "dir", dir: process.cwd() }, PAGE_TYPES)), "pageTypes"), "pageTypes"));
+const declaredPages = sortedUnique(stringArray(exportedInitializer(parseSource(pageTypesBarrel, readText({ kind: "dir", dir: process.cwd() }, pageTypesBarrel)), "pageTypes"), "pageTypes"));
 if (JSON.stringify(declaredPages) !== JSON.stringify(head.pageTypes)) {
   violations.push(`pageTypes ${JSON.stringify(declaredPages)} drifted from allowed_page_types ${JSON.stringify(head.pageTypes)}.`);
 }
 
-for (const id of barrelMembers(path.resolve(PAGE_TYPES))) {
+for (const id of barrelMembers(path.resolve(pageTypesBarrel))) {
   if (!head.pageTypes.includes(id)) violations.push(`undeclared page type "${id}" is not in the inventory.`);
 }
 
-for (const id of importedMembers(path.resolve("src"), "layouts")) {
+const sourceRoot = path.resolve(config.paths.source);
+for (const id of importedMembers(sourceRoot, config.paths.layouts)) {
   if (!head.layouts.includes(id)) violations.push(`undeclared layout "${id}" is not in the inventory.`);
 }
-for (const id of importedMembers(path.resolve("src"), "content-layouts")) {
+for (const id of importedMembers(sourceRoot, config.paths.contentLayouts)) {
   if (!head.contentLayouts.includes(id)) violations.push(`undeclared content layout "${id}" is not in the inventory.`);
 }
-for (const id of importedMembers(path.resolve("src"), "page-types")) {
+for (const id of importedMembers(sourceRoot, config.paths.pageTypes)) {
   if (!head.pageTypes.includes(id)) violations.push(`undeclared page type "${id}" is not in the inventory.`);
 }
 
@@ -538,7 +576,7 @@ if (violations.length > 0 || !matched) {
   process.exit(1);
 }
 
-const introduced = introducedLists(base);
+const introduced = introducedLists(base, head);
 if (introduced.length > 0) console.log(`inventory: base has no ${introduced.join(" or ")}; recorded the current inventories.`);
 else console.log(`inventory: membership matches ${baseRev.slice(0, 7)}.`);
 console.log(`inventory: ${summary(head)}`);

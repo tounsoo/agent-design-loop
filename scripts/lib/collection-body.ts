@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import ts from "typescript";
+import { styleOwnerDirs } from "./config";
 import { jsxTagName, listSourceFiles, parseFile, walk } from "./jsx";
 
 /**
@@ -336,7 +337,7 @@ function pageCssViolations(featureFiles: readonly string[], stylesPath: string):
   if (!existsSync(stylesPath)) return [];
   const styled = stylesheetClasses(readFileSync(stylesPath, "utf8"));
   const used = usedClasses(featureFiles);
-  const owners = ["src/content-layouts", "src/layouts", "src/page-types"].flatMap((dir) =>
+  const owners = styleOwnerDirs.flatMap((dir) =>
     existsSync(dir) ? listSourceFiles(path.resolve(dir)) : [],
   );
   const owned = usedClasses(owners);

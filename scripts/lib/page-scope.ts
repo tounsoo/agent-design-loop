@@ -1,11 +1,13 @@
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 import ts from "typescript";
-import { allowed_layouts, allowed_page_types } from "../../src/inputs/product";
+import { config, importsFrom, loadInputs, memberOf } from "./config";
 import { jsxTagName, listSourceFiles, parseFile, walk } from "./jsx";
 
+const { allowed_layouts, allowed_page_types } = await loadInputs();
+
 /**
- * A page is one rendered page-type shell in src/features, plus everything that
+ * A page is one rendered page-type shell in the features path, plus everything that
  * renders on it: components the shell's JSX uses (local, or imported from a
  * relative path), the content layouts it uses, the page-type shell module, and
  * the chrome layouts that wrap every page. Caps that say "per page" count over
@@ -35,9 +37,9 @@ export type PageRoots = {
 };
 
 export const defaultRoots: PageRoots = {
-  pageTypes: path.resolve("src/page-types"),
-  layouts: path.resolve("src/layouts"),
-  contentLayouts: path.resolve("src/content-layouts"),
+  pageTypes: path.resolve(config.paths.pageTypes),
+  layouts: path.resolve(config.paths.layouts),
+  contentLayouts: path.resolve(config.paths.contentLayouts),
 };
 
 const DISCLOSURE = "Disclosure.Root";
@@ -193,14 +195,14 @@ function collectScopes(source: ts.SourceFile, shellNode: ts.Node, shell: Shell, 
       if (!opening && !helperCall) return;
       const rootName = opening ? (jsxTagName(opening.tagName).split(".")[0] ?? "") : (helperCall ?? "");
       const specifier = imports.get(rootName);
-      const contentLayout = specifier ? /(?:^|\/)content-layouts\/([^/"']+)/.exec(specifier) : null;
-      if (contentLayout?.[1]) {
+      const contentLayout = specifier ? memberOf(specifier, roots.contentLayouts) : null;
+      if (contentLayout) {
         const before = scopes.length;
-        addWholeDir(path.join(roots.contentLayouts, contentLayout[1]));
+        addWholeDir(path.join(roots.contentLayouts, contentLayout));
         for (const added of scopes.slice(before)) queue.push({ scope: added, stack: [] });
         return;
       }
-      if (specifier && /(?:^|\/)page-types\//.test(specifier)) return;
+      if (specifier && importsFrom(specifier, roots.pageTypes)) return;
       const target = specifier
         ? importedDeclaration(scope.source.fileName, specifier, rootName)
         : wholeFiles.has(scope.source.fileName)
@@ -289,7 +291,7 @@ function covered(node: ts.Node, scopes: readonly Scope[]): boolean {
 }
 
 /**
- * Elements with the tag in src/features that no page scope reaches: JSX held
+ * Elements with the tag in the features path that no page scope reaches: JSX held
  * in a variable, built outside the shell, or in a file no page renders. A
  * per-page cap cannot count them, so the checks fail them instead.
  */
