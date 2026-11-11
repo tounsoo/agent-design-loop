@@ -1,6 +1,6 @@
 # Invoice progress screenshots
 
-Meridian's invoice page for INV-1842, before and after [proposal 0014](../../../../../proposals/0014-invoice-progress-steps.md) added the invoice progress list. Each was taken at 1280 by 900 in headless Chrome. Select an image to open it full size.
+Meridian's invoice page for INV-1842, before and after [proposal 2026-11-11-invoice-progress-steps](../../../../../proposals/2026-11-11-invoice-progress-steps.md) added the invoice progress list. Each was taken at 1280 by 900 in headless Chrome. Select an image to open it full size.
 
 ## Pending
 

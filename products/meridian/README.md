@@ -37,7 +37,7 @@ On an invoice (`?invoice=inv-1842`):
 
 - Breadcrumbs return to the collection you came from.
 - Identity and amounts are a DataList.
-- **Invoice progress** is a read-only list of three stages: Received, Approval, and Payment with its due date. It follows the invoice's status. [Proposal 0014](../../proposals/0014-invoice-progress-steps.md) added `Steps` to the catalog for it.
+- **Invoice progress** is a read-only list of three stages: Received, Approval, and Payment with its due date. It follows the invoice's status. [Proposal 2026-11-11-invoice-progress-steps](../../proposals/2026-11-11-invoice-progress-steps.md) added `Steps` to the catalog for it.
 - **Approve** is the only primary action.
 - **Line items** sit behind one disclosure.
 - **Request changes** is secondary. Choosing it reveals a required reason. Sending that request is a branch, not the happy path.

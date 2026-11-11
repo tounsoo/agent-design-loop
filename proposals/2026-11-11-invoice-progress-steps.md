@@ -4,7 +4,7 @@ changes: []
 adds:
   - Steps
 ---
-# Proposal 0014: Show where an invoice is on its way to payment
+# Show where an invoice is on its way to payment
 
 Graduated in the pull request that adds it, because it only adds a member to an inventory list ([proposal 0012](0012-additions-in-one-pull-request.md)). A designer's review of that pull request is its approval.
 
@@ -30,7 +30,7 @@ The invoice page gets a three-stage list under its facts, labelled "Invoice prog
 
 The Payment stage reads "Payment due" and the invoice's due date in every state.
 
-Screenshots of the invoice page at 1280 by 900, before and after, are in [`products/meridian/review/screenshots/0014-invoice-progress/`](../products/meridian/review/screenshots/0014-invoice-progress/).
+Screenshots of the invoice page at 1280 by 900, before and after, are in [`products/meridian/review/screenshots/invoice-progress/`](../products/meridian/review/screenshots/invoice-progress/).
 
 The happy path stays open an invoice, then Approve. The list is read-only and changes with the invoice's status.
 
