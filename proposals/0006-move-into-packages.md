@@ -1,6 +1,23 @@
+---
+status: graduated
+changes:
+  - products/meridian/harness.config.ts
+  - paths.source
+  - paths.features
+  - paths.layouts
+  - paths.contentLayouts
+  - paths.pageTypes
+  - paths.catalog
+  - paths.inputs
+  - paths.rules
+  - paths.styles
+  - paths.app
+  - paths.web
+  - packages/adapter-todae/index.ts
+---
 # Proposal 0006: Move the harness, the Todae adapter and Meridian into their own folders
 
-Status: decided. Ben approved the split plan, and this is its step 7, "the move". It records config path changes that land with the move itself, so nothing graduates later.
+Decided, and graduated with its own pull request. Ben approved the split plan, and this is its step 7, "the move". It records config path changes that land with the move itself, so nothing graduates later.
 
 Rule or input: every product's harness config and the adapter path it names. No product input, rule cap, catalog export, flow state or adapter field changes.
 

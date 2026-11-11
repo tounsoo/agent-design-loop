@@ -20,7 +20,7 @@ export * from "./parse-config";
  * error, not ignored, so a stale invocation cannot pass on the wrong product.
  */
 const CHECK_FLAGS: Record<string, readonly string[]> = {
-  "check-inventories.ts": ["--base", "--proposals"],
+  "check-inventories.ts": ["--base", "--proposals", "--base-proposals"],
   "check-target-size.ts": ["--list"],
 };
 

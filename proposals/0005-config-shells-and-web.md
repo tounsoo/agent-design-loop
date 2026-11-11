@@ -1,6 +1,14 @@
+---
+status: graduated
+changes:
+  - shells.primarySlots
+  - shells.collections
+  - paths.web
+  - products/nook
+---
 # Proposal 0005: Name shell slots and the app root in the harness config
 
-Status: decided. Ben approved the split plan, and this is its step 6, "second product". It records a harness config change that lands with the checks that read it, so nothing graduates later.
+Decided, and graduated with its own pull request. Ben approved the split plan, and this is its step 6, "second product". It records a harness config change that lands with the checks that read it, so nothing graduates later.
 
 Rule or input: the harness config, `harness.config.ts`. It gains a `shells` block and `paths.web`. No product input, rule cap, catalog export or adapter name changes.
 

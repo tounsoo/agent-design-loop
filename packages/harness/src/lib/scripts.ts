@@ -24,16 +24,17 @@ export function checkFile(command: string): string | null {
 /**
  * The rule checks, as their npm script names: the scripts `check:rules`
  * runs, in its order, following nested `npm run` steps. A rule a product can
- * opt out of is one of these.
+ * opt out of is one of these. `from` reads another package.json's scripts,
+ * such as the pull request base's.
  */
-export function ruleChecks(name = "check:rules", seen: ReadonlySet<string> = new Set()): string[] {
-  const command = scripts[name];
+export function ruleChecks(name = "check:rules", seen: ReadonlySet<string> = new Set(), from: Readonly<Record<string, string>> = scripts): string[] {
+  const command = from[name];
   if (command === undefined) throw new Error(`package.json has no script "${name}".`);
   if (seen.has(name)) throw new Error(`package.json script "${name}" runs itself.`);
   const found: string[] = [];
   for (const part of command.split("&&").map((step) => step.trim())) {
     const nested = /^npm run ([\w:-]+)$/.exec(part);
-    if (nested?.[1]) found.push(...ruleChecks(nested[1], new Set([...seen, name])));
+    if (nested?.[1]) found.push(...ruleChecks(nested[1], new Set([...seen, name]), from));
     else if (checkFile(part) !== null) found.push(name);
   }
   return found;

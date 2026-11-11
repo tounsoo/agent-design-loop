@@ -1,4 +1,4 @@
-/** Illegal: an opt-out of check:inventories, a core rule, even on a decided proposal that names it. */
+/** Illegal: an opt-out of check:inventories, a core rule, even on a graduated proposal that names it. */
 export default {
   config: {
     paths: {

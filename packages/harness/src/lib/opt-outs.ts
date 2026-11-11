@@ -1,8 +1,9 @@
 import path from "node:path";
+import { parseProposal, type Proposal } from "./proposals";
 
 /**
  * A harness rule applies to every product. A product turns one off only with
- * an opt-out: the rule's name in its config's `optOuts`, pointing at a decided
+ * an opt-out: the rule's name in its config's `optOuts`, pointing at a graduated
  * proposal that says why. When most products opt out of the same rule, the
  * rule is a candidate for retirement, so the harness can shrink as well as
  * grow.
@@ -23,43 +24,6 @@ export type OptOutProduct = {
   readonly proposals: string;
   readonly optOuts: { readonly [rule: string]: string };
 };
-
-const OPTS_OUT = /^Opts out: `([^`]+)` for `([^`]+)`\.?[ \t]*$/gm;
-
-/**
- * The proposal's text without what does not render as prose: fenced code
- * blocks, as CommonMark reads them, and HTML comments. Either one left
- * unclosed runs to the end of the file.
- */
-function withoutExamples(text: string): string {
-  const prose = text.replace(/<!--[\s\S]*?(?:-->|$(?![\s\S]))/g, "");
-  const kept: string[] = [];
-  let fence: { char: string; length: number } | null = null;
-  for (const line of prose.split(/\r?\n/)) {
-    const marker = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
-    if (fence === null) {
-      if (marker?.[1] && !(marker[1].startsWith("`") && marker[2]?.includes("`"))) fence = { char: marker[1][0] ?? "", length: marker[1].length };
-      else kept.push(line);
-    } else if (marker?.[1] && marker[1][0] === fence.char && marker[1].length >= fence.length && marker[2]?.trim() === "") {
-      fence = null;
-    }
-  }
-  return kept.join("\n");
-}
-
-/** The word on a proposal's first `Status:` line, such as `decided` or `open`, or null when it has none. */
-export function proposalStatus(text: string): string | null {
-  return /^Status:[ \t]*([\w-]+)/m.exec(withoutExamples(text))?.[1] ?? null;
-}
-
-/**
- * The rule and product pairs a proposal's `Opts out:` lines name. A line in a
- * fenced code block is an example, not an opt-out, so a proposal that shows
- * the format cannot be borrowed as one.
- */
-export function optOutLines(text: string): { rule: string; source: string }[] {
-  return [...withoutExamples(text).matchAll(OPTS_OUT)].map((match) => ({ rule: match[1] ?? "", source: match[2] ?? "" }));
-}
 
 /**
  * What is wrong with a product's opt-outs. `rules` is the list `check:rules`
@@ -88,15 +52,19 @@ export function optOutProblems(product: OptOutProduct, rules: readonly string[],
       problems.push(`${where}: ${proposal} does not exist.`);
       continue;
     }
-    if (proposalStatus(text) !== "decided") {
-      problems.push(`${where}: ${proposal} is not decided. An opt-out applies now, so its proposal needs "Status: decided".`);
+    const parsed = parseProposal(file, text);
+    if (parsed.proposal === null) {
+      problems.push(...parsed.problems.map((problem) => `${where}: ${proposal} ${problem}`));
+      continue;
     }
-    if (!optOutLines(text).some((line) => line.rule === rule && line.source === product.source)) {
-      problems.push(`${where}: ${proposal} does not opt out ${rule} for ${product.source}. Add the line: Opts out: \`${rule}\` for \`${product.source}\``);
+    if (parsed.proposal.status !== "graduated") {
+      problems.push(
+        `${where}: ${proposal} is ${parsed.proposal.status}, not graduated. An opt-out applies now, so the change that adds it marks its decided proposal "status: graduated".`,
+      );
     }
-    const lower = text.toLowerCase();
-    const missing = ["reason", "preview", "graduation"].filter((word) => !lower.includes(word));
-    if (missing.length > 0) problems.push(`${where}: ${proposal} has no ${missing.join(", ")}.`);
+    if (!parsed.proposal.optsOut.some((line) => line.rule === rule && line.source === product.source)) {
+      problems.push(`${where}: ${proposal} does not opt out ${rule} for ${product.source}. Add it under opts-out: "  - ${rule} for ${product.source}"`);
+    }
   }
   return problems;
 }
@@ -116,4 +84,45 @@ export function retirementCandidates(products: readonly OptOutProduct[]): Retire
     .filter(([, sources]) => sources.length >= RETIREMENT_MIN_PRODUCTS && sources.length * 2 > products.length)
     .map(([rule, sources]) => ({ rule, products: [...sources].sort(), of: products.length }))
     .sort((a, b) => a.rule.localeCompare(b.rule));
+}
+
+/**
+ * Rules the base's `check:rules` ran that the head's does not. Each must be
+ * retired by a proposal this change graduates whose `retires` lists it, so a
+ * rule leaves the harness only on a designer's decision.
+ */
+export function unretiredRemovals(baseRules: readonly string[], headRules: readonly string[], graduates: readonly Proposal[]): string[] {
+  return [...new Set(baseRules)]
+    .filter((rule) => !headRules.includes(rule))
+    .filter((rule) => !graduates.some((proposal) => proposal.retires.includes(rule)))
+    .map(
+      (rule) =>
+        `${rule} left check:rules without a proposal that retires it. Retire a rule by graduating a proposal, decided on the base, that lists it under retires.`,
+    );
+}
+
+/**
+ * Opt-outs the head's config has that the base's does not, or that now name
+ * another proposal. Each must name a proposal this change graduates, whose
+ * `opts-out`, as the base has it, lists that rule for this product.
+ */
+export function ungraduatedOptOuts(
+  product: OptOutProduct,
+  baseOptOuts: { readonly [rule: string]: string } | null,
+  graduates: readonly Proposal[],
+): string[] {
+  const problems: string[] = [];
+  for (const [rule, proposal] of Object.entries(product.optOuts)) {
+    if (baseOptOuts?.[rule] === proposal) continue;
+    const file = path.posix.normalize(proposal);
+    const graduate = graduates.find((candidate) => path.posix.normalize(candidate.file) === file);
+    if (graduate === undefined) {
+      problems.push(
+        `optOuts["${rule}"] is new, and ${proposal} does not graduate in this change. An opt-out graduates a proposal that is decided on the base: this change marks it "status: graduated".`,
+      );
+    } else if (!graduate.optsOut.some((entry) => entry.rule === rule && entry.source === product.source)) {
+      problems.push(`optOuts["${rule}"] is new, and ${proposal} did not opt out ${rule} for ${product.source} when it was decided.`);
+    }
+  }
+  return problems;
 }

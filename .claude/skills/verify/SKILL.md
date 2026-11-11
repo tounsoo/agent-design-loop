@@ -26,10 +26,10 @@ node -v                          # v22.x, as CI runs
 git status --short               # empty, so the tested commit is what you push
 git rev-parse HEAD               # the tested commit, for the pull request body
 git rev-parse --verify origin/main || git rev-parse --verify main   # check:inventories' base without INVENTORY_BASE
-echo "${CHROME_PATH:-unset}"; ls /usr/bin/google-chrome* /usr/bin/chromium* 2>/dev/null
+npm run setup:chrome             # the chrome-headless-shell build puppeteer-core pins, into .cache/chrome
 ```
 
-A wrong Node major or a dirty tree is `BLOCKED` until fixed. With neither, run `git fetch origin main`. Without a Chrome binary, step 3 is `BLOCKED`. `/usr/bin/chromium-browser` on Ubuntu is often only a snap shim, so check that `--version` prints a version.
+A wrong Node major or a dirty tree is `BLOCKED` until fixed. With neither, run `git fetch origin main`. `check:target-size` looks for Chrome at `CHROME_PATH`, then in `.cache/chrome`, then under `/usr/bin`, and with none it names each place it looked. When `setup:chrome` cannot download and there is no other Chrome, step 3 is `BLOCKED`. `/usr/bin/chromium-browser` on Ubuntu is often only a snap shim, so check that `--version` prints a version.
 
 ## Launch and drive
 
@@ -39,7 +39,7 @@ A wrong Node major or a dirty tree is `BLOCKED` until fixed. With neither, run `
 npm run check:fixtures && npm run check
 ```
 
-This is the command `AGENTS.md` names. CI runs the same checks split into two jobs, one per product. `check:fixtures` runs every case folder under `packages/harness/fixtures/` against the checks its `case.ts` names, on the fixture product's config (`packages/harness/fixtures/product/harness.config.ts`) with the paths the case changes. It passes only when every illegal case fails with its expected message and every legal case passes with its expected message. The legal cases are the fixture product itself, the stand-in design system in `fixtures/fake-ds/`, which shows a check reads its names from the adapter, and small products of their own, which show a rule reads its product's config and inputs. `check` then runs typecheck, ESLint and the Vitest suite on the whole repository, and then `check:product` on each product's config, which runs every rule check in `check:rules`. The Vitest suite drives Meridian with Testing Library and `user-event` in jsdom: it follows an invoice link, opens Line items, presses Approve, and requests changes with and without a reason.
+This is the command `AGENTS.md` names. CI runs the same checks split into two jobs, one per product. `check:fixtures` runs every case folder under `packages/harness/fixtures/` against the checks its `case.ts` names, on the fixture product's config (`packages/harness/fixtures/product/harness.config.ts`) with the paths the case changes. It passes only when every illegal case fails with its expected message and every legal case passes with its expected message. The legal cases are the fixture product itself, the stand-in design system in `fixtures/fake-ds/`, which shows a check reads its names from the adapter, and small products of their own, which show a rule reads its product's config and inputs. `check` then runs typecheck, ESLint and the Vitest suite on the whole repository, then `check:product` on each product's config, which runs `check:opt-outs` and every rule check in `check:rules`, then `check:proposals`, `check:retirement` and `check:loop`, which read the whole repository and take no `--config`. The Vitest suite drives Meridian with Testing Library and `user-event` in jsdom: it follows an invoice link, opens Line items, presses Approve, and requests changes with and without a reason.
 
 Each product's rule checks end with `check:target-size`, so without Chrome `check` stops at Meridian's. Then run the rest by hand, one product at a time, and mark step 3 `BLOCKED`:
 
@@ -50,6 +50,7 @@ for config in products/meridian/harness.config.ts products/nook/harness.config.t
     npm run "$check" -- --config "$config" || break 2
   done
 done
+npm run check:proposals && npm run check:retirement && npm run check:loop
 ```
 
 Every rule check needs `--config`. There is no config at the repository root.
@@ -60,12 +61,14 @@ A check that passes the real app proves nothing until it can also fail. When a c
 
 When a change loosens a check, or makes it read a product's config or inputs instead of Meridian's, add a legal case too: a folder under `packages/harness/fixtures/` with a `case.ts` that expects the check to pass, which the old check failed and the new one passes. Show `check:fixtures` printing `<case> <check> passed as required`. A legal case that starts failing is a `FAIL` too.
 
-When a change touches an inventory (anything `proposals/README.md` lists), `check:inventories` must still print `membership matches <base sha>` for each product it touches. If membership changed, the pull request needs a new file under `proposals/`; see `proposals/README.md`.
+When a change touches an inventory (anything `proposals/README.md` lists), `check:inventories` must still print `membership matches <base sha>` for each product it touches. If membership changed, the change must graduate a proposal that is `status: decided` on `main` and lists the change under `changes`, and mark it `status: graduated`; it prints `Graduates <proposal>`. A proposal added in the same pull request covers nothing, so the proposal lands first, in its own pull request; see `proposals/README.md`. The same holds for a rule removed from `check:rules` (a graduating proposal that lists it under `retires`) and a new opt-out (one that lists it under `opts-out`): `check:retirement` must pass.
+
+When a change adds or edits a proposal, `check:proposals` must pass: the front matter and the three sections are there, and each status moved one step at most from the base.
 
 ### 3. Browser drive (a change to anything a product renders, its styles, its build config or the Todae version)
 
 ```sh
-CHROME_PATH=/path/to/chrome npm run check:target-size -- --config products/meridian/harness.config.ts
+npm run check:target-size -- --config products/meridian/harness.config.ts
 ```
 
 Use `products/nook/harness.config.ts` for Nook.
@@ -74,7 +77,7 @@ It builds the app, serves it with `vite preview` on `127.0.0.1:4173` (strict por
 
 To look at a Meridian change, run `npm run build && npm run preview`. It is ready when Vite prints `http://127.0.0.1:4173/`. Open the URLs in [features/](features/README.md) there, and stop the preview server you started when done.
 
-In a Claude Duet thread there is no Chrome, and the Chrome downloads are blocked, so this step is `BLOCKED` there. Say so in the pull request, link the pull request's CI run (it installs Chrome and runs `check:target-size`), and name the URLs a reviewer should open.
+In a Claude Duet thread there is no Chrome, and `npm run setup:chrome` cannot download one, so this step is `BLOCKED` there. Say so in the pull request, link the pull request's CI run (it runs `npm run setup:chrome` and `check:target-size`), and name the URLs a reviewer should open. The three fixture cases that measure, `target-size-whole-document`, `illegal/small-control-outside-page` and `illegal/small-control-in-closed-menu`, are `BLOCKED` with it.
 
 ### 4. Loop trace (every change, before you push)
 
@@ -94,9 +97,9 @@ Every row also runs step 4.
 | `products/<name>/preview/` | 1, and 3 when a view changes |
 | `products/<name>/catalog/`, `layouts/`, `content-layouts/`, `page-types/`, `flows/` (the inventories, see `proposals/README.md`) | 1, 2 and 3 |
 | `products/<name>/inputs`, `rules`, `harness.config.ts`, `packages/adapter-todae/`, `package.json` and `package-lock.json` (the Todae version) | 1, 2 and 3 |
-| `packages/harness/` | 1 and 2 |
+| `packages/harness/` | 1 and 2. A change to a check also updates `CLAUDE.md` and this skill in the same pull request. |
 | `*.test.ts(x)`, `vitest.setup.ts`, `tsconfig.json`, `eslint.config.js`, `.npmrc`, `.gitignore` | 1 |
-| `proposals/` | 1. A proposal changes nothing until it graduates. |
+| `proposals/` | 1, including `check:proposals`. A proposal changes nothing until it graduates. |
 | `.github/` | 1, then the pull request's CI run is the rest of the proof; link it |
 | `README.md`, `AGENTS.md`, `CODEOWNERS`, `docs/` folders, `products/<name>/review/`, `CLAUDE.md`, `.claude/` | 1. Review covers the rest. |
 

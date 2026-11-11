@@ -1,8 +1,9 @@
+---
+status: graduated
+changes:
+  - Toast
+---
 # Proposal 0103: Add Toast to the catalog
-
-Status: open.
-
-Rule or input: the catalog gains `Toast`.
 
 ## Reason
 

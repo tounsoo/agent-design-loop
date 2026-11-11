@@ -1,4 +1,4 @@
-/** Legal: the fixture product opts out of check:disclosure on a decided proposal that names the rule and the product. */
+/** Legal: the fixture product opts out of check:disclosure on a graduated proposal that names the rule and the product. */
 export default {
   config: {
     paths: {
@@ -9,6 +9,6 @@ export default {
     },
   },
   checks: [
-    { run: "check:opt-outs", passes: "opts out of check:disclosure, each on a decided proposal" },
+    { run: "check:opt-outs", passes: "opts out of check:disclosure, each on a graduated proposal" },
   ],
 };

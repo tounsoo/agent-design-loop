@@ -1,6 +1,12 @@
+---
+status: open
+changes:
+  - max_steps
+  - approve-vendor-invoice
+---
 # Proposal 0001: Require an approval note
 
-Status: open. Not applied.
+An open request. Not applied.
 
 Layer: flow model and the `approve-vendor-invoice` step budget.
 

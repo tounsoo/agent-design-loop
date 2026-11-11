@@ -1,6 +1,12 @@
+---
+status: graduated
+changes:
+  - flows
+  - paths.flows
+---
 # Proposal 0004: Name task graphs and previews in the harness config
 
-Status: decided. Ben approved the split plan, and this is its step 4, "rule semantics". It records a harness config change that lands with the checks that read it, so nothing graduates later.
+Decided, and graduated with its own pull request. Ben approved the split plan, and this is its step 4, "rule semantics". It records a harness config change that lands with the checks that read it, so nothing graduates later.
 
 Rule or input: the harness config, `harness.config.ts`. Each entry in `flows` gains two fields, and `paths.flows` goes away. No product input, rule cap or catalog export changes.
 

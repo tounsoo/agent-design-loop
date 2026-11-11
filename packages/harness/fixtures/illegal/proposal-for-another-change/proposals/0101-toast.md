@@ -1,12 +1,13 @@
+---
+status: graduated
+changes:
+  - Toast
+---
 # Proposal 0101: Add Toast to the catalog
-
-Status: open.
-
-Rule or input: the catalog gains `Toast`.
 
 ## Reason
 
-A saved invoice needs a confirmation that does not move focus.
+A saved invoice needs a confirmation that does not move focus. Toast is not an action control, so the adapter needs no change.
 
 ## Preview
 

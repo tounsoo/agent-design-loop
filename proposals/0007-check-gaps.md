@@ -1,6 +1,10 @@
+---
+status: graduated
+changes: []
+---
 # Proposal 0007: Close six gaps in the checks
 
-Status: decided. Ben asked for the six known gaps in the checks to be fixed in one pull request. This records how the rules read after that change, which lands with it, so nothing graduates later.
+Decided, and graduated with its own pull request. Ben asked for the six known gaps in the checks to be fixed in one pull request. This records how the rules read after that change, which lands with it, so nothing graduates later.
 
 Rule or input: how six checks read the rules they already had. No product input, rule cap, catalog export, layout, content layout, page type, flow state or adapter field changes, and no product's `harness.config.ts` changes.
 

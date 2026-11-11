@@ -1,6 +1,10 @@
+---
+status: graduated
+changes: []
+---
 # Proposal 0010: The agent records its walk of the design loop in a trace
 
-Status: decided. Ben decided on Nov 11 to close the gap proposal 0009 left open, that the graph is followed but not run, with a record CI checks. This records that change, which lands with its own pull request, so nothing graduates later.
+Decided, and graduated with its own pull request. Ben decided on Nov 11 to close the gap proposal 0009 left open, that the graph is followed but not run, with a record CI checks. This records that change, which lands with its own pull request, so nothing graduates later.
 
 Rule or input: the harness gains one check, `check:trace`, one helper script, `loop:step`, and a `traces/` folder at the repository root. No product input, rule cap, catalog export, flow state, adapter field, product config or design loop node changes. No rule in `check:rules` changes, so no product can opt out of the new check.
 

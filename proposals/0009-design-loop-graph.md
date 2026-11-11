@@ -1,6 +1,10 @@
+---
+status: graduated
+changes: []
+---
 # Proposal 0009: The design loop is a graph in the harness
 
-Status: decided. Ben decided on Nov 11 to define the design loop in the repository as a graph, in the graph-engineering sense: nodes do the work, edges decide what runs next, and shared state carries what one run leaves for the next. This records that change, which lands with its own pull request, so nothing graduates later.
+Decided, and graduated with its own pull request. Ben decided on Nov 11 to define the design loop in the repository as a graph, in the graph-engineering sense: nodes do the work, edges decide what runs next, and shared state carries what one run leaves for the next. This records that change, which lands with its own pull request, so nothing graduates later.
 
 Rule or input: the harness gains one data file, `packages/harness/design-loop.ts`, and one check, `check:loop`. No product input, rule cap, catalog export, flow state, adapter field or product config changes. No rule in `check:rules` changes, so no product can opt out of the new check.
 

@@ -1,6 +1,10 @@
+---
+status: graduated
+changes: []
+---
 # Proposal 0003: Record the approve path as 2 steps
 
-Status: decided. This records a decision, not a request to grow an inventory, so nothing graduates later.
+Decided, and graduated with its own pull request. This records a decision, not a request to grow an inventory, so nothing graduates later.
 
 Rule or input: none of the inventories change. `max_steps` for `approve-vendor-invoice` stays 3. What changes is the task graph, which is not an inventory, the step-budget rule in `scripts/check-step-budget.ts`, and the step counts that [proposal 0001](0001-approval-note.md) is written against. Proposal files are not edited after they merge, so this file corrects 0001 instead.
 
