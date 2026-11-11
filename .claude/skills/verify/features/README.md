@@ -1,13 +1,36 @@
-# Feature map
+# Meridian verification map
 
-One file per user-facing feature. Each says how a person or an agent reaches it, how to drive it, and what end state proves it. URLs are relative to `npm run dev` (`http://127.0.0.1:5173/`) or `npm run preview` (`http://127.0.0.1:4173/`).
+This directory is the maintained source for verifying what a person or an agent meets in this repository. Read the index before driving, then use the matching feature file as the recipe.
 
-| Feature | File | Drive |
-| --- | --- | --- |
-| Payables collections: To approve, All invoices, Vendors | [collections.md](collections.md) | Vitest, browser |
-| Approve an invoice, the named task | [approve-invoice.md](approve-invoice.md) | Vitest, step budget, browser |
-| Request changes, the branch | [request-changes.md](request-changes.md) | Vitest, browser |
-| Modeled-state preview | [state-preview.md](state-preview.md) | Vitest, target size |
-| The rule gate: checks, fixtures and proposals | [rule-gate.md](rule-gate.md) | build gate, fixtures |
+## Baseline preconditions
+
+- `npm ci` has run with Node 22, and `git status --short` is empty.
+- For a browser drive: `npm run build && npm run preview` serves Meridian at `http://127.0.0.1:4173/`. It is ready when Vite prints that URL. `npm run dev` serves it at `http://127.0.0.1:5173/` instead.
+- Never drive a dev or preview server that this verification run didn't start.
+
+## Driving conventions
+
+- Start every recipe from the default URL unless its preconditions say otherwise. The sample data resets on reload.
+- Prefer ARIA roles and accessible names: they are what the Vitest journeys select by.
+- Treat every command and quoted name as literal.
+- A journey's `npx vitest run -t "<name>"` drives the same path in jsdom when no browser is available.
+
+## Proof and skip reporting
+
+- Capture the action and the resulting state: the heading, status or alert that appears, or the check's exit code and message.
+- Record the feature ID and entry point used with every result.
+- Report a path that couldn't run (no Chrome, for example) with the attempted command and the unmet precondition. Never report it as verified through a different path.
+
+## Feature entry contract
+
+Each file has an H1 title, one paragraph on the user-visible behavior, then four H2 sections in order: `Sub-features` (short IDs), `How to get to it (user POV)`, `Driving it with <harness>` (starts with `Preconditions:`, then labeled bullets pairing an action with a command and its observable result) and `Gotchas`.
+
+## Features
+
+- [Payables collections](collections.md): To approve, All invoices and Vendors, with search and paging.
+- [Approve an invoice](approve-invoice.md): the named task, three steps to `invoice-approved`.
+- [Request changes](request-changes.md): the branch, with its required reason.
+- [Modeled-state preview](state-preview.md): `?state=` URLs and the Preview menu.
+- [The rule gate](rule-gate.md): checks, illegal fixtures and proposals, the surface an agent meets.
 
 When a feature is added or changes, update its file in the same pull request.

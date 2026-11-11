@@ -24,10 +24,10 @@ The build gate, the same command CI runs:
 npm run check:fixtures && npm run check
 ```
 
-- `check:fixtures` passes only when every case under `fixtures/illegal/` fails its check.
+- `check:fixtures` passes only when every case listed in `scripts/check-fixtures.ts` fails its check with the expected message. A folder under `fixtures/illegal/` with no row there never runs.
 - `check` runs typecheck, lint (ESLint, off-catalog UI, detail slots), step budget, disclosure, priority, one-thing, inventories, state coverage, target size and the Vitest suite, in that order. The README's "Run the checks" table says what each one fails.
 - `check:target-size` builds the app, serves it with `vite preview` on port 4173 and measures controls in headless Chrome. It finds Chrome at `CHROME_PATH` or the usual `/usr/bin` paths, and fails without one.
-- `check:inventories` compares inventory membership with `INVENTORY_BASE` (CI sets the pull request base), or with the merge base of `origin/main` when that is unset.
+- `check:inventories` compares inventory membership with `INVENTORY_BASE` when set. CI sets it to the pull request base, or to the previous commit on a push to `main`. Unset, it uses the merge base with `origin/main`, or with a local `main`.
 
 Others: `npm run dev` starts the app on Vite's port; `npm run build` and `npm run preview` serve the built app.
 

@@ -43,6 +43,6 @@ pstack is written for a plugin install, so these adaptations apply to every thre
 
 ## 3. Choose the route
 
-Follow poteto-mode, read in full at `$pstack/.claude/skills/poteto-mode/SKILL.md`, when a task touches more than one file, changes a check or an inventory, involves a design choice, or is a bug whose cause is not yet known. When the intent is already specific, enter that skill directly: `tdd`, `architect`, `how`, `why` or `interrogate`. For a contained change to one file with an obvious test, a question, or a one-line edit, work directly and run the verify skill.
+This stands in for pstack's SessionStart routing, which doesn't fire in a thread. Follow poteto-mode, read in full at `$pstack/.claude/skills/poteto-mode/SKILL.md`, when a task touches more than one file or changes a signature other files call, changes a check or an inventory, involves a design or architecture choice, or is a bug whose cause is not yet known or a performance issue. When the intent is already specific, enter that skill directly: `tdd`, `architect`, `how`, `why`, `arena` or `interrogate`. For a contained change to one file with an obvious test, a question, or a one-line edit, work directly and run the verify skill.
 
 Before you open a pull request or push new work to one, run the verify skill on the commit you push and put its result in the pull request body.

@@ -1,24 +1,30 @@
 # The rule gate
 
-The harness itself, the surface an agent meets. The rules live in `src/rules/ux-rules.ts` and `src/inputs/product.ts`; the inventories are the catalog, layouts, content layouts, page types and flow states. Checks under `scripts/` fail the build, illegal fixtures prove each check can fail, and a proposal under `proposals/` is the only way an inventory grows.
+The harness itself, the surface an agent meets. Rules and inventories live in the repo as data, checks fail the build, illegal fixtures prove each check can fail, and a proposal under `proposals/` is the only way an inventory grows. An agent reads exit codes and each check's verdict line.
 
 ## Sub-features
 
-- Each check prints one line on success and names the problem on failure.
-- `check:fixtures`: every illegal case fails its check with the expected phrase.
-- `check:inventories`: membership versus the pull request base; a change without a new proposal fails.
+- `gate-checks` prints a verdict line for each check on success and names the problem on failure.
+- `gate-fixtures` proves every case listed in `scripts/check-fixtures.ts` fails its check with the expected phrase.
+- `gate-inventories` compares inventory membership with the pull request base and fails a change without a new proposal.
 
 ## How to get to it (user POV)
 
-An agent changes UI, runs `npm run check:fixtures && npm run check`, and reads exit codes and messages.
+- Run `npm run check:fixtures && npm run check`, as `AGENTS.md` says.
+- Run one check on its own, as `npm run check:<name>`.
 
 ## Driving it with the build gate and fixtures
 
-- `npm run check:fixtures` lists the nine cases in `fixtures/illegal/` and their result.
-- `npm run check:inventories` prints `membership matches <sha>` and the current inventories.
-- To see a check fail, run it with the fixture's arguments from `scripts/check-fixtures.ts`, for example `npx tsx scripts/check-slots.ts --root fixtures/illegal/two-primaries`.
+Preconditions:
+
+- The baseline preconditions hold, and `origin/main` (or a local `main`) is in the clone.
+
+- **Fixtures.** Run `npm run check:fixtures`. Nine lines read `<case> failed the check as required (exit 1).`, then `fixtures: illegal cases failed the checks.`
+- **One failing case.** Run `npx tsx scripts/check-slots.ts --root fixtures/illegal/two-primaries`. It exits 1 and names the primary slot.
+- **Inventories.** Run `npm run check:inventories`. It prints `inventory: membership matches <base sha>.` and the current layouts, content layouts, page types, catalog count and flow states.
 
 ## Gotchas
 
-- `check:inventories` needs the base commit in the clone. CI passes `INVENTORY_BASE`; locally it uses the merge base with `origin/main`.
+- `check:inventories` uses `INVENTORY_BASE` when set (CI sets the pull request base, or the previous commit on a push to `main`). Otherwise it uses the merge base with `origin/main`, or with a local `main`.
+- A new folder under `fixtures/illegal/` runs only once it has a row in `scripts/check-fixtures.ts`.
 - There is no LLM judge. What the checks cannot decide goes in `review/` as a short note.
