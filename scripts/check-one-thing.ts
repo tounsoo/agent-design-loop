@@ -4,7 +4,7 @@ import ts from "typescript";
 import { adapter, isPrimaryVariant } from "./lib/adapter";
 import { config, loadRules, memberOf } from "./lib/config";
 import { attributeValue, jsxTagName, lineOf, listSourceFiles, parseFile, walk } from "./lib/jsx";
-import { discoverShells, missingCatalogParts, openingOf, pagesIn, tagsInScope, unreachedTags } from "./lib/page-scope";
+import { canonicalTag, discoverShells, missingCatalogParts, openingOf, pagesIn, tagsInScope, unreachedTags } from "./lib/page-scope";
 
 /**
  * One job per page. Page-type membership lives in allowed_page_types and
@@ -88,7 +88,7 @@ for (const page of pages) {
     walk(scope.node, (node) => {
       const opening = openingOf(node);
       if (!opening || node === page.node) return;
-      const tag = jsxTagName(opening.tagName);
+      const tag = canonicalTag(opening);
       if (!shellNames.has(tag)) return;
       const where = `${path.relative(process.cwd(), scope.source.fileName)}:${lineOf(scope.source, opening)}`;
       violations.push(`one thing: ${page.file}:${page.line} ${page.shell.name} page renders a ${tag} page inside it, at ${where}. One page does one job.`);

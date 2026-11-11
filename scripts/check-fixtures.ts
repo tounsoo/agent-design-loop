@@ -38,14 +38,29 @@ const cases = [
     phrase: "modeled path length 3 exceeds max_steps 2 for archive-note",
   },
   {
+    name: "graph-without-task-id",
+    args: ["scripts/check-step-budget.ts", "--config", "fixtures/illegal/graph-without-task-id/harness.config.ts"],
+    phrase: "does not export a taskId",
+  },
+  {
     name: "stale-preview",
     args: ["scripts/check-target-size.ts", "--list", "--config", "fixtures/illegal/stale-preview/harness.config.ts"],
     phrase: 'previews names "confirming", which is not a modeled state',
   },
   {
+    name: "preview-sets-state",
+    args: ["scripts/check-target-size.ts", "--list", "--config", "fixtures/illegal/preview-sets-state/harness.config.ts"],
+    phrase: "sets state itself",
+  },
+  {
     name: "nested-page",
     args: ["scripts/check-one-thing.ts", "--features", "fixtures/illegal/nested-page"],
     phrase: "DetailPage page renders a CollectionPage page inside it",
+  },
+  {
+    name: "aliased-nested-page",
+    args: ["scripts/check-one-thing.ts", "--features", "fixtures/illegal/aliased-nested-page"],
+    phrase: "CollectionPage page renders a DetailPage page inside it",
   },
   {
     name: "two-questions",

@@ -25,6 +25,11 @@ export async function previewQueries(flows: readonly FlowConfig[]): Promise<{ qu
         problems.push(`${configName} flows[${index}].previews names "${state}", which is not a modeled state in ${flow.states}.`);
       }
     }
+    for (const [state, extras] of Object.entries(flow.previews ?? {})) {
+      if (extras.some((extra) => new URLSearchParams(extra).has("state"))) {
+        problems.push(`${configName} flows[${index}].previews.${state} sets state itself. The state comes from the key, so an entry cannot open another state.`);
+      }
+    }
     for (const state of states as string[]) {
       const extras = flow.previews?.[state];
       const variants = extras && extras.length > 0 ? extras : [""];

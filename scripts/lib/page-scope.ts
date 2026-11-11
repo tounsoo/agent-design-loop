@@ -149,7 +149,7 @@ export function pagesIn(featuresRoot: string, shells: readonly Shell[], roots: P
     walk(source, (node) => {
       const opening = openingOf(node);
       if (!opening) return;
-      const shell = shellNames.get(jsxTagName(opening.tagName));
+      const shell = shellNames.get(canonicalTag(opening));
       if (!shell) return;
       pages.push({
         file: path.relative(process.cwd(), file),

@@ -6,7 +6,9 @@ import { eventEdges, shortestPath, type TaskEdge } from "../src/flows/invoice-ap
 
 /**
  * Every task in the product inputs' tasks has one task graph module, named for
- * its task id under flows[].tasks in the harness config. The check measures
+ * its task id under flows[].tasks in the harness config. The module exports
+ * the same id as taskId, so a mapping cannot point a task at another task's
+ * graph. The check measures
  * two paths per task against max_steps:
  *
  * - the modeled path: the shortest path through the task graph;
@@ -88,8 +90,12 @@ for (const task of tasks) {
     continue;
   }
   const module = await load(file);
-  if (module.taskId !== undefined && module.taskId !== task.id) {
-    violations.push(`step budget: ${file} exports taskId ${JSON.stringify(module.taskId)}, but ${configName} maps it to "${task.id}".`);
+  if (module.taskId !== task.id) {
+    violations.push(
+      module.taskId === undefined
+        ? `step budget: ${file} does not export a taskId, so nothing in the graph says it models "${task.id}".`
+        : `step budget: ${file} exports taskId ${JSON.stringify(module.taskId)}, but ${configName} maps it to "${task.id}".`,
+    );
     continue;
   }
   console.log(`step budget: ${task.id} (max_steps ${task.max_steps}), ${file}`);
