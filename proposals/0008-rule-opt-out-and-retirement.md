@@ -56,4 +56,4 @@ No file changes later. These change in the same pull request:
 - `packages/harness/src/check-fixtures.ts` lets a case set `optOuts`. New cases are `opt-out` and six under `illegal/opt-out-*`.
 - `.github/workflows/ci.yml` runs `check:retirement` in the `check` job.
 - `CODEOWNERS` asks for review on `packages/harness/`, where a rule graduates, and on `package.json`, where `check:rules` lists the rules.
-- The docs: `proposals/README.md`, the harness README, `packages/harness/docs/how-it-works.md`, `AGENTS.md` and the root README.
+- The docs: `proposals/README.md`, the harness README, `packages/harness/docs/how-it-works.md`, `AGENTS.md`, the root README and `CLAUDE.md`.
