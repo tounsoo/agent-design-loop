@@ -9,7 +9,7 @@ Decided, and graduated with its own pull request. Ben asked for it after the Mer
 Rule or input: the proposal format, and what `check:proposals` reads. No product input, `max_steps`, rule cap, catalog export, layout, content layout, page type, flow state, adapter field or product config changes. `check:rules` does not change, so no product can opt out of anything new.
 
 - **The section.** A proposal that lists anything under `changes` or `adds` has a `## States` section of `- <state>: <what the screen shows>` items. It names at least one ordinary state and each edge case: Empty, Loading, Error, Long content, Permissions and Over time. An edge case the change cannot reach is written `Out of scope, <why>`. A change that shows on no screen writes the one item `- None: <why>`.
-- **When it is required.** From a proposal the change adds, whatever status it starts at, and from one it moves from `open` to `decided`. Proposals already on the base keep their text: an open request gains its states when it is approved, and one already decided or graduated is never asked. Proposals that change no member, such as harness changes and opt-outs, need none.
+- **When it is required.** From a proposal the change adds, whatever status it starts at, and from one it moves from `open` to `decided`. Proposals already on the base keep their text: an open request gains its states when it is approved, and one already decided or graduated is never asked. A decided or graduated proposal that has the section keeps it, because the states are part of what was approved. Proposals that change no member, such as harness changes and opt-outs, need none.
 - **What the check reads.** The names, not the words. Any item that is not an edge case counts as an ordinary state. A missing edge case, a state with no text, an out-of-scope item with no reason, a list of only edge cases and `None` beside other states each fail. Whether the text is right is the designer's to judge, as with the Preview.
 - **The prompt.** The design loop's `propose` node and `AGENTS.md` ask for the states, and for information the screen would show twice, before building. The verify skill asks to open each listed state once the screen is built.
 
@@ -17,7 +17,7 @@ Rule or input: the proposal format, and what `check:proposals` reads. No product
 
 A designer approves a proposal from its Reason and Preview. Both show the screen the agent had in mind, usually its ordinary state, so the cases nobody drew pass review unseen and turn up in the build or after it. Pull request 32 showed both kinds: a state that only appears as time passes, and two parts of one screen saying the same thing. Asking for named edge cases puts each one in front of the reviewer as a line to read or a reason to accept. The check pins the names because a free list would pass with one line, which is how the demo's proposal read. It reads nothing of the text, so a wrong description still needs a reviewer.
 
-Requiring the section of every proposal on main would mean backfilling eleven files, ten of which are graduated records that cannot gain anything from it. Reading it at approval keeps that churn at zero and still covers every request before its build starts.
+Requiring the section of every proposal on main that lists changes would mean backfilling four files, three of which are graduated records of changes already built, which cannot gain anything from it. Reading it at approval keeps that churn at zero and still covers every request before its build starts.
 
 ## Preview
 

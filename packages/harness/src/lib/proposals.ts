@@ -193,7 +193,8 @@ function readStates(content: string): { states: ProposalState[]; problems: strin
     if (marker && fence === null) fence = marker;
     else if (marker && fence !== null && marker.startsWith(fence) && (match[2] ?? "").trim() === "") fence = null;
     else if (fence === null) {
-      const item = /^[-*+][ \t]+(.*)$/.exec(line)?.[1];
+      // A thematic break such as "* * *" is a rule, not an item.
+      const item = /^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/.test(line) ? undefined : /^ {0,3}[-*+][ \t]+(.*)$/.exec(line)?.[1];
       if (item !== undefined) {
         items.push(item.trim());
         open = true;
@@ -468,6 +469,9 @@ export function transitionProblems(
           : "Status moves only open → decided → graduated.";
       problems.push(`${after.file} moved ${move}. ${why}`);
       continue;
+    }
+    if (before.status !== "open" && before.states !== null && after.states === null) {
+      problems.push(`${after.file} is ${before.status} on the base with a "## States" section, so it keeps one: the states are part of what was approved.`);
     }
     if (before.status !== "open") {
       const changed: string[] = (["changes", "retires", "adds"] as const).filter((field) => !sameList(before[field], after[field]));

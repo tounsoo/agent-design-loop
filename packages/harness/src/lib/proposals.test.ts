@@ -281,6 +281,11 @@ describe("## States", () => {
     expect(parseProposal("p.md", withStates(fenced)).problems.join("\n")).toContain('"## States" lists no states');
   });
 
+  it("reads items indented up to three spaces, and skips a thematic break", () => {
+    const states = STATES.replace(/^- /gm, " - ").replace("- **Pending:**", "- **Pending:**") + "\n* * *\n";
+    expect(parseProposal("p.md", withStates(states)).problems).toEqual([]);
+  });
+
   it("reads a state whose text wraps onto an indented line", () => {
     const parsed = parseProposal("p.md", withStates(STATES.replace("- **Empty:** the panel says the record has no history yet.", "- **Empty:**\n  the panel says the record has no history yet.")));
     expect(parsed.problems).toEqual([]);
@@ -325,6 +330,11 @@ describe("transitionProblems and ## States", () => {
 
   it("asks a new proposal that starts decided for states", () => {
     expect(transitionProblems(new Map(), new Map([["n.md", unlisted("n.md", "decided")]])).join("\n")).toContain("is new and changes side-panel");
+  });
+
+  it("fails a decided proposal that drops the states it was approved with", () => {
+    const problems = transitionProblems(new Map([["a.md", proposal("a.md", "decided", ["side-panel"])]]), new Map([["a.md", unlisted("a.md", "graduated")]]));
+    expect(problems.join("\n")).toContain('a.md is decided on the base with a "## States" section, so it keeps one');
   });
 
   it("does not ask a proposal that changes no member for states", () => {
