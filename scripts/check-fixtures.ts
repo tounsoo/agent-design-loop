@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { defaultExportLiteral, isRecord, parseConfig, requireString, requireStrings, type ParsedConfig } from "./lib/config";
@@ -10,8 +10,8 @@ import { defaultExportLiteral, isRecord, parseConfig, requireString, requireStri
  * folder directly under fixtures/ or fixtures/illegal/ is a case, and so is
  * the product itself: its case.ts names the paths it replaces in the
  * product's config and the checks to run on the result. A check runs the way
- * a product runs it, as its npm script with `--config`, so a case fails only
- * for what it changes.
+ * a product runs it, as its npm script with `--config`, so a case differs
+ * from the product only in what it names.
  *
  * case.ts is plain literals:
  *
@@ -87,12 +87,36 @@ function parseCase(dir: string, product: ParsedConfig, scripts: Map<string, stri
     const expect = item.fails === undefined ? "passes" : "fails";
     return { run, args, expect, phrase: requireString(item, expect, where) };
   });
-  return {
-    dir,
-    config: overrides(value.config, `${file} config`, product),
-    base: value.base === undefined ? null : overrides(value.base, `${file} base`, product),
-    checks,
+  const config = overrides(value.config, `${file} config`, product);
+  const base = value.base === undefined ? null : overrides(value.base, `${file} base`, product);
+  // A missing path makes a check crash, and a crash prints the path, so a
+  // phrase found in a path could pass a case that never ran its rule.
+  const named = [dir, ...pathsIn(config), ...(base ? pathsIn(base) : [])];
+  for (const missing of named.filter((name) => !existsSync(name))) throw new Error(`${file} names ${missing}, which does not exist.`);
+  for (const check of checks) {
+    const echoed = named.find((name) => name.includes(check.phrase));
+    if (echoed) throw new Error(`${file} expects "${check.phrase}", which is part of the path ${echoed}, so it cannot show the rule ran.`);
+  }
+  return { dir, config, base, checks };
+}
+
+/** Every repo path a case's overrides name. */
+function pathsIn(change: Overrides): string[] {
+  const found: string[] = [];
+  const collect = (value: unknown): void => {
+    if (typeof value === "string") found.push(value);
+    else if (Array.isArray(value)) value.forEach(collect);
+    else if (isRecord(value)) Object.values(value).forEach(collect);
   };
+  collect(change.adapter);
+  collect(change.paths);
+  for (const flow of change.flows ?? []) {
+    if (!isRecord(flow)) continue;
+    collect(flow.states);
+    collect(flow.views);
+    collect(flow.tasks);
+  }
+  return found;
 }
 
 function caseDirs(): string[] {
@@ -100,7 +124,8 @@ function caseDirs(): string[] {
   for (const container of CONTAINERS) {
     for (const entry of readdirSync(container, { withFileTypes: true })) {
       const dir = `${container}/${entry.name}`;
-      if (entry.isDirectory() && !CONTAINERS.has(dir)) dirs.push(dir);
+      const isDir = entry.isDirectory() || (entry.isSymbolicLink() && statSync(dir).isDirectory());
+      if (isDir && !CONTAINERS.has(dir)) dirs.push(dir);
     }
   }
   const named = process.argv.slice(2).map((name) => `${FIXTURES}/${name.replace(/\/+$/, "")}`);

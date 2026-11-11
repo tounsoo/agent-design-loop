@@ -559,4 +559,5 @@ const introduced = introducedLists(base, head, compareConfig);
 const baseName = baseRoot.kind === "git" ? baseRoot.rev.slice(0, 7) : baseFlag;
 if (introduced.length > 0) console.log(`inventory: base has no ${introduced.join(" or ")}; recorded the current inventories.`);
 else console.log(`inventory: membership matches ${baseName}.`);
+console.log("inventory: collection bodies use a registered content layout.");
 console.log(`inventory: ${summary(head)}`);

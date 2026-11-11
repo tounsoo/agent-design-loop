@@ -1,4 +1,4 @@
-/** Legal: the fixture product as it is. Every check passes it, so a case fails only for what it changes. */
+/** Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes. */
 export default {
   checks: [
     { run: "lint:product-ui", passes: "off-catalog: clean" },

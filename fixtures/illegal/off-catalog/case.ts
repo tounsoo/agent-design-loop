@@ -6,6 +6,6 @@ export default {
     },
   },
   checks: [
-    { run: "lint:product-ui", fails: "off-catalog" },
+    { run: "lint:product-ui", fails: "raw <button> is not a catalog control" },
   ],
 };

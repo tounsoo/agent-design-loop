@@ -20,7 +20,7 @@ Preconditions:
 - The baseline preconditions hold, and `origin/main` (or a local `main`) is in the clone.
 
 - **Fixtures.** Run `npm run check:fixtures`. One line per check of each case reads `<case> <check> failed as required.` or `<case> <check> passed as required.`, then `fixtures: <n> checks ran on their cases as required.`
-- **One failing case.** Run `npm run check:fixtures -- illegal/two-primaries`. It prints `illegal/two-primaries lint:slots failed as required.` and exits 0.
+- **One failing case.** Run `npm run check:fixtures -- illegal/two-primaries`. It prints `fixtures: illegal/two-primaries lint:slots failed as required.` and exits 0.
 - **Inventories.** Run `npm run check:inventories`. It prints `inventory: membership matches <base sha>.` and the current layouts, content layouts, page types, catalog count and flow states.
 
 ## Gotchas

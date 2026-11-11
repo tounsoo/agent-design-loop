@@ -6,6 +6,6 @@ export default {
     },
   },
   checks: [
-    { run: "lint:slots", fails: "primary slot" },
+    { run: "lint:slots", fails: "accepts exactly one primary button, found 2 primary" },
   ],
 };

@@ -12,7 +12,7 @@ export default {
     { run: "check:priority", passes: '"Approve" is the primary button' },
     { run: "check:disclosure", passes: "across 2 pages" },
     { run: "check:one-thing", passes: "one job per page" },
-    { run: "check:inventories", passes: "membership matches" },
+    { run: "check:inventories", passes: "collection bodies use a registered content layout" },
     { run: "lint:product-ui", passes: "off-catalog: clean" },
   ],
 };

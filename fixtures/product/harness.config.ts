@@ -3,7 +3,7 @@ import type { HarnessConfig } from "../../scripts/lib/config";
 /**
  * The fixture product: a small Todae product that passes every check. Each
  * case under fixtures/ runs the checks on this config with the paths its own
- * case.ts replaces, so a case fails only for what it changes. Plain literals
+ * case.ts replaces, so a case fails for what it changes. Plain literals
  * only, like a product's config.
  */
 export default {

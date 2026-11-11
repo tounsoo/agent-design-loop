@@ -95,7 +95,7 @@ npm run check:fixtures && npm run check
 
 There is no LLM judge on CI.
 
-The scripts take a path flag as two arguments, `--config fixtures/two-tasks/harness.config.ts`. `--config=<file>` and `--adapter=<file>` are refused. Any other `--name=<value>`, such as `--features=<dir>`, is ignored, and the script reads its default path from `harness.config.ts`.
+A check reads its paths only from a config: `harness.config.ts`, or the one `--config <file>` names. Besides `--config`, `check:inventories` reads `--base <file>` and `check:target-size` reads `--list`. Any other flag, and any `--name=<value>` form, is refused, so a stale invocation cannot pass on the wrong product.
 
 ## Use it as a testing ground
 

@@ -246,7 +246,7 @@ flowchart TB
 
 The inventories to read, in order, are the product inputs, the UX rules, the catalog, layouts, content layouts, page types, the flow model, and `proposals/README.md`.
 
-`npm run check:fixtures` runs the harness's own tests. `fixtures/product/` is a small Todae product with its own `harness.config.ts`, and every check passes it. Every other folder directly under `fixtures/` or `fixtures/illegal/` is a case. Its `case.ts` names the config paths it replaces in the fixture product's config, and the checks to run on the result, each with the phrase it must print. `check:fixtures` runs each check the way a product runs it, as its npm script with `--config`, so a case fails only for what it changes. It exits 0 only when every illegal case fails its checks with their phrases and every legal case passes its checks with theirs. A folder with no `case.ts` fails the run, so no fixture is left out. A fixture has no pull request base, so `check:inventories` compares it through `--base`: with the fixture product when its case gives a `base`, and with itself otherwise.
+`npm run check:fixtures` runs the harness's own tests. `fixtures/product/` is a small Todae product with its own `harness.config.ts`, and every check passes it. Every other folder directly under `fixtures/` or `fixtures/illegal/` is a case. Its `case.ts` names the config paths it replaces in the fixture product's config, and the checks to run on the result, each with the phrase it must print. `check:fixtures` runs each check the way a product runs it, as its npm script with `--config`, so a case differs from the fixture product only in what it names. It exits 0 only when every illegal case fails its checks with their phrases and every legal case passes its checks with theirs. A folder with no `case.ts` fails the run, so no fixture is left out. So does a case that names a path that does not exist, or whose phrase is part of one of its own paths, since a crash prints the path and could pass a case whose rule never ran. A fixture has no pull request base, so `check:inventories` compares it through `--base`: with the fixture product when its case gives a `base`, and with itself otherwise.
 
 `npm run check` is the build gate, in this order: `typecheck`, `lint` (ESLint, then `lint:product-ui`, then `lint:slots`), `check:step-budget`, `check:disclosure`, `check:priority`, `check:one-thing`, `check:inventories`, `check:state-coverage`, `check:target-size`, and `test`.
 
@@ -256,8 +256,8 @@ The fixtures the gate has to reject:
 
 | Fixture | What is wrong | Phrase the output must contain |
 | --- | --- | --- |
-| `two-primaries` | Two buttons in the detail primary slot | `primary slot` |
-| `over-budget` | A task graph with an approval-note step | `modeled path length 4 exceeds max_steps` |
+| `two-primaries` | Two buttons in the detail primary slot | `accepts exactly one primary button, found 2 primary` |
+| `over-budget` | A task graph and shipped flow with an approval-note step | `modeled path length 4 exceeds max_steps` |
 | `over-budget-flow` | A 3-step graph, and a reducer that needs Line items and a note before Approve | `shipped flow path length 4 exceeds max_steps` |
 | `graph-flow-drift` | A 3-step graph that requires Line items, and a reducer that lets Approve through without them | `does not match the modeled path` |
 | `task-without-graph` | Two tasks, and a task graph mapped for only one | `has no task graph` |
@@ -273,7 +273,7 @@ The fixtures the gate has to reject:
 | `disclosures-per-page` | Two disclosures on one detail page, one per component file | `more than 1 per page` |
 | `missing-disclosed-section` | Line items in a table with no disclosure | `is not behind a disclosure` |
 | `renamed-disclosed-section` | Inputs that disclose Attachments, on the fixture product's pages | `"Attachments" is not behind a disclosure` |
-| `off-catalog` | A raw `<button>` | `off-catalog` |
+| `off-catalog` | A raw `<button>` | `raw <button> is not a catalog control` |
 | `missing-view` | `invoice-approved` has no view case | `has no view` |
 | `undeclared-layout` | A `side-panel` directory beside `app-shell` | `undeclared layout` |
 | `inventory-expansion` | `allowed_layouts` gains `side-panel`, and no proposal | `without a proposal` |
