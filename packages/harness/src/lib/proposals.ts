@@ -238,7 +238,7 @@ export function nameProblems(base: Iterable<string>, head: Iterable<string>, tod
   for (const file of [...head].sort()) {
     const name = path.posix.basename(file);
     if (before.has(file) || isDatedName(name, today)) continue;
-    const slug = name.replace(/\.md$/, "").replace(/^\d{4}(?:-\d{2}-\d{2})?-/, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "slug";
+    const slug = name.replace(/\.md$/, "").replace(/^\d{4}(?:[-_]\d{1,2}[-_]\d{1,2})?[-_]/, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "slug";
     const example = path.posix.join(path.posix.dirname(file), `${today.toISOString().slice(0, 10)}-${slug}.md`);
     problems.push(
       `${file} is a new proposal, so its name is the UTC day it was written and a lowercase slug, such as ${example}. A dated name cannot collide with a proposal another pull request adds in parallel, as the next free number can.`,
