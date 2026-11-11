@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { build, preview } from "vite";
 import puppeteer from "puppeteer-core";
+import { adapter } from "./lib/adapter";
 import { loadRules } from "./lib/config";
 
 const { TARGET_MIN_PX } = await loadRules();
@@ -92,13 +93,13 @@ if (failures.length > 0) {
 console.log(`target size: invoice controls meet ${TARGET_MIN_PX} CSS px (or the WCAG spacing exception).`);
 
 function assertButtonTokens(): void {
-  const css = readFileSync("node_modules/@tounsoo/todae/dist/todae.css", "utf8");
-  const paddingY = resolveLength(css, "--todae-button-padding-y");
-  const fontSize = resolveLength(css, "--todae-button-font-size");
+  const css = readFileSync(adapter.tokens.css, "utf8");
+  const paddingY = resolveLength(css, adapter.tokens.actionPaddingY);
+  const fontSize = resolveLength(css, adapter.tokens.actionFontSize);
   const floor = fontSize + paddingY * 2;
   if (floor < TARGET_MIN_PX) {
     console.error(
-      `target size: Todae button floor is ${floor}px (font ${fontSize} + padding-y ${paddingY} * 2), under ${TARGET_MIN_PX}px.`,
+      `target size: ${adapter.name} button floor is ${floor}px (font ${fontSize} + padding-y ${paddingY} * 2), under ${TARGET_MIN_PX}px.`,
     );
     process.exit(1);
   }
@@ -118,7 +119,7 @@ function lengthFrom(css: string, value: string, seen: Set<string>): number {
   if (fallback?.[1] && fallback[2]) {
     const nested = fallback[1];
     const defined = css.includes(`${nested}:`);
-    if (!defined || nested.startsWith("--_todae-")) return lengthFrom(css, fallback[2].trim(), seen);
+    if (!defined || nested.startsWith(adapter.tokens.privatePrefix)) return lengthFrom(css, fallback[2].trim(), seen);
     return resolveLength(css, nested, seen);
   }
   const variable = value.match(/^var\(\s*(--[A-Za-z0-9_-]+)\s*\)$/);

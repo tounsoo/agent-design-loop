@@ -4,3 +4,6 @@
 # The harness config says where every inventory lives. Changing a path can
 # empty a check, so it needs a proposal and the same review.
 /harness.config.ts @tounsoo
+# The design system adapter names the parts every check counts. Swapping a
+# name can empty a check the same way.
+/adapters/ @tounsoo

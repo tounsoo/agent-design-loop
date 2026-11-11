@@ -210,6 +210,8 @@ flowchart LR
 | `exhaustive-states` | `npm run check:state-coverage` | `src/flows/invoice-approval/states.ts#modeledStates` | `modeledStates`, and the `case` labels in `src/features/invoice-approval/views.tsx` | Did we model the states that actually happen? |
 | `target-size` | `npm run check:target-size` | No product exception is recorded. WCAG 2.5.8 spacing may pass an undersized control. | `TARGET_MIN_PX` | Should an important control aim for the stricter 44 CSS px enhanced size? |
 
+The Todae names below, such as `Button.Root` and its `variant`, `Disclosure.Root`, `Disclosure.Summary` and `Field.Root`, are not in the scripts. Each script reads them from the design system adapter that `harness.config.ts` names, `adapters/todae.ts`. `fixtures/fake-ds/` is UI for a stand-in design system with other names, and `check:fixtures` requires the checks to pass it under its own adapter.
+
 What each script fails, in the words the code implements:
 
 - **Step budget.** Every task has exactly one task graph, and every graph's `taskId` is a task. For each task, the modeled path and the shipped path must exist, be at most `max_steps`, and be the same steps. `fixtures/illegal/over-budget` has a longer graph. `fixtures/illegal/over-budget-flow` has a 3-step graph and a reducer that needs 4. `fixtures/illegal/graph-flow-drift` has a 3-step graph and a reducer that needs 2. `fixtures/illegal/task-without-graph` has no graph for `approve-vendor-invoice`.
@@ -302,7 +304,7 @@ A list the base file does not export is skipped. That is the bootstrap that reco
 ```mermaid
 flowchart TB
   read["Read the head inventories and the base inventories."]
-  skip["Skip allowed_layouts, allowed_content_layouts or harness.config.ts when the base does not have it."]
+  skip["Skip allowed_layouts, allowed_content_layouts, harness.config.ts or the adapter when the base does not have it."]
   diff{"Does any compared value differ?"}
   ok["No proposal required."]
   words{"Does the pull request add a new proposal file that contains reason, preview, and graduation?"}
@@ -326,6 +328,7 @@ Compared values, from `membershipChanges` in `scripts/check-inventories.ts`:
 - `disclosed_sections`, only when the base already exports it
 - `MAX_DISCLOSURE_DEPTH`, `MAX_DISCLOSURES_PER_PAGE`, `MAX_VISIBLE_QUESTIONS`, and `TARGET_MIN_PX`
 - every path in `harness.config.ts`, only when the base already has the file. The base is read at the paths its own config names, or at the head's paths when it has none
+- the design system adapter that `harness.config.ts` names, field by field, only when the base config already names one
 
 String lists are sorted and de-duplicated before the comparison, so reordering `allowed_page_types` without adding or removing an id is not a change. Changing `max_steps` from 3 to 4 is a change, even though the task id stays.
 

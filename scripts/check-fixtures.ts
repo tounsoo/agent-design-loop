@@ -1,5 +1,9 @@
 import { spawnSync } from "node:child_process";
 
+const fakeAdapter = ["--adapter", "fixtures/fake-ds/adapter.ts"];
+const fakeFeatures = "fixtures/fake-ds/features";
+const fakeCatalog = "fixtures/fake-ds/catalog.ts";
+
 const cases = [
   {
     name: "two-primaries",
@@ -104,15 +108,131 @@ const cases = [
     args: ["scripts/check-inventories.ts", "--features", "fixtures/illegal/ad-hoc-content"],
     phrase: "not a registered content layout",
   },
+  {
+    name: "fake-ds-two-primaries",
+    args: ["scripts/check-slots.ts", "--root", "fixtures/illegal/fake-ds-two-primaries", ...fakeAdapter],
+    phrase: "found 2 primary and 2 Action",
+  },
+  {
+    name: "fake-ds-nested-reveal",
+    args: [
+      "scripts/check-disclosure.ts",
+      "--features",
+      "fixtures/illegal/fake-ds-nested-reveal",
+      "--catalog",
+      fakeCatalog,
+      ...fakeAdapter,
+    ],
+    phrase: "disclosure depth 2 exceeds 1",
+  },
+  {
+    name: "fake-ds-over-caps disclosures",
+    args: [
+      "scripts/check-disclosure.ts",
+      "--features",
+      "fixtures/illegal/fake-ds-over-caps",
+      "--catalog",
+      fakeCatalog,
+      ...fakeAdapter,
+    ],
+    phrase: "page has 2 disclosures",
+  },
+  {
+    name: "fake-ds-over-caps questions",
+    args: [
+      "scripts/check-one-thing.ts",
+      "--features",
+      "fixtures/illegal/fake-ds-over-caps",
+      "--catalog",
+      fakeCatalog,
+      ...fakeAdapter,
+    ],
+    phrase: "shows 2 questions outside a disclosure",
+  },
+  {
+    name: "fake-ds-over-caps priority",
+    args: ["scripts/check-priority.ts", "--features", "fixtures/illegal/fake-ds-over-caps", ...fakeAdapter],
+    phrase: "a primary button is inside a disclosure",
+  },
+  {
+    name: "fake-ds-collection-primary",
+    args: [
+      "scripts/check-one-thing.ts",
+      "--features",
+      "fixtures/illegal/fake-ds-collection-primary",
+      "--catalog",
+      fakeCatalog,
+      ...fakeAdapter,
+    ],
+    phrase: "puts a primary button on the collection page",
+  },
+  {
+    name: "fake-ds-hoisted disclosure",
+    args: ["scripts/check-disclosure.ts", "--features", "fixtures/illegal/fake-ds-hoisted", "--catalog", fakeCatalog, ...fakeAdapter],
+    phrase: "Reveal.Root is not reached from any page",
+  },
+  {
+    name: "fake-ds-hoisted question",
+    args: ["scripts/check-one-thing.ts", "--features", "fixtures/illegal/fake-ds-hoisted", "--catalog", fakeCatalog, ...fakeAdapter],
+    phrase: "Ask is not reached from any page",
+  },
+  {
+    name: "fake-ds-off-catalog",
+    args: ["scripts/lint-product-ui.ts", "--root", "fixtures/illegal/fake-ds-off-catalog", ...fakeAdapter],
+    phrase: 'off-catalog: import "@fake/ds" directly',
+  },
+];
+
+/**
+ * Legal cases must pass. fixtures/fake-ds is UI for a stand-in design system
+ * that shares no name with Todae. Run with the same arguments but no
+ * --adapter, every check below but the off-catalog lint fails it, so passing
+ * here shows the check reads its names from the adapter.
+ */
+const legalCases = [
+  {
+    name: "fake-ds slots",
+    args: ["scripts/check-slots.ts", "--root", fakeFeatures, ...fakeAdapter],
+    phrase: "exactly one primary button on 1 detail page",
+  },
+  {
+    name: "fake-ds priority",
+    args: ["scripts/check-priority.ts", "--features", fakeFeatures, ...fakeAdapter],
+    phrase: '"Approve" is the primary button',
+  },
+  {
+    name: "fake-ds disclosure",
+    args: ["scripts/check-disclosure.ts", "--features", fakeFeatures, "--catalog", fakeCatalog, ...fakeAdapter],
+    phrase: "across 2 pages",
+  },
+  {
+    name: "fake-ds one thing",
+    args: ["scripts/check-one-thing.ts", "--features", fakeFeatures, "--catalog", fakeCatalog, ...fakeAdapter],
+    phrase: "one shell per page type",
+  },
+  {
+    name: "fake-ds collection body",
+    args: ["scripts/check-inventories.ts", "--features", fakeFeatures, ...fakeAdapter],
+    phrase: "collection bodies use a registered content layout",
+  },
+  {
+    name: "fake-ds off-catalog",
+    args: ["scripts/lint-product-ui.ts", "--root", fakeFeatures, ...fakeAdapter],
+    phrase: "off-catalog: clean",
+  },
 ];
 
 let failed = false;
 
-for (const testCase of cases) {
-  const result = spawnSync(process.execPath, ["--import", "tsx", ...testCase.args], {
+function run(args: readonly string[]) {
+  const result = spawnSync(process.execPath, ["--import", "tsx", ...args], {
     encoding: "utf8",
   });
-  const output = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+  return { result, output: `${result.stdout ?? ""}\n${result.stderr ?? ""}` };
+}
+
+for (const testCase of cases) {
+  const { result, output } = run(testCase.args);
   const exited = result.status !== 0 && result.status !== null;
   const explained = output.includes(testCase.phrase);
   if (exited && explained) {
@@ -124,5 +244,16 @@ for (const testCase of cases) {
   console.error(output.trim() || `(status ${result.status}, signal ${result.signal})`);
 }
 
+for (const testCase of legalCases) {
+  const { result, output } = run(testCase.args);
+  if (result.status === 0 && output.includes(testCase.phrase)) {
+    console.log(`fixtures: ${testCase.name} passed the check as required.`);
+    continue;
+  }
+  failed = true;
+  console.error(`fixtures: ${testCase.name} was expected to pass with "${testCase.phrase}".`);
+  console.error(output.trim() || `(status ${result.status}, signal ${result.signal})`);
+}
+
 if (failed) process.exit(1);
-console.log("fixtures: illegal cases failed the checks.");
+console.log("fixtures: illegal cases failed the checks, and legal cases passed.");

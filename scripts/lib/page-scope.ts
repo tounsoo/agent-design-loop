@@ -1,6 +1,7 @@
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 import ts from "typescript";
+import { adapter } from "./adapter";
 import { config, importsFrom, loadInputs, memberOf } from "./config";
 import { jsxTagName, listSourceFiles, parseFile, walk } from "./jsx";
 
@@ -42,7 +43,7 @@ export const defaultRoots: PageRoots = {
   contentLayouts: path.resolve(config.paths.contentLayouts),
 };
 
-const DISCLOSURE = "Disclosure.Root";
+const DISCLOSURE = adapter.disclosure.root;
 
 /** Names a module exports as values, including re-exports. */
 export function valueExports(file: string): string[] {
@@ -115,7 +116,7 @@ export function openingOf(node: ts.Node): ts.JsxOpeningLikeElement | null {
   return null;
 }
 
-/** Disclosure.Root elements between node and the scope root, not counting node itself. */
+/** Disclosure elements between node and the scope root, not counting node itself. */
 export function disclosureAncestors(node: ts.Node, root: ts.Node): number {
   let count = 0;
   let current = node.parent;

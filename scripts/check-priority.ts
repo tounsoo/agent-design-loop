@@ -1,5 +1,6 @@
 import path from "node:path";
 import ts from "typescript";
+import { adapter, isPrimaryVariant } from "./lib/adapter";
 import { config, loadInputs } from "./lib/config";
 import { attributeValue, elementText, jsxTagName, lineOf, listSourceFiles, parseFile, walk } from "./lib/jsx";
 
@@ -35,7 +36,7 @@ const violations: string[] = [];
 function insideDisclosure(node: ts.Node): boolean {
   let current = node.parent;
   while (current) {
-    if (ts.isJsxElement(current) && jsxTagName(current.openingElement.tagName) === "Disclosure.Root") return true;
+    if (ts.isJsxElement(current) && jsxTagName(current.openingElement.tagName) === adapter.disclosure.root) return true;
     current = current.parent;
   }
   return false;
@@ -52,16 +53,16 @@ for (const file of listSourceFiles(featuresRoot)) {
         : null;
     if (!opening) return;
     const tag = jsxTagName(opening.tagName);
-    if (tag === "Button.Root") {
+    if (tag === adapter.action.tag) {
       buttons.push({
         file: relative,
         line: lineOf(source, opening),
         text: elementText(node).text,
         inDisclosure: insideDisclosure(node),
-        variant: attributeValue(opening, "variant"),
+        variant: attributeValue(opening, adapter.action.variantProp),
       });
     }
-    if (tag === "Disclosure.Summary") {
+    if (tag === adapter.disclosure.summary) {
       summaries.push({
         file: relative,
         line: lineOf(source, opening),
@@ -73,7 +74,7 @@ for (const file of listSourceFiles(featuresRoot)) {
   });
 }
 
-const primaryButtons = buttons.filter((button) => button.variant === null || button.variant === "primary");
+const primaryButtons = buttons.filter((button) => isPrimaryVariant(button.variant));
 const secondaryButtons = buttons.filter((button) => button.text === secondaryItem.action);
 
 if (primaryButtons.length !== 1 || primaryButtons[0]?.text !== primaryItem.action) {
@@ -86,7 +87,7 @@ if (primaryButtons.some((button) => button.inDisclosure)) {
   violations.push("priority: a primary button is inside a disclosure.");
 }
 
-if (secondaryButtons.length !== 1 || secondaryButtons[0]?.variant !== "secondary") {
+if (secondaryButtons.length !== 1 || secondaryButtons[0]?.variant !== adapter.action.secondary) {
   violations.push(
     `priority: rank 2 "${secondaryItem.action}" must be one secondary button, found ${secondaryButtons.map((button) => `${button.variant ?? "primary"}:"${button.text}"`).join(", ") || "none"}.`,
   );

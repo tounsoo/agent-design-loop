@@ -1,5 +1,6 @@
 import path from "node:path";
 import ts from "typescript";
+import { adapter, isPrimaryVariant } from "./lib/adapter";
 import { config } from "./lib/config";
 import { attributeValue, elementText, jsxElements, jsxTagName, lineOf, listSourceFiles, parseFile, walk } from "./lib/jsx";
 
@@ -20,18 +21,14 @@ function buttonsIn(node: ts.Node, source: ts.SourceFile): ButtonHit[] {
       : ts.isJsxSelfClosingElement(current)
         ? current
         : null;
-    if (!opening || jsxTagName(opening.tagName) !== "Button.Root") return;
+    if (!opening || jsxTagName(opening.tagName) !== adapter.action.tag) return;
     hits.push({
       line: lineOf(source, opening),
-      variant: attributeValue(opening, "variant"),
+      variant: attributeValue(opening, adapter.action.variantProp),
       text: elementText(current).text,
     });
   });
   return hits;
-}
-
-function isPrimaryVariant(variant: ButtonHit["variant"]): boolean {
-  return variant === null || variant === "primary";
 }
 
 const violations: string[] = [];
@@ -69,7 +66,7 @@ for (const root of roots) {
       const primaryButtons = buttons.filter((button) => isPrimaryVariant(button.variant));
       if (buttons.length !== 1 || primaryButtons.length !== 1) {
         violations.push(
-          `${relative}:${lineOf(source, slot)}: primary slot accepts exactly one primary button, found ${primaryButtons.length} primary and ${buttons.length} Button.Root.`,
+          `${relative}:${lineOf(source, slot)}: primary slot accepts exactly one primary button, found ${primaryButtons.length} primary and ${buttons.length} ${adapter.action.tag}.`,
         );
       }
     }

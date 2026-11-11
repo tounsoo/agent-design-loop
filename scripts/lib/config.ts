@@ -22,6 +22,8 @@ export type FlowConfig = {
 };
 
 export type HarnessConfig = {
+  /** The design system adapter module: the names the checks look for. See scripts/lib/adapter.ts. */
+  readonly adapter: string;
   readonly paths: {
     /** Everything the inventory import scan reads. */
     readonly source: string;
@@ -66,7 +68,7 @@ export type UxRules = {
   readonly TARGET_MIN_PX: number;
 };
 
-type Literal = string | number | boolean | readonly Literal[] | { readonly [key: string]: Literal };
+export type Literal = string | number | boolean | readonly Literal[] | { readonly [key: string]: Literal };
 
 function unwrap(expression: ts.Expression): ts.Expression {
   let current = expression;
@@ -97,17 +99,17 @@ function literal(node: ts.Expression, where: string): Literal {
   throw new Error(`${where} must be a plain literal, not computed.`);
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function requireString(record: Record<string, unknown>, key: string, where: string): string {
+export function requireString(record: Record<string, unknown>, key: string, where: string): string {
   const value = record[key];
   if (typeof value !== "string" || value === "") throw new Error(`${where}.${key} must be a non-empty string.`);
   return value;
 }
 
-function requireStrings(record: Record<string, unknown>, key: string, where: string): string[] {
+export function requireStrings(record: Record<string, unknown>, key: string, where: string): string[] {
   const value = record[key];
   if (!Array.isArray(value) || !value.every((item) => typeof item === "string" && item !== "")) {
     throw new Error(`${where}.${key} must be an array of non-empty strings.`);
@@ -115,19 +117,28 @@ function requireStrings(record: Record<string, unknown>, key: string, where: str
   return value as string[];
 }
 
-/** Parses harness.config.ts source text. Throws when it is not plain literals or misses a field. */
-export function parseConfig(text: string, label = CONFIG_FILE): HarnessConfig {
+/** The default export of a plain-literal module, read from its source text without running it. */
+export function defaultExportLiteral(text: string, label: string, where: string): Literal {
   const source = ts.createSourceFile(label, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
   const defaults = source.statements.filter(
     (statement): statement is ts.ExportAssignment => ts.isExportAssignment(statement) && !statement.isExportEquals,
   );
   const exported = defaults[0];
   if (!exported || defaults.length > 1) throw new Error(`${label} must have exactly one default export.`);
-  const value = literal(exported.expression, "config");
-  if (!isRecord(value) || !isRecord(value.paths)) throw new Error(`${label} must export { paths, flows }.`);
+  return literal(exported.expression, where);
+}
+
+/** A config as parsed. adapter is null in a config written before the adapter existed. */
+export type ParsedConfig = Omit<HarnessConfig, "adapter"> & { readonly adapter: string | null };
+
+/** Parses harness.config.ts source text. Throws when it is not plain literals or misses a field. */
+export function parseConfig(text: string, label = CONFIG_FILE): ParsedConfig {
+  const value = defaultExportLiteral(text, label, "config");
+  if (!isRecord(value) || !isRecord(value.paths)) throw new Error(`${label} must export { adapter, paths, flows }.`);
   const paths = value.paths;
   if (!Array.isArray(value.flows) || value.flows.length === 0) throw new Error("config.flows must list at least one flow.");
   return {
+    adapter: value.adapter === undefined ? null : requireString(value, "adapter", "config"),
     paths: {
       source: requireString(paths, "source", "config.paths"),
       features: requireString(paths, "features", "config.paths"),
@@ -153,7 +164,9 @@ function loadConfig(): HarnessConfig {
   const file = path.resolve(CONFIG_FILE);
   try {
     if (!existsSync(file)) throw new Error(`${CONFIG_FILE} is missing. Run the checks from the repository root.`);
-    return parseConfig(readFileSync(file, "utf8"));
+    const parsed = parseConfig(readFileSync(file, "utf8"));
+    if (parsed.adapter === null) throw new Error("config.adapter must name the design system adapter module.");
+    return { ...parsed, adapter: parsed.adapter };
   } catch (error) {
     console.error(`harness config: ${error instanceof Error ? error.message : String(error)}`);
     process.exit(1);
