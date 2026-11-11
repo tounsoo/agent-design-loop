@@ -21,6 +21,8 @@ Loop: follow the graph in `packages/harness/design-loop.ts` from its `start` nod
 
 Trace: record the walk as you go. Each time you take a node, run `npm run loop:step -- traces/<change>.jsonl <node> [when]`, with the `when` of the edge you took out of a router, eval or human node. A change that touches a product needs a trace, and `npm run check:trace` fails one the graph does not allow. Run it before you push. The trace is a record for the reviewer, not a proof, so write only what you did.
 
+States: before you build, list every state the screen will show, the edge cases included (empty, loading, error, long content, permissions, and what changes over time), and look for information the screen would show twice. A proposal writes them in its `## States` section, as `proposals/README.md` describes, and `check:proposals` fails one that changes or adds members without them.
+
 Screenshots: at the loop's `screenshots` node, after the gate passes, run `npm run screenshots -- --config <product config> --out products/<name>/review/screenshots/<change> --base origin/main`, with `--state <state>` for each state the change touches, or no `--state` for every preview. Commit the folder with the gallery `README.md` it writes, and put the line it prints in the pull request description, with `<sha>` replaced by the pushed commit's full SHA and its whole `https://github.com/` address, never a relative path or a branch link, so each image opens full size from the gallery on any device.
 
 Checks: `npm run check:fixtures && npm run check`

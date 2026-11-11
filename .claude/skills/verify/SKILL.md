@@ -65,7 +65,7 @@ When a change touches an inventory (anything `proposals/README.md` lists), `chec
 
 When a change touches a reducer, a task graph or a task's `max_steps`, quote each task's `longest shipped flow route (N)` line from `check:step-budget` as well as its verdict. The check measures every route to a task's success, not only the shortest: any steps a task graph in the same flow names, then the shortest finish. A longer route over `max_steps` fails the change even when the shortest path fits, so cut the route or propose a new budget.
 
-When a change adds or edits a proposal, `check:proposals` must pass: a proposal the change adds or renames is named for a real date no later than tomorrow in UTC, the day it was written, and a lowercase slug, such as `2026-11-12-side-panel.md`, the front matter and the three sections are there, `adds` stands alone on a `graduated` proposal, and each status moved one step at most from the base. The rules of `check:proposals` are proven by the Vitest suite in `packages/harness/src/lib/proposals.test.ts`, not by fixture cases, because the check reads the repository's own proposal folders and takes no `--config`.
+When a change adds or edits a proposal, `check:proposals` must pass: a proposal the change adds or renames is named for a real date no later than tomorrow in UTC, the day it was written, and a lowercase slug, such as `2026-11-12-side-panel.md`, the front matter and the three sections are there, `adds` stands alone on a `graduated` proposal, each status moved one step at most from the base, and a proposal the change adds or approves that changes or adds members lists its `## States`. The rules of `check:proposals` are proven by the Vitest suite in `packages/harness/src/lib/proposals.test.ts`, not by fixture cases, because the check reads the repository's own proposal folders and takes no `--config`.
 
 ### 3. Browser drive (a change to anything a product renders, its styles, its build config or the Todae version)
 
@@ -75,7 +75,9 @@ npm run check:target-size -- --config products/meridian/harness.config.ts
 
 Use `products/nook/harness.config.ts` for Nook.
 
-It builds the app, serves it with `vite preview` on `127.0.0.1:4173` (strict port, so stop any other preview first), and opens every modeled state at 1280 by 900 in headless Chrome, once per preview query the product's `harness.config.ts` lists for it, and opens a disclosure when the page has one. `npm run check:target-size -- --list --config products/meridian/harness.config.ts` prints those previews without Chrome. It fails any control under 24 CSS px that misses the WCAG 2.5.8 spacing exception. It closes the server and the browser itself.
+Before building, list the screen's states, the edge cases included, and look for information it would show twice; a proposal keeps that list in `## States` (`proposals/README.md`). Once built, open each state the list names, out-of-scope ones aside, and check that the screen shows what its line says and says nothing twice. Name any state you could not open in the pull request.
+
+`check:target-size` builds the app, serves it with `vite preview` on `127.0.0.1:4173` (strict port, so stop any other preview first), and opens every modeled state at 1280 by 900 in headless Chrome, once per preview query the product's `harness.config.ts` lists for it, and opens a disclosure when the page has one. `npm run check:target-size -- --list --config products/meridian/harness.config.ts` prints those previews without Chrome. It fails any control under 24 CSS px that misses the WCAG 2.5.8 spacing exception. It closes the server and the browser itself.
 
 To look at a Meridian change, run `npm run build && npm run preview`. It is ready when Vite prints `http://127.0.0.1:4173/`. Open the URLs in [features/](features/README.md) there, and stop the preview server you started when done.
 
