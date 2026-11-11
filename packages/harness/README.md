@@ -49,7 +49,7 @@ Two more checks guard the rules themselves. Neither is in `check:rules`, and a p
 | Command | What it fails |
 | --- | --- |
 | `npm run check:opt-outs` | Needs `--config`. An entry in the config's `optOuts` that names a rule `check:rules` does not run, a core rule (`lint:product-ui` or `check:inventories`), or a proposal that is missing, is not directly in `paths.proposals`, is not `Status: decided`, or has no `Opts out:` line naming the rule and the product's `paths.source`. `check:product` runs it before any rule check |
-| `npm run check:retirement` | Takes no flags. Reads every `harness.config.ts` git knows of outside this package, and fails when a majority of products, and at least two, opt out of the same rule. With two products, both must opt out |
+| `npm run check:retirement` | Takes no flags. Reads every `harness.config.ts` git knows of outside this package, tracked or new. Fails when two configs name the same `paths.source`, when any product's opt-outs fail the rules of `check:opt-outs`, and when a majority of products, and at least two, opt out of the same rule. With two products, both must opt out |
 
 ### Check one product
 

@@ -11,7 +11,7 @@ Agents design best from one shared set of rules. If a pattern lived in one produ
 Graduating straight into the harness has its own risk. One product's quirk becomes every product's rule, and rules only pile up. The two guards answer that.
 
 - **Opt-out by proposal.** A new harness rule applies to every product. A product turns a rule off in its `harness.config.ts` only by naming a decided proposal that says why. Without one, `check:opt-outs` fails, and `check:product` runs it before any rule check.
-- **Retirement.** `check:retirement` reads every product's config. When a majority of products, and at least two, opt out of the same rule, it fails and names the rule. A rule most products turn off is not a shared rule. The fix is a proposal that takes it out of `check:rules`, or withdrawing an opt-out.
+- **Retirement.** `check:retirement` reads every product's config, and checks each one's opt-outs too, so a product no npm script runs cannot carry an unbacked one. When a majority of products, and at least two, opt out of the same rule, it fails and names the rule. A rule most products turn off is not a shared rule. The fix is a proposal that takes it out of `check:rules`, or withdrawing an opt-out.
 
 Two rules cannot be opted out: `lint:product-ui`, the rule that UI comes only from the catalog, and `check:inventories`, which is what makes a proposal necessary at all.
 
@@ -55,5 +55,5 @@ No file changes later. These change in the same pull request:
 - `packages/harness/src/check-product.ts` runs `check:opt-outs` first and skips opted-out rules.
 - `packages/harness/src/check-fixtures.ts` lets a case set `optOuts`. New cases are `opt-out` and six under `illegal/opt-out-*`.
 - `.github/workflows/ci.yml` runs `check:retirement` in the `check` job.
-- `CODEOWNERS` asks for review on `packages/harness/`, where a rule graduates.
+- `CODEOWNERS` asks for review on `packages/harness/`, where a rule graduates, and on `package.json`, where `check:rules` lists the rules.
 - The docs: `proposals/README.md`, the harness README, `packages/harness/docs/how-it-works.md`, `AGENTS.md` and the root README.

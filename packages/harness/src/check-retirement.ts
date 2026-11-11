@@ -2,8 +2,9 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { retirementCandidates, RETIREMENT_MIN_PRODUCTS, type OptOutProduct } from "./lib/opt-outs";
+import { optOutProblems, retirementCandidates, RETIREMENT_MIN_PRODUCTS, type OptOutProduct } from "./lib/opt-outs";
 import { parseConfig } from "./lib/parse-config";
+import { ruleChecks } from "./lib/scripts";
 
 /**
  * Reads every product's harness config in the repository and fails when a
@@ -13,6 +14,10 @@ import { parseConfig } from "./lib/parse-config";
  * `harness.config.ts` git knows of, tracked or new, outside the harness
  * package, whose fixtures are not products. A tracked config deleted from the
  * working tree is no longer a product.
+ *
+ * It also checks every product's opt-outs the way check:opt-outs does, so a
+ * product that no `check:<name>` script runs cannot carry an opt-out with no
+ * decided proposal behind it.
  */
 
 if (process.argv.length > 2) {
@@ -48,6 +53,18 @@ files.forEach((file, index) => {
 const shared = [...bySource.entries()].filter(([, configs]) => configs.length > 1);
 if (shared.length > 0) {
   for (const [source, configs] of shared) console.error(`retirement: ${configs.join(" and ")} both name paths.source ${source}, so that product would count twice.`);
+  process.exit(1);
+}
+
+const rules = ruleChecks();
+const read = (file: string): string | null => (existsSync(path.resolve(file)) ? readFileSync(path.resolve(file), "utf8") : null);
+const invalid = files.flatMap((file, index) => {
+  const product = products[index];
+  return product ? optOutProblems(product, rules, read).map((problem) => `${file} ${problem}`) : [];
+});
+if (invalid.length > 0) {
+  console.error("retirement: these opt-outs have no decided proposal behind them, so they are not counted:");
+  for (const problem of invalid) console.error(`- ${problem}`);
   process.exit(1);
 }
 
