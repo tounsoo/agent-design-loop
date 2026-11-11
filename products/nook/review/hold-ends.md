@@ -19,4 +19,4 @@ A hold lasts 15 minutes, and the held alert says so, but until this change a hol
 
 ## Screenshots
 
-The [screenshot gallery](screenshots/hold-ends/README.md) shows the held and hold-ended previews at 1280 by 900. Before, a held room 15 minutes in still read "Room held". After, the same moment reads "Hold ended". The held preview itself renders as it did before this change.
+The [screenshot gallery](screenshots/hold-ends/README.md) shows the held and hold-ended previews at 1280 by 900. The held preview renders as it did before this change. The hold-ended preview is new, so it has no before shot: before this change, a hold 15 minutes in still read "Room held".

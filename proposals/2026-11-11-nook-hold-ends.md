@@ -45,7 +45,7 @@ The booking page in `expired`, at `?state=expired`:
 inventory: flow states changed from ["booked","choosing","error","held","loading","no-rooms"] to ["booked","choosing","error","expired","held","loading","no-rooms"]. Graduates proposals/2026-11-11-nook-hold-ends.md (only adds, so it graduates in the pull request that adds it, which a designer reviews).
 ```
 
-Screenshots of the held and expired previews, before and after, are in the gallery at `products/nook/review/screenshots/hold-ends/`.
+The gallery at `products/nook/review/screenshots/hold-ends/` shows the held preview before and after this change, and the expired preview after it.
 
 ## Graduation
 
