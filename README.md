@@ -70,7 +70,7 @@ These are the preview URLs `check:target-size` opens. The menu has no entry for 
 - `?state=invoice-approved&page=detail`
 - `?state=changes-requested&page=detail`
 
-A state the model does not name is ignored, and the page stays on To approve.
+A `?state=` value the model does not name is ignored. The rest of the URL decides the page, which is To approve when nothing else is set.
 
 ## Run the checks
 
@@ -90,7 +90,7 @@ npm run check:fixtures && npm run check
 | `npm run check:one-thing` | Per page: a page rendered inside another page, a primary on a collection page, or more visible questions than the cap. Also a page type that renders no page. A product may render a page type as often as it needs. Page-type membership is `allowed_page_types`, which this check reads |
 | `npm run check:inventories` | A chrome layout, content layout, or page type outside the allowlists; a collection body that is not a registered content layout; or an inventory-set change versus the pull request base with no new proposal. A list the base does not export yet may be recorded once. That bootstrap covered `allowed_layouts` and `allowed_content_layouts`, and it covers `harness.config.ts` and the design system adapter it names, which are inventories too |
 | `npm run check:state-coverage` | A modeled flow state with no view |
-| `npm run check:target-size` | A control under WCAG 2.5.8 (24 CSS px), spacing exception included, on any modeled state. It opens every state in `modeledStates`, with the query strings `flows[].previews` in `harness.config.ts` adds. Needs Chrome; `--list` prints the previews without it. |
+| `npm run check:target-size` | A control under WCAG 2.5.8 (24 CSS px), spacing exception included, on any modeled state. It opens every state in `modeledStates`: bare, or once per query string that `flows[].previews` in `harness.config.ts` lists for it. Needs Chrome; `--list` prints the previews without it. |
 | `npm run test` | The flow, the two-step journey, the request-changes branch, and the rendered states |
 
 There is no LLM judge on CI.
@@ -123,7 +123,7 @@ src/flows/invoice-approval/          loading, empty, error, ready, invoice-appro
 src/inputs/product.ts                tasks, priority, disclosed sections, allowed layouts, content layouts, page types
 src/rules/ux-rules.ts                check, input, and review question for each rule
 src/features/invoice-approval/       To approve, All invoices, Vendors, and the invoice
-src/harness/state-preview/           Meridian's state preview: ?state=, ?page=, ?route=, and ?invoice=
+src/harness/state-preview/           Meridian's state preview: ?state=, ?page=, ?branch=, ?route=, and ?invoice=
 fixtures/illegal/                    known-bad shapes; check:fixtures proves each one still fails
 fixtures/fake-ds/                    a stand-in design system with no Todae names; the checks must pass it
 fixtures/two-tasks/ and others       small products of their own, run with --config; the checks must pass them

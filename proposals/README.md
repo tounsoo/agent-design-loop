@@ -9,7 +9,7 @@ The inventories are:
 - content layouts, `allowed_content_layouts` in `src/inputs/product.ts` and the directories in `src/content-layouts` — the compositions that fill a page type's body
 - page types, `allowed_page_types` in `src/inputs/product.ts` and the directories in `src/page-types`
 - flow states, `modeledStates` in `src/flows/invoice-approval/states.ts`
-- rule inputs in `src/inputs/product.ts` and `src/rules/ux-rules.ts`: step budgets (`max_steps`), priority, disclosure caps, the visible-question cap, the target-size floor, and the allowed lists
+- rule inputs in `src/inputs/product.ts` and `src/rules/ux-rules.ts`: step budgets (`max_steps`), priority, `disclosed_sections`, disclosure caps, the visible-question cap, the target-size floor, and the allowed lists
 - the harness config, `harness.config.ts`: where each of the inventories above lives, which the checks read. Pointing a path somewhere else can quietly empty a check
 - the design system adapter that config names, `adapters/todae.ts`: the component names the checks count, such as `Button.Root` and `Field.Root`. Swapping a name can empty a check the same way
 

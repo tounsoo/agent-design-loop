@@ -30,7 +30,7 @@ Here is how those rungs show up in this repo:
 - **Cannot compile.** `renderedStates` in `src/features/invoice-approval/views.tsx` is `satisfies readonly ModeledState[]`. Drop a modeled state from that list and `npm run typecheck` fails. The view `switch` ends in `never` for the same reason. `success_state` on a task is typed as `ModeledState`.
 - **Fails CI.** `npm run check` is the lint, the UX checks, the inventory check, and the tests. `npm run lint:product-ui` rejects a raw `button`, `input`, `select`, `textarea`, or `a`, a `style` attribute, a direct `@tounsoo/todae` import outside `src/catalog`, and a foreign component kit.
 - **Canonical helper.** The catalog, the page-type shells, and the content layouts are the code the next edit is supposed to copy. There is no second way to build a button.
-- **Runtime check.** `CollectionPage` and `DetailPage` throw while rendering if a required slot is missing or repeated, and the detail primary slot throws unless it holds one button. CI also checks that contract, in `npm run lint:slots`, so a bad slot fails before anyone opens the screen.
+- **Runtime check.** `CollectionPage` and `DetailPage` throw while rendering if a required slot is missing or any slot is repeated, and the detail primary slot throws unless it holds one button. CI checks the detail primary slot in `npm run lint:slots`, so a bad primary fails before anyone opens the screen.
 
 The page's pattern, when the same instruction is about to be written a second time: if it can be a lint rule, a metadata flag, a runtime check, or a script, encode it and delete the instruction. If it genuinely requires judgment, make the instruction prominent and add an example of the failure. The corollary on the page: "If the fix is structural, ONLY use the structural fix. The instruction IS the symptom." That is why `AGENTS.md` stays a pointer. Growing the skill text is the weaker move. Growing an inventory, and a check that reads it, is the stronger one.
 
@@ -96,7 +96,7 @@ Search, filters, sort, and paging live in the data table. The task graph does no
 
 ### One invoice
 
-Choosing an invoice number opens the detail page inside the same app shell. The URL is `?invoice=inv-1842` from To approve, and it keeps `route` when you came from All invoices or Vendors.
+Choosing an invoice number opens the detail page inside the same app shell. The URL is `?invoice=inv-1842` from To approve, and it keeps `route=invoices` when you came from All invoices. Vendors rows have no link.
 
 ```mermaid
 flowchart TB
@@ -345,11 +345,11 @@ String lists are sorted and de-duplicated before the comparison, so reordering `
 
 **Editing an existing id is not a membership change.** Rewriting `src/layouts/app-shell`, `src/content-layouts/data-table`, or a page-type shell, while the id stays in the allowlist, does not require a proposal. `proposals/README.md` says that in those words. Slot behavior, copy, and invoice fields are outside the membership set.
 
-**A new file is required.** The check ignores `proposals/README.md`. It counts a `proposals/*.md` file that the base does not already have. Editing proposal 0001 does not explain a new membership change. The words are a case-insensitive substring test: the body has to include `reason`, `preview`, and `graduation`. The check does not read whether those sections describe this diff.
+**A new file is required.** The check ignores `proposals/README.md`. It counts any `.md` file under `proposals/`, subfolders included, that the base does not already have. Editing proposal 0001 does not explain a new membership change. The words are a case-insensitive substring test: the body has to include `reason`, `preview`, and `graduation`. The check does not read whether those sections describe this diff.
 
 Two other checks in the same script always run, and a proposal does not waive them:
 
-- Directory names under `src/layouts`, `src/content-layouts`, and `src/page-types` match the allowlists in both directions. Imports of those ids must be on the lists. The `pageTypes` export matches `allowed_page_types`.
+- Directory names under `src/layouts`, `src/content-layouts`, and `src/page-types` match the allowlists in both directions. Any other file directly in those directories, besides `index.ts`, fails too. Imports of those ids must be on the lists. The `pageTypes` export matches `allowed_page_types`, and `src/page-types/index.ts` may not re-export an id that is not on it.
 - In the ready state, a collection body is one registered content layout, and the feature does not pass ad-hoc children into it. Loading, empty, and error may stay in the shell. Page CSS for a class the feature uses fails when no content layout, chrome layout, or page type uses that class.
 
 So a new content layout needs three things that are different jobs: the id in `allowed_content_layouts`, a matching directory, and a new proposal if that id is a membership change against the base. The directory check fails an extra folder even when a proposal is present. The membership check fails a new id when the proposal is missing.
