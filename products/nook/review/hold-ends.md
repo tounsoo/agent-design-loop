@@ -1,6 +1,6 @@
 # Review: a hold that ends
 
-A hold lasts 15 minutes, and the held alert says so, but until this change a hold never ended on screen. Nook now models one more flow state, `expired`, graduated in the same pull request by [proposal 0014](../../../proposals/0014-nook-hold-ends.md). When a hold has lasted `HOLD_MINUTES`, the clock sends `hold-ended`, and the booking page shows a warning alert, "Hold ended". Book room books the room for the length chosen before the hold, All rooms is enabled again, and Hold room and the length field stay locked. A preview opened from the URL, such as `?state=held`, stays as it is and never ends its hold, just as a preview never loads.
+A hold lasts 15 minutes, and the held alert says so, but until this change a hold never ended on screen. Nook now models one more flow state, `expired`, graduated in the same pull request by [proposal 0015](../../../proposals/0015-nook-hold-ends.md). When a hold has lasted `HOLD_MINUTES`, the clock sends `hold-ended`, and the booking page shows a warning alert, "Hold ended". Book room books the room for the length chosen before the hold, All rooms is enabled again, and Hold room and the length field stay locked. A preview opened from the URL, such as `?state=held`, stays as it is and never ends its hold, just as a preview never loads.
 
 ## What the checks already decided
 

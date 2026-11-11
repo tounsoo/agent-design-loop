@@ -4,7 +4,7 @@ changes: []
 adds:
   - expired
 ---
-# Proposal 0014: Nook shows a hold that has ended
+# Proposal 0015: Nook shows a hold that has ended
 
 Nook's flow states gain one member, `expired`, in `modeledStates` in `products/nook/flows/booking/states.ts`. It is the screen a person sees when the 15 minutes of a hold run out before they book. It only adds a member to a flow state list, so it graduates in the pull request that adds it, under [proposal 0012](0012-additions-in-one-pull-request.md), and a designer's review of that pull request is its approval.
 
@@ -29,7 +29,7 @@ The booking page in `expired`, at `?state=expired`:
 `check:inventories` on the pull request that adds it:
 
 ```
-inventory: flow states changed from ["booked","choosing","error","held","loading","no-rooms"] to ["booked","choosing","error","expired","held","loading","no-rooms"]. Graduates proposals/0014-nook-hold-ends.md (only adds, so it graduates in the pull request that adds it, which a designer reviews).
+inventory: flow states changed from ["booked","choosing","error","held","loading","no-rooms"] to ["booked","choosing","error","expired","held","loading","no-rooms"]. Graduates proposals/0015-nook-hold-ends.md (only adds, so it graduates in the pull request that adds it, which a designer reviews).
 ```
 
 Screenshots of the held and expired previews are in that pull request.
