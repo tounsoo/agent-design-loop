@@ -34,7 +34,7 @@ The rule checks read one product. `check:rules` lists them, in this order, and e
 | --- | --- |
 | `npm run lint:product-ui` | Off-catalog UI, including an import from another product's directories. Re-exports (`export ... from`), `import()`, `require()` (also as `globalThis.require` or `(0, require)`), and `import x = require()` count as imports, and so does Vite's `import.meta.glob`. A dynamic load whose specifier is not a string literal fails because it cannot be checked, and so does `require` held under another name. A loader made with `createRequire` is not read |
 | `npm run lint:slots` | The primary-slot contract: a page type named in `shells.primarySlots` whose slot does not hold exactly one primary action, or a slot name the page type's shell does not define |
-| `npm run check:step-budget` | A task path longer than that task's `max_steps`, a task graph and shipped reducer whose paths differ, or a task in `tasks` with no graph mapped under `flows[].tasks` in the product's `harness.config.ts`. Every task is measured. A flow state is named by its `status` field, or by `flowStatus(state)` when the graph module exports one; a state the search meets with neither fails |
+| `npm run check:step-budget` | A task path longer than that task's `max_steps`, or any longer route to the same success over it: a route takes the steps a task graph in the same flow names, in any order and each at most once, then finishes the shortest way. Also a task graph and shipped reducer whose shortest paths differ, or a task in `tasks` with no graph mapped under `flows[].tasks` in the product's `harness.config.ts`. Every task is measured. A flow state is named by its `status` field, or by `flowStatus(state)` when the graph module exports one; a state the search meets with neither fails |
 | `npm run check:disclosure` | Disclosure depth or count above the cap |
 | `npm run check:priority` | Per page: more than one primary action, a primary that is not the rank-1 action in `priority` (Meridian's Approve), the rank-2 action shown as primary or more than once (Meridian's Request changes), a primary inside a disclosure, or an action button whose variant is computed. Across the product: no page with the rank-1 primary, a rank-1 or rank-2 button no page reaches, or a section in `disclosed_sections` that is not behind a disclosure |
 | `npm run check:one-thing` | Per page: a page rendered inside another page, a primary on a collection page, or more visible questions than the cap. Also a page type that renders no page. A product may render a page type as often as it needs. Page-type membership is `allowed_page_types`, which this check reads |
@@ -121,6 +121,6 @@ A product imports the harness by its package name, `@agent-design-loop/harness`.
 
 - `HarnessConfig`, `ShellRules`, and `FlowConfig`, the config types a product's `harness.config.ts` satisfies
 - `DesignSystemAdapter`, the type an adapter satisfies
-- `shortestPath`, `eventEdges`, and `TaskEdge`, the path search a product's task graphs use
+- `shortestPath`, `eventEdges`, and `TaskEdge`, the path search a product's task graphs use, and `measureRoutes`, which measures every route to a task's success against its budget
 
 It exports only types from the adapter module, because loading that module runs a check's config read.

@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { config, configName, loadInputs } from "./lib/config";
-import { eventEdges, shortestPath, type TaskEdge } from "./lib/shortest-path";
+import { eventEdges, measureRoutes, shortestPath, type RouteMeasure, type TaskEdge } from "./lib/shortest-path";
 
 /**
  * Every task in the product inputs' tasks has one task graph module, named for
@@ -20,6 +20,16 @@ import { eventEdges, shortestPath, type TaskEdge } from "./lib/shortest-path";
  * The two paths must also be the same steps, so a reducer that drops or swaps
  * a reviewed step, or a graph that keeps a step the reducer never needed,
  * fails too. Graph step names are the event types they stand for.
+ *
+ * The shortest path is not the only way through. Every route that finishes the
+ * task must fit max_steps too, in the graph and in the reducer. A step is an
+ * event that a task graph in the same flows[] entry names as a step, so in a
+ * flow with a hold-room task and a book-room task, hold is a step of book-room
+ * too, and hold then book is a route to book-room's success. A route takes any
+ * steps the flow allows, each at most once and never back to a state it has passed, then finishes
+ * the shortest way any user event allows. Events no task names, such as an
+ * optional look or Back, are detours a person chooses, so they count only when
+ * the finish needs them. measureRoutes in lib/shortest-path.ts does the search.
  *
  * A flow state's name is its `status` field, the name the product inputs'
  * success_state uses. A flow whose states keep that name elsewhere exports
@@ -51,11 +61,46 @@ async function load(file: string): Promise<GraphModule> {
 
 /** Task id → graph module path, from the config. */
 const graphFiles = new Map<string, string>();
+/** Task id → the graph paths of every task in its flows[] entry, its own included. */
+const flowFiles = new Map<string, readonly string[]>();
 for (const flow of config.flows) {
+  const files = Object.values(flow.tasks ?? {});
   for (const [taskId, file] of Object.entries(flow.tasks ?? {})) {
     const earlier = graphFiles.get(taskId);
     if (earlier) violations.push(`step budget: "${taskId}" has two task graphs in ${configName}: ${earlier}, ${file}.`);
-    else graphFiles.set(taskId, file);
+    else {
+      graphFiles.set(taskId, file);
+      flowFiles.set(taskId, files);
+    }
+  }
+}
+
+/**
+ * The flow's steps: every step a task graph in the same flows[] entry names. A
+ * graph that does not load or has no edges adds none; its own task reports it.
+ */
+async function flowSteps(taskId: string): Promise<Set<string>> {
+  const names = new Set<string>();
+  for (const file of flowFiles.get(taskId) ?? []) {
+    if (!existsSync(path.resolve(file))) continue;
+    const { taskEdges } = await load(file);
+    if (!Array.isArray(taskEdges)) continue;
+    for (const edge of taskEdges as readonly TaskEdge<unknown>[]) names.add(edge.step);
+  }
+  return names;
+}
+
+function reportRoutes(measure: RouteMeasure, which: string, file: string, taskId: string, maxSteps: number): void {
+  if (measure.kind === "over") {
+    violations.push(
+      `step budget: the ${which} route ${measure.route.join(" → ")} takes ${measure.route.length} steps, which exceeds max_steps ${maxSteps} for ${taskId}. Every route that finishes the task must fit, not only the shortest.`,
+    );
+  } else if (measure.kind === "too-many") {
+    violations.push(
+      `step budget: the ${which} in ${file} passed the route search's limit of ${measure.limit} for ${taskId}, so not every route was measured. Cut the steps a person can take before finishing.`,
+    );
+  } else if (measure.longest) {
+    console.log(`  longest ${which} route (${measure.longest.length}): ${measure.longest.join(" → ")}`);
   }
 }
 
@@ -93,6 +138,9 @@ for (const task of tasks) {
     console.log(`  modeled path (${modeled.length}): ${modeled.join(" → ")}`);
     if (modeled.length > task.max_steps) {
       violations.push(`step budget: modeled path length ${modeled.length} exceeds max_steps ${task.max_steps} for ${task.id}.`);
+    } else {
+      const graphSteps = new Set(module.taskEdges.map((edge) => edge.step));
+      reportRoutes(measureRoutes(module.taskStart, module.taskEdges, module.isTaskSuccess, graphSteps, task.max_steps), "modeled", file, task.id, task.max_steps);
     }
   }
 
@@ -113,13 +161,13 @@ for (const task of tasks) {
     if (typeof status !== "string") unnamed.push(state);
     return status === task.success_state;
   };
+  const unnamedViolation = () =>
+    module.flowStatus
+      ? `step budget: flowStatus in ${file} gives no state name for ${JSON.stringify(unnamed[0])}.`
+      : `step budget: the shipped flow in ${file} reaches ${JSON.stringify(unnamed[0])}, which has no status field. Export flowStatus(state) from the graph module to name its states.`;
   const shipped = shortestPath(flowStart, eventEdges(userEvents, transition), reached);
   if (unnamed.length > 0) {
-    violations.push(
-      module.flowStatus
-        ? `step budget: flowStatus in ${file} gives no state name for ${JSON.stringify(unnamed[0])}.`
-        : `step budget: the shipped flow in ${file} reaches ${JSON.stringify(unnamed[0])}, which has no status field. Export flowStatus(state) from the graph module to name its states.`,
-    );
+    violations.push(unnamedViolation());
     continue;
   }
   if (!shipped) {
@@ -129,6 +177,12 @@ for (const task of tasks) {
   console.log(`  shipped path (${shipped.length}): ${shipped.join(" → ")}`);
   if (shipped.length > task.max_steps) {
     violations.push(`step budget: shipped flow path length ${shipped.length} exceeds max_steps ${task.max_steps} for ${task.id}.`);
+  } else {
+    const steps = await flowSteps(task.id);
+    const routes = measureRoutes(flowStart, eventEdges(userEvents, transition), reached, steps, task.max_steps);
+    // A route can reach states the shortest search stopped before.
+    if (unnamed.length > 0) violations.push(unnamedViolation());
+    else reportRoutes(routes, "shipped flow", file, task.id, task.max_steps);
   }
   if (modeled && shipped.join(" → ") !== modeled.join(" → ")) {
     violations.push(
