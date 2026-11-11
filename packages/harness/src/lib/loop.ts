@@ -57,15 +57,19 @@ export type LoopContext = {
   readonly codeowners: string;
 };
 
-/** CODEOWNERS patterns that name at least one owner. */
+/** CODEOWNERS patterns whose last line names at least one owner. A later line with no owner unassigns the pattern. */
 function ownedPatterns(codeowners: string): Set<string> {
   const owned = new Set<string>();
   for (const line of codeowners.split(/\r?\n/)) {
     const [pattern, ...owners] = line.replace(/#.*/, "").trim().split(/\s+/);
-    if (pattern && owners.length > 0) owned.add(pattern);
+    if (!pattern) continue;
+    if (owners.length > 0) owned.add(pattern);
+    else owned.delete(pattern);
   }
   return owned;
 }
+
+const mermaidId = (id: string): string => id.replace(/[^\w]/g, "_");
 
 function reachable(from: string, edges: readonly LoopEdge[]): Set<string> {
   const seen = new Set<string>([from]);
@@ -85,9 +89,13 @@ function reachable(from: string, edges: readonly LoopEdge[]): Set<string> {
 export function loopProblems(graph: LoopGraph, context: LoopContext): string[] {
   const problems: string[] = [];
   const nodes = new Map<string, LoopNode>();
+  const drawn = new Map<string, string>();
   for (const node of graph.nodes) {
     if (nodes.has(node.id)) problems.push(`node ${node.id} is defined twice.`);
     nodes.set(node.id, node);
+    const other = drawn.get(mermaidId(node.id));
+    if (other !== undefined && other !== node.id) problems.push(`nodes ${other} and ${node.id} draw as the same node in the diagram.`);
+    drawn.set(mermaidId(node.id), node.id);
   }
   const stateIds = new Set<string>();
   for (const state of graph.state) {
@@ -107,7 +115,7 @@ export function loopProblems(graph: LoopGraph, context: LoopContext): string[] {
   const used = new Set<string>();
   for (const node of graph.nodes) {
     for (const text of [node.label, ...edges.filter((edge) => edge.from === node.id).map((edge) => edge.when ?? "")]) {
-      if (text.includes('"')) problems.push(`node ${node.id} has a double quote in "${text}", which the diagram cannot draw.`);
+      if (/["|]/.test(text)) problems.push(`node ${node.id} has a double quote or a | in ${text}, which the diagram cannot draw.`);
     }
     for (const id of [...(node.reads ?? []), ...(node.writes ?? [])]) {
       if (stateIds.has(id)) used.add(id);
@@ -135,6 +143,7 @@ export function loopProblems(graph: LoopGraph, context: LoopContext): string[] {
       if (node.run.length === 0) problems.push(`eval node ${node.id} runs no script.`);
       for (const script of node.run) {
         if (!Object.hasOwn(context.scripts, script)) problems.push(`eval node ${node.id} runs ${script}, which is not an npm script.`);
+        else if (script !== "check" && !script.startsWith("check:")) problems.push(`eval node ${node.id} runs ${script}, which is not a check. An eval node runs check or a check: script.`);
       }
       const fail = out.find((edge) => edge.when === "fail");
       if (fail && !reachable(fail.to, edges).has(node.id)) problems.push(`eval node ${node.id}'s fail edge never comes back to it, so a failing run has no retry.`);
@@ -170,8 +179,6 @@ const SHAPES: { readonly [K in NodeKind]: readonly [string, string] } = {
   human: ["([", "])"],
   checkpoint: ["[(", ")]"],
 };
-
-const mermaidId = (id: string): string => id.replace(/[^\w]/g, "_");
 
 /** The graph as a Mermaid flowchart, one line per node and per edge, in the graph's own order. */
 export function loopMermaid(graph: LoopGraph): string {

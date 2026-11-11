@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import designLoop from "../../design-loop";
 import { loopMermaid, loopProblems, type LoopEdge, type LoopGraph, type LoopNode } from "./loop";
 
-const context = { scripts: { check: "npm run test" }, codeowners: "/proposals/ @owner\n/unowned/\n" };
+const context = { scripts: { check: "npm run test", dev: "vite" }, codeowners: "/proposals/ @owner\n/unowned/\n/disowned/ @owner\n/disowned/\n" };
 
 /** A small valid loop: build, check, retry on fail, ask a person, end. */
 function graph(change: { nodes?: LoopNode[]; edges?: LoopEdge[]; start?: string } = {}): LoopGraph {
@@ -56,6 +56,24 @@ describe("loopProblems", () => {
     expect(loopProblems(graph({ nodes }), context)).toContain("eval node checks runs check:colors, which is not an npm script.");
   });
 
+  it("fails an eval node that runs a script that is not a check", () => {
+    const nodes = base.nodes.map((node) => (node.kind === "eval" ? { ...node, run: ["dev"] } : node));
+    expect(loopProblems(graph({ nodes }), context)).toContain("eval node checks runs dev, which is not a check. An eval node runs check or a check: script.");
+  });
+
+  it("fails two node ids the diagram would draw as one node", () => {
+    const twins = [{ id: "pull_request", kind: "checkpoint", label: "One" } as const, { id: "pull-request", kind: "checkpoint", label: "Two" } as const];
+    const edges = [...base.edges, ...twins.map((twin) => ({ from: "fork", to: twin.id, when: twin.label }))];
+    expect(loopProblems(graph({ nodes: [...base.nodes, ...twins], edges }), context)).toContain(
+      "nodes pull_request and pull-request draw as the same node in the diagram.",
+    );
+  });
+
+  it("fails a label or a when the diagram cannot draw", () => {
+    const edges = base.edges.map((edge) => (edge.when === "inside" ? { ...edge, when: "in|side" } : edge));
+    expect(loopProblems(graph({ edges }), context)).toContain("node fork has a double quote or a | in in|side, which the diagram cannot draw.");
+  });
+
   it("fails an eval node without both a pass and a fail edge", () => {
     const edges = base.edges.filter((edge) => edge.when !== "fail");
     expect(loopProblems(graph({ edges }), context)).toContain("eval node checks needs edges for fail, pass, found pass.");
@@ -67,7 +85,7 @@ describe("loopProblems", () => {
   });
 
   it("fails a human gate no CODEOWNERS line assigns to an owner", () => {
-    for (const gate of ["/unowned/", "/missing/"]) {
+    for (const gate of ["/unowned/", "/missing/", "/disowned/"]) {
       const nodes = base.nodes.map((node) => (node.kind === "human" ? { ...node, gate } : node));
       expect(loopProblems(graph({ nodes }), context)).toContain(`human node ask gates on ${gate}, which no CODEOWNERS line assigns to an owner.`);
     }
