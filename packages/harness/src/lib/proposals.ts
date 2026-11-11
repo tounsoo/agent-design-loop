@@ -16,19 +16,34 @@ import path from "node:path";
  *     - check:disclosure for products/nook
  *   ---
  *
+ * or, for a proposal that only adds members to an inventory:
+ *
+ *   ---
+ *   status: graduated
+ *   changes: []
+ *   adds:
+ *     - side-panel
+ *   ---
+ *
  * `status` is `open` (a request), `decided` (approved, not yet applied) or
  * `graduated` (applied). `changes` lists, exactly, each inventory name the
  * proposal changes: a member, a constant, a config field, a new product's
  * directory. `retires` lists rules it takes out of `check:rules`. `opts-out`
- * lists `<rule> for <product paths.source>`. `status` and `changes` are
- * required; an empty list is written `[]`. The body needs a `## Reason`, a
+ * lists `<rule> for <product paths.source>`. `adds` lists members the
+ * proposal adds to an inventory list in the pull request that adds the
+ * proposal. `status` and `changes` are required; an empty list is written
+ * `[]`. The body needs a `## Reason`, a
  * `## Preview` and a `## Graduation` section, each with text under it.
  *
  * A change the checks gate, an inventory change, a new opt-out or a retired
  * rule, graduates a proposal: the proposal must already be `decided` on the
  * pull request base, and the pull request marks it `graduated`. What it
  * covers is read from the base, so the graduating pull request cannot widen
- * it. A proposal added in the same pull request covers nothing.
+ * it. A proposal added in the same pull request covers nothing, with one
+ * exception: a proposal that only adds. It lists the new members under `adds`
+ * and nothing under `changes`, `retires` or `opts-out`, starts as
+ * `graduated`, and covers those members in the pull request that adds it,
+ * and only there. check:inventories decides what counts as an addition.
  */
 
 export const STATUSES = ["open", "decided", "graduated"] as const;
@@ -42,11 +57,13 @@ export type Proposal = {
   readonly changes: readonly string[];
   readonly retires: readonly string[];
   readonly optsOut: readonly OptOutEntry[];
+  /** Members added to an inventory list in the pull request that adds this proposal. Never with anything else. */
+  readonly adds: readonly string[];
 };
 
 export type ParsedProposal = { readonly proposal: Proposal | null; readonly problems: readonly string[] };
 
-const LIST_KEYS = ["changes", "retires", "opts-out"] as const;
+const LIST_KEYS = ["changes", "retires", "opts-out", "adds"] as const;
 const KEYS = ["status", ...LIST_KEYS] as const;
 const REQUIRED_KEYS = ["status", "changes"] as const;
 export const SECTIONS = ["Reason", "Preview", "Graduation"] as const;
@@ -165,6 +182,19 @@ export function parseProposal(file: string, text: string): ParsedProposal {
     if (match?.[1] && match[2]) optsOut.push({ rule: match[1], source: match[2] });
     else problems.push(`opts-out entry "${entry}" is not "<rule> for <product paths.source>".`);
   }
+  const adds = lists.get("adds") ?? [];
+  if (adds.length > 0) {
+    // A proposal that only adds is the one that may skip the approval pull request, so it may carry nothing that one would gate.
+    const mixed = (["changes", "retires", "opts-out"] as const).filter((key) => (lists.get(key) ?? []).length > 0);
+    if (mixed.length > 0) {
+      problems.push(
+        `lists adds alongside ${mixed.join(", ")}. A proposal that adds in one pull request lists nothing else: put the rest in its own proposal, decided before it graduates.`,
+      );
+    }
+    if (fields.has("status") && status !== "graduated") {
+      problems.push(`lists adds, so its status is graduated: it graduates in the pull request that adds it. A request that waits for approval lists its members under changes.`);
+    }
+  }
   problems.push(...sectionProblems(split.rest));
   if (problems.length > 0) return { proposal: null, problems };
   return {
@@ -174,6 +204,7 @@ export function parseProposal(file: string, text: string): ParsedProposal {
       changes: lists.get("changes") ?? [],
       retires: lists.get("retires") ?? [],
       optsOut,
+      adds,
     },
     problems,
   };
@@ -265,6 +296,19 @@ export function graduating(base: ReadonlyMap<string, Proposal>, head: ReadonlyMa
   return found.sort((left, right) => left.file.localeCompare(right.file));
 }
 
+/**
+ * The proposals that only add and that this change adds: not on the base,
+ * graduated in the head, with members under `adds`. A proposal that only
+ * adds covers its members in the pull request that adds it, never later, so
+ * one already on the base covers nothing.
+ */
+export function addingInThisChange(base: ReadonlyMap<string, Proposal>, head: ReadonlyMap<string, Proposal>): Proposal[] {
+  return [...head]
+    .filter(([key, proposal]) => !base.has(key) && proposal.status === "graduated" && proposal.adds.length > 0)
+    .map(([, proposal]) => proposal)
+    .sort((left, right) => left.file.localeCompare(right.file));
+}
+
 const sameList = (left: readonly string[], right: readonly string[]) => JSON.stringify([...left].sort()) === JSON.stringify([...right].sort());
 
 /**
@@ -273,7 +317,8 @@ const sameList = (left: readonly string[], right: readonly string[]) => JSON.str
  * moving it from `decided` to `graduated`, each in its own pull request. Once
  * decided, what a proposal covers does not change. A new proposal may be
  * `graduated` at once only when it covers nothing the checks gate, as a
- * change to the harness's own code does. `legacy` names base files that
+ * change to the harness's own code does, or when it only adds, which
+ * check:inventories holds to additions. `legacy` names base files that
  * exist but have no fields, which are not compared.
  */
 export function transitionProblems(
@@ -298,7 +343,7 @@ export function transitionProblems(
     if (before === undefined) {
       if (after.status === "graduated" && gated) {
         problems.push(
-          `${after.file} is new and already graduated. A proposal cannot graduate in the pull request that adds it: merge it as "status: decided" first, then graduate it in a later pull request.`,
+          `${after.file} is new and already graduated. A proposal cannot graduate in the pull request that adds it: merge it as "status: decided" first, then graduate it in a later pull request. Only a proposal that lists nothing but adds may.`,
         );
       }
       continue;
@@ -314,9 +359,9 @@ export function transitionProblems(
       continue;
     }
     if (before.status !== "open") {
-      const changed = (["changes", "retires"] as const).filter((field) => !sameList(before[field], after[field]));
+      const changed: string[] = (["changes", "retires", "adds"] as const).filter((field) => !sameList(before[field], after[field]));
       const optsOut = (entries: readonly OptOutEntry[]) => entries.map((entry) => `${entry.rule} for ${entry.source}`);
-      if (!sameList(optsOut(before.optsOut), optsOut(after.optsOut))) changed.push("opts-out" as never);
+      if (!sameList(optsOut(before.optsOut), optsOut(after.optsOut))) changed.push("opts-out");
       if (changed.length > 0) {
         problems.push(`${after.file} is ${before.status} on the base, so its ${changed.join(", ")} cannot change: that is what was approved.`);
       }

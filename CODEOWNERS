@@ -1,6 +1,11 @@
 # Proposals change the rules the next run is constrained by.
 # Review is required. Merging a proposal does not apply it.
 /proposals/ @tounsoo
+# A proposal that only adds graduates in the pull request that adds it, so
+# this review is its only approval. This line covers any folder named
+# proposals. A product whose paths.proposals names a folder with another
+# name needs its own line here.
+proposals/ @tounsoo
 # Each product under products/ has a harness config that says where every
 # inventory lives. Changing a path can empty a check, so it needs a proposal
 # and the same review.

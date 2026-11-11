@@ -2,7 +2,7 @@
 status: graduated
 changes: []
 ---
-# Proposal 0012: The step budget measures every route, not only the shortest
+# Proposal 0013: The step budget measures every route, not only the shortest
 
 Decided, and graduated with its own pull request. Ben asked for a separate pull request after the Nook demo let a held room be booked: hold then book is a second route to `booked`, three steps long, and `check:step-budget` measured only each task's shortest path, so it never saw it. That route fits book-room's budget of 3, but a longer one would have passed the same way. This records how the check reads now. No inventory changes, so it lists no changes and graduates at once.
 

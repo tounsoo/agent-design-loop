@@ -99,6 +99,7 @@ flowchart TB
   n_checks[["eval: Run the build gate"]]
   n_triage{"router: Can the fix stay inside the inventories?"}
   n_propose["llm: Write a proposal with a reason, a preview and a graduation"]
+  n_scope{"router: Does the proposal only add members to an inventory list?"}
   n_proposal_pull_request[("checkpoint: Open a pull request with the proposal")]
   n_approval(["human: A designer reviews the proposal's pull request"])
   n_graduate["llm: Graduate it into the inventory data or a harness rule"]
@@ -112,7 +113,9 @@ flowchart TB
   n_checks -->|fail| n_triage
   n_triage -->|inside| n_build
   n_triage -->|outside| n_propose
-  n_propose --> n_proposal_pull_request
+  n_propose --> n_scope
+  n_scope -->|only adds| n_graduate
+  n_scope -->|anything else| n_proposal_pull_request
   n_proposal_pull_request --> n_approval
   n_approval -->|approved| n_graduate
   n_approval -->|declined| n_build
@@ -188,6 +191,12 @@ The fixtures the gate has to reject, all under `packages/harness/fixtures/illega
 | `graduates-with-its-proposal` | `allowed_layouts` gains `side-panel`, with a proposal the change adds | `is added in this change` |
 | `graduates-open-request` | `allowed_layouts` gains `side-panel`, graduating a proposal that is open on the base | `is an open request on the base` |
 | `graduation-not-marked` | `allowed_layouts` gains `side-panel`, and the decided proposal that lists it stays decided | `Mark it "status: graduated" in this change` |
+| `adds-a-removal` | `allowed_layouts` loses `side-panel`, with a proposal the change adds that lists it under `adds` | `lists "side-panel" under adds, which this change removes or changes rather than adds` |
+| `adds-alongside-a-rule-change` | `allowed_layouts` gains `side-panel` and `TARGET_MIN_PX` drops, with one proposal that lists both under `adds` | `lists "TARGET_MIN_PX" under adds, which this change removes or changes rather than adds, so it covers nothing` |
+| `adds-with-changes` | `allowed_layouts` gains `side-panel`, with a proposal that lists `adds` and `changes` | `lists adds alongside changes` |
+| `adds-graduated-before` | `allowed_layouts` gains `side-panel`, and the proposal that lists it under `adds` is already on the base | `added its members in an earlier pull request` |
+| `adds-rewrites-an-open-request` | `allowed_layouts` gains `side-panel`, and a request open on the base is rewritten in place to list it under `adds` | `is open on the base, so it cannot become a proposal that only adds` |
+| `adds-renamed-from-the-base` | `allowed_layouts` gains `side-panel`, and the proposal that lists it under `adds` is a base proposal under a new file name | `which a proposal on the base already lists under adds` |
 | `undeclared-content-layout` | A `board` directory beside `data-table` | `undeclared content layout` |
 | `content-layout-expansion` | `allowed_content_layouts` gains `board`, and no proposal | `without a proposal` |
 | `ad-hoc-content` | A status board and page CSS inside the collection body | `not a registered content layout` |
@@ -233,6 +242,7 @@ The cases the gate has to pass, directly under `packages/harness/fixtures/`:
 | `catalog-loads` | A re-export and a dynamic import of the catalog | `lint:product-ui` |
 | `shell-imported-then-exported` | The detail page type's `index.ts` imports its shell and exports it | `lint:slots`, `check:one-thing` |
 | `proposal-covers-change` | `allowed_layouts` gains `side-panel`, graduating a proposal decided on the base that lists it | `check:inventories` |
+| `adds-in-one-pull-request` | `allowed_layouts` gains `side-panel`, with a proposal the change adds, `status: graduated`, that lists it under `adds` alone | `check:inventories` |
 | `target-size-whole-document` | Chrome controls of 32 CSS px around the page, and in a closed chrome menu | `check:target-size`, with Chrome |
 
 `check:fixtures` is how the repo knows those gates still fire. A green `check` on the products, with a green `check:fixtures`, means the products passed and the known-bad shapes still fail.
@@ -270,15 +280,19 @@ flowchart TB
   record["Merging it records the request. It does not apply the change."]
   person["A designer approves it: a reviewed pull request moves it to status: decided."]
   graduate["A later pull request makes the change and moves it to status: graduated. check:inventories reads the base's decided proposal."]
+  adds["Only adds members to an inventory list: one pull request adds the proposal, status: graduated, with the members under adds, and the change. A designer reviews it."]
   next["The next design round is constrained by that larger inventory."]
   gap --> file --> record --> person --> graduate --> next
+  gap --> adds --> next
 ```
 
 [`proposals/README.md`](../../../proposals/README.md) gives the format: front matter with `status` and `changes`, the exact inventory names the proposal changes, then `## Reason`, `## Preview` and `## Graduation`, each with text. `npm run check:proposals` fails a file without them, and fails a status that moves more than one step or backwards. `CODEOWNERS` requests review from `@tounsoo` for everything under `proposals/`.
 
 Proposal 0001 is the example on main of a request that has been recorded and not applied. It asks for an approval note and `max_steps` 4. Proposal 0003 corrects its step counts rather than editing it. Until a graduating change lands, the budget stays 3 and the note stays out of the UI.
 
-A proposal that changes no inventory, such as a change to the harness's own code, lists `changes: []` and may start as `graduated`, because it gates nothing. Proposals 0003 and 0007 through 0011 are those. Proposals 0004 to 0006 changed inventories and landed with their changes, before the fields existed; [proposal 0011](../../../proposals/0011-proposal-fields-and-graduation.md) gave them `status: graduated`.
+A proposal that changes no inventory, such as a change to the harness's own code, lists `changes: []` and may start as `graduated`, because it gates nothing. Proposals 0003 and 0007 through 0012 are those.
+
+An addition can skip the approval pull request. A change that only adds members to the catalog exports, `allowed_layouts`, `allowed_content_layouts`, `allowed_page_types` or the flow states graduates a proposal the same pull request adds, `status: graduated`, that lists those members under `adds` and nothing else. The design loop's `scope` router sends such a proposal straight to `graduate`. Everything else, removals, renames, rule inputs, config, opt-outs and retirements, keeps two pull requests. [Proposal 0012](../../../proposals/0012-additions-in-one-pull-request.md) records it. Proposals 0004 to 0006 changed inventories and landed with their changes, before the fields existed; [proposal 0011](../../../proposals/0011-proposal-fields-and-graduation.md) gave them `status: graduated`.
 
 The next round is more capable because the structure grew. The agent reads a longer allowlist and a check that enforces it. The skill text did not have to get longer. The page's words for that move are "encode it. Delete the instruction."
 
@@ -346,7 +360,9 @@ String lists are sorted and de-duplicated before the comparison, so reordering `
 
 **Editing an existing id is not a membership change.** Rewriting `products/meridian/layouts/app-shell`, `products/meridian/content-layouts/data-table`, or a page-type shell, while the id stays in the allowlist, does not require a proposal. `proposals/README.md` says that in those words. Slot behavior, copy, and invoice fields are outside the membership set.
 
-**A graduating proposal is required.** The check reads the proposals in the config's `paths.proposals` folder (`proposals/` by default) twice: at the base and in the change, matched by file name, `README.md` aside. A proposal covers a change only when it is `status: decided` on the base and `status: graduated` in the change, and its `changes` on the base list what changed, exactly: the member added or removed (`side-panel`), the constant (`TARGET_MIN_PX`), the task id with `max_steps`, the priority action with `priority`, the config field (`paths.inputs`, or its new value; `shells.collections`), `flows` with each string in it that changed, the new adapter path, `adapter.action` or another `adapter.<field>`, or a new product's directory. Every term of a change must be listed by a graduating proposal, and two approved proposals may graduate together, each covering its own term. Each change needs a proposal that lists it, so a proposal for a toast does not let a new layout through: `illegal/proposal-for-another-change`. A path is not a name, so `illegal/proposal-names-path` fails a proposal that lists `layouts/side-panel/`. When nothing covers a change, the check says why for each proposal that lists it: added in this change (`illegal/graduates-with-its-proposal`), open on the base (`illegal/graduates-open-request`), already graduated, or still decided and not marked graduated (`illegal/graduation-not-marked`). The check reads names and statuses, not whether the sections describe the diff well.
+**A graduating proposal is required.** The check reads the proposals in the config's `paths.proposals` folder (`proposals/` by default) twice: at the base and in the change, matched by file name, `README.md` aside. A proposal covers a change only when it is `status: decided` on the base and `status: graduated` in the change, and its `changes` on the base list what changed, exactly: the member added or removed (`side-panel`), the constant (`TARGET_MIN_PX`), the task id with `max_steps`, the priority action with `priority`, the config field (`paths.inputs`, or its new value; `shells.collections`), `flows` with each string in it that changed, the new adapter path, `adapter.action` or another `adapter.<field>`, or a new product's directory. Every term of a change must be listed by a graduating proposal, and two approved proposals may graduate together, each covering its own term. Each change needs a proposal that lists it, so a proposal for a toast does not let a new layout through: `illegal/proposal-for-another-change`. A path is not a name, so `illegal/proposal-names-path` fails a proposal that lists `layouts/side-panel/`. When nothing covers a change, the check says why for each proposal that lists it: added in this change (`illegal/graduates-with-its-proposal`), open on the base (`illegal/graduates-open-request`), already graduated, or still decided and not marked graduated (`illegal/graduation-not-marked`).
+
+**An addition may graduate the proposal it adds.** A change to the catalog exports, `allowed_layouts`, `allowed_content_layouts`, `allowed_page_types` or the flow states in which every base member stays is all additions. Each new member may then be covered by a proposal that is not on the base, is `status: graduated`, and lists it under `adds` (`adds-in-one-pull-request`). `check:proposals` refuses `adds` beside `changes`, `retires` or `opts-out`, or on a proposal that is not graduated, so such a proposal does not parse (`illegal/adds-with-changes`). It covers nothing when it is already on the base (`illegal/adds-graduated-before`) or when a base proposal already lists one of its `adds` (`illegal/adds-renamed-from-the-base`). A proposal on the base rewritten as one that only adds covers nothing either (`illegal/adds-rewrites-an-open-request`), and nothing at all when one of its `adds` is a name the change removes or changes otherwise (`illegal/adds-a-removal`, `illegal/adds-alongside-a-rule-change`). The check reads names and statuses, not whether the sections describe the diff well.
 
 Two other checks in the same script always run, and a proposal does not waive them:
 
@@ -361,7 +377,7 @@ The checks on main pass, and the fixture script requires the known-bad shapes to
 
 That is a small number of runs. The agents that opened these pull requests were working in a repo that already tells them the theory, in `AGENTS.md` and in the task. A green check shows that these gates fire on the fixtures and on these branches. It does not show what an agent would do if nobody had told it the loop.
 
-Two earlier limits are closed by [proposal 0011](../../../proposals/0011-proposal-fields-and-graduation.md). A proposal used to pass on the words reason, preview and graduation and a name found anywhere in it; now it needs its fields and sections, and an exact name under `changes`. And a pull request could add a proposal and graduate it in the same change, as pull request 7 did with proposal 0002, the `Card` export and `status-board`, before it closed; now the proposal has to be decided on the base. A designer's approval is a reviewed pull request the check can see, so a graduation takes two pull requests:
+Two earlier limits are closed by [proposal 0011](../../../proposals/0011-proposal-fields-and-graduation.md). A proposal used to pass on the words reason, preview and graduation and a name found anywhere in it; now it needs its fields and sections, and an exact name under `changes`. And a pull request could add a proposal and graduate it in the same change, as pull request 7 did with proposal 0002, the `Card` export and `status-board`, before it closed; now the proposal has to be decided on the base. A designer's approval is a reviewed pull request the check can see, so a graduation takes two pull requests, except an addition, which [proposal 0012](../../../proposals/0012-additions-in-one-pull-request.md) lets graduate in one:
 
 ```mermaid
 flowchart LR
@@ -374,7 +390,7 @@ flowchart LR
 
 What stays open is in the code and in Meridian's [`review/inventories.md`](../../../products/meridian/review/inventories.md):
 
-**Approval is a status, not a person.** The check reads `status: decided` on the base. It cannot see that the person who approved it was a designer, and `main` has no branch protection, so `CODEOWNERS` review is requested, not required. A proposal that changes no inventory may start as `graduated`, so a harness change rests on that review alone.
+**Approval is a status, not a person.** The check reads `status: decided` on the base. It cannot see that the person who approved it was a designer, and `main` has no branch protection, so `CODEOWNERS` review is requested, not required. A proposal that changes no inventory may start as `graduated`, so a harness change rests on that review alone. So does an addition: a proposal that only adds graduates in the pull request that adds it, and nothing the check reads shows a designer looked. That review blocks the merge only once branch protection on `main` requires code owner review, which is Ben's setting in GitHub.
 
 **Approval is shared across products.** `changes` names an inventory member, not a product, so one proposal in `proposals/` that lists `Toast` graduates `Toast` in every product's catalog that adds it in the same change. Opt-outs name their product; changes do not.
 
