@@ -25,7 +25,7 @@ The catalog has no part for an ordered set of stages. A `DataList` row can name 
 - **Changes requested:** Received is done, Approval is marked "Changes requested", and Payment is pending.
 - **Empty:** Out of scope, the list shows only on an opened invoice, and an empty queue opens none.
 - **Loading:** Out of scope, while invoices load the page shows the loader in place of any invoice, so there is no list to draw.
-- **Error:** Out of scope, a load error shows the error message and Retry in place of any invoice.
+- **Error:** Out of scope, a load error shows the error message and Try again in place of any invoice.
 - **Long content:** the list always has three stages, and the longest text is "Payment due" with the due date, so it stays on one line at 1280 px and wraps inside its stage on a narrow screen.
 - **Permissions:** Out of scope, Meridian models no roles, so everyone who opens an invoice sees the same list.
 - **Over time:** an approved invoice whose due date has passed, such as INV-1711, still shows Payment as current with no overdue sign, because the sample data does not record whether a payment went out.
@@ -42,9 +42,9 @@ The invoice page gets a three-stage list under its facts, labelled "Invoice prog
 
 The Payment stage reads "Payment due" and the invoice's due date in every state.
 
-The Status row in the invoice's facts now says what the list's Approval stage says. This change keeps both, so the facts still answer "what is it" in one word, as the queue does, and leaves dropping the row to the designer. The review note asks the question.
+The Status row in the invoice's facts now says what the list's Approval stage says. This change keeps both, so the facts still answer "what is it" in one word, as the queue does, and leaves dropping the row to the designer. The review note asks the question. The Payment stage's due date repeats the facts' Due row the same way. Both stay too: the row is where the queue's soonest-due order points a reviewer, and the stage says the date is when payment is due, not when approval is.
 
-Screenshots of the invoice page at 1280 by 900, before and after, are in [`products/meridian/review/screenshots/invoice-progress/`](../products/meridian/review/screenshots/invoice-progress/).
+Screenshots of the four invoice pages, and the three queue pages the change leaves alone, at 1280 by 900, before and after, are in [`products/meridian/review/screenshots/invoice-progress/`](../products/meridian/review/screenshots/invoice-progress/).
 
 The happy path stays open an invoice, then Approve. The list is read-only and changes with the invoice's status.
 
