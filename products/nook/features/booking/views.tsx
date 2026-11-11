@@ -148,7 +148,7 @@ function Booking({ state, actions }: { state: BookingState; actions: Actions }) 
           {state.status === "held" ? (
             <Alert.Root role="none" tone="info">
               <Alert.Title>Room held</Alert.Title>
-              <Alert.Description>{room.name} is held for you for 15 minutes.</Alert.Description>
+              <Alert.Description>{room.name} is held for you for 15 minutes. Book it to keep it.</Alert.Description>
             </Alert.Root>
           ) : null}
         </Stack.Root>
@@ -161,7 +161,7 @@ function Booking({ state, actions }: { state: BookingState; actions: Actions }) 
         </Button.Root>
       </BookingPage.Alternate>
       <BookingPage.Action>
-        <Button.Root disabled={!choosing} type="button" onClick={actions.book}>
+        <Button.Root disabled={!choosing && state.status !== "held"} type="button" onClick={actions.book}>
           Book room
         </Button.Root>
       </BookingPage.Action>
