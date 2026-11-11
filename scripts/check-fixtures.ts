@@ -27,6 +27,11 @@ const cases = [
     phrase: "questions outside a disclosure",
   },
   {
+    name: "hoisted-question",
+    args: ["scripts/check-one-thing.ts", "--features", "fixtures/illegal/hoisted-question"],
+    phrase: "is not reached from any page",
+  },
+  {
     name: "dead-question-part",
     args: ["scripts/check-one-thing.ts", "--catalog", "fixtures/illegal/dead-question-part/catalog.ts"],
     phrase: "not exported by the catalog",

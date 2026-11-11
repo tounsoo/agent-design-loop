@@ -4,7 +4,7 @@ This repository is a test of one idea: an agent designs better UI when the const
 
 The product is **Meridian**, an accounts-payable workspace. The task the code already names is `approve-vendor-invoice`: review a vendor invoice and approve it. The screen a newcomer should picture is the **To approve** queue, and the invoice that opens from it.
 
-This page is for a designer or engineer who has never opened the repo. It describes main, and it is not pinned to a commit, because a pin goes stale on the next merge. If this page and the code disagree, the code and the checks win. [AGENTS.md](../AGENTS.md) stays a pointer for the agent. It does not restate the inventories, and this page is not a second inventory.
+This page is for a designer or engineer who has never opened the repo. It describes main, and it is not pinned to a commit, because a pin goes stale on the next merge. Commit ids below are history, not the current main. If this page and the code disagree, the code and the checks win. [AGENTS.md](../AGENTS.md) stays a pointer for the agent. It does not restate the inventories, and this page is not a second inventory.
 
 ## The control ladder
 
@@ -214,9 +214,9 @@ What each script fails, in the words the code implements:
 
 - **Step budget.** Every task has exactly one task graph, and every graph's `taskId` is a task. For each task, the modeled path and the shipped path must exist and be at most `max_steps`. `fixtures/illegal/over-budget` has a longer graph. `fixtures/illegal/over-budget-flow` has a 3-step graph and a reducer that needs 4. `fixtures/illegal/task-without-graph` has no graph for `approve-vendor-invoice`.
 - **Slots.** Every `DetailPage` has exactly one `DetailPage.Primary`, and that slot has exactly one primary `Button.Root`. `fixtures/illegal/two-primaries` puts two buttons there.
-- **Disclosure.** A page is one rendered page-type shell in `src/features`, plus what renders on it: components its JSX uses (local, or imported from a relative path), its content layouts, the page-type shell module, and the chrome layouts. `scripts/lib/page-scope.ts` builds that scope. On each page, the number of `Disclosure.Root` elements is at most `MAX_DISCLOSURES_PER_PAGE`, and nesting, followed across components, is at most `MAX_DISCLOSURE_DEPTH`. `fixtures/illegal/disclosures-per-page` puts one disclosure in each of two component files on one page. The check also fails if the catalog stops exporting `Disclosure`.
+- **Disclosure.** A page is one rendered page-type shell in `src/features`, plus what renders on it: components its JSX uses (local, or imported from a relative path), its content layouts, the page-type shell module, and the chrome layouts. `scripts/lib/page-scope.ts` builds that scope. It follows JSX tags and calls to helper functions, and it undoes import aliases such as `Field as F`. A `Disclosure.Root` or `Field.Root` in `src/features` that no page reaches, such as JSX held in a variable outside the shell, fails both checks, because a per-page cap cannot count it. The checks also fail when no page is found. On each page, the number of `Disclosure.Root` elements is at most `MAX_DISCLOSURES_PER_PAGE`, and nesting, followed across components, is at most `MAX_DISCLOSURE_DEPTH`. `fixtures/illegal/disclosures-per-page` puts one disclosure in each of two component files on one page. The check also fails if the catalog stops exporting `Disclosure`.
 - **Priority.** The only primary button's text is the rank-1 action, Approve, and it is not inside a disclosure. The rank-2 action, Request changes, is one `variant="secondary"` button. Each entry in `disclosed_sections` is the text of a `Disclosure.Summary`. `fixtures/illegal/missing-disclosed-section` shows line items in the open.
-- **One thing.** `allowed_page_types` decides which shells exist. The check does not keep a second list of page-type ids. Each shell is rendered once in `src/features`. A collection page has no primary button, including inside a content layout that page uses. A question is a `Field.Root`, the catalog part that wraps every Todae input, select and textarea. On each page, in the same scope as the disclosure check, the questions outside a disclosure are at most `MAX_VISIBLE_QUESTIONS`. A field shown only on a branch still counts, because the check reads code, not runtime state. The detail page's one question is the request-changes reason. The collection page's one question is the data table's search field. The check fails if the catalog stops exporting `Field`, so the cap cannot go quiet. `fixtures/illegal/two-questions` and `fixtures/illegal/dead-question-part` prove both.
+- **One thing.** `allowed_page_types` decides which shells exist. The check does not keep a second list of page-type ids. Each shell is rendered once in `src/features`. A collection page has no primary button, including inside a content layout that page uses. A question is a `Field.Root`, the catalog part that wraps every Todae input, select and textarea. On each page, in the same scope as the disclosure check, the questions outside a disclosure are at most `MAX_VISIBLE_QUESTIONS`. A field shown only on a branch still counts, because the check reads code, not runtime state. Two arms of one ternary both count, even if only one shows at a time. Menu-based filter facets are not `Field.Root`, so they are not questions. The detail page's one question is the request-changes reason. The collection page's one question is the data table's search field. The check fails if the catalog stops exporting `Field`, so the cap cannot go quiet. `fixtures/illegal/two-questions`, `fixtures/illegal/hoisted-question` and `fixtures/illegal/dead-question-part` prove it.
 - **State coverage.** Every string in `modeledStates` is a `case` in the views. `fixtures/illegal/missing-view` omits `invoice-approved`. Typecheck is a second gate for the same idea: `renderedStates` has to satisfy `ModeledState`.
 - **Target size.** Invoice controls inside `[data-page]` are at least 24 CSS px on each side, or the WCAG 2.5.8 spacing exception applies. The script also checks that the Todae button token floor is at least 24. It needs Chrome. It opens the preview states listed in `scripts/check-target-size.ts`, and clicks a disclosure summary on the page when one is present.
 
@@ -255,6 +255,7 @@ The fixtures the gate has to reject:
 | `over-budget-flow` | A 3-step graph, and a reducer that needs Line items and a note before Approve | `shipped flow path length 4 exceeds max_steps` |
 | `task-without-graph` | The only graph models a task that is not in `tasks` | `has no task graph` |
 | `two-questions` | A note field and a reason field outside a disclosure on one detail page | `questions outside a disclosure` |
+| `hoisted-question` | Two fields built in variables outside the shell | `is not reached from any page` |
 | `dead-question-part` | A catalog without `Field` | `not exported by the catalog` |
 | `disclosures-per-page` | Two disclosures on one detail page, one per component file | `more than 1 per page` |
 | `missing-disclosed-section` | Line items in a table with no disclosure | `is not behind a disclosure` |
@@ -339,13 +340,13 @@ So a new content layout needs three things that are different jobs: the id in `a
 
 ## Worked example: the tracking board
 
-This is the loop under a real gap. [Pull request 7](https://github.com/tounsoo/agent-design-loop/pull/7) is open. It is not merged. [Pull request 8](https://github.com/tounsoo/agent-design-loop/pull/8) is merged, and it is main at `4a473ed`. Main's only content layout is still `data-table`. The board is not shipped.
+This is the loop under a real gap, as it stood when [pull request 8](https://github.com/tounsoo/agent-design-loop/pull/8) merged as `4a473ed`. [Pull request 7](https://github.com/tounsoo/agent-design-loop/pull/7) was open and not merged. Main's only content layout was `data-table`. The board was not shipped.
 
 ```mermaid
 flowchart TB
   opened["PR 7 opens, parent 05c1bda, before content layouts exist. TrackingBoard renders inside CollectionPage.Body. The CI check on 20a3de3 succeeds."]
   merged["PR 8 merges as 4a473ed. A collection ready body has to be a registered content layout. The ad-hoc-content fixture must fail."]
-  updated["PR 7, still open, is brought onto that main. Head 544f73e proposes status-board as a content layout of collection, and rejects a new page type."]
+  updated["PR 7, then still open, is brought onto that main. Head 544f73e proposes status-board as a content layout of collection, and rejects a new page type."]
   opened --> merged --> updated
 ```
 

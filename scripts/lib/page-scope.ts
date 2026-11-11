@@ -81,6 +81,32 @@ export function missingCatalogParts(catalogFile: string, parts: readonly string[
   return parts.filter((part) => !exported.has(part.split(".")[0] ?? part));
 }
 
+/** Local import names mapped back to the exported name: `import { Field as F }` gives F → Field. */
+function aliasesOf(source: ts.SourceFile): Map<string, string> {
+  const cached = aliasCache.get(source);
+  if (cached) return cached;
+  const aliases = new Map<string, string>();
+  for (const statement of source.statements) {
+    if (!ts.isImportDeclaration(statement) || !statement.importClause) continue;
+    const named = statement.importClause.namedBindings;
+    if (!named || !ts.isNamedImports(named)) continue;
+    for (const element of named.elements) {
+      if (element.propertyName) aliases.set(element.name.text, element.propertyName.text);
+    }
+  }
+  aliasCache.set(source, aliases);
+  return aliases;
+}
+const aliasCache = new WeakMap<ts.SourceFile, Map<string, string>>();
+
+/** A JSX tag name as the catalog spells it, with import aliases undone. */
+export function canonicalTag(opening: ts.JsxOpeningLikeElement): string {
+  const tag = jsxTagName(opening.tagName);
+  const [root, ...rest] = tag.split(".");
+  const original = aliasesOf(opening.getSourceFile()).get(root ?? "");
+  return original ? [original, ...rest].join(".") : tag;
+}
+
 export function openingOf(node: ts.Node): ts.JsxOpeningLikeElement | null {
   if (ts.isJsxElement(node)) return node.openingElement;
   if (ts.isJsxSelfClosingElement(node)) return node;
@@ -92,7 +118,7 @@ export function disclosureAncestors(node: ts.Node, root: ts.Node): number {
   let count = 0;
   let current = node.parent;
   while (current && current !== root.parent) {
-    if (ts.isJsxElement(current) && jsxTagName(current.openingElement.tagName) === DISCLOSURE) count += 1;
+    if (ts.isJsxElement(current) && canonicalTag(current.openingElement) === DISCLOSURE) count += 1;
     if (current === root) break;
     current = current.parent;
   }
@@ -104,7 +130,7 @@ export function tagsInScope(scope: Scope, tag: string): { node: ts.Node; disclos
   const found: { node: ts.Node; disclosures: number }[] = [];
   walk(scope.node, (node) => {
     const opening = openingOf(node);
-    if (!opening || jsxTagName(opening.tagName) !== tag) return;
+    if (!opening || canonicalTag(opening) !== tag) return;
     found.push({ node, disclosures: scope.inheritedDisclosures + disclosureAncestors(node, scope.node) });
   });
   return found;
@@ -163,8 +189,9 @@ function collectScopes(source: ts.SourceFile, shellNode: ts.Node, shell: Shell, 
     const imports = importsOf(scope.source);
     walk(scope.node, (node) => {
       const opening = openingOf(node);
-      if (!opening) return;
-      const rootName = jsxTagName(opening.tagName).split(".")[0] ?? "";
+      const helperCall = ts.isCallExpression(node) && ts.isIdentifier(node.expression) ? node.expression.text : null;
+      if (!opening && !helperCall) return;
+      const rootName = opening ? (jsxTagName(opening.tagName).split(".")[0] ?? "") : (helperCall ?? "");
       const specifier = imports.get(rootName);
       const contentLayout = specifier ? /(?:^|\/)content-layouts\/([^/"']+)/.exec(specifier) : null;
       if (contentLayout?.[1]) {
@@ -250,4 +277,33 @@ function importedDeclaration(
     }
   }
   return null;
+}
+
+/** True when node sits inside one of the scopes, or is one of their roots. */
+function covered(node: ts.Node, scopes: readonly Scope[]): boolean {
+  const file = node.getSourceFile().fileName;
+  return scopes.some((scope) => {
+    if (scope.source.fileName !== file) return false;
+    return node.getStart() >= scope.node.getStart() && node.getEnd() <= scope.node.getEnd();
+  });
+}
+
+/**
+ * Elements with the tag in src/features that no page scope reaches: JSX held
+ * in a variable, built outside the shell, or in a file no page renders. A
+ * per-page cap cannot count them, so the checks fail them instead.
+ */
+export function unreachedTags(featuresRoot: string, pages: readonly Page[], tag: string): string[] {
+  const scopes = pages.flatMap((page) => page.scopes);
+  const found: string[] = [];
+  for (const file of listSourceFiles(featuresRoot)) {
+    const source = parseFile(file);
+    walk(source, (node) => {
+      const opening = openingOf(node);
+      if (!opening || canonicalTag(opening) !== tag || covered(node, scopes)) return;
+      const line = source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
+      found.push(`${path.relative(process.cwd(), file)}:${line}`);
+    });
+  }
+  return found;
 }

@@ -8,6 +8,7 @@ export function shortestPath<T>(
   start: T,
   edges: readonly TaskEdge<T>[],
   isSuccess: (node: T) => boolean,
+  maxStates = 100_000,
 ): readonly string[] | null {
   const keyOf = (node: T) => JSON.stringify(node);
   const seen = new Set<string>([keyOf(start)]);
@@ -23,6 +24,8 @@ export function shortestPath<T>(
       const key = keyOf(next);
       if (seen.has(key)) continue;
       seen.add(key);
+      // A reducer with unbounded state (a counter, free text) would never end the search.
+      if (seen.size > maxStates) return null;
       queue.push({ node: next, path: [...current.path, edge.step] });
     }
   }

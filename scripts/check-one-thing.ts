@@ -3,7 +3,7 @@ import path from "node:path";
 import ts from "typescript";
 import { MAX_VISIBLE_QUESTIONS } from "../src/rules/ux-rules";
 import { attributeValue, jsxTagName, listSourceFiles, parseFile, walk } from "./lib/jsx";
-import { discoverShells, missingCatalogParts, pagesIn, tagsInScope } from "./lib/page-scope";
+import { discoverShells, missingCatalogParts, pagesIn, tagsInScope, unreachedTags } from "./lib/page-scope";
 
 /**
  * One job per page. Page-type membership lives in allowed_page_types and
@@ -77,7 +77,16 @@ for (const file of listSourceFiles(featuresRoot)) {
   }
 }
 
-for (const page of pagesIn(featuresRoot, shells)) {
+const pages = pagesIn(featuresRoot, shells);
+for (const part of QUESTION_PARTS) {
+  for (const where of unreachedTags(featuresRoot, pages, part)) {
+    violations.push(
+      `one thing: ${where}: ${part} is not reached from any page, so the visible-question cap cannot count it. Render it in a component or in the shell's JSX.`,
+    );
+  }
+}
+
+for (const page of pages) {
   let visibleQuestions = 0;
   for (const scope of page.scopes) {
     for (const part of QUESTION_PARTS) {

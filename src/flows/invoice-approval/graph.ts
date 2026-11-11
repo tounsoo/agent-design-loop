@@ -60,13 +60,14 @@ export { transition } from "./transition";
 export const flowStart: FlowState = { status: "ready", screen: "collection" };
 
 const firstPending = sampleInvoices.find((invoice) => invoice.status === "pending");
+if (!firstPending) throw new Error("approve-vendor-invoice needs a pending sample invoice to measure the shipped flow.");
 
 /**
  * Events a person can cause on the screens. loaded and failed come from the
  * system, not from the person, so they are not steps.
  */
-export const userEvents: readonly FlowEvent[] = [
-  { type: "open-invoice", invoiceId: firstPending?.id ?? "" },
+const userEventList = [
+  { type: "open-invoice", invoiceId: firstPending.id },
   { type: "open-line-items" },
   { type: "close-line-items" },
   { type: "start-request" },
@@ -74,4 +75,12 @@ export const userEvents: readonly FlowEvent[] = [
   { type: "submit-request" },
   { type: "approve" },
   { type: "retry" },
-];
+] as const satisfies readonly FlowEvent[];
+
+/** Every FlowEvent a person can cause must be listed, or the shipped path is not fully measured. */
+type SystemEventType = "loaded" | "failed";
+type MissingUserEvent = Exclude<FlowEvent["type"], SystemEventType | (typeof userEventList)[number]["type"]>;
+type UserEventsCovered = MissingUserEvent extends never ? true : never;
+export const userEventsCovered: UserEventsCovered = true;
+
+export const userEvents: readonly FlowEvent[] = userEventList;

@@ -1,7 +1,7 @@
 import path from "node:path";
 import { MAX_DISCLOSURE_DEPTH, MAX_DISCLOSURES_PER_PAGE } from "../src/rules/ux-rules";
 import { lineOf } from "./lib/jsx";
-import { discoverShells, missingCatalogParts, pagesIn, tagsInScope } from "./lib/page-scope";
+import { discoverShells, missingCatalogParts, pagesIn, tagsInScope, unreachedTags } from "./lib/page-scope";
 
 /**
  * Disclosures are counted per page: one rendered page-type shell in
@@ -30,8 +30,13 @@ for (const part of missingCatalogParts(catalogFile, [DISCLOSURE])) {
   violations.push(`${part} is not exported by the catalog, so the disclosure caps cannot fire.`);
 }
 
-const { shells } = discoverShells();
+const { shells, problems } = discoverShells();
+for (const problem of problems) violations.push(problem);
 const pages = pagesIn(featuresRoot, shells);
+if (pages.length === 0) violations.push(`no page-type shell is rendered in ${path.relative(process.cwd(), featuresRoot)}, so no page was checked.`);
+for (const where of unreachedTags(featuresRoot, pages, DISCLOSURE)) {
+  violations.push(`${where}: ${DISCLOSURE} is not reached from any page, so the per-page cap cannot count it. Render it in a component or in the shell's JSX.`);
+}
 
 for (const page of pages) {
   let count = 0;

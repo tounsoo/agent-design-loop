@@ -38,10 +38,14 @@ export const uxRules = [
 /** Line items are the one disclosure. Nothing nests under them. */
 export const MAX_DISCLOSURE_DEPTH = 1;
 
-/** One disclosure control on the invoice detail view. */
+/** One disclosure control per page: the shell, what renders on it, and the chrome around it. */
 export const MAX_DISCLOSURES_PER_PAGE = 1;
 
-/** One question visible before a disclosure or the request-changes branch opens. */
+/**
+ * One question per page outside a disclosure. A question is a catalog Field.Root.
+ * A field on a branch, like the request-changes reason, still counts: the check
+ * reads code, not runtime state.
+ */
 export const MAX_VISIBLE_QUESTIONS = 1;
 
 /** WCAG 2.5.8 Target Size (Minimum). */
