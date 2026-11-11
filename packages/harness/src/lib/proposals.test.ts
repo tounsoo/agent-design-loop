@@ -274,9 +274,17 @@ describe("## States", () => {
     expect(parseProposal("p.md", withStates(`${STATES}- None: nothing.\n`)).problems.join("\n")).toContain('lists "None" beside other states');
   });
 
-  it("does not read a state inside a code block", () => {
+  it("does not read a state inside a code block, which only a bare fence closes", () => {
     const states = `${STATES}\n\`\`\`md\n- Approved\n\`\`\`\n`;
     expect(parseProposal("p.md", withStates(states)).problems).toEqual([]);
+    const fenced = ["## States", "", "```", "```js", "- Pending: the record.", ...EDGE_STATES.map((edge) => `- ${edge}: Out of scope, none.`), "```", ""].join("\n");
+    expect(parseProposal("p.md", withStates(fenced)).problems.join("\n")).toContain('"## States" lists no states');
+  });
+
+  it("reads a state whose text wraps onto an indented line", () => {
+    const parsed = parseProposal("p.md", withStates(STATES.replace("- **Empty:** the panel says the record has no history yet.", "- **Empty:**\n  the panel says the record has no history yet.")));
+    expect(parsed.problems).toEqual([]);
+    expect(parsed.proposal?.states?.find((state) => state.name === "Empty")?.text).toBe("the panel says the record has no history yet.");
   });
 });
 
@@ -308,6 +316,15 @@ describe("transitionProblems and ## States", () => {
       ["decided.md", unlisted("decided.md", "graduated")],
     ]);
     expect(transitionProblems(base, head)).toEqual([]);
+  });
+
+  it("asks a base file with no fields for states when it gains them, as a new proposal", () => {
+    const problems = transitionProblems(new Map(), new Map([["a.md", unlisted("a.md", "decided")]]), new Set(["a.md"]));
+    expect(problems.join("\n")).toContain('a.md is new and changes side-panel, but has no "## States" section');
+  });
+
+  it("asks a new proposal that starts decided for states", () => {
+    expect(transitionProblems(new Map(), new Map([["n.md", unlisted("n.md", "decided")]])).join("\n")).toContain("is new and changes side-panel");
   });
 
   it("does not ask a proposal that changes no member for states", () => {

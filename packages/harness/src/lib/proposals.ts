@@ -181,15 +181,30 @@ const sameName = (left: string, right: string) => left.toLowerCase() === right.t
  * line are read, so a nested line belongs to the item above it.
  */
 function readStates(content: string): { states: ProposalState[]; problems: string[] } {
-  const states: ProposalState[] = [];
   const problems: string[] = [];
+  // Each item's first line, with any indented lines under it joined on, as Markdown renders a wrapped item.
+  const items: string[] = [];
   let fence: string | null = null;
+  let open = false;
   for (const line of content.split("\n")) {
-    const marker = /^ {0,3}(`{3,}|~{3,})/.exec(line)?.[1];
-    if (marker) fence = fence === null ? marker : marker.startsWith(fence) ? null : fence;
-    if (fence !== null || marker) continue;
-    const item = /^[-*+][ \t]+(.*)$/.exec(line)?.[1]?.trim();
-    if (item === undefined) continue;
+    const match = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+    const marker = match?.[1];
+    // As in readSections: a fence opens on any marker and info string, and closes only on a bare run of the same marker at least as long.
+    if (marker && fence === null) fence = marker;
+    else if (marker && fence !== null && marker.startsWith(fence) && (match[2] ?? "").trim() === "") fence = null;
+    else if (fence === null) {
+      const item = /^[-*+][ \t]+(.*)$/.exec(line)?.[1];
+      if (item !== undefined) {
+        items.push(item.trim());
+        open = true;
+      } else if (open && /^[ \t]+\S/.test(line)) items[items.length - 1] += ` ${line.trim()}`;
+      else if (line.trim() !== "") open = false;
+      continue;
+    }
+    open = false;
+  }
+  const states: ProposalState[] = [];
+  for (const item of items) {
     // "**Empty:** text", "**Empty**: text" and "Empty: text" all name the state Empty.
     const match = /^(?:\*\*)?([^:*]+?)(?:\*\*)?:(?:\*\*)?[ \t]*(.*)$/.exec(item);
     const name = match?.[1]?.trim();
@@ -425,17 +440,17 @@ export function transitionProblems(
     );
   }
   for (const [key, after] of [...head].sort(([left], [right]) => left.localeCompare(right))) {
-    // A base file with no fields predates them, so there is no status to move from. It cannot cover a change either: graduating() reads the base.
-    if (legacy.has(key)) continue;
     const before = base.get(key);
-    const gated = after.changes.length > 0 || after.retires.length > 0 || after.optsOut.length > 0;
-    // States are listed before anything is built: in the pull request that adds the proposal, and at the latest in the one that approves it.
+    // States are listed before anything is built: in the pull request that adds the proposal, and at the latest in the one that approves it. A base file with no fields has no status yet, so giving it one is the same as adding it.
     const approving = before === undefined || (before.status === "open" && after.status === "decided");
     if (approving && after.states === null && (after.changes.length > 0 || after.adds.length > 0)) {
       problems.push(
         `${after.file} ${before === undefined ? "is new" : "moves open → decided"} and ${after.changes.length > 0 ? `changes ${after.changes.join(", ")}` : `adds ${after.adds.join(", ")}`}, but has no "## States" section. List every state the change shows before it is built, the edge cases ${EDGE_STATES.join(", ")} included, or "- None: <why>" when it shows on no screen.`,
       );
     }
+    // A base file with no fields predates them, so there is no status to move from. It cannot cover a change either: graduating() reads the base.
+    if (legacy.has(key)) continue;
+    const gated = after.changes.length > 0 || after.retires.length > 0 || after.optsOut.length > 0;
     if (before === undefined) {
       if (after.status === "graduated" && gated) {
         problems.push(
