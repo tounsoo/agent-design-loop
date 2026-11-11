@@ -302,7 +302,7 @@ A list the base file does not export is skipped. That is the bootstrap that reco
 ```mermaid
 flowchart TB
   read["Read the head inventories and the base inventories."]
-  skip["Skip allowed_layouts or allowed_content_layouts when the base does not export that name."]
+  skip["Skip allowed_layouts, allowed_content_layouts or harness.config.ts when the base does not have it."]
   diff{"Does any compared value differ?"}
   ok["No proposal required."]
   words{"Does the pull request add a new proposal file that contains reason, preview, and graduation?"}
@@ -325,6 +325,7 @@ Compared values, from `membershipChanges` in `scripts/check-inventories.ts`:
 - each priority item's action, rank, and level
 - `disclosed_sections`, only when the base already exports it
 - `MAX_DISCLOSURE_DEPTH`, `MAX_DISCLOSURES_PER_PAGE`, `MAX_VISIBLE_QUESTIONS`, and `TARGET_MIN_PX`
+- every path in `harness.config.ts`, only when the base already has the file. The base is read at the paths its own config names, or at the head's paths when it has none
 
 String lists are sorted and de-duplicated before the comparison, so reordering `allowed_page_types` without adding or removing an id is not a change. Changing `max_steps` from 3 to 4 is a change, even though the task id stays.
 

@@ -1,14 +1,15 @@
 import path from "node:path";
-import { MAX_DISCLOSURE_DEPTH, MAX_DISCLOSURES_PER_PAGE } from "../src/rules/ux-rules";
+import { config, loadRules } from "./lib/config";
 import { lineOf } from "./lib/jsx";
 import { discoverShells, missingCatalogParts, pagesIn, tagsInScope, unreachedTags } from "./lib/page-scope";
 
 /**
- * Disclosures are counted per page: one rendered page-type shell in
- * src/features, the components it renders, its content layouts, the shell
+ * Disclosures are counted per page: one rendered page-type shell in the
+ * features path, the components it renders, its content layouts, the shell
  * module, and the chrome layouts around it. See scripts/lib/page-scope.ts.
  */
 const DISCLOSURE = "Disclosure.Root";
+const { MAX_DISCLOSURE_DEPTH, MAX_DISCLOSURES_PER_PAGE } = await loadRules();
 
 function flag(name: string, fallback: string): string {
   const index = process.argv.indexOf(name);
@@ -21,8 +22,8 @@ function flag(name: string, fallback: string): string {
   return value;
 }
 
-const featuresRoot = path.resolve(flag("--features", "src/features"));
-const catalogFile = path.resolve(flag("--catalog", "src/catalog/index.ts"));
+const featuresRoot = path.resolve(flag("--features", config.paths.features));
+const catalogFile = path.resolve(flag("--catalog", config.paths.catalog));
 
 const violations: string[] = [];
 

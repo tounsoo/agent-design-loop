@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import ts from "typescript";
+import { config, memberOf, styleOwnerDirs } from "./config";
 import { jsxTagName, listSourceFiles, parseFile, walk } from "./jsx";
 
 /**
@@ -61,8 +62,7 @@ function importBindings(source: ts.SourceFile): Map<string, Binding> {
 }
 
 function contentLayoutId(specifier: string): string | null {
-  const match = /(?:^|\/)content-layouts\/([^/"']+)/.exec(specifier);
-  return match?.[1] ?? null;
+  return memberOf(specifier, config.paths.contentLayouts);
 }
 
 function allowedLayoutId(tag: string, bindings: Map<string, Binding>, allowed: readonly string[]): string | null {
@@ -336,7 +336,7 @@ function pageCssViolations(featureFiles: readonly string[], stylesPath: string):
   if (!existsSync(stylesPath)) return [];
   const styled = stylesheetClasses(readFileSync(stylesPath, "utf8"));
   const used = usedClasses(featureFiles);
-  const owners = ["src/content-layouts", "src/layouts", "src/page-types"].flatMap((dir) =>
+  const owners = styleOwnerDirs.flatMap((dir) =>
     existsSync(dir) ? listSourceFiles(path.resolve(dir)) : [],
   );
   const owned = usedClasses(owners);

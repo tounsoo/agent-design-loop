@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import ts from "typescript";
-import { MAX_VISIBLE_QUESTIONS } from "../src/rules/ux-rules";
+import { config, loadRules, memberOf } from "./lib/config";
 import { attributeValue, jsxTagName, listSourceFiles, parseFile, walk } from "./lib/jsx";
 import { discoverShells, missingCatalogParts, pagesIn, tagsInScope, unreachedTags } from "./lib/page-scope";
 
@@ -16,6 +16,7 @@ import { discoverShells, missingCatalogParts, pagesIn, tagsInScope, unreachedTag
  * the check reads code, not the state at runtime.
  */
 const QUESTION_PARTS = ["Field.Root"] as const;
+const { MAX_VISIBLE_QUESTIONS } = await loadRules();
 
 function flag(name: string, fallback: string): string {
   const index = process.argv.indexOf(name);
@@ -28,8 +29,8 @@ function flag(name: string, fallback: string): string {
   return value;
 }
 
-const featuresRoot = path.resolve(flag("--features", "src/features"));
-const catalogFile = path.resolve(flag("--catalog", "src/catalog/index.ts"));
+const featuresRoot = path.resolve(flag("--features", config.paths.features));
+const catalogFile = path.resolve(flag("--catalog", config.paths.catalog));
 
 const violations: string[] = [];
 
@@ -62,7 +63,7 @@ for (const file of listSourceFiles(featuresRoot)) {
         violations.push(`one thing: ${relative} puts a primary button on the collection page.`);
       }
       for (const layoutId of contentLayoutsIn(page, source)) {
-        const dir = path.resolve("src/content-layouts", layoutId);
+        const dir = path.resolve(config.paths.contentLayouts, layoutId);
         if (scannedLayouts.has(dir) || !existsSync(dir)) continue;
         scannedLayouts.add(dir);
         for (const layoutFile of listSourceFiles(dir)) {
@@ -143,8 +144,8 @@ function contentLayoutsIn(root: ts.Node, source: ts.SourceFile): string[] {
     if (!opening) return;
     const rootName = jsxTagName(opening.tagName).split(".")[0] ?? "";
     const specifier = imports.get(rootName);
-    const match = specifier ? /(?:^|\/)content-layouts\/([^/"']+)/.exec(specifier) : null;
-    if (match?.[1]) ids.push(match[1]);
+    const id = specifier ? memberOf(specifier, config.paths.contentLayouts) : null;
+    if (id) ids.push(id);
   });
   return [...new Set(ids)];
 }

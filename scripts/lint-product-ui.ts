@@ -1,12 +1,10 @@
 import path from "node:path";
 import ts from "typescript";
+import { config, uiRoots } from "./lib/config";
 import { attributeValue, jsxTagName, lineOf, listSourceFiles, parseFile, walk } from "./lib/jsx";
 
 const rootArg = process.argv.indexOf("--root");
-const roots =
-  rootArg === -1
-    ? ["src/features", "src/page-types", "src/layouts", "src/content-layouts", "src/harness", "src/App.tsx", "src/main.tsx", "src/catalog"]
-    : [process.argv[rootArg + 1] ?? ""];
+const roots = rootArg === -1 ? uiRoots : [process.argv[rootArg + 1] ?? ""];
 
 const forbiddenTags = new Set(["button", "input", "select", "textarea", "a"]);
 const foreignPackages = ["@mui/", "antd", "@chakra-ui/", "react-bootstrap", "@radix-ui/"];
@@ -14,9 +12,11 @@ const foreignPackages = ["@mui/", "antd", "@chakra-ui/", "react-bootstrap", "@ra
 type Violation = { file: string; line: number; message: string };
 const violations: Violation[] = [];
 
+/** The catalog directory as a path segment, so a --root tree with its own catalog directory keeps its exemption. */
+const catalogSegment = `/${path.dirname(config.paths.catalog).split(path.sep).join("/")}/`;
+
 function isCatalogFile(file: string): boolean {
-  const normalized = file.split(path.sep).join("/");
-  return normalized.includes("/src/catalog/") || normalized.endsWith("/src/catalog/index.ts");
+  return file.split(path.sep).join("/").includes(catalogSegment);
 }
 
 function scan(file: string): void {
@@ -31,7 +31,7 @@ function scan(file: string): void {
         violations.push({
           file,
           line: lineOf(source, node),
-          message: `off-catalog: import "${spec}" directly. Product UI must import from src/catalog.`,
+          message: `off-catalog: import "${spec}" directly. Product UI must import from ${path.dirname(config.paths.catalog)}.`,
         });
       }
       if (foreignPackages.some((name) => spec === name.slice(0, -1) || spec.startsWith(name))) {

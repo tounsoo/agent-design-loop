@@ -1,7 +1,9 @@
 import { existsSync, readFileSync } from "node:fs";
-import { TARGET_MIN_PX } from "../src/rules/ux-rules";
 import { build, preview } from "vite";
 import puppeteer from "puppeteer-core";
+import { loadRules } from "./lib/config";
+
+const { TARGET_MIN_PX } = await loadRules();
 
 type Box = {
   name: string;
