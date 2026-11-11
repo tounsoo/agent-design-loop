@@ -12,10 +12,11 @@ const foreignPackages = ["@mui/", "antd", "@chakra-ui/", "react-bootstrap", "@ra
 type Violation = { file: string; line: number; message: string };
 const violations: Violation[] = [];
 
-const catalogDir = path.resolve(path.dirname(config.paths.catalog));
+/** The catalog directory as a path segment, so a --root tree with its own catalog directory keeps its exemption. */
+const catalogSegment = `/${path.dirname(config.paths.catalog).split(path.sep).join("/")}/`;
 
 function isCatalogFile(file: string): boolean {
-  return path.resolve(file).startsWith(catalogDir + path.sep);
+  return file.split(path.sep).join("/").includes(catalogSegment);
 }
 
 function scan(file: string): void {

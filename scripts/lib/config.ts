@@ -89,6 +89,7 @@ function literal(node: ts.Expression, where: string): Literal {
       if (!ts.isPropertyAssignment(property) || !(ts.isIdentifier(property.name) || ts.isStringLiteral(property.name))) {
         throw new Error(`${where} must use plain key: value properties.`);
       }
+      if (Object.hasOwn(record, property.name.text)) throw new Error(`${where}.${property.name.text} is set twice.`);
       record[property.name.text] = literal(property.initializer, `${where}.${property.name.text}`);
     }
     return record;
@@ -117,10 +118,11 @@ function requireStrings(record: Record<string, unknown>, key: string, where: str
 /** Parses harness.config.ts source text. Throws when it is not plain literals or misses a field. */
 export function parseConfig(text: string, label = CONFIG_FILE): HarnessConfig {
   const source = ts.createSourceFile(label, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
-  const exported = source.statements.find(
+  const defaults = source.statements.filter(
     (statement): statement is ts.ExportAssignment => ts.isExportAssignment(statement) && !statement.isExportEquals,
   );
-  if (!exported) throw new Error(`${label} has no default export.`);
+  const exported = defaults[0];
+  if (!exported || defaults.length > 1) throw new Error(`${label} must have exactly one default export.`);
   const value = literal(exported.expression, "config");
   if (!isRecord(value) || !isRecord(value.paths)) throw new Error(`${label} must export { paths, flows }.`);
   const paths = value.paths;
