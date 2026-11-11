@@ -63,6 +63,8 @@ When a change loosens a check, or makes it read a product's config or inputs ins
 
 When a change touches an inventory (anything `proposals/README.md` lists), `check:inventories` must still print `membership matches <base sha>` for each product it touches. If membership changed, the change must graduate a proposal that is `status: decided` on `main` and lists the change under `changes`, and mark it `status: graduated`; it prints `Graduates <proposal>`. A proposal added in the same pull request covers nothing, so the proposal lands first, in its own pull request; see `proposals/README.md`. The same holds for a rule removed from `check:rules` (a graduating proposal that lists it under `retires`) and a new opt-out (one that lists it under `opts-out`): `check:retirement` must pass.
 
+When a change touches a reducer, a task graph or a task's `max_steps`, quote each task's `longest shipped flow route (N)` line from `check:step-budget` as well as its verdict. The check measures every route to a task's success, not only the shortest: any steps a task graph in the same flow names, then the shortest finish. A longer route over `max_steps` fails the change even when the shortest path fits, so cut the route or propose a new budget.
+
 When a change adds or edits a proposal, `check:proposals` must pass: the front matter and the three sections are there, and each status moved one step at most from the base.
 
 ### 3. Browser drive (a change to anything a product renders, its styles, its build config or the Todae version)
