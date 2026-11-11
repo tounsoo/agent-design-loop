@@ -1,5 +1,5 @@
 ---
-status: graduated
+status: adopted
 changes:
   - Toast
 ---
@@ -13,6 +13,6 @@ A saved invoice needs a confirmation that does not move focus. Toast is not an a
 
 A toast in the corner after Approve.
 
-## Graduation
+## Adoption
 
 `catalog/index.ts` exports `Toast`.

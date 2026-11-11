@@ -7,8 +7,8 @@ export default {
     },
   },
   base: {},
-  proposals: "packages/harness/fixtures/illegal/adds-graduated-before/proposals",
-  baseProposals: "packages/harness/fixtures/illegal/adds-graduated-before/base-proposals",
+  proposals: "packages/harness/fixtures/illegal/adds-adopted-before/proposals",
+  baseProposals: "packages/harness/fixtures/illegal/adds-adopted-before/base-proposals",
   checks: [
     { run: "check:inventories", fails: "added its members in an earlier pull request" },
   ],

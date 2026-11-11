@@ -1,5 +1,5 @@
 ---
-status: graduated
+status: adopted
 changes: []
 ---
 # Proposal 0012: An inventory addition graduates in one pull request
@@ -41,6 +41,6 @@ inventory:   proposals/0102-side-panel.md lists "side-panel" under adds, which t
 - proposals/0102-side-panel.md lists adds alongside changes. A proposal that adds in one pull request lists nothing else: put the rest in its own proposal, decided before it graduates.
 ```
 
-## Graduation
+## Adoption
 
 `packages/harness/src/lib/proposals.ts` reads `adds` and refuses it mixed or unless graduated, and `addingInThisChange` returns the proposals a change adds that only add. `packages/harness/src/check-inventories.ts` marks a change to one of the five lists as additions when nothing left the list, and lets a proposal that only adds cover those members. `packages/harness/design-loop.ts` gets the `scope` router, and the diagram in `packages/harness/docs/how-it-works.md` is redrawn. New fixtures: `adds-in-one-pull-request` passes; `illegal/adds-a-removal`, `illegal/adds-alongside-a-rule-change`, `illegal/adds-with-changes`, `illegal/adds-graduated-before`, `illegal/adds-renamed-from-the-base` and `illegal/adds-rewrites-an-open-request` fail. Vitest covers parsing, pinning and the trace. `CODEOWNERS`, `CLAUDE.md`, `AGENTS.md`, the verify skill, `proposals/README.md` and the harness docs describe both paths.

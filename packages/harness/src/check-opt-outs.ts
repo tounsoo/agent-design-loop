@@ -6,7 +6,7 @@ import { ruleChecks } from "./lib/scripts";
 
 /**
  * Every harness rule applies to every product unless the product's config
- * opts out of it, and each opt-out needs a graduated proposal that names the
+ * opts out of it, and each opt-out needs an adopted proposal that names the
  * rule and the product. check:product runs this before any rule check, so it
  * skips a rule only on an opt-out that passed here.
  */
@@ -16,7 +16,7 @@ const read = (file: string): string | null => (existsSync(path.resolve(file)) ? 
 const problems = optOutProblems(product, ruleChecks(), read);
 
 if (problems.length > 0) {
-  console.error(`opt-outs: ${configName} opts out of rules without a graduated proposal:`);
+  console.error(`opt-outs: ${configName} opts out of rules without an adopted proposal:`);
   for (const problem of problems) console.error(`- ${problem}`);
   process.exit(1);
 }
@@ -25,5 +25,5 @@ const rules = Object.keys(config.optOuts);
 console.log(
   rules.length === 0
     ? `opt-outs: ${config.paths.source} has no opt-outs, so every harness rule applies.`
-    : `opt-outs: ${config.paths.source} opts out of ${rules.join(", ")}, each on a graduated proposal.`,
+    : `opt-outs: ${config.paths.source} opts out of ${rules.join(", ")}, each on an adopted proposal.`,
 );

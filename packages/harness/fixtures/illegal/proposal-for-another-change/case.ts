@@ -1,4 +1,4 @@
-/** Illegal: the inputs add the side-panel layout, and the one graduating proposal is about a catalog export. A proposal covers only the change it lists. */
+/** Illegal: the inputs add the side-panel layout, and the one adopted proposal is about a catalog export. A proposal covers only the change it lists. */
 export default {
   config: {
     paths: {

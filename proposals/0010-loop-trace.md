@@ -1,5 +1,5 @@
 ---
-status: graduated
+status: adopted
 changes: []
 ---
 # Proposal 0010: The agent records its walk of the design loop in a trace
@@ -46,7 +46,7 @@ A trace is JSON Lines under `traces/`, one file per change. `npm run loop:step -
 
 A change to `products/meridian` with no trace fails with `trace: the change touches products/meridian and adds no loop trace under traces/.` A trace that skips the gate, `build` then `note`, fails with `line 4 goes from build to note, an edge the graph does not have. It goes to checks.`
 
-## Graduation
+## Adoption
 
 No file changes later. These change in the same pull request:
 

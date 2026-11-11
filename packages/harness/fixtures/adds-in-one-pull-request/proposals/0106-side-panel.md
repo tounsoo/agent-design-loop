@@ -1,5 +1,5 @@
 ---
-status: graduated
+status: adopted
 changes: []
 adds:
   - side-panel
@@ -14,6 +14,6 @@ A record's history needs a frame beside the page, not a page of its own.
 
 The app frame with a panel on the right.
 
-## Graduation
+## Adoption
 
 `inputs.ts` lists `side-panel`, and `layouts/side-panel` holds its shell, in the pull request that adds this proposal.
