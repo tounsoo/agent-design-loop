@@ -513,7 +513,7 @@ function readBaseConfig(file: string): ParsedConfig {
   }
 }
 
-function introducedLists(base: Inventory, head: Inventory, compareConfig: boolean): string[] {
+function introducedLists(base: Inventory, head: Inventory): string[] {
   const introduced: string[] = [];
   if (base.layouts === null) introduced.push("allowed_layouts");
   if (base.contentLayouts === null) introduced.push("allowed_content_layouts");
@@ -596,7 +596,7 @@ if (violations.length > 0 || !matched) {
   process.exit(1);
 }
 
-const introduced = introducedLists(base, head, compareConfig);
+const introduced = introducedLists(base, head);
 const baseName = baseRoot.kind === "git" ? baseRoot.rev.slice(0, 7) : baseFlag;
 if (introduced.length > 0) console.log(`inventory: base has no ${introduced.join(" or ")}; recorded the current inventories.`);
 else console.log(`inventory: membership matches ${baseName}.`);
