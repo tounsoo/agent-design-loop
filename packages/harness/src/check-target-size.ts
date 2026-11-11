@@ -1,11 +1,8 @@
-import { existsSync, readFileSync } from "node:fs";
-import path from "node:path";
-import { build, preview } from "vite";
-import puppeteer from "puppeteer-core";
+import { readFileSync } from "node:fs";
 import { adapter } from "./lib/adapter";
-import { findChrome } from "./lib/chrome";
 import { config, loadRules } from "./lib/config";
 import { previewQueries } from "./lib/previews";
+import { withServedApp } from "./lib/served-app";
 
 const { TARGET_MIN_PX } = await loadRules();
 
@@ -31,60 +28,11 @@ type Box = {
   height: number;
 };
 
-// The product's own index.html, inside the repository, built with the repository's Vite config.
-const web = path.resolve(config.paths.web);
-const webFromRoot = path.relative(process.cwd(), web);
-if (webFromRoot.startsWith("..") || path.isAbsolute(webFromRoot)) {
-  console.error(`target size: ${config.paths.web} is outside the repository (paths.web).`);
-  process.exit(1);
-}
-if (!existsSync(path.join(web, "index.html"))) {
-  console.error(`target size: ${config.paths.web} has no index.html to build (paths.web).`);
-  process.exit(1);
-}
-
-const chrome = findChrome();
-if ("missing" in chrome) {
-  console.error(`target size: ${chrome.missing}`);
-  process.exit(1);
-}
-
 assertButtonTokens();
 
-const viteConfig = { root: web, configFile: path.resolve("vite.config.ts") };
-await build(viteConfig);
-let server: Awaited<ReturnType<typeof preview>>;
-try {
-  server = await preview({
-    ...viteConfig,
-    preview: { host: "127.0.0.1", port: 4173, strictPort: true },
-  });
-} catch (error) {
-  console.error(`target size: could not serve the built app on 127.0.0.1:4173: ${error instanceof Error ? error.message : String(error)}`);
-  console.error("Stop whatever holds port 4173, such as another npm run preview, and run the check again.");
-  process.exit(1);
-}
-
-const base = server.resolvedUrls?.local?.[0] ?? "http://127.0.0.1:4173/";
 const failures: string[] = [];
 
-let browser: Awaited<ReturnType<typeof puppeteer.launch>>;
-try {
-  browser = await puppeteer.launch({
-    executablePath: chrome.path,
-    headless: true,
-    args: ["--no-sandbox", "--disable-dev-shm-usage"],
-  });
-} catch (error) {
-  await server.close();
-  console.error(`target size: ${chrome.path} did not start: ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
-  console.error("A missing shared library is the usual cause on Linux. Install Chrome's system dependencies, or set CHROME_PATH to a Chrome that runs here.");
-  process.exit(1);
-}
-
-try {
-  const page = await browser.newPage();
-  await page.setViewport({ width: 1280, height: 900 });
+await withServedApp("target size", async (page, base) => {
   for (const state of states) {
     const url = new URL(base);
     url.search = state;
@@ -117,10 +65,7 @@ try {
       await nextFrame();
     }
   }
-} finally {
-  await browser.close();
-  await server.close();
-}
+});
 
 if (failures.length > 0) {
   for (const failure of failures) console.error(`target size: ${failure}`);

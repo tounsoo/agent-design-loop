@@ -18,7 +18,8 @@ export type FlowConfig = {
    */
   readonly tasks?: { readonly [taskId: string]: string };
   /**
-   * How check:target-size opens a modeled state, as query strings added to
+   * How check:target-size and check:accessible-names open a modeled state, as
+   * query strings added to
    * `?state=<state>`. Every modeled state is opened: once bare when it has no
    * entry here, once per query string when it has one.
    */
@@ -73,7 +74,7 @@ export type HarnessConfig = {
     readonly styles: string;
     /** Other product UI the off-catalog lint reads: entry files and preview code. */
     readonly app: readonly string[];
-    /** The directory with the product's index.html, which check:target-size builds and serves with Vite. */
+    /** The directory with the product's index.html, which check:target-size and check:accessible-names build and serve with Vite. */
     readonly web: string;
     /** The folder check:opt-outs requires an opt-out's proposal to sit in, and check:inventories reads graduating proposals from. Defaults to `proposals`. */
     readonly proposals?: string;
