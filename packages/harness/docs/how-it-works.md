@@ -87,7 +87,7 @@ What each script fails, in the words the code implements. Fixture names are rela
 
 ## What an agent does on a task
 
-The loop is a graph in [`packages/harness/design-loop.ts`](../design-loop.ts). Nodes do the work, edges decide what runs next, and shared state carries what one run leaves for the next. `AGENTS.md` points the agent at it. Nothing executes the graph: the agent follows it, and the checks are the part that does not depend on the agent remembering it. [Proposal 0009](../../../proposals/0009-design-loop-graph.md) records the decision.
+The loop is a graph in [`packages/harness/design-loop.ts`](../design-loop.ts). Nodes do the work, edges decide what runs next, and shared state carries what one run leaves for the next. `AGENTS.md` points the agent at it. Nothing executes the graph: the agent follows it, records each step in a [trace](#the-trace), and the checks are the part that does not depend on the agent remembering it. [Proposal 0009](../../../proposals/0009-design-loop-graph.md) records the decision.
 
 <!-- design-loop:start, drawn by npm run check:loop -- --write -->
 
@@ -152,7 +152,7 @@ The inventories to read, in order, are the product inputs, the UX rules, the cat
 
 `npm run check` is the build gate, in this order: `typecheck`, `lint` (ESLint), `test`, `check:meridian`, `check:nook`, `check:retirement`, and `check:loop`. Each product script runs `check:product` on that product's config, which runs every check in `check:rules`, in its order: `lint:product-ui`, `lint:slots`, `check:step-budget`, `check:disclosure`, `check:priority`, `check:one-thing`, `check:inventories`, `check:state-coverage`, and `check:target-size`. It stops at the first failure.
 
-CI runs on every pull request and on every push to `main`, in two jobs. The `check` job runs `check:fixtures`, `typecheck`, `lint`, `test`, `check:product` on `products/meridian/harness.config.ts`, `check:retirement`, and `check:loop`. The `nook` job runs `check:product` on `products/nook/harness.config.ts`. Each job checks the repo out with full history, installs Node 22 and Chrome, runs `npm ci`, and sets `INVENTORY_BASE` to the pull request's base SHA, or to `github.event.before` on a push. The inventory check needs that SHA in the clone.
+CI runs on every pull request and on every push to `main`, in two jobs. The `check` job runs `check:fixtures`, `typecheck`, `lint`, `test`, `check:product` on `products/meridian/harness.config.ts`, `check:retirement`, `check:loop`, and `check:trace`. The `nook` job runs `check:product` on `products/nook/harness.config.ts`. Each job checks the repo out with full history, installs Node 22 and Chrome, runs `npm ci`, and sets `INVENTORY_BASE` to the pull request's base SHA, or to `github.event.before` on a push. The inventory check needs that SHA in the clone.
 
 The fixtures the gate has to reject, all under `packages/harness/fixtures/illegal/`:
 
@@ -234,6 +234,24 @@ The cases the gate has to pass, directly under `packages/harness/fixtures/`:
 `products/nook/` is a second product, a room booking app called Nook, with its own `harness.config.ts`, inputs, rules, catalog, flow, page types (`booking` and `rooms`), layout and content layout. It is not a copy of Meridian: its record page is `BookingPage`, with its one primary action, Book room, in `BookingPage.Action`, and its list is `RoomsPage`. It passes every rule check without a change to a rule. CI runs it as its own job with `npm run check:product -- --config products/nook/harness.config.ts`, which runs each check in `check:rules` against that config, `check:target-size` included. `npm run check:nook` runs the same command, and `npm run dev:nook` starts the app.
 
 Anything the checks cannot decide goes in the product's `review/` folder as a short note. Meridian's notes are [`approve-vendor-invoice.md`](../../../products/meridian/review/approve-vendor-invoice.md), [`inventories.md`](../../../products/meridian/review/inventories.md), and [`content-layouts.md`](../../../products/meridian/review/content-layouts.md), in `products/meridian/review/`. Each one splits "what the checks already decided" from "what the checks cannot decide."
+
+### The trace
+
+The agent records its walk in a trace, one JSON line per node, in a file under `traces/` at the repository root, one file per change. `npm run loop:step -- traces/<change>.jsonl <node> [when]` appends a step with the time, and refuses a step the graph does not allow, so a wrong edge shows at the step that takes it. [Proposal 0010](../../../proposals/0010-loop-trace.md) records the decision, and [`traces/README.md`](../../../traces/README.md) gives the format.
+
+`npm run check:trace` reads the change against its base, as `check:inventories` does, and fails when:
+
+- the change touches a product's directory, the folder of any `harness.config.ts` outside the harness package, and adds or edits no trace
+- a trace the change adds or edits does not start at the graph's `start`, names a node the graph does not have, or steps between two nodes no edge connects
+- a router, eval or human step has no `when`, or one its node has no edge for, or the next step is not where that `when` leads. Other steps take no `when`
+- the step after a node with no edge out, which ends a run, is not a new run at `start`. After a checkpoint with an edge out, which pauses the run, a new run may start too
+- a file the change adds under `traces/` is not a `.jsonl` trace, other than the folder's README
+- the trace stops anywhere but a checkpoint
+- the trace stops at a node that ends a run, and the last change to state an eval node reads has no passing eval node after it. A run paused at a checkpoint with an edge out, the proposal's pull request, may stop with its work unchecked, because it waits on approval
+
+The trace shows that the agent recorded a walk the graph allows. It does not prove the agent did what each line says: the agent writes its own trace, and nothing executes the graph. A false `checks pass` line does not let unchecked work merge, because CI runs the gate on every pull request anyway. The trace is for the reviewer, who can see whether the run went through a proposal, failed the gate first, or waited on a person, and hold the diff against that.
+
+`check:trace` is not in `npm run check`. The eval node runs `check` in the middle of the walk, when the trace does not yet end at a checkpoint, so the gate would fail itself. CI runs `check:trace` after `check:loop`, and the agent runs it before it pushes. Its Vitest tests are in `packages/harness/src/lib/trace.test.ts`.
 
 ## How the repo gets more capable
 

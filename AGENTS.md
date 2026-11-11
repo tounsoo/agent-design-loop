@@ -19,6 +19,8 @@ Layouts are product-owned shells with named slots, encoded from Todae recipes. R
 
 Loop: follow the graph in `packages/harness/design-loop.ts` from its `start` node. Do what each node's label says and take the edge whose `when` matches the outcome. An eval node runs its scripts, and a human node waits for its gate's review. `npm run check:loop` keeps the graph valid. The diagram is in `packages/harness/docs/how-it-works.md`.
 
+Trace: record the walk as you go. Each time you take a node, run `npm run loop:step -- traces/<change>.jsonl <node> [when]`, with the `when` of the edge you took out of a router, eval or human node. A change that touches a product needs a trace, and `npm run check:trace` fails one the graph does not allow. Run it before you push. The trace is a record for the reviewer, not a proof, so write only what you did.
+
 Checks: `npm run check:fixtures && npm run check`
 
 If the work needs a catalog export, layout, content layout, page type, flow state, or rule input that is not in those inventories, open a proposal. Do not invent the missing piece, and do not edit an inventory to sneak the change through.
