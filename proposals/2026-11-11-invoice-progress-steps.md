@@ -18,6 +18,18 @@ The catalog has no part for an ordered set of stages. A `DataList` row can name 
 
 `Steps` adds no control. It holds no button, link or field, so the step budget, the one-question cap, the disclosure caps, priority and target size read the page as before.
 
+## States
+
+- **Pending:** Received is done, Approval is current, and Payment, with the due date, is pending.
+- **Approved:** Received and Approval are done, and Payment is current, read out as "Next".
+- **Changes requested:** Received is done, Approval is marked "Changes requested", and Payment is pending.
+- **Empty:** Out of scope, the list shows only on an opened invoice, and an empty queue opens none.
+- **Loading:** Out of scope, while invoices load the page shows the loader in place of any invoice, so there is no list to draw.
+- **Error:** Out of scope, a load error shows the error message and Retry in place of any invoice.
+- **Long content:** the list always has three stages, and the longest text is "Payment due" with the due date, so it stays on one line at 1280 px and wraps inside its stage on a narrow screen.
+- **Permissions:** Out of scope, Meridian models no roles, so everyone who opens an invoice sees the same list.
+- **Over time:** an approved invoice whose due date has passed, such as INV-1711, still shows Payment as current with no overdue sign, because the sample data does not record whether a payment went out.
+
 ## Preview
 
 The invoice page gets a three-stage list under its facts, labelled "Invoice progress":
@@ -29,6 +41,8 @@ The invoice page gets a three-stage list under its facts, labelled "Invoice prog
 | Changes requested | done | error, read out as "Changes requested" | pending |
 
 The Payment stage reads "Payment due" and the invoice's due date in every state.
+
+The Status row in the invoice's facts now says what the list's Approval stage says. This change keeps both, so the facts still answer "what is it" in one word, as the queue does, and leaves dropping the row to the designer. The review note asks the question.
 
 Screenshots of the invoice page at 1280 by 900, before and after, are in [`products/meridian/review/screenshots/invoice-progress/`](../products/meridian/review/screenshots/invoice-progress/).
 
