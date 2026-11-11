@@ -82,12 +82,11 @@ In a Claude Duet thread there is no Chrome, and the Chrome downloads are blocked
 npm run check:trace
 ```
 
-It is not in `npm run check`, because the build gate runs in the middle of the design loop, before the trace ends. CI runs it after `check:loop`. It reads the change against its base like `check:inventories`, so a dirty tree or a missing base is `BLOCKED`. A change that touches a product's directory needs a loop trace under `traces/`, written step by step with `npm run loop:step -- traces/<change>.jsonl <node> [when]`. A change that touches no product passes with `trace: the change touches no product and adds no trace`. `traces/README.md` has the format, and [proposal 0010](../../../proposals/0010-loop-trace.md) says why a trace is a record, not proof.
+It is not in `npm run check`, because the build gate runs in the middle of the design loop, before the trace ends. CI runs it after `check:loop`. It reads the change against its base like `check:inventories`, so a missing base is `BLOCKED`. A change that touches a product's directory needs a loop trace under `traces/`, written step by step with `npm run loop:step -- traces/<change>.jsonl <node> [when]`. A change that touches no product passes with `trace: the change touches no product and adds no trace`. `traces/README.md` has the format, and [proposal 0010](../../../proposals/0010-loop-trace.md) says why a trace is a record, not proof.
 
 ### What each change needs
 
 Every row also runs step 4.
-
 
 | Change | Steps |
 | --- | --- |
