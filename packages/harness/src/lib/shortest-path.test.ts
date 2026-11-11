@@ -58,6 +58,21 @@ describe("measureRoutes", () => {
     expect(result).toEqual({ kind: "within", longest: ["choose", "book"] });
   });
 
+  it("measures steps that come in any order once per state, not once per order", () => {
+    // Eight independent settings, then done: 8! orders, 256 states, the longest route 9 steps.
+    const edges = [
+      ...Array.from({ length: 8 }, (_, bit) => ({
+        step: `set-${bit}`,
+        when: (node: number) => node >= 0 && (node & (1 << bit)) === 0,
+        apply: (node: number) => node | (1 << bit),
+      })),
+      { step: "done", when: (node: number) => node >= 0, apply: () => -1 },
+    ];
+    const result = measureRoutes(0, edges, (node) => node === -1, new Set(edges.map((edge) => edge.step)), 9);
+    expect(result).toEqual({ kind: "within", longest: [...Array.from({ length: 8 }, (_, bit) => `set-${bit}`), "done"] });
+    expect(measureRoutes(0, edges, (node) => node === -1, new Set(edges.map((edge) => edge.step)), 8).kind).toBe("over");
+  });
+
   it("gives up past its route limit instead of searching forever", () => {
     // Six steps from every state, each to a new state, and done finishes from any of them.
     const edges = [
