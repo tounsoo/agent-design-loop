@@ -5,7 +5,7 @@ description: "Prove a change to agent-design-loop, a harness of design rules and
 
 # Verify an agent-design-loop change
 
-This repository has two surfaces. The first is the harness: the checks under `scripts/`, the rules and inventories they read, and the illegal fixtures that prove each check can fail. An agent meets it as exit codes. The second is Meridian, the app those rules constrain, which a person opens in a browser. Prove a change on the surface it touches, on the commit you will push.
+This repository has two surfaces. The first is the harness in `packages/harness/`: the checks under `src/`, the rules and inventories they read, and the fixtures under `fixtures/` that prove each check can fail. An agent meets it as exit codes. The second is the products those rules constrain, Meridian in `products/meridian/` and Nook in `products/nook/`, which a person opens in a browser. Prove a change on the surface it touches, on the commit you will push.
 
 Run every command from the repository root with Node 22, after `npm ci`.
 
@@ -39,33 +39,40 @@ A wrong Node major or a dirty tree is `BLOCKED` until fixed. With neither, run `
 npm run check:fixtures && npm run check
 ```
 
-This is the command CI runs and the one `AGENTS.md` names. `check:fixtures` runs every case folder under `fixtures/` against the checks its `case.ts` names, on the fixture product's config (`fixtures/product/harness.config.ts`) with the paths the case changes. It passes only when every illegal case fails with its expected message and every legal case passes with its expected message. The legal cases are the fixture product itself, the stand-in design system in `fixtures/fake-ds/`, which shows a check reads its names from the adapter, and small products of their own, which show a rule reads its product's config and inputs. `check` then runs typecheck, lint, the rule checks and the Vitest suite against the real app. The Vitest suite drives Meridian with Testing Library and `user-event` in jsdom: it follows an invoice link, opens Line items, presses Approve, and requests changes with and without a reason.
+This is the command `AGENTS.md` names. CI runs the same checks split into two jobs, one per product. `check:fixtures` runs every case folder under `packages/harness/fixtures/` against the checks its `case.ts` names, on the fixture product's config (`packages/harness/fixtures/product/harness.config.ts`) with the paths the case changes. It passes only when every illegal case fails with its expected message and every legal case passes with its expected message. The legal cases are the fixture product itself, the stand-in design system in `fixtures/fake-ds/`, which shows a check reads its names from the adapter, and small products of their own, which show a rule reads its product's config and inputs. `check` then runs typecheck, ESLint and the Vitest suite on the whole repository, and then `check:product` on each product's config, which runs every rule check in `check:rules`. The Vitest suite drives Meridian with Testing Library and `user-event` in jsdom: it follows an invoice link, opens Line items, presses Approve, and requests changes with and without a reason.
 
-`check` ends with `check:target-size` before `test`, so without Chrome it stops there. Then run the rest by hand and mark step 3 `BLOCKED`:
+Each product's rule checks end with `check:target-size`, so without Chrome `check` stops at Meridian's. Then run the rest by hand, one product at a time, and mark step 3 `BLOCKED`:
 
 ```sh
-npm run typecheck && npm run lint && npm run check:step-budget && npm run check:disclosure \
-  && npm run check:priority && npm run check:one-thing && npm run check:inventories \
-  && npm run check:state-coverage && npm run test
+npm run typecheck && npm run lint && npm run test
+for config in products/meridian/harness.config.ts products/nook/harness.config.ts; do
+  for check in lint:product-ui lint:slots check:step-budget check:disclosure check:priority check:one-thing check:inventories check:state-coverage; do
+    npm run "$check" -- --config "$config" || break 2
+  done
+done
 ```
+
+Every rule check needs `--config`. There is no config at the repository root.
 
 ### 2. Fixture and inventory proof (a change to a check, a rule, a rule input or an inventory)
 
-A check that passes the real app proves nothing until it can also fail. When a change adds or tightens a check, add a case folder under `fixtures/illegal/` in the same pull request, with a `case.ts` that names the paths it changes and the phrase the check prints. Then show both sides in the pull request: the check passing on the app (step 1) and `check:fixtures` printing `<case> <check> failed as required`. A fixture that starts passing is a `FAIL`, never a fixture to delete.
+A check that passes the real app proves nothing until it can also fail. When a change adds or tightens a check, add a case folder under `packages/harness/fixtures/illegal/` in the same pull request, with a `case.ts` that names the paths it changes and the phrase the check prints. Then show both sides in the pull request: the check passing on the app (step 1) and `check:fixtures` printing `<case> <check> failed as required`. A fixture that starts passing is a `FAIL`, never a fixture to delete.
 
-When a change loosens a check, or makes it read a product's config or inputs instead of Meridian's, add a legal case too: a folder under `fixtures/` with a `case.ts` that expects the check to pass, which the old check failed and the new one passes. Show `check:fixtures` printing `<case> <check> passed as required`. A legal case that starts failing is a `FAIL` too.
+When a change loosens a check, or makes it read a product's config or inputs instead of Meridian's, add a legal case too: a folder under `packages/harness/fixtures/` with a `case.ts` that expects the check to pass, which the old check failed and the new one passes. Show `check:fixtures` printing `<case> <check> passed as required`. A legal case that starts failing is a `FAIL` too.
 
-When a change touches an inventory (anything `proposals/README.md` lists), `check:inventories` must still print `membership matches <base sha>`. If membership changed, the pull request needs a new file under `proposals/`; see `proposals/README.md`.
+When a change touches an inventory (anything `proposals/README.md` lists), `check:inventories` must still print `membership matches <base sha>` for each product it touches. If membership changed, the pull request needs a new file under `proposals/`; see `proposals/README.md`.
 
-### 3. Browser drive (a change to anything Meridian renders, its styles, its build config or the Todae version)
+### 3. Browser drive (a change to anything a product renders, its styles, its build config or the Todae version)
 
 ```sh
-CHROME_PATH=/path/to/chrome npm run check:target-size
+CHROME_PATH=/path/to/chrome npm run check:target-size -- --config products/meridian/harness.config.ts
 ```
 
-It builds the app, serves it with `vite preview` on `127.0.0.1:4173` (strict port, so stop any other preview first), and opens every modeled state at 1280 by 900 in headless Chrome, once per preview query `harness.config.ts` lists for it, and opens a disclosure when the page has one. `npx tsx scripts/check-target-size.ts --list` prints those previews without Chrome. It fails any invoice control under 24 CSS px that misses the WCAG 2.5.8 spacing exception. It closes the server and the browser itself.
+Use `products/nook/harness.config.ts` for Nook.
 
-To look at a change, run `npm run build && npm run preview`. It is ready when Vite prints `http://127.0.0.1:4173/`. Open the URLs in [features/](features/README.md) there, and stop the preview server you started when done.
+It builds the app, serves it with `vite preview` on `127.0.0.1:4173` (strict port, so stop any other preview first), and opens every modeled state at 1280 by 900 in headless Chrome, once per preview query the product's `harness.config.ts` lists for it, and opens a disclosure when the page has one. `npm run check:target-size -- --list --config products/meridian/harness.config.ts` prints those previews without Chrome. It fails any control under 24 CSS px that misses the WCAG 2.5.8 spacing exception. It closes the server and the browser itself.
+
+To look at a Meridian change, run `npm run build && npm run preview`. It is ready when Vite prints `http://127.0.0.1:4173/`. Open the URLs in [features/](features/README.md) there, and stop the preview server you started when done.
 
 In a Claude Duet thread there is no Chrome, and the Chrome downloads are blocked, so this step is `BLOCKED` there. Say so in the pull request, link the pull request's CI run (it installs Chrome and runs `check:target-size`), and name the URLs a reviewer should open.
 
@@ -73,15 +80,15 @@ In a Claude Duet thread there is no Chrome, and the Chrome downloads are blocked
 
 | Change | Steps |
 | --- | --- |
-| `src/features/`, `src/App.tsx`, `src/main.tsx`, `src/styles.css`, `index.html`, `vite.config.ts` | 1 and 3 |
-| `src/harness/` | 1, and 3 when a view changes |
-| `src/catalog/`, `src/layouts/`, `src/content-layouts/`, `src/page-types/`, `src/flows/` (the inventories, see `proposals/README.md`) | 1, 2 and 3 |
-| `src/inputs/`, `src/rules/`, `package.json` and `package-lock.json` (the Todae version) | 1, 2 and 3 |
-| `scripts/`, `fixtures/` | 1 and 2 |
-| `*.test.ts(x)`, `src/test-setup.ts`, `src/vite-env.d.ts`, `tsconfig.json`, `eslint.config.js`, `.npmrc`, `.gitignore` | 1 |
+| `products/<name>/features/`, `App.tsx`, `main.tsx`, `styles.css`, `index.html`, `vite.config.ts` | 1 and 3 |
+| `products/<name>/preview/` | 1, and 3 when a view changes |
+| `products/<name>/catalog/`, `layouts/`, `content-layouts/`, `page-types/`, `flows/` (the inventories, see `proposals/README.md`) | 1, 2 and 3 |
+| `products/<name>/inputs`, `rules`, `harness.config.ts`, `packages/adapter-todae/`, `package.json` and `package-lock.json` (the Todae version) | 1, 2 and 3 |
+| `packages/harness/` | 1 and 2 |
+| `*.test.ts(x)`, `vitest.setup.ts`, `tsconfig.json`, `eslint.config.js`, `.npmrc`, `.gitignore` | 1 |
 | `proposals/` | 1. A proposal changes nothing until it graduates. |
 | `.github/` | 1, then the pull request's CI run is the rest of the proof; link it |
-| `README.md`, `AGENTS.md`, `CODEOWNERS`, `docs/`, `review/`, `CLAUDE.md`, `.claude/` | 1. Review covers the rest. |
+| `README.md`, `AGENTS.md`, `CODEOWNERS`, `docs/` folders, `products/<name>/review/`, `CLAUDE.md`, `.claude/` | 1. Review covers the rest. |
 
 ## Helpers
 
@@ -91,7 +98,7 @@ None. The drive is the repository's own npm scripts and Vitest journeys; [featur
 
 Put the tested commit's full SHA in the pull request body, with each command and the line that gives its verdict: the `fixtures:` summary, each check's verdict line (such as `step budget: within budget.` or `inventory: membership matches <sha>.`), and the Vitest `Tests` count. For step 3, the `target size:` line. Proof standards:
 
-- Drive the real path: a check runs against `src/` as it is, and a journey goes through the rendered controls, never by calling a transition or setting state directly.
+- Drive the real path: a check runs against the product as it is, and a journey goes through the rendered controls, never by calling a transition or setting state directly.
 - Check the end state: the flow state the journey lands on, the check's exit code and its message, not only that nothing threw.
 - A new rule is half proven until an illegal fixture fails it.
 

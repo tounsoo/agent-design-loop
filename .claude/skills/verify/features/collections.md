@@ -22,7 +22,7 @@ Preconditions:
 
 - **Navigate.** Choose `All invoices`, then `Vendors`. Run `npx vitest run -t "navigates between the payables collections"`. Each choice shows a heading of the same name, and its link has `aria-current="page"`.
 - **Search and page.** Type `Helios` in the `Search invoices` searchbox, clear it, choose `Next`. Run `npx vitest run -t "searches the queue and pages the rest"`. Only `INV-1907` shows while searching; after `Next`, `INV-1888` shows and `INV-1842` doesn't.
-- **No primary.** Look for Approve on To approve. Run `npx vitest run -t "shows the queue without an approve button"` and `npm run check:one-thing`. No `Approve` button; the check prints `no primary on the collection page`.
+- **No primary.** Look for Approve on To approve. Run `npx vitest run -t "shows the queue without an approve button"` and `npm run check:one-thing -- --config products/meridian/harness.config.ts`. No `Approve` button; the check prints `no primary on the collection page`.
 - **Browser.** Open `/`, `?route=invoices` and `?route=vendors` in the preview. Each shows its heading and table inside the shell.
 
 ## Gotchas

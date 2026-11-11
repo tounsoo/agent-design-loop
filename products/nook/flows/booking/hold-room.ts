@@ -1,4 +1,4 @@
-import type { TaskEdge } from "../../../../scripts/lib/shortest-path";
+import type { TaskEdge } from "@agent-design-loop/harness";
 
 /** The task in products/nook/inputs.ts#tasks that this graph models. */
 export const taskId = "hold-room";

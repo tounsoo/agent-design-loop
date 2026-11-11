@@ -22,7 +22,7 @@ Preconditions:
 - **Reveal.** Choose `Request changes`. The textbox `What should change?` appears.
 - **Required.** Choose `Request changes` again with the box empty. The error `Enter what the vendor should change.` shows.
 - **Send.** Type a reason and choose `Request changes`. Run `npx vitest run -t "requires a reason before requesting changes"` for all three. The status reads `Changes requested`, the reason shows, and `Approve` is disabled.
-- **Priority.** Run `npm run check:priority`. It prints `"Request changes" is secondary`.
+- **Priority.** Run `npm run check:priority -- --config products/meridian/harness.config.ts`. It prints `"Request changes" is secondary`.
 
 ## Gotchas
 

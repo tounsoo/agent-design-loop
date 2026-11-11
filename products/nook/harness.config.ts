@@ -1,7 +1,7 @@
-import type { HarnessConfig } from "../../scripts/lib/config";
+import type { HarnessConfig } from "@agent-design-loop/harness";
 
 /**
- * Nook's paths for the checks in scripts/, and the design system adapter
+ * Nook's paths for the harness checks, and the design system adapter
  * that names Todae's parts for them. Plain literals only: the inventory check
  * reads this file at the pull request base with `git show`. Changing it
  * changes what every check reads, so a change needs a proposal under
@@ -10,7 +10,7 @@ import type { HarnessConfig } from "../../scripts/lib/config";
  * Run every check on it with `npm run check:product -- --config products/nook/harness.config.ts`.
  */
 export default {
-  adapter: "adapters/todae.ts",
+  adapter: "packages/adapter-todae/index.ts",
   paths: {
     source: "products/nook",
     features: "products/nook/features",
