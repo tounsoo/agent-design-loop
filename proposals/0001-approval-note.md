@@ -35,8 +35,10 @@ The note would be required before Approve. The detail primary slot would still h
 
 ## Graduation, after approval
 
-- `src/inputs/product.ts`: `max_steps` for `approve-vendor-invoice` from 3 to 4
-- `src/flows/invoice-approval`: Approve is legal only after a non-empty note is on the detail state
+- `products/meridian/inputs/product.ts`: `max_steps` for `approve-vendor-invoice` from 3 to 4
+- `products/meridian/flows/invoice-approval`: Approve is legal only after a non-empty note is on the detail state
 - No new catalog component. The note uses `Field.Textarea`, which is already in the catalog
 
 Until that lands, the budget stays 3 and the approval note stays out of the UI.
+
+The two paths above named `src/` when this proposal merged. They were corrected after [proposal 0006](0006-move-into-packages.md) moved Meridian to `products/meridian/`.
