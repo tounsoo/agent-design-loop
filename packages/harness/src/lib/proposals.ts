@@ -205,19 +205,27 @@ export function proposalsAtRev(rev: string, dir: string): Map<string, string> {
 }
 
 /** Each file parsed, keyed by path. A file that does not parse is left out and its problems returned. */
-export function parseAll(files: ReadonlyMap<string, string>): { proposals: Map<string, Proposal>; unparsed: Set<string>; problems: string[] } {
+export function parseAll(files: ReadonlyMap<string, string>): {
+  proposals: Map<string, Proposal>;
+  unparsed: Set<string>;
+  legacy: Set<string>;
+  problems: string[];
+} {
   const proposals = new Map<string, Proposal>();
   const unparsed = new Set<string>();
+  const legacy = new Set<string>();
   const problems: string[] = [];
   for (const [file, text] of [...files].sort(([left], [right]) => left.localeCompare(right))) {
     const parsed = parseProposal(file, text);
     if (parsed.proposal) proposals.set(file, parsed.proposal);
     else {
       unparsed.add(file);
+      // Only a file with no front matter at all predates the fields. One with broken fields is not legacy: it failed check:proposals.
+      if (frontMatter(text.split(/\r?\n/)) === null) legacy.add(file);
       problems.push(...parsed.problems.map((problem) => `${file} ${problem}`));
     }
   }
-  return { proposals, unparsed, problems };
+  return { proposals, unparsed, legacy, problems };
 }
 
 /** Two proposal maps keyed by file name only, so a fixture's base and head folders line up. */
@@ -255,8 +263,16 @@ export function transitionProblems(
   base: ReadonlyMap<string, Proposal>,
   head: ReadonlyMap<string, Proposal>,
   legacy: ReadonlySet<string> = new Set(),
+  headUnparsed: ReadonlySet<string> = new Set(),
 ): string[] {
   const problems: string[] = [];
+  // A decided or graduated proposal is the record of what was approved, so it keeps its file name. Renaming one would let a new file widen its lists or graduate it again.
+  for (const [key, before] of [...base].sort(([left], [right]) => left.localeCompare(right))) {
+    if (before.status === "open" || head.has(key) || headUnparsed.has(key)) continue;
+    problems.push(
+      `${before.file} is ${before.status} on the base and is gone from this change. A decided or graduated proposal keeps its file name: it is the record of what was approved.`,
+    );
+  }
   for (const [key, after] of [...head].sort(([left], [right]) => left.localeCompare(right))) {
     // A base file with no fields predates them, so there is no status to move from. It cannot cover a change either: graduating() reads the base.
     if (legacy.has(key)) continue;

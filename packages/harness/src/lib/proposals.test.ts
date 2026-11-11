@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { graduating, parseProposal, transitionProblems, type Proposal } from "./proposals";
+import { graduating, parseAll, parseProposal, transitionProblems, type Proposal } from "./proposals";
 
 const BODY = "# Proposal 0102: Add a side panel\n\n## Reason\n\nA frame beside the page.\n\n## Preview\n\n```\n[page | panel]\n```\n\n## Graduation, after approval\n\n- inputs\n";
 
@@ -130,8 +130,33 @@ describe("transitionProblems", () => {
     expect(transitionProblems(new Map(), head, new Set(["a.md"]))).toEqual([]);
   });
 
+  it("fails renaming a decided proposal, which would let the new name widen it", () => {
+    const problems = transitionProblems(
+      new Map([["9400.md", proposal("9400.md", "decided", ["probeThing"])]]),
+      new Map([["9403.md", proposal("9403.md", "decided", ["probeThing", "probeFour"])]]),
+    );
+    expect(problems.join("\n")).toContain("9400.md is decided on the base and is gone from this change");
+  });
+
+  it("allows an open request to be withdrawn", () => {
+    expect(transitionProblems(new Map([["a.md", proposal("a.md", "open", ["x"])]]), new Map())).toEqual([]);
+  });
+
   it("fails moving a graduated proposal back", () => {
     const problems = transitionProblems(new Map([["a.md", proposal("a.md", "graduated")]]), new Map([["a.md", proposal("a.md", "decided")]]));
     expect(problems.join("\n")).toContain("moved graduated → decided");
+  });
+});
+
+describe("parseAll", () => {
+  it("counts only a file with no front matter as legacy, not one with broken fields", () => {
+    const parsed = parseAll(
+      new Map([
+        ["old.md", "Status: decided.\n\n## Reason\n\nWhy.\n"],
+        ["broken.md", text("status: open\nchanges: []", "## Reason\n\nWhy.\n")],
+      ]),
+    );
+    expect([...parsed.unparsed].sort()).toEqual(["broken.md", "old.md"]);
+    expect([...parsed.legacy]).toEqual(["old.md"]);
   });
 });

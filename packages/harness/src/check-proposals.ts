@@ -46,7 +46,7 @@ for (const dir of dirs) {
   const head = parseAll(proposalsInDir(dir));
   const base = parseAll(proposalsAtRev(rev, dir));
   count += head.proposals.size;
-  problems.push(...head.problems, ...transitionProblems(base.proposals, head.proposals, base.unparsed));
+  problems.push(...head.problems, ...transitionProblems(base.proposals, head.proposals, base.legacy, head.unparsed));
 }
 
 if (problems.length > 0) {
