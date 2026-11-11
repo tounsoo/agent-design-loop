@@ -29,6 +29,6 @@ Preconditions:
 ## Gotchas
 
 - The task graph and the reducer both give `open-invoice → approve`. `check:step-budget` fails if either goes over `max_steps` or the two stop matching, so a reducer that starts requiring Line items fails.
-- Proposal 0001 asks for an approval note. It is not applied. Proposal 0003 corrects its counts: with a note the path would be 3, inside the budget, so adding a note step to both the graph and the reducer would pass `check:step-budget`. The proposal, not the check, keeps the note out.
+- Proposal 0001 asks for an approval note. It is not applied. Proposal 0003 corrects its counts: with a note the path would be 3, inside the budget, so adding a note step to both the graph and the reducer would pass `check:step-budget`. A visible note field would still fail `check:one-thing`, because the request-changes reason already uses the detail page's one visible question.
 - Approve from the queue or from an error state does nothing.
 - The Vitest journey opens Line items by setting `open` on the `<details>` and dispatching `toggle`, not by clicking its summary. `check:target-size` clicks the summary in Chrome.

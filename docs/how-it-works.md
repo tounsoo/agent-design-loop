@@ -338,7 +338,7 @@ Compared values, from `membershipChanges` in `scripts/check-inventories.ts`:
 - each priority item's action, rank, and level
 - `disclosed_sections`, only when the base already exports it
 - `MAX_DISCLOSURE_DEPTH`, `MAX_DISCLOSURES_PER_PAGE`, `MAX_VISIBLE_QUESTIONS`, and `TARGET_MIN_PX`
-- every path in `harness.config.ts`, its `flows` list, and the adapter path it names, only when the base already has the file. The base is read at the paths its own config names, or at the head's paths when it has none
+- every path in `harness.config.ts` and its `flows` list, only when the base already has the file, and the adapter path it names, only when the base config already names one. The base is read at the paths its own config names, or at the head's paths when it has none
 - the design system adapter that `harness.config.ts` names, field by field, only when the base config already names one
 
 String lists are sorted and de-duplicated before the comparison, so reordering `allowed_page_types` without adding or removing an id is not a change. Changing `max_steps` from 3 to 4 is a change, even though the task id stays.
@@ -356,7 +356,7 @@ So a new content layout needs three things that are different jobs: the id in `a
 
 ## Worked example: the tracking board
 
-This is the loop under a real gap, as it stood when [pull request 8](https://github.com/tounsoo/agent-design-loop/pull/8) merged as `4a473ed`. [Pull request 7](https://github.com/tounsoo/agent-design-loop/pull/7) was open then. It was closed on November 11, 2026 without merging, so main's only content layout is still `data-table`, the board never shipped, and proposal 0002 is not on main. The example is history: it shows the gate firing, not something main contains.
+This is the loop under a real gap, as it stood when [pull request 8](https://github.com/tounsoo/agent-design-loop/pull/8) merged as `4a473ed`. [Pull request 7](https://github.com/tounsoo/agent-design-loop/pull/7) was open then. It was closed on November 11, 2026 (UTC) without merging, so main's only content layout is still `data-table`, the board never shipped, and proposal 0002 is not on main. The example is history: it shows the gate firing, not something main contains.
 
 ```mermaid
 flowchart TB
