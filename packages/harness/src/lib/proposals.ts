@@ -210,6 +210,39 @@ export function parseProposal(file: string, text: string): ParsedProposal {
   };
 }
 
+/**
+ * A proposal's file name is its ID. A new one is named for the UTC day it is
+ * written and a slug, `2026-11-12-side-panel.md`, so two pull requests
+ * written in parallel never reach for the same name the way they did for the
+ * next free number. Proposals already on the base keep the numbered names
+ * they merged with, because a decided or graduated proposal cannot be renamed.
+ */
+const DATED_NAME = /^(\d{4})-(\d{2})-(\d{2})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
+
+function isDatedName(name: string): boolean {
+  const match = DATED_NAME.exec(name);
+  if (!match) return false;
+  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return year >= 2000 && date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
+
+/** Each proposal file the head adds, by path, whose name is not a real date and a lowercase slug. */
+export function nameProblems(base: Iterable<string>, head: Iterable<string>): string[] {
+  const before = new Set(base);
+  const problems: string[] = [];
+  for (const file of [...head].sort()) {
+    const name = path.posix.basename(file);
+    if (before.has(file) || isDatedName(name)) continue;
+    const slug = name.replace(/\.md$/, "").replace(/^\d{4}(?:-\d{2}-\d{2})?-/, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "slug";
+    const example = path.posix.join(path.posix.dirname(file), `${new Date().toISOString().slice(0, 10)}-${slug}.md`);
+    problems.push(
+      `${file} is a new proposal, so its name is the UTC day it was written and a lowercase slug, such as ${example}. A dated name cannot collide with a proposal another pull request adds in parallel, as the next free number can.`,
+    );
+  }
+  return problems;
+}
+
 /** True when a proposal's file name makes it a proposal: a .md file other than README.md. */
 export function isProposalFile(file: string): boolean {
   return file.endsWith(".md") && path.posix.basename(file) !== "README.md";

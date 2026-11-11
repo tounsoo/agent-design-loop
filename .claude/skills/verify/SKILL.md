@@ -65,7 +65,7 @@ When a change touches an inventory (anything `proposals/README.md` lists), `chec
 
 When a change touches a reducer, a task graph or a task's `max_steps`, quote each task's `longest shipped flow route (N)` line from `check:step-budget` as well as its verdict. The check measures every route to a task's success, not only the shortest: any steps a task graph in the same flow names, then the shortest finish. A longer route over `max_steps` fails the change even when the shortest path fits, so cut the route or propose a new budget.
 
-When a change adds or edits a proposal, `check:proposals` must pass: the front matter and the three sections are there, `adds` stands alone on a `graduated` proposal, and each status moved one step at most from the base.
+When a change adds or edits a proposal, `check:proposals` must pass: a proposal the change adds or renames is named for the UTC day it was written and a lowercase slug, such as `2026-11-12-side-panel.md`, the front matter and the three sections are there, `adds` stands alone on a `graduated` proposal, and each status moved one step at most from the base. The rules of `check:proposals` are proven by the Vitest suite in `packages/harness/src/lib/proposals.test.ts`, not by fixture cases, because the check reads the repository's own proposal folders and takes no `--config`.
 
 ### 3. Browser drive (a change to anything a product renders, its styles, its build config or the Todae version)
 

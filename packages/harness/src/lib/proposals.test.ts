@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addingInThisChange, graduating, parseAll, parseProposal, transitionProblems, type Proposal } from "./proposals";
+import { addingInThisChange, graduating, nameProblems, parseAll, parseProposal, transitionProblems, type Proposal } from "./proposals";
 
 const BODY = "# Proposal 0102: Add a side panel\n\n## Reason\n\nA frame beside the page.\n\n## Preview\n\n```\n[page | panel]\n```\n\n## Graduation, after approval\n\n- inputs\n";
 
@@ -212,5 +212,37 @@ describe("parseAll", () => {
     );
     expect([...parsed.unparsed].sort()).toEqual(["broken.md", "old.md"]);
     expect([...parsed.legacy]).toEqual(["old.md"]);
+  });
+});
+
+describe("nameProblems", () => {
+  const base = ["proposals/0013-every-route.md"];
+
+  it("passes a new proposal named for a day and a slug", () => {
+    expect(nameProblems(base, [...base, "proposals/2026-11-12-steps-component.md"])).toEqual([]);
+  });
+
+  it("passes two parallel proposals on the same day, because their slugs differ", () => {
+    expect(nameProblems(base, [...base, "proposals/2026-11-12-steps-component.md", "proposals/2026-11-12-hold-ends.md"])).toEqual([]);
+  });
+
+  it("keeps the numbered names already on the base", () => {
+    expect(nameProblems(base, base)).toEqual([]);
+  });
+
+  it("fails a new proposal named by the next number, and suggests a dated name with its slug", () => {
+    const problems = nameProblems(base, [...base, "proposals/0014-invoice-progress-steps.md"]);
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toMatch(/^proposals\/0014-invoice-progress-steps\.md is a new proposal/);
+    expect(problems[0]).toMatch(/such as proposals\/\d{4}-\d{2}-\d{2}-invoice-progress-steps\.md\./);
+  });
+
+  it("fails a numbered proposal renamed in the change, because the new name is new", () => {
+    expect(nameProblems(base, ["proposals/0013-every-route-in-budget.md"])).toHaveLength(1);
+  });
+
+  it("fails a date that is not on the calendar, a slug with capitals, and a name with no slug", () => {
+    const head = ["proposals/2026-02-30-steps.md", "proposals/2026-11-12-Steps.md", "proposals/2026-11-12.md", "proposals/26-11-12-steps.md"];
+    expect(nameProblems([], head)).toHaveLength(4);
   });
 });
