@@ -1,6 +1,6 @@
 # Review: inventories
 
-The inventories record the catalog, layouts, page types, flow states, and rule inputs this repo already had. `allowed_layouts` is the new list. Everything else was already data.
+The inventories record the catalog, layouts, page types, flow states, and rule inputs this repo already had. `allowed_layouts` and `allowed_content_layouts` were added as lists later. Everything else was already data.
 
 ## What the checks already decided
 
@@ -9,9 +9,9 @@ The inventories record the catalog, layouts, page types, flow states, and rule i
 - Catalog membership is the export names in `products/meridian/catalog/index.ts`. Flow-state membership is `modeledStates`.
 - Rule inputs are each task's `max_steps`, the priority items, `disclosed_sections`, the disclosure caps, the visible-question cap, the target-size floor, and the allowed lists.
 - Imports may name only those layout, content-layout and page-type ids.
-- A list the base does not export may be introduced. That bootstrap is how `allowed_layouts` was first recorded. A list the base already has cannot change that way.
+- Three lists may be introduced when the base does not export them: `allowed_layouts`, `allowed_content_layouts` and `disclosed_sections`. That bootstrap is how `allowed_layouts` was first recorded. Every other inventory, and a list the base already has, cannot change that way.
 - A membership change passes `check:inventories` only when the pull request graduates a proposal: `status: decided` on the base, `status: graduated` in the change, with each changed name listed under `changes` as the base has it. A proposal the same pull request adds covers nothing, so an inventory change takes two pull requests, approval and then graduation.
-- `check:proposals` fails a proposal without its front matter, or without text under `## Reason`, `## Preview` and `## Graduation`. It also fails a status that skips a step or moves back, and a decided proposal whose lists change.
+- `check:proposals` fails a proposal without its front matter, or without text under `## Reason`, `## Preview` and `## Graduation`. It also fails a status that skips a step or moves back, a decided proposal whose lists change, and a decided or graduated proposal that is renamed or deleted.
 - Editing `products/meridian/layouts/app-shell` or a page-type shell without changing its id does not require a proposal.
 
 ## What the checks cannot decide

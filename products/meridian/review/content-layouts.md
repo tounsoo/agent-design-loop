@@ -7,7 +7,7 @@ Content layouts are the compositions that fill a page type's body. `allowed_layo
 - `products/meridian/content-layouts` matches `allowed_content_layouts`. The id is `data-table`.
 - `allowed_layouts` is still `app-shell`. A content layout is not added by extending that list.
 - `allowed_content_layouts` was first recorded as a bootstrap, when the base did not export it. Lists the base already had were unchanged.
-- Adding or removing a content layout id fails unless the pull request graduates a proposal that is `status: decided` on main and lists that id under `changes`.
+- Adding or removing a content layout id fails unless the pull request graduates a proposal that is `status: decided` on the pull request's base and lists that id under `changes`.
 - In the ready state, a collection body has to be one of those content layouts. Loading, empty, and error still render in the collection shell and are not content layouts.
 - Markup in a feature that is not that layout fails. So does page CSS for a class the feature uses when no registered content layout, chrome layout, or page type uses it. A status board inside the collection body is that failure.
 - `check:one-thing` requires every page type in `allowed_page_types` to render at least one page, no page rendered inside another, and no primary button on a collection page. A page type may render as many pages as the product needs. The check reads `allowed_page_types` for which shells exist. Graduating a page type is a membership change in that inventory, not an edit to the check.
