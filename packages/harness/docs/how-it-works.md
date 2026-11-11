@@ -87,29 +87,72 @@ What each script fails, in the words the code implements. Fixture names are rela
 
 ## What an agent does on a task
 
-`AGENTS.md` states the loop. The checks are the part that does not depend on the agent remembering it.
+The loop is a graph in [`packages/harness/design-loop.ts`](../design-loop.ts). Nodes do the work, edges decide what runs next, and shared state carries what one run leaves for the next. `AGENTS.md` points the agent at it. Nothing executes the graph: the agent follows it, and the checks are the part that does not depend on the agent remembering it. [Proposal 0009](../../../proposals/0009-design-loop-graph.md) records the decision.
+
+<!-- design-loop:start, drawn by npm run check:loop -- --write -->
 
 ```mermaid
 flowchart TB
-  read["Read the inventories, in the order AGENTS.md lists."]
-  generate["Generate UI inside those inventories."]
-  run["Run npm run check:fixtures and npm run check."]
-  read --> generate --> run
-  run --> passed{"Do the checks pass?"}
-  passed -->|No| inside{"Can the fix stay inside the inventories?"}
-  inside -->|Yes| fix["Change the UI and run the checks again."]
-  fix --> run
-  inside -->|No| propose["Add a proposal. Do not edit the inventory to let the change through."]
-  passed -->|Yes| note["Write the leftover judgment in the product's review/ notes."]
+  n_read["llm: Read the inventories in the order AGENTS.md lists"]
+  n_route{"router: Does the screen fit an approved pattern?"}
+  n_build["llm: Build the screen from the catalog, inside the inventories"]
+  n_checks[["eval: Run the build gate"]]
+  n_triage{"router: Can the fix stay inside the inventories?"}
+  n_propose["llm: Write a proposal with a reason, a preview and a graduation"]
+  n_proposal_pull_request[("checkpoint: Open a pull request with the proposal")]
+  n_approval(["human: A designer reviews the proposal's pull request"])
+  n_graduate["llm: Graduate it into the inventory data or a harness rule"]
+  n_note["llm: Write the leftover judgment in the review notes"]
+  n_pull_request[("checkpoint: Open the pull request for review")]
+  n_read --> n_route
+  n_route -->|fits| n_build
+  n_route -->|needs a new pattern| n_propose
+  n_build --> n_checks
+  n_checks -->|pass| n_note
+  n_checks -->|fail| n_triage
+  n_triage -->|inside| n_build
+  n_triage -->|outside| n_propose
+  n_propose --> n_proposal_pull_request
+  n_proposal_pull_request --> n_approval
+  n_approval -->|approved| n_graduate
+  n_approval -->|declined| n_build
+  n_graduate --> n_build
+  n_note --> n_pull_request
 ```
+
+<!-- design-loop:end -->
+
+Each node has a kind, and the shape in the diagram shows it.
+
+- **llm.** The agent's own work, such as building the screen or writing a proposal. It has one edge out.
+- **router.** A question the agent answers. Each edge out is one answer, named by its `when`.
+- **eval.** npm scripts. The `pass` edge is taken when every script exits 0, and the `fail` edge otherwise. The eval node here runs the build gate, `npm run check:fixtures` and `npm run check`.
+- **human.** The run stops until a person decides. Its `gate` is a `CODEOWNERS` pattern, and the review `CODEOWNERS` requests on that pull request is the approval. Its edges are `approved` and `declined`. `main` has no branch protection, so GitHub requests the review but does not block a merge without it.
+- **checkpoint.** The work is saved where the next run and the reviewer read it, as a pull request. A checkpoint with no edge out ends the run. The proposal's checkpoint opens the pull request the human node reviews.
+
+The graph's `state` lists what the nodes read and write: the inventories, the harness rules, the proposals, the product's UI and its review notes. A graduated proposal writes the inventories or the rules, so the next run reads a larger set.
+
+`npm run check:loop` fails the build when the graph is not one an agent can follow:
+
+- an edge names a node that does not exist, or a node is unreachable from the start or cannot reach an end
+- an eval node runs a script `package.json` does not have or one that is not `check` or a `check:` script, lacks a `pass` or `fail` edge, or its `fail` edge never comes back to it, so a failing run has no retry
+- an edge reaches an eval node from a node that writes none of the state the eval node reads, so the checks would run on unchanged work
+- a human node's gate has no `CODEOWNERS` line with an owner, or its last line names none, or it lacks an `approved` or `declined` edge
+- a router has fewer than two answers or repeats one, or an llm or checkpoint node has the wrong number of edges
+- a node names state the graph does not declare, or declared state is never used
+- a node id is not lowercase words joined by hyphens, or a label or `when` holds a double quote or a `|`
+- an end is reachable without crossing an eval node from the start, from a node that writes state an eval node reads, or from an eval node's `fail` edge. The last eval node before an end must have passed, with no work since
+- the diagram above is not the one the graph draws. `npm run check:loop -- --write` redraws it.
+
+Its Vitest tests, in `packages/harness/src/lib/loop.test.ts`, give a broken graph or doc for each failure above. `check:loop` takes no `--config`, because every product follows the same loop.
 
 The inventories to read, in order, are the product inputs, the UX rules, the catalog, layouts, content layouts, page types, the flow model, and `proposals/README.md`.
 
 `npm run check:fixtures` runs the harness's own tests. `packages/harness/fixtures/product/` is a small Todae product with its own `harness.config.ts`, and every check passes it. Every other folder directly under `packages/harness/fixtures/` or its `illegal/` folder is a case. Its `case.ts` names the config paths it replaces in the fixture product's config, and the checks to run on the result, each with the phrase it must print. `check:fixtures` runs each check the way a product runs it, as its npm script with `--config`, so a case differs from the fixture product only in what it names. It exits 0 only when every illegal case fails its checks with their phrases and every legal case passes its checks with theirs. A folder with no `case.ts` fails the run, so no fixture is left out. So does a case that names a path that does not exist, or whose phrase is part of one of its own paths, since a crash prints the path and could pass a case whose rule never ran. A fixture has no pull request base, so `check:inventories` compares it through `--base`: with the fixture product when its case gives a `base`, and with itself otherwise. A case with a `base` can also give `proposals`, a folder whose `.md` files the check reads, through `--proposals`, as the proposals the pull request adds.
 
-`npm run check` is the build gate, in this order: `typecheck`, `lint` (ESLint), `test`, `check:meridian`, and `check:nook`. Each product script runs `check:product` on that product's config, which runs every check in `check:rules`, in its order: `lint:product-ui`, `lint:slots`, `check:step-budget`, `check:disclosure`, `check:priority`, `check:one-thing`, `check:inventories`, `check:state-coverage`, and `check:target-size`. It stops at the first failure.
+`npm run check` is the build gate, in this order: `typecheck`, `lint` (ESLint), `test`, `check:meridian`, `check:nook`, `check:retirement`, and `check:loop`. Each product script runs `check:product` on that product's config, which runs every check in `check:rules`, in its order: `lint:product-ui`, `lint:slots`, `check:step-budget`, `check:disclosure`, `check:priority`, `check:one-thing`, `check:inventories`, `check:state-coverage`, and `check:target-size`. It stops at the first failure.
 
-CI runs on every pull request and on every push to `main`, in two jobs. The `check` job runs `check:fixtures`, `typecheck`, `lint`, `test`, and `check:product` on `products/meridian/harness.config.ts`. The `nook` job runs `check:product` on `products/nook/harness.config.ts`. Each job checks the repo out with full history, installs Node 22 and Chrome, runs `npm ci`, and sets `INVENTORY_BASE` to the pull request's base SHA, or to `github.event.before` on a push. The inventory check needs that SHA in the clone.
+CI runs on every pull request and on every push to `main`, in two jobs. The `check` job runs `check:fixtures`, `typecheck`, `lint`, `test`, `check:product` on `products/meridian/harness.config.ts`, `check:retirement`, and `check:loop`. The `nook` job runs `check:product` on `products/nook/harness.config.ts`. Each job checks the repo out with full history, installs Node 22 and Chrome, runs `npm ci`, and sets `INVENTORY_BASE` to the pull request's base SHA, or to `github.event.before` on a push. The inventory check needs that SHA in the clone.
 
 The fixtures the gate has to reject, all under `packages/harness/fixtures/illegal/`:
 
@@ -211,7 +254,7 @@ flowchart TB
 
 Proposal 0001 is the example on main of a request that has been recorded and not applied. It asks for an approval note and `max_steps` 4. Proposal 0003 corrects its step counts rather than editing it. Until a graduating change lands, the budget stays 3 and the note stays out of the UI.
 
-A proposal can also record a decision instead of a request. Proposals 0003 through 0006 say `Status: decided`: each one landed with the change it describes, so nothing graduates later. `proposals/README.md` describes both kinds.
+A proposal can also record a decision instead of a request. Proposals 0003 through 0009 say `Status: decided`: each one landed with the change it describes, so nothing graduates later. `proposals/README.md` describes both kinds.
 
 The next round is more capable because the structure grew. The agent reads a longer allowlist and a check that enforces it. The skill text did not have to get longer. The page's words for that move are "encode it. Delete the instruction."
 
@@ -308,7 +351,7 @@ flowchart LR
   same --> keywords --> accept
 ```
 
-Pull request 7 was an example before it closed: proposal 0002 applied the `Card` export and `status-board` in the same change, and the keyword check allowed it. Proposals 0003 through 0006 land with their changes on purpose, marked `Status: decided`. The check cannot tell that from a request graduating early. `review/inventories.md` says a reviewer has to refuse an edit that should have waited. The check will not.
+Pull request 7 was an example before it closed: proposal 0002 applied the `Card` export and `status-board` in the same change, and the keyword check allowed it. Proposals 0003 through 0009 land with their changes on purpose, marked `Status: decided`. The check cannot tell that from a request graduating early. `review/inventories.md` says a reviewer has to refuse an edit that should have waited. The check will not.
 
 **Judgment stays in `review/`.** The five review questions are unanswered by the checks: whether a step earns its cost, whether the first thing on screen is the right first thing, whether research supports the page split, whether the modeled states are the ones that happen, and whether an important control should aim for 44 CSS px instead of the 24 CSS px floor. The inventory notes add more that the check cannot see. A proposal's reason can be weak and still match the keywords. An implementation edit that keeps the same ids can change the product enough to deserve a proposal, and the membership set will not notice. A redesigned table inside `products/meridian/content-layouts/data-table` keeps the id `data-table`, and the check cannot tell that redesign from a different composition that reused the directory. Whether a future board should be a content layout or a page type is a choice the check accepts either way, once a proposal exists.
 
