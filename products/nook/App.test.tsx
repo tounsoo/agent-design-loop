@@ -32,6 +32,19 @@ describe("Nook", () => {
     expect(screen.getByLabelText("How long?")).toHaveValue("90");
   });
 
+  it("books a held room for the length chosen before the hold", async () => {
+    const user = userEvent.setup();
+    window.history.replaceState(null, "", "/?state=choosing&page=booking");
+    render(<App />);
+    await user.selectOptions(screen.getByLabelText("How long?"), "30");
+    await user.click(screen.getByRole("button", { name: "Hold room" }));
+    expect(screen.getByRole("button", { name: "Hold room" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Book room" }));
+    expect(screen.getByText("Room booked")).toBeInTheDocument();
+    expect(screen.getByText("Harbor is yours for 30 minutes.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Book room" })).toBeDisabled();
+  });
+
   it("goes back from a room to the list", async () => {
     const user = userEvent.setup();
     window.history.replaceState(null, "", "/?state=choosing&page=booking");

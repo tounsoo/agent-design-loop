@@ -15,6 +15,8 @@ The inventories are listed here with Meridian's paths, under `products/meridian/
 
 Editing a layout, content layout, or page-type implementation without changing its id is not an inventory change.
 
+A proposal's file name is its ID. Name a new one for the day you write it, in UTC, and a short lowercase slug: `2026-11-12-side-panel.md`. Cite it by that name, as proposal 2026-11-12-side-panel, and give it a plain title such as `# Add a side panel`. No check follows a link to a proposal, so renaming one means editing every link and citation to it by hand. Two pull requests written in parallel then pick different names without knowing about each other, where both used to reach for the next free number. Two that pick the same day and slug add the same file, which git refuses to merge when the texts differ, and `check:proposals` fails a new proposal whose name another proposal folder already holds. The proposals that merged with a number, from 0001, keep those names, because a decided or graduated proposal keeps its file name.
+
 A proposal starts with front matter the checks read, then three sections with text under each:
 
 ```md
@@ -24,7 +26,7 @@ changes:
   - side-panel
   - allowed_layouts
 ---
-# Proposal 0102: Add a side panel
+# Add a side panel
 
 The rule or input it wants to change.
 
@@ -47,7 +49,7 @@ Which files change on approval.
 - `opts-out`, optional, lists opt-outs as `<rule> for <product paths.source>`, as the next section shows.
 - `adds`, optional, lists members a proposal adds in one pull request, as [Adding in one pull request](#adding-in-one-pull-request) shows. A proposal with `adds` lists nothing under `changes`, `retires` or `opts-out`, and its status is `graduated`.
 
-`npm run check:proposals` fails a proposal with a missing or unknown field, a field that is not a list, `adds` beside anything under `changes`, `retires` or `opts-out` or on a proposal that is not `graduated`, or a missing or empty `## Reason`, `## Preview` or `## Graduation`. A heading inside a fenced code block or an HTML comment does not count, and a list item or value is a bare name, with no quotes or `#` comment. The check reads `proposals/`, every folder a product config names in `paths.proposals`, and any other folder named `proposals`. `CODEOWNERS` requests review for everything under `proposals/`.
+`npm run check:proposals` fails a proposal the change adds or renames whose file name is not a real calendar day, no later than tomorrow in UTC, and a lowercase slug, and it fails a proposal with a missing or unknown field, a field that is not a list, `adds` beside anything under `changes`, `retires` or `opts-out` or on a proposal that is not `graduated`, or a missing or empty `## Reason`, `## Preview` or `## Graduation`. A heading inside a fenced code block or an HTML comment does not count, and a list item or value is a bare name, with no quotes or `#` comment. The check reads `proposals/`, every folder a product config names in `paths.proposals`, and any other folder named `proposals`. `CODEOWNERS` requests review for everything under `proposals/`.
 
 ### From request to graduation
 
@@ -76,7 +78,7 @@ adds:
 
 The approval on this path is the designer's review of that one pull request, which `CODEOWNERS` requests for any folder named `proposals`. A product whose `paths.proposals` names a folder with another name needs its own `CODEOWNERS` line. The check cannot see that review. It blocks the merge only once branch protection on `main` requires code owner review; until then it is requested, not required. [Proposal 0012](0012-additions-in-one-pull-request.md) records the path and that limit.
 
-Proposals 0001 and 0003 to 0010 were written before the fields. [Proposal 0011](0011-proposal-fields-and-graduation.md) gave them their fields, and their `Status:` lines became plain prose. A proposal's status is the one field that changes after it merges.
+Proposals 0001 and 0003 to 0010 were written before the fields. [Proposal 0011](0011-proposal-fields-and-graduation.md) gave them their fields, and their `Status:` lines became plain prose. A proposal's status is the one field that changes after it merges. Its text stays as it merged, with one exception: a path, proposal number or example that no longer matches the code may be corrected, with a sentence in the proposal saying so. What it decided does not change. This replaces the line in proposal 0011 that names the only edits a merged proposal takes. Proposals 0001 and 0008 were corrected that way. The files a graduated proposal's pull request changed keep the paths they had then: before [proposal 0006](0006-move-into-packages.md), Meridian lived under `src/` with its config, `index.html` and `review/` at the root, the checks under `scripts/` and the fixtures under `fixtures/`. Proposal 0006 moved them to `products/meridian/` and `packages/harness/`.
 
 The next design round is more capable because that inventory grew.
 
