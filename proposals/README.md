@@ -45,18 +45,36 @@ Which files change on approval.
 - `changes` lists each inventory name the proposal changes, each matched exactly: the member added or removed, the constant, the config field or its new value, each changed string in `flows`, `adapter.<field>`, the new adapter path, or a new product's directory. A name matches only as listed, so `layouts/side-panel/` does not name `side-panel`. A proposal that changes no inventory writes `changes: []`.
 - `retires`, optional, lists rules the proposal takes out of `check:rules`.
 - `opts-out`, optional, lists opt-outs as `<rule> for <product paths.source>`, as the next section shows.
+- `adds`, optional, lists members a proposal adds in one pull request, as [Adding in one pull request](#adding-in-one-pull-request) shows. A proposal with `adds` lists nothing under `changes`, `retires` or `opts-out`, and its status is `graduated`.
 
-`npm run check:proposals` fails a proposal with a missing or unknown field, a field that is not a list, or a missing or empty `## Reason`, `## Preview` or `## Graduation`. A heading inside a fenced code block or an HTML comment does not count, and a list item or value is a bare name, with no quotes or `#` comment. The check reads `proposals/`, every folder a product config names in `paths.proposals`, and any other folder named `proposals`. `CODEOWNERS` requests review for everything under `proposals/`.
+`npm run check:proposals` fails a proposal with a missing or unknown field, a field that is not a list, `adds` beside anything under `changes`, `retires` or `opts-out` or on a proposal that is not `graduated`, or a missing or empty `## Reason`, `## Preview` or `## Graduation`. A heading inside a fenced code block or an HTML comment does not count, and a list item or value is a bare name, with no quotes or `#` comment. The check reads `proposals/`, every folder a product config names in `paths.proposals`, and any other folder named `proposals`. `CODEOWNERS` requests review for everything under `proposals/`.
 
 ### From request to graduation
 
-A proposal moves one step at a time, each in its own pull request:
+A proposal moves one step at a time, each in its own pull request, unless it only adds (next section):
 
 1. **Open.** The agent adds the file as `status: open`. Merging it records the request and applies nothing. [Proposal 0001](0001-approval-note.md) is open. Open requests are not shipped behavior.
 2. **Decided.** A pull request a designer reviews moves it to `status: decided`. That is the approval. It may still edit the proposal. A proposal may also start as `decided`, when the pull request that adds it is the one the designer approves. Once it merges, what the proposal covers is fixed, and its file keeps its name.
 3. **Graduated.** A later pull request makes the change and moves the proposal to `status: graduated`.
 
-`npm run check:inventories` passes an inventory change only when it graduates a proposal: one that is `decided` on the pull request base and `graduated` in the change, and that lists what changed under `changes` as the base has them. A proposal added in the same pull request covers nothing, an open request on the base covers nothing, and a graduating pull request cannot add a name the approval did not list. The check pins names, not values: whether `TARGET_MIN_PX` became the number the preview showed is the reviewer's to compare. `check:proposals` fails any other status move, such as `open` to `graduated` or `graduated` back to `decided`, any change to a decided proposal's `changes`, `retires` or `opts-out`, and a decided or graduated proposal that is renamed or deleted, because its file is the record of what was approved. A new proposal may start as `graduated` only when all three are empty, because then it gates nothing: it records a harness change that `CODEOWNERS` review covers, as [proposal 0003](0003-two-step-approve.md) and [proposal 0007](0007-check-gaps.md) through [proposal 0011](0011-proposal-fields-and-graduation.md) do.
+`npm run check:inventories` passes an inventory change only when it graduates a proposal: one that is `decided` on the pull request base and `graduated` in the change, and that lists what changed under `changes` as the base has them. A proposal added in the same pull request covers nothing unless it only adds (next section), an open request on the base covers nothing, and a graduating pull request cannot add a name the approval did not list. The check pins names, not values: whether `TARGET_MIN_PX` became the number the preview showed is the reviewer's to compare. `check:proposals` fails any other status move, such as `open` to `graduated` or `graduated` back to `decided`, any change to a decided or graduated proposal's `changes`, `retires`, `opts-out` or `adds`, and a decided or graduated proposal that is renamed or deleted, because its file is the record of what was approved. A new proposal may start as `graduated` only when all three are empty, because then it gates nothing: it records a harness change that `CODEOWNERS` review covers, as [proposal 0003](0003-two-step-approve.md) and [proposal 0007](0007-check-gaps.md) through [proposal 0012](0012-additions-in-one-pull-request.md) do, or when it only adds.
+
+### Adding in one pull request
+
+An addition may skip the approval pull request. A change is an addition when it only adds members to the catalog exports, `allowed_layouts`, `allowed_content_layouts`, `allowed_page_types` or the flow states: every member the base had is still there. The proposal for it lists those members under `adds`, writes `changes: []`, and starts as `graduated` in the same pull request as the change:
+
+```md
+---
+status: graduated
+changes: []
+adds:
+  - side-panel
+---
+```
+
+`check:inventories` lets that proposal cover only the members it lists, only in the pull request that adds it, and only when they are additions. It covers nothing when it is already on the base, when a proposal on the base already lists one of its `adds` under `adds` (a base proposal under a new file name, or a member added before that comes back), or when one of its `adds` is a name the change removes or changes in any other way. Everything else keeps two pull requests: a removal, a rename, a rule input such as `max_steps`, `priority`, `disclosed_sections` or a cap, a config path, `shells`, `flows`, the adapter, a new product, an opt-out and a retirement. A change that does both needs a proposal that only adds for the additions and a decided one for the rest.
+
+The approval on this path is the designer's review of that one pull request, which `CODEOWNERS` requests for any folder named `proposals`. A product whose `paths.proposals` names a folder with another name needs its own `CODEOWNERS` line. The check cannot see that review. It blocks the merge only once branch protection on `main` requires code owner review; until then it is requested, not required. [Proposal 0012](0012-additions-in-one-pull-request.md) records the path and that limit.
 
 Proposals 0001 and 0003 to 0010 were written before the fields. [Proposal 0011](0011-proposal-fields-and-graduation.md) gave them their fields, and their `Status:` lines became plain prose. A proposal's status is the one field that changes after it merges.
 
@@ -64,7 +82,7 @@ The next design round is more capable because that inventory grew.
 
 ## Opting a product out of a rule
 
-An opt-out is a decision too. A harness rule, meaning a check that `check:rules` in `package.json` runs, applies to every product. A product that should not follow one names it in its config's `optOuts`, with the path of a proposal that says why. That proposal lists each rule it turns off under `opts-out`, with the product's `paths.source`:
+An opt-out is a decision too, and it always takes two pull requests. A harness rule, meaning a check that `check:rules` in `package.json` runs, applies to every product. A product that should not follow one names it in its config's `optOuts`, with the path of a proposal that says why. That proposal lists each rule it turns off under `opts-out`, with the product's `paths.source`:
 
 ```md
 ---
