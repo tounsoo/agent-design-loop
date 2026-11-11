@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addingInThisChange, adopting, nameProblems, parseAll, sharedNameProblems, parseProposal, transitionProblems, type Proposal } from "./proposals";
+import { EDGE_STATES, addingInThisChange, adopting, nameProblems, parseAll, sharedNameProblems, parseProposal, transitionProblems, type Proposal } from "./proposals";
 
 const BODY = "# Proposal 0102: Add a side panel\n\n## Reason\n\nA frame beside the page.\n\n## Preview\n\n```\n[page | panel]\n```\n\n## Adoption, after approval\n\n- inputs\n";
 
@@ -7,8 +7,10 @@ function text(front: string, body = BODY): string {
   return `---\n${front}\n---\n${body}`;
 }
 
-function proposal(file: string, status: Proposal["status"], changes: string[] = [], retires: string[] = []): Proposal {
-  return { file, status, changes, retires, optsOut: [], adds: [] };
+const LISTED: Proposal["states"] = [{ name: "Pending", text: "The panel shows the record.", outOfScope: false }];
+
+function proposal(file: string, status: Proposal["status"], changes: string[] = [], retires: string[] = [], states: Proposal["states"] = LISTED): Proposal {
+  return { file, status, changes, retires, optsOut: [], adds: [], states };
 }
 
 describe("parseProposal", () => {
@@ -25,6 +27,7 @@ describe("parseProposal", () => {
       retires: ["check:disclosure"],
       optsOut: [{ rule: "check:priority", source: "products/nook" }],
       adds: [],
+      states: null,
     });
   });
 
@@ -247,6 +250,130 @@ describe("parseAll", () => {
     );
     expect([...parsed.unparsed].sort()).toEqual(["broken.md", "old.md"]);
     expect([...parsed.legacy]).toEqual(["old.md"]);
+  });
+});
+
+const STATES = [
+  "## States",
+  "",
+  "- **Pending:** the panel shows the record and its history.",
+  "- **Empty:** the panel says the record has no history yet.",
+  "- **Loading:** Out of scope, the history is local.",
+  "- **Error:** Out of scope, the history is local.",
+  "- **Long content:** a long history scrolls inside the panel.",
+  "- **Permissions:** Out of scope, everyone who opens the record may read it.",
+  "- **Over time:** an entry past its due date shows Overdue.",
+  "",
+].join("\n");
+
+function withStates(states: string): string {
+  return text("status: open\nchanges:\n  - side-panel", `${BODY}\n${states}`);
+}
+
+describe("## States", () => {
+  it("reads each state, marking the ones out of scope", () => {
+    const parsed = parseProposal("p.md", withStates(STATES));
+    expect(parsed.problems).toEqual([]);
+    expect(parsed.proposal?.states?.map((state) => state.name)).toEqual(["Pending", ...EDGE_STATES]);
+    expect(parsed.proposal?.states?.filter((state) => state.outOfScope).map((state) => state.name)).toEqual(["Loading", "Error", "Permissions"]);
+  });
+
+  it("reads plain and bold names alike, in any case", () => {
+    const states = ["## States", "", "- Pending: the record.", ...EDGE_STATES.map((edge) => `- **${edge.toLowerCase()}**: out of scope: nothing to show.`)].join("\n");
+    expect(parseProposal("p.md", withStates(states)).problems).toEqual([]);
+  });
+
+  it("fails a section that names no edge case, one edge case at a time", () => {
+    const problems = parseProposal("p.md", withStates("## States\n\n- Pending: the record.\n")).problems;
+    expect(problems).toEqual(EDGE_STATES.map((edge) => `"## States" has no "${edge}" item. Say what the screen shows, or write "- ${edge}: Out of scope, <why>".`));
+  });
+
+  it("fails a section with only edge cases, which leaves the ordinary states unnamed", () => {
+    const states = ["## States", "", ...EDGE_STATES.map((edge) => `- ${edge}: Out of scope, nothing loads.`)].join("\n");
+    expect(parseProposal("p.md", withStates(states)).problems.join("\n")).toContain("lists only edge cases");
+  });
+
+  it("fails an out-of-scope state with no reason, and a state with no text", () => {
+    const problems = parseProposal("p.md", withStates(STATES.replace("Out of scope, the history is local.", "Out of scope.").replace("an entry past its due date shows Overdue.", ""))).problems;
+    expect(problems).toEqual(['"## States" item "Loading" is out of scope with no reason. Write "Out of scope, <why>".', '"## States" item "Over time" says nothing. Say what the screen shows, or write "Out of scope, <why>".']);
+  });
+
+  it("fails an empty section, an item that is not a state, and a state listed twice", () => {
+    expect(parseProposal("p.md", withStates("## States\n\nEvery state is fine.\n")).problems.join("\n")).toContain('"## States" lists no states');
+    const problems = parseProposal("p.md", withStates(`${STATES}- Pending, as above\n- pending: again.\n`)).problems;
+    expect(problems).toEqual(['"## States" item "Pending, as above" is not "- <state>: <what the screen shows>".', '"## States" lists "pending" twice.']);
+  });
+
+  it("takes None alone for a change that shows on no screen, and fails it beside other states", () => {
+    expect(parseProposal("p.md", withStates("## States\n\n- None: the change moves a config path.\n")).problems).toEqual([]);
+    expect(parseProposal("p.md", withStates(`${STATES}- None: nothing.\n`)).problems.join("\n")).toContain('lists "None" beside other states');
+  });
+
+  it("does not read a state inside a code block, which only a bare fence closes", () => {
+    const states = `${STATES}\n\`\`\`md\n- Approved\n\`\`\`\n`;
+    expect(parseProposal("p.md", withStates(states)).problems).toEqual([]);
+    const fenced = ["## States", "", "```", "```js", "- Pending: the record.", ...EDGE_STATES.map((edge) => `- ${edge}: Out of scope, none.`), "```", ""].join("\n");
+    expect(parseProposal("p.md", withStates(fenced)).problems.join("\n")).toContain('"## States" lists no states');
+  });
+
+  it("reads items indented up to three spaces, and skips a thematic break", () => {
+    const states = STATES.replace(/^- /gm, " - ").replace("- **Pending:**", "- **Pending:**") + "\n* * *\n";
+    expect(parseProposal("p.md", withStates(states)).problems).toEqual([]);
+  });
+
+  it("reads a state whose text wraps onto an indented line", () => {
+    const parsed = parseProposal("p.md", withStates(STATES.replace("- **Empty:** the panel says the record has no history yet.", "- **Empty:**\n  the panel says the record has no history yet.")));
+    expect(parsed.problems).toEqual([]);
+    expect(parsed.proposal?.states?.find((state) => state.name === "Empty")?.text).toBe("the panel says the record has no history yet.");
+  });
+});
+
+describe("transitionProblems and ## States", () => {
+  const unlisted = (file: string, status: Proposal["status"], changes: string[] = ["side-panel"]) => proposal(file, status, changes, [], null);
+
+  it("fails a new proposal that changes members and lists no states", () => {
+    const problems = transitionProblems(new Map(), new Map([["n.md", unlisted("n.md", "open")]]));
+    expect(problems.join("\n")).toContain('n.md is new and changes side-panel, but has no "## States" section');
+  });
+
+  it("fails a new proposal that only adds and lists no states", () => {
+    const adding: Proposal = { ...unlisted("n.md", "adopted", []), adds: ["Steps"] };
+    expect(transitionProblems(new Map(), new Map([["n.md", adding]])).join("\n")).toContain("is new and adds Steps");
+  });
+
+  it("fails approving a request that lists no states", () => {
+    const problems = transitionProblems(new Map([["a.md", unlisted("a.md", "open")]]), new Map([["a.md", unlisted("a.md", "decided")]]));
+    expect(problems.join("\n")).toContain('a.md moves open → decided and changes side-panel, but has no "## States" section');
+  });
+
+  it("keeps proposals from before the section as they are: an open request edited, a decided one adopting", () => {
+    const base = new Map([
+      ["open.md", unlisted("open.md", "open")],
+      ["decided.md", unlisted("decided.md", "decided")],
+    ]);
+    const head = new Map([
+      ["open.md", unlisted("open.md", "open", ["side-panel", "toast"])],
+      ["decided.md", unlisted("decided.md", "adopted")],
+    ]);
+    expect(transitionProblems(base, head)).toEqual([]);
+  });
+
+  it("asks a base file with no fields for states when it gains them, as a new proposal", () => {
+    const problems = transitionProblems(new Map(), new Map([["a.md", unlisted("a.md", "decided")]]), new Set(["a.md"]));
+    expect(problems.join("\n")).toContain('a.md is new and changes side-panel, but has no "## States" section');
+  });
+
+  it("asks a new proposal that starts decided for states", () => {
+    expect(transitionProblems(new Map(), new Map([["n.md", unlisted("n.md", "decided")]])).join("\n")).toContain("is new and changes side-panel");
+  });
+
+  it("fails a decided proposal that drops the states it was approved with", () => {
+    const problems = transitionProblems(new Map([["a.md", proposal("a.md", "decided", ["side-panel"])]]), new Map([["a.md", unlisted("a.md", "adopted")]]));
+    expect(problems.join("\n")).toContain('a.md is decided on the base with a "## States" section, so it keeps one');
+  });
+
+  it("does not ask a proposal that changes no member for states", () => {
+    expect(transitionProblems(new Map(), new Map([["n.md", unlisted("n.md", "adopted", [])]]))).toEqual([]);
   });
 });
 

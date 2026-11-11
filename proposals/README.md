@@ -17,7 +17,7 @@ Editing a layout, content layout, or page-type implementation without changing i
 
 A proposal's file name is its ID. Name a new one for the day you write it, in UTC, and a short lowercase slug: `2026-11-12-side-panel.md`. Cite it by that name, as proposal 2026-11-12-side-panel, and give it a plain title such as `# Add a side panel`. No check follows a link to a proposal, so renaming one means editing every link and citation to it by hand. Two pull requests written in parallel then pick different names without knowing about each other, where both used to reach for the next free number. Two that pick the same day and slug add the same file, which git refuses to merge when the texts differ, and `check:proposals` fails a new proposal whose name another proposal folder already holds. The proposals that merged with a number, from 0001, keep those names, because a decided or adopted proposal keeps its file name.
 
-A proposal starts with front matter the checks read, then three sections with text under each:
+A proposal starts with front matter the checks read, then three sections with text under each, and a fourth, `## States`, when it changes or adds inventory members:
 
 ```md
 ---
@@ -34,6 +34,17 @@ The rule or input it wants to change.
 
 Why the work needs it.
 
+## States
+
+- **Open:** the panel shows the record's history beside the page.
+- **Closed:** the page takes the full width.
+- **Empty:** the panel says the record has no history yet.
+- **Loading:** Out of scope, the history is local.
+- **Error:** Out of scope, the history is local.
+- **Long content:** a long history scrolls inside the panel, and the page keeps its width.
+- **Permissions:** Out of scope, everyone who opens the record may read its history.
+- **Over time:** an entry past its due date says Overdue.
+
 ## Preview
 
 A preview of the UI or the path after the change.
@@ -49,7 +60,19 @@ Which files change on approval.
 - `opts-out`, optional, lists opt-outs as `<rule> for <product paths.source>`, as the next section shows.
 - `adds`, optional, lists members a proposal adds in one pull request, as [Adding in one pull request](#adding-in-one-pull-request) shows. A proposal with `adds` lists nothing under `changes`, `retires` or `opts-out`, and its status is `adopted`.
 
-`npm run check:proposals` fails a proposal the change adds or renames whose file name is not a real calendar day, no later than tomorrow in UTC, and a lowercase slug, and it fails a proposal with a missing or unknown field, a field that is not a list, `adds` beside anything under `changes`, `retires` or `opts-out` or on a proposal that is not `adopted`, or a missing or empty `## Reason`, `## Preview` or `## Adoption`. A heading inside a fenced code block or an HTML comment does not count, and a list item or value is a bare name, with no quotes or `#` comment. The check reads `proposals/`, every folder a product config names in `paths.proposals`, and any other folder named `proposals`. `CODEOWNERS` requests review for everything under `proposals/`.
+`npm run check:proposals` fails a proposal the change adds or renames whose file name is not a real calendar day, no later than tomorrow in UTC, and a lowercase slug, and it fails a proposal with a missing or unknown field, a field that is not a list, `adds` beside anything under `changes`, `retires` or `opts-out` or on a proposal that is not `adopted`, a missing or empty `## Reason`, `## Preview` or `## Adoption`, or a `## States` section that misses an edge case, gives a state no text, marks one out of scope without a reason, lists only edge cases, or puts `None` beside other states. A heading inside a fenced code block or an HTML comment does not count, and a list item or value is a bare name, with no quotes or `#` comment. The check reads `proposals/`, every folder a product config names in `paths.proposals`, and any other folder named `proposals`. `CODEOWNERS` requests review for everything under `proposals/`.
+
+### States
+
+A proposal that lists anything under `changes` or `adds` names every state the change shows before anything is built, so a reviewer sees the edge cases when they approve it, not after the build. `## States` is a list of `- <state>: <what the screen shows>` items, with the name plain or bold:
+
+- At least one ordinary state the change shows, such as Pending or Approved. A state that can hold at once with another, such as approved and past due, is its own item.
+- Each edge case: **Empty**, **Loading**, **Error**, **Long content**, **Permissions** and **Over time**. Over time is what changes as time passes, such as a due date going by or a hold running out. Describe each, or write `Out of scope, <why>` when the change cannot reach it.
+- A change that shows on no screen, such as a moved config path, writes the one item `- None: <why>` instead.
+
+While you list them, look for information the screen would show twice, such as a new list that repeats a status row already on the page, and say in the Preview which one stays.
+
+`npm run check:proposals` requires `## States` from a proposal the change adds, whatever status it starts at, and from one the change moves from `open` to `decided`, when it lists anything under `changes` or `adds`. A proposal already on the base keeps its text until it moves to `decided`: proposal 0001, open on main, gains its states in the pull request that approves it. A proposal already decided or adopted on the base is never asked for them, but one that has them keeps them, because they are part of what was approved. The check reads the names, not the words: any item that is not an edge case counts as an ordinary state, so whether the list is the screen's real states is the designer's to judge. A proposal that changes no member, such as a harness change or an opt-out, needs none, but any `## States` section a proposal has must read as above. [Proposal 2026-11-11-proposals-list-every-state](2026-11-11-proposals-list-every-state.md) records the rule.
 
 ### From request to adoption
 
@@ -59,7 +82,7 @@ A proposal moves one step at a time, each in its own pull request, unless it onl
 2. **Decided.** A pull request a designer reviews moves it to `status: decided`. That is the approval. It may still edit the proposal. A proposal may also start as `decided`, when the pull request that adds it is the one the designer approves. Once it merges, what the proposal covers is fixed, and its file keeps its name.
 3. **Adopted.** A later pull request makes the change and moves the proposal to `status: adopted`.
 
-`npm run check:inventories` passes an inventory change only when it adopts a proposal: one that is `decided` on the pull request base and `adopted` in the change, and that lists what changed under `changes` as the base has them. A proposal added in the same pull request covers nothing unless it only adds (next section), an open request on the base covers nothing, and an adopting pull request cannot add a name the approval did not list. The check pins names, not values: whether `TARGET_MIN_PX` became the number the preview showed is the reviewer's to compare. `check:proposals` fails any other status move, such as `open` to `adopted` or `adopted` back to `decided`, any change to a decided or adopted proposal's `changes`, `retires`, `opts-out` or `adds`, and a decided or adopted proposal that is renamed or deleted, because its file is the record of what was approved. A new proposal may start as `adopted` only when all three are empty, because then it gates nothing: it records a harness change that `CODEOWNERS` review covers, as [proposal 0003](0003-two-step-approve.md) and [proposal 0007](0007-check-gaps.md) through [proposal 0013](0013-every-route-in-the-step-budget.md) do, or when it only adds.
+`npm run check:inventories` passes an inventory change only when it adopts a proposal: one that is `decided` on the pull request base and `adopted` in the change, and that lists what changed under `changes` as the base has them. A proposal added in the same pull request covers nothing unless it only adds (next section), an open request on the base covers nothing, and an adopting pull request cannot add a name the approval did not list. The check pins names, not values: whether `TARGET_MIN_PX` became the number the preview showed is the reviewer's to compare. `check:proposals` fails any other status move, such as `open` to `adopted` or `adopted` back to `decided`, any change to a decided or adopted proposal's `changes`, `retires`, `opts-out` or `adds`, and a decided or adopted proposal that is renamed or deleted, because its file is the record of what was approved. A new proposal may start as `adopted` only when all three are empty, because then it gates nothing: it records a harness change that `CODEOWNERS` review covers, as [proposal 0003](0003-two-step-approve.md), [proposal 0007](0007-check-gaps.md) through [proposal 0013](0013-every-route-in-the-step-budget.md) [proposal 2026-11-11-dated-proposal-names](2026-11-11-dated-proposal-names.md) and [proposal 2026-11-11-proposals-list-every-state](2026-11-11-proposals-list-every-state.md) do, or when it only adds.
 
 ### Adding in one pull request
 

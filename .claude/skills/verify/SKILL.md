@@ -65,7 +65,7 @@ When a change touches an inventory (anything `proposals/README.md` lists), `chec
 
 When a change touches a reducer, a task graph or a task's `max_steps`, quote each task's `longest shipped flow route (N)` line from `check:step-budget` as well as its verdict. The check measures every route to a task's success, not only the shortest: any steps a task graph in the same flow names, then the shortest finish. A longer route over `max_steps` fails the change even when the shortest path fits, so cut the route or propose a new budget.
 
-When a change adds or edits a proposal, `check:proposals` must pass: a proposal the change adds or renames is named for a real date no later than tomorrow in UTC, the day it was written, and a lowercase slug, such as `2026-11-12-side-panel.md`, the front matter and the three sections are there, with `status: adopted` and `## Adoption` and not the names before the rename (`graduated`, `## Graduation`, which only a base proposal may still have), `adds` stands alone on an `adopted` proposal, and each status moved one step at most from the base. The rules of `check:proposals` are proven by the Vitest suite in `packages/harness/src/lib/proposals.test.ts`, not by fixture cases, because the check reads the repository's own proposal folders and takes no `--config`.
+When a change adds or edits a proposal, `check:proposals` must pass: a proposal the change adds or renames is named for a real date no later than tomorrow in UTC, the day it was written, and a lowercase slug, such as `2026-11-12-side-panel.md`, the front matter and the three sections are there, with `status: adopted` and `## Adoption` and not the names before the rename (`graduated`, `## Graduation`, which only a base proposal may still have), `adds` stands alone on an `adopted` proposal, each status moved one step at most from the base, and a proposal the change adds or approves that changes or adds members lists its `## States`. The rules of `check:proposals` are proven by the Vitest suite in `packages/harness/src/lib/proposals.test.ts`, not by fixture cases, because the check reads the repository's own proposal folders and takes no `--config`.
 
 ### 3. Browser drive (a change to anything a product renders, its styles, its build config or the Todae version)
 
@@ -75,11 +75,24 @@ npm run check:target-size -- --config products/meridian/harness.config.ts
 
 Use `products/nook/harness.config.ts` for Nook.
 
-It builds the app, serves it with `vite preview` on `127.0.0.1:4173` (strict port, so stop any other preview first), and opens every modeled state at 1280 by 900 in headless Chrome, once per preview query the product's `harness.config.ts` lists for it, and opens a disclosure when the page has one. `npm run check:target-size -- --list --config products/meridian/harness.config.ts` prints those previews without Chrome. It fails any control under 24 CSS px that misses the WCAG 2.5.8 spacing exception. It closes the server and the browser itself.
+Before building, list the screen's states, the edge cases included, and look for information it would show twice; a proposal keeps that list in `## States` (`proposals/README.md`). Once built, open each state the list names, out-of-scope ones aside, and check that the screen shows what its line says and says nothing twice. Name any state you could not open in the pull request.
+
+`check:target-size` builds the app, serves it with `vite preview` on `127.0.0.1:4173` (strict port, so stop any other preview first), and opens every modeled state at 1280 by 900 in headless Chrome, once per preview query the product's `harness.config.ts` lists for it, and opens a disclosure when the page has one. `npm run check:target-size -- --list --config products/meridian/harness.config.ts` prints those previews without Chrome. It fails any control under 24 CSS px that misses the WCAG 2.5.8 spacing exception. It closes the server and the browser itself.
 
 To look at a Meridian change, run `npm run build && npm run preview`. It is ready when Vite prints `http://127.0.0.1:4173/`. Open the URLs in [features/](features/README.md) there, and stop the preview server you started when done.
 
 A Claude Duet thread runs this step too: `npm run setup:chrome` downloads chrome-headless-shell into `.cache/chrome` there, and `check:target-size` measures in it. The step is `BLOCKED` only when no Chrome that starts is found: `setup:chrome` cannot download one or has no build for the platform, there is no other Chrome, or the one found does not start. Then say so in the pull request, link the pull request's CI run (it runs `npm run setup:chrome` and `check:target-size`), and name the URLs a reviewer should open. The three fixture cases that measure, `target-size-whole-document`, `illegal/small-control-outside-page` and `illegal/small-control-in-closed-menu`, are `BLOCKED` with it.
+
+#### Screenshots (the same changes, once step 3 passes)
+
+The design loop's `screenshots` node comes after the gate passes. Capture every state the change touches, before and after, in the product's `review/screenshots/` folder, named like the change's trace:
+
+```sh
+npm run screenshots -- --config products/meridian/harness.config.ts \
+  --out products/meridian/review/screenshots/<change> --base origin/main --state <state>
+```
+
+Repeat `--state` for each state the change touches, or leave it out for every preview. It takes every preview of each state, so one state can give several shots. Each run replaces the whole folder, so a retake repeats every flag. It opens the previews `check:target-size` opens, at 1280 by 900 in the same Chrome, so it is `BLOCKED` when step 3 is. It writes `before/` and `after/` PNGs and a gallery `README.md` whose images each link to their full-size file. Look at the PNGs yourself before you commit them: a blank or half-loaded screen is a `FAIL`. Commit the folder, push, and put the line the script prints in the pull request description with `<sha>` replaced by the pushed commit's full SHA. Keep its whole `https://github.com/` address: a relative path breaks in the GitHub app and in email, and a branch link breaks once the branch is deleted. Then open the gallery link from the pull request page, in a browser that isn't signed in to GitHub when the repository is public, and click one image: every image must show, and the click must open it full size. Images in the description itself don't come through from an agent, so the description holds the link and no image.
 
 ### 4. Loop trace (every change, before you push)
 
@@ -107,11 +120,11 @@ Every row also runs step 4.
 
 ## Helpers
 
-None. The drive is the repository's own npm scripts and Vitest journeys; [features/](features/README.md) names the command and the expected result for each feature.
+`npm run screenshots`, above, is the one helper; it is not a check and nothing fails without it. The drive is the repository's own npm scripts and Vitest journeys; [features/](features/README.md) names the command and the expected result for each feature.
 
 ## Evidence
 
-Put the tested commit's full SHA in the pull request body, with each command and the line that gives its verdict: the `fixtures:` summary, each check's verdict line (such as `step budget: within budget.` or `inventory: membership matches <sha>.`), and the Vitest `Tests` count. For step 3, the `target size:` line. For step 4, the `trace:` line. Proof standards:
+Put the tested commit's full SHA in the pull request body, with each command and the line that gives its verdict: the `fixtures:` summary, each check's verdict line (such as `step budget: within budget.` or `inventory: membership matches <sha>.`), and the Vitest `Tests` count. For step 3, the `target size:` line, and the gallery link from the screenshots. For step 4, the `trace:` line. Proof standards:
 
 - Drive the real path: a check runs against the product as it is, and a journey goes through the rendered controls, never by calling a transition or setting state directly.
 - Check the end state: the flow state the journey lands on, the check's exit code and its message, not only that nothing threw.

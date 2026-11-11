@@ -8,7 +8,9 @@ import { nameProblems, parseAll, sharedNameProblems, proposalsAtRev, proposalsIn
 
 /**
  * Every proposal parses: front matter with a status and the changes it
- * covers, and a Reason, a Preview and an Adoption with text under each. And
+ * covers, and a Reason, a Preview and an Adoption with text under each. A
+ * proposal the change adds or approves that changes or adds members lists
+ * its States, the edge cases included. And
  * against the pull request base, read as check:inventories reads it, every
  * status moved only open → decided → adopted, one step per change, with
  * nothing an approved proposal covers widened. A new proposal cannot adopt
@@ -70,4 +72,4 @@ if (problems.length > 0) {
   for (const problem of problems) console.error(`- ${problem}`);
   process.exit(1);
 }
-console.log(`proposals: ${count} proposals in ${dirs.join(", ")} have their fields and sections, each new one has a dated name, and each status moved one step at most from ${rev.slice(0, 7)}.`);
+console.log(`proposals: ${count} proposals in ${dirs.join(", ")} have their fields and sections, each new one has a dated name, new and approved ones list their states, and each status moved one step at most from ${rev.slice(0, 7)}.`);

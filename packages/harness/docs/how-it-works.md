@@ -98,18 +98,19 @@ flowchart TB
   n_build["llm: Build the screen from the catalog, inside the inventories"]
   n_checks[["eval: Run the build gate"]]
   n_triage{"router: Can the fix stay inside the inventories?"}
-  n_propose["llm: Write a proposal with a reason, a preview and an adoption"]
+  n_propose["llm: Write a proposal with a reason, every state, a preview and an adoption"]
   n_scope{"router: Does the proposal only add members to an inventory list?"}
   n_proposal_pull_request[("checkpoint: Open a pull request with the proposal")]
   n_approval(["human: A designer reviews the proposal's pull request"])
   n_adopt["llm: Adopt it into the inventory data or a harness rule"]
+  n_screenshots["llm: Capture each state the change touches, with a gallery the pull request links"]
   n_note["llm: Write the leftover judgment in the review notes"]
   n_pull_request[("checkpoint: Open the pull request for review")]
   n_read --> n_route
   n_route -->|fits| n_build
   n_route -->|needs a new pattern| n_propose
   n_build --> n_checks
-  n_checks -->|pass| n_note
+  n_checks -->|pass| n_screenshots
   n_checks -->|fail| n_triage
   n_triage -->|inside| n_build
   n_triage -->|outside| n_propose
@@ -120,6 +121,7 @@ flowchart TB
   n_approval -->|approved| n_adopt
   n_approval -->|declined| n_build
   n_adopt --> n_build
+  n_screenshots --> n_note
   n_note --> n_pull_request
 ```
 
@@ -133,7 +135,7 @@ Each node has a kind, and the shape in the diagram shows it.
 - **human.** The run stops until a person decides. Its `gate` is a `CODEOWNERS` pattern, and the review `CODEOWNERS` requests on that pull request is the approval. Its edges are `approved` and `declined`. `main` has no branch protection, so GitHub requests the review but does not block a merge without it.
 - **checkpoint.** The work is saved where the next run and the reviewer read it, as a pull request. A checkpoint with no edge out ends the run. The proposal's checkpoint opens the pull request the human node reviews.
 
-The graph's `state` lists what the nodes read and write: the inventories, the harness rules, the proposals, the product's UI and its review notes. An adopted proposal writes the inventories or the rules, so the next run reads a larger set.
+The graph's `state` lists what the nodes read and write: the inventories, the harness rules, the proposals, the product's UI and its `review/` folder, which holds the review notes and each change's screenshots. An adopted proposal writes the inventories or the rules, so the next run reads a larger set.
 
 `npm run check:loop` fails the build when the graph is not one an agent can follow:
 
@@ -251,6 +253,18 @@ The cases the gate has to pass, directly under `packages/harness/fixtures/`:
 
 Anything the checks cannot decide goes in the product's `review/` folder as a short note. Meridian's notes are [`approve-vendor-invoice.md`](../../../products/meridian/review/approve-vendor-invoice.md), [`inventories.md`](../../../products/meridian/review/inventories.md), and [`content-layouts.md`](../../../products/meridian/review/content-layouts.md), in `products/meridian/review/`. Each one splits "what the checks already decided" from "what the checks cannot decide."
 
+### Screenshots
+
+A reviewer judges a screen by looking at it, so once the build gate passes, the loop's `screenshots` node captures each state the change touches. [Proposal 2026-11-11-screenshot-gallery](../../../proposals/2026-11-11-screenshot-gallery.md) records the decision.
+
+```sh
+npm run screenshots -- --config products/meridian/harness.config.ts --out products/meridian/review/screenshots/<change> --base origin/main --state invoice-approved
+```
+
+`<change>` is the name the change's trace uses, `traces/<change>.jsonl`. The script builds the product, serves it on port 4173 and opens the same previews `check:target-size` does, every modeled state once per query string its flow's `previews` lists, at 1280 by 900 CSS px in the same headless Chrome. It saves one full-page PNG per preview, named by its query, such as `ready--page-detail.png`. A state can have several previews: Meridian's `ready` has five. Each run replaces the whole folder, so a retake repeats every flag. `--state <name>` keeps one state's previews and repeats, and leaving it out takes every preview. `--base <ref>` takes the same previews at that commit too, from a temporary git worktree that borrows the installed packages, so the folder holds `before/` and `after/`. A base built with packages newer than its own lockfile asks for can differ from what shipped then, which matters only for a change to a package version.
+
+The folder also gets a `README.md`, the gallery: a table of before and after, or one section per preview without a base, with each image wrapped in a link to its own file. GitHub renders it with the images, and a click opens one full size. [`screenshots-example/`](screenshots-example/README.md) is one, of two Meridian states without a base. An agent's pull request description may not carry images, so it carries none: one plain link to the gallery, pinned to the pushed commit's full SHA, is enough. The script prints that line, with a `<sha>` to replace, and the whole `https://github.com/` address: a relative path resolves only on github.com itself, so it breaks in the GitHub app and in email, and a branch link breaks once the branch is deleted. No check requires the screenshots: the trace records the step, and the reviewer sees whether the description links a gallery.
+
 ### The trace
 
 The agent records its walk in a trace, one JSON line per node, in a file under `traces/` at the repository root, one file per change. `npm run loop:step -- traces/<change>.jsonl <node> [when]` appends a step with the time, and refuses a step the graph does not allow, so a wrong edge shows at the step that takes it. [Proposal 0010](../../../proposals/0010-loop-trace.md) records the decision, and [`traces/README.md`](../../../traces/README.md) gives the format.
@@ -276,7 +290,7 @@ A gap is a design that needs a catalog export, a layout, a content layout, a pag
 ```mermaid
 flowchart TB
   gap["The work needs something the inventories do not record."]
-  file["A pull request adds a proposal, status: open, with its changes, a reason, a preview, and an adoption."]
+  file["A pull request adds a proposal, status: open, with its changes, a reason, its states, a preview, and an adoption."]
   record["Merging it records the request. It does not apply the change."]
   person["A designer approves it: a reviewed pull request moves it to status: decided."]
   adopt["A later pull request makes the change and moves it to status: adopted. check:inventories reads the base's decided proposal."]
@@ -286,11 +300,11 @@ flowchart TB
   gap --> adds --> next
 ```
 
-[`proposals/README.md`](../../../proposals/README.md) gives the format: front matter with `status` and `changes`, the exact inventory names the proposal changes, then `## Reason`, `## Preview` and `## Adoption`, each with text. These were `status: graduated` and `## Graduation` until [proposal 2026-11-11-adopt-not-graduate](../../../proposals/2026-11-11-adopt-not-graduate.md). `npm run check:proposals` fails a file without them, or with the old names in the change, and fails a status that moves more than one step or backwards. A proposal's file name is its ID: a new one is named for the UTC day it was written and a slug, such as `2026-11-12-side-panel.md`, so two pull requests written in parallel pick different names without a shared counter, and the check fails a new proposal named any other way or dated after tomorrow in UTC. The proposals that merged with a number, from 0001, keep those names. `CODEOWNERS` requests review from `@tounsoo` for everything under `proposals/`.
+[`proposals/README.md`](../../../proposals/README.md) gives the format: front matter with `status` and `changes`, the exact inventory names the proposal changes, then `## Reason`, `## Preview` and `## Adoption`, each with text. These were `status: graduated` and `## Graduation` until [proposal 2026-11-11-adopt-not-graduate](../../../proposals/2026-11-11-adopt-not-graduate.md), and `npm run check:proposals` fails the old names in the change. A proposal that changes or adds members also lists its `## States`: the ordinary states and each edge case (empty, loading, error, long content, permissions, over time), described or marked out of scope, so the designer sees them before anything is built. `npm run check:proposals` fails a file without them, fails a status that moves more than one step or backwards, and asks for the states only from a proposal the change adds or approves, so proposals approved before the section keep their text. A proposal's file name is its ID: a new one is named for the UTC day it was written and a slug, such as `2026-11-12-side-panel.md`, so two pull requests written in parallel pick different names without a shared counter, and the check fails a new proposal named any other way or dated after tomorrow in UTC. The proposals that merged with a number, from 0001, keep those names. `CODEOWNERS` requests review from `@tounsoo` for everything under `proposals/`.
 
 Proposal 0001 is the example on main of a request that has been recorded and not applied. It asks for an approval note and `max_steps` 4. Proposal 0003 corrects its step counts rather than editing it. Until an adopting change lands, the budget stays 3 and the note stays out of the UI.
 
-A proposal that changes no inventory, such as a change to the harness's own code, lists `changes: []` and may start as `adopted`, because it gates nothing. Proposals 0003 and 0007 through 0012 are those.
+A proposal that changes no inventory, such as a change to the harness's own code, lists `changes: []` and may start as `adopted`, because it gates nothing. Proposals 0003, 0007 through 0013, 2026-11-11-dated-proposal-names and 2026-11-11-proposals-list-every-state are those.
 
 An addition can skip the approval pull request. A change that only adds members to the catalog exports, `allowed_layouts`, `allowed_content_layouts`, `allowed_page_types` or the flow states adopts a proposal the same pull request adds, `status: adopted`, that lists those members under `adds` and nothing else. The design loop's `scope` router sends such a proposal straight to `adopt`. Everything else, removals, renames, rule inputs, config, opt-outs and retirements, keeps two pull requests. [Proposal 0012](../../../proposals/0012-additions-in-one-pull-request.md) records it. Proposals 0004 to 0006 changed inventories and landed with their changes, before the fields existed; [proposal 0011](../../../proposals/0011-proposal-fields-and-graduation.md) gave them `status: adopted`.
 
