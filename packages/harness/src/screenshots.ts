@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -44,31 +44,40 @@ const chrome = findChrome();
 if ("missing" in chrome) fail(chrome.missing);
 
 const outDir = path.resolve(out);
-if (baseRef) {
-  rmSync(outDir, { recursive: true, force: true });
-  captureAtBase(baseRef, path.join(outDir, "before"), chrome.path);
-  await capture(picked, path.join(outDir, "after"), chrome.path);
-} else {
-  if (!process.env.SCREENSHOTS_BASE_RUN) rmSync(outDir, { recursive: true, force: true });
+if (process.env.SCREENSHOTS_BASE_RUN) {
+  // The run captureAtBase starts writes the before shots into the caller's staging folder.
   await capture(picked, outDir, chrome.path);
+  process.exit(0);
 }
 
-if (!process.env.SCREENSHOTS_BASE_RUN) {
-  const shots = {
-    before: baseRef ? pngs(path.join(outDir, "before")) : [],
-    after: pngs(baseRef ? path.join(outDir, "after") : outDir),
-  };
-  const baseLabel = baseRef ? `${baseRef} (${tryGit(["rev-parse", "--short", `${baseRef}^{commit}`])?.trim() ?? "unknown"})` : null;
-  writeFileSync(path.join(outDir, "README.md"), galleryMarkdown({ product: configName, base: baseLabel, ...shots }));
-  const relative = path.relative(process.cwd(), outDir).split(path.sep).join("/");
-  console.log(`screenshots: ${shots.before.length + shots.after.length} PNGs and README.md in ${relative}.`);
-  if (relative.startsWith("..") || path.isAbsolute(relative)) {
-    console.log("screenshots: the folder is outside the repository, so there is no gallery to link from a pull request.");
-  } else {
-    console.log("screenshots: commit the folder and push, then put this line in the pull request body, with the pushed commit's full sha:");
-    console.log("");
-    console.log(pullRequestMarkdown({ repository: repositoryUrl(), commit: "<sha>", folder: relative, ...shots }));
-  }
+// Nothing in --out is touched until every capture has succeeded: the shots go
+// to a staging folder beside it, which then replaces it.
+assertGallery(outDir);
+mkdirSync(path.dirname(outDir), { recursive: true });
+const staging = mkdtempSync(path.join(path.dirname(outDir), `.${path.basename(outDir)}-`));
+process.on("exit", () => rmSync(staging, { recursive: true, force: true }));
+if (baseRef) {
+  captureAtBase(baseRef, path.join(staging, "before"), chrome.path);
+  await capture(picked, path.join(staging, "after"), chrome.path);
+} else {
+  await capture(picked, staging, chrome.path);
+}
+const shots = {
+  before: baseRef ? pngs(path.join(staging, "before")) : [],
+  after: pngs(baseRef ? path.join(staging, "after") : staging),
+};
+writeFileSync(path.join(staging, "README.md"), galleryMarkdown({ product: configName, base: baseRef ? labelFor(baseRef) : null, ...shots }));
+rmSync(outDir, { recursive: true, force: true });
+renameSync(staging, outDir);
+
+const relative = path.relative(process.cwd(), outDir).split(path.sep).join("/");
+console.log(`screenshots: replaced ${relative} with ${shots.before.length + shots.after.length} PNGs and README.md. Each run replaces the whole folder, so a retake repeats every flag.`);
+if (relative.startsWith("..") || path.isAbsolute(relative)) {
+  console.log("screenshots: the folder is outside the repository, so there is no gallery to link from a pull request.");
+} else {
+  console.log("screenshots: commit the folder and push, then put this line in the pull request body, with the pushed commit's full sha:");
+  console.log("");
+  console.log(pullRequestMarkdown({ repository: repositoryUrl(), commit: "<sha>", folder: relative, ...shots }));
 }
 
 /** Builds the product in the working directory, serves it, and saves one full-page PNG per preview. */
@@ -111,10 +120,12 @@ async function capture(previews: readonly string[], dir: string, executablePath:
 }
 
 /**
- * Runs this script on a temporary worktree at `ref`, writing into `dir`. The
- * worktree borrows this checkout's installed packages, except the workspace
- * packages, which point at the worktree's own, so the base's harness and
- * adapter build the base's screens.
+ * Runs this script, as it is in this checkout, on a temporary worktree at
+ * `ref`, writing into `dir`. The base's config, flows and product code decide
+ * what is built and which previews open. The worktree borrows this checkout's
+ * installed packages, except the workspace packages, which point at the
+ * worktree's own, so the base's harness and adapter code build the base's
+ * screens.
  */
 function captureAtBase(ref: string, dir: string, executablePath: string): void {
   if (!/^[A-Za-z0-9._/^~-]+$/.test(ref) || ref.startsWith("-") || !tryGit(["rev-parse", "--verify", "--quiet", `${ref}^{commit}`])) {
@@ -124,28 +135,59 @@ function captureAtBase(ref: string, dir: string, executablePath: string): void {
   const worktree = path.join(root, "base");
   const added = spawnSync("git", ["worktree", "add", "--detach", "--quiet", worktree, ref], { stdio: "inherit" });
   if (added.status !== 0) fail(`could not check out ${ref} in a temporary worktree.`);
-  try {
-    const modules = path.resolve("node_modules");
-    mkdirSync(path.join(worktree, "node_modules"));
-    for (const entry of readdirSync(modules)) {
-      if (entry === "@agent-design-loop") continue;
-      symlinkSync(path.join(modules, entry), path.join(worktree, "node_modules", entry));
-    }
-    mkdirSync(path.join(worktree, "node_modules", "@agent-design-loop"));
-    for (const entry of readdirSync(path.join(modules, "@agent-design-loop"))) {
-      const own = readdirSync(path.join(worktree, "packages")).includes(entry) ? entry : null;
-      if (own) symlinkSync(path.join(worktree, "packages", own), path.join(worktree, "node_modules", "@agent-design-loop", entry));
-    }
-    const args = [SCRIPT, "--config", configName, "--out", dir, ...only.flatMap((state) => ["--state", state])];
-    const run = spawnSync(path.resolve("node_modules/.bin/tsx"), args, {
-      cwd: worktree,
-      stdio: "inherit",
-      env: { ...process.env, CHROME_PATH: executablePath, SCREENSHOTS_BASE_RUN: "1" },
-    });
-    if (run.status !== 0) fail(`capturing ${ref} failed. Its output is above.`);
-  } finally {
+  // fail() exits the process, so the worktree is removed on exit rather than in a finally block.
+  const removeWorktree = () => {
     spawnSync("git", ["worktree", "remove", "--force", worktree], { stdio: "ignore" });
     rmSync(root, { recursive: true, force: true });
+  };
+  process.on("exit", removeWorktree);
+  const modules = path.resolve("node_modules");
+  mkdirSync(path.join(worktree, "node_modules"));
+  for (const entry of readdirSync(modules)) {
+    if (entry === "@agent-design-loop") continue;
+    symlinkSync(path.join(modules, entry), path.join(worktree, "node_modules", entry));
+  }
+  if (!existsSync(path.join(worktree, "packages", "harness"))) fail(`${ref} has no packages/harness, so it predates the harness this script runs on.`);
+  mkdirSync(path.join(worktree, "node_modules", "@agent-design-loop"));
+  for (const entry of readdirSync(path.join(modules, "@agent-design-loop"))) {
+    if (existsSync(path.join(worktree, "packages", entry))) {
+      symlinkSync(path.join(worktree, "packages", entry), path.join(worktree, "node_modules", "@agent-design-loop", entry));
+    }
+  }
+  const args = [SCRIPT, "--config", configName, "--out", dir, ...only.flatMap((state) => ["--state", state])];
+  const run = spawnSync(path.resolve("node_modules/.bin/tsx"), args, {
+    cwd: worktree,
+    stdio: "inherit",
+    env: { ...process.env, CHROME_PATH: executablePath, SCREENSHOTS_BASE_RUN: "1" },
+  });
+  if (run.status !== 0) fail(`capturing ${ref} failed. Its output is above.`);
+  removeWorktree();
+  process.off("exit", removeWorktree);
+}
+
+/** The base as the gallery names it: the ref, with its short commit when the ref is a name. */
+function labelFor(ref: string): string {
+  const short = tryGit(["rev-parse", "--short", `${ref}^{commit}`])?.trim();
+  if (!short || short.startsWith(ref) || ref.startsWith(short)) return short ?? ref;
+  return `${ref} (${short})`;
+}
+
+/**
+ * Fails unless `--out` is new or a folder this script wrote, which a retake
+ * replaces so no stale shot is left. A folder that holds anything else, such
+ * as a product's review notes, is refused, so a wrong `--out` deletes nothing.
+ */
+function assertGallery(dir: string): void {
+  if (!existsSync(dir)) return;
+  const own = (folder: string, nested: boolean): boolean =>
+    readdirSync(folder, { withFileTypes: true }).every((entry) => {
+      if (entry.isFile() && entry.name.endsWith(".png")) return true;
+      if (!nested && entry.isFile() && entry.name === "README.md") return readFileSync(path.join(folder, entry.name), "utf8").startsWith("# Screenshots\n");
+      if (!nested && entry.isDirectory() && (entry.name === "before" || entry.name === "after")) return own(path.join(folder, entry.name), true);
+      return false;
+    });
+  if (!statSync(dir).isDirectory() || !own(dir, false)) {
+    fail(`${path.relative(process.cwd(), dir) || "."} holds files this script did not write. Give --out a new folder, such as products/<name>/review/screenshots/<change>.`);
   }
 }
 

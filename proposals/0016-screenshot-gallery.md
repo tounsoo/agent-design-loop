@@ -4,7 +4,7 @@ changes: []
 ---
 # Proposal 0016: A change that renders shows each state in a screenshot gallery
 
-Decided, and graduated with its own pull request. Ben decided on Nov 12 that every pull request that changes a screen shows one screenshot per state it touches, each opening full size on a click, and picked a gallery page the pull request links as the way to show them. This records that change, which lands with its own pull request, so nothing graduates later.
+Decided, and graduated with its own pull request. Ben decided on Nov 11 that every pull request that changes a screen shows a screenshot of each preview of every state it touches, each opening full size on a click, and picked a gallery page the pull request links as the way to show them. This records that change, which lands with its own pull request, so nothing graduates later.
 
 Rule or input: the design loop gains one node, `screenshots`, between the build gate passing and the review note, and the harness gains one script, `npm run screenshots`. No product input, rule cap, catalog export, flow state, adapter field or product config changes. No check changes, and no rule in `check:rules` changes, so no product can opt out of anything new.
 
@@ -16,7 +16,7 @@ Images in a pull request description are not an option for the agent: where it r
 
 The screenshots come from a script, not by hand, so every change takes them the same way: the previews `check:target-size` already opens, derived from each flow's `modeledStates` and the config's `previews`, at 1280 by 900 CSS px in the same headless Chrome. `--state` keeps the states the change touches. `--base <ref>` takes the same previews at the base too, from a temporary worktree, so the gallery shows before and after side by side.
 
-The loop gets a node rather than a line in the verify skill, so the step is in the trace a reviewer reads and in the diagram. It sits after the gate passes, because a screenshot of a failing build shows a screen that will not ship, and before the review note, so the note can point at a state in the gallery. It writes the product's `review/` folder, which no eval node reads, so `check:loop` still holds that every end follows a passing gate.
+The loop gets a node rather than a line in the verify skill, so the step is in the trace a reviewer reads and in the diagram. It sits after the gate passes, because a screenshot of a failing build shows a screen that will not ship, and before the review note, so the note can point at a state in the gallery. It writes the product's `review/` folder, which no eval node reads, so `check:loop` still holds that every end follows a passing gate. The node replaces the `checks` to `note` edge, so a trace recorded before it no longer walks the graph. `check:trace` reads only the traces a change adds or edits, so the traces already merged stay as they are. A pull request whose trace was written before this lands adds its `screenshots` step when it merges `main`.
 
 No check requires the screenshots. A check could require the folder for a change to a product, but not that the pull request links it, and the trace already records the step. If changes keep arriving without a gallery, that is the lesson that earns a check.
 
