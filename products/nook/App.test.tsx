@@ -81,6 +81,18 @@ describe("Nook", () => {
     expect(screen.getByText("Room held")).toBeInTheDocument();
   });
 
+  it("ends a hold made after opening a preview", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+    window.history.replaceState(null, "", "/?state=choosing&page=booking");
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Hold room" }));
+    act(() => {
+      vi.advanceTimersByTime(HOLD_MINUTES * 60_000);
+    });
+    expect(screen.getByText("Hold ended")).toBeInTheDocument();
+  });
+
   it("goes back to the list after a hold ends", async () => {
     const user = userEvent.setup();
     window.history.replaceState(null, "", "/?state=expired");

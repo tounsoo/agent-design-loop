@@ -21,12 +21,13 @@ export function Booking({ initial, fail }: { initial: FlowState | null; fail: bo
   }, [fail, previewing, state.status]);
 
   useEffect(() => {
-    if (previewing || state.status !== "held") return;
+    // A held preview stays as it is. A hold the person makes, even after a preview, ends.
+    if (state.status !== "held" || state === initial) return;
     const timer = window.setTimeout(() => {
       dispatch({ type: "hold-ended" });
     }, HOLD_MINUTES * 60_000);
     return () => window.clearTimeout(timer);
-  }, [previewing, state.status]);
+  }, [initial, state]);
 
   const actions: Actions = {
     retry: () => dispatch({ type: "retry" }),
