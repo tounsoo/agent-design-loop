@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { optOutLines, proposalStatus, retirementCandidates, type OptOutProduct } from "./opt-outs";
+import { optOutProblems, retirementCandidates, ungraduatedOptOuts, unretiredRemovals, type OptOutProduct } from "./opt-outs";
+import type { Proposal } from "./proposals";
 
 function product(source: string, ...rules: string[]): OptOutProduct {
   return { source, proposals: "proposals", optOuts: Object.fromEntries(rules.map((rule) => [rule, `proposals/${source}-${rule}.md`])) };
@@ -31,60 +32,75 @@ describe("retirementCandidates", () => {
   });
 });
 
-describe("optOutLines", () => {
-  it("reads each Opts out line's rule and product", () => {
-    const text = "Status: decided.\n\nOpts out: `check:disclosure` for `products/nook`\nOpts out: `check:priority` for `products/nook`.\n";
-    expect(optOutLines(text)).toEqual([
-      { rule: "check:disclosure", source: "products/nook" },
-      { rule: "check:priority", source: "products/nook" },
-    ]);
+const SECTIONS = "\n## Reason\n\nNook has no disclosure.\n\n## Preview\n\nNo change on screen.\n\n## Graduation\n\nNook's config names it.\n";
+
+function proposal(status: string, ...optsOut: string[]): string {
+  const list = optsOut.length === 0 ? "opts-out: []" : `opts-out:\n${optsOut.map((entry) => `  - ${entry}`).join("\n")}`;
+  return `---\nstatus: ${status}\nchanges: []\n${list}\n---\n# Proposal\n${SECTIONS}`;
+}
+
+describe("optOutProblems", () => {
+  const nook = { source: "products/nook", proposals: "proposals", optOuts: { "check:disclosure": "proposals/0011-skip.md" } };
+  const rules = ["check:disclosure", "check:priority"];
+
+  it("accepts a graduated proposal that opts the product out of the rule", () => {
+    expect(optOutProblems(nook, rules, () => proposal("graduated", "check:disclosure for products/nook"))).toEqual([]);
   });
 
-  it("ignores an example inside a fenced code block", () => {
-    const text = "Status: decided.\n\n```md\nOpts out: `check:disclosure` for `products/nook`\n```\n";
-    expect(optOutLines(text)).toEqual([]);
+  it("fails a proposal that is only decided, because the opt-out applies now", () => {
+    expect(optOutProblems(nook, rules, () => proposal("decided", "check:disclosure for products/nook")).join("\n")).toContain("is decided, not graduated");
   });
 
-  it("ignores an example in a fence closed by a longer fence, an indented fence, or an unclosed fence", () => {
-    const line = "Opts out: `check:disclosure` for `products/nook`";
-    expect(optOutLines(`\`\`\`\n${line}\n\`\`\`\`\n`)).toEqual([]);
-    expect(optOutLines(`  ~~~md\n${line}\n  ~~~\n`)).toEqual([]);
-    expect(optOutLines(`\`\`\`md\n${line}\n`)).toEqual([]);
+  it("fails a proposal whose opts-out names another product", () => {
+    expect(optOutProblems(nook, rules, () => proposal("graduated", "check:disclosure for products/meridian")).join("\n")).toContain(
+      "does not opt out check:disclosure for products/nook",
+    );
   });
 
-  it("ignores a line inside an HTML comment", () => {
-    expect(optOutLines("<!--\nOpts out: `check:disclosure` for `products/nook`\n-->\n")).toEqual([]);
-  });
-
-  it("reads a line after a fence closes", () => {
-    expect(optOutLines("```\nexample\n```\nOpts out: `check:disclosure` for `products/nook`\n")).toEqual([
-      { rule: "check:disclosure", source: "products/nook" },
-    ]);
-  });
-
-  it("ignores a mention inside a sentence", () => {
-    expect(optOutLines("This proposal Opts out: `check:disclosure` for `products/nook` in prose.")).toEqual([]);
+  it("fails a proposal that only says the words in prose", () => {
+    const text = "Status: decided.\n\nOpts out: `check:disclosure` for `products/nook`\n\nreason, preview, graduation";
+    expect(optOutProblems(nook, rules, () => text).join("\n")).toContain("has no front matter");
   });
 });
 
-describe("proposalStatus", () => {
-  it("reads the word on the first Status line", () => {
-    expect(proposalStatus("# Proposal\n\nStatus: decided. Ben approved it.\n")).toBe("decided");
+function decided(file: string, retires: string[] = [], optsOut: { rule: string; source: string }[] = []): Proposal {
+  return { file, status: "decided", changes: [], retires, optsOut };
+}
+
+describe("unretiredRemovals", () => {
+  it("passes when no rule leaves check:rules", () => {
+    expect(unretiredRemovals(["check:priority"], ["check:priority", "check:new"], [])).toEqual([]);
   });
 
-  it("does not let a later line overrule an open proposal", () => {
-    expect(proposalStatus("Status: open\n\nStatus: decided\n")).toBe("open");
+  it("fails a rule taken out with no graduating proposal that retires it", () => {
+    expect(unretiredRemovals(["check:priority", "check:disclosure"], ["check:priority"], [decided("p.md", ["check:priority"])]).join("\n")).toContain(
+      "check:disclosure left check:rules without a proposal that retires it",
+    );
   });
 
-  it("reads a hyphenated word whole", () => {
-    expect(proposalStatus("Status: decided-not-really\n")).toBe("decided-not-really");
+  it("passes a rule a graduating proposal retires", () => {
+    expect(unretiredRemovals(["check:disclosure"], [], [decided("p.md", ["check:disclosure"])])).toEqual([]);
+  });
+});
+
+describe("ungraduatedOptOuts", () => {
+  const nook = { source: "products/nook", proposals: "proposals", optOuts: { "check:disclosure": "proposals/0011-skip.md" } };
+
+  it("passes an opt-out the base already had", () => {
+    expect(ungraduatedOptOuts(nook, { "check:disclosure": "proposals/0011-skip.md" }, [])).toEqual([]);
   });
 
-  it("ignores an example in a fenced code block", () => {
-    expect(proposalStatus("```md\nStatus: decided.\n```\n\nStatus: open\n")).toBe("open");
+  it("fails a new opt-out whose proposal does not graduate in this change", () => {
+    expect(ungraduatedOptOuts(nook, {}, []).join("\n")).toContain("does not graduate in this change");
   });
 
-  it("ignores a Status line in an HTML comment", () => {
-    expect(proposalStatus("<!-- Status: decided -->\nStatus: open. Not applied.\n")).toBe("open");
+  it("fails a new opt-out whose graduating proposal was decided for another product", () => {
+    const graduate = decided("proposals/0011-skip.md", [], [{ rule: "check:disclosure", source: "products/meridian" }]);
+    expect(ungraduatedOptOuts(nook, null, [graduate]).join("\n")).toContain("did not opt out check:disclosure for products/nook when it was decided");
+  });
+
+  it("passes a new opt-out that graduates its decided proposal", () => {
+    const graduate = decided("proposals/0011-skip.md", [], [{ rule: "check:disclosure", source: "products/nook" }]);
+    expect(ungraduatedOptOuts(nook, null, [graduate])).toEqual([]);
   });
 });

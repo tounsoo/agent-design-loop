@@ -75,17 +75,18 @@ export type HarnessConfig = {
     readonly app: readonly string[];
     /** The directory with the product's index.html, which check:target-size builds and serves with Vite. */
     readonly web: string;
-    /** The folder check:opt-outs requires an opt-out's proposal to sit in. Defaults to `proposals`. check:inventories counts proposals under `proposals/` only. */
+    /** The folder check:opt-outs requires an opt-out's proposal to sit in, and check:inventories reads graduating proposals from. Defaults to `proposals`. */
     readonly proposals?: string;
   };
   readonly shells: ShellRules;
   readonly flows: readonly FlowConfig[];
   /**
-   * Harness rules this product does not follow: rule → the decided proposal
+   * Harness rules this product does not follow: rule → the graduated proposal
    * that says why, under `paths.proposals`. A rule is a check that
    * `check:rules` in package.json lists, such as `check:disclosure`.
    * check:product skips it for this product, and check:opt-outs fails when the
-   * proposal is missing, undecided, or does not name the rule and this product.
+   * proposal is missing, not graduated, or does not list the rule for this
+   * product under `opts-out`.
    */
   readonly optOuts?: { readonly [rule: string]: string };
 };

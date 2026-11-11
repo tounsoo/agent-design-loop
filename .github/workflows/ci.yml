@@ -16,15 +16,15 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Install Chrome
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y wget
-          wget -q -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-          sudo apt-get install -y /tmp/chrome.deb
       - run: npm ci
-      # The harness's fixtures, the repository-wide checks, Meridian's rule checks, then the retirement check across every product and the design loop graph.
-      - run: npm run check:fixtures && npm run typecheck && npm run lint && npm run test && npm run check:product -- --config products/meridian/harness.config.ts && npm run check:retirement && npm run check:loop
+      # check:target-size measures in the chrome-headless-shell build puppeteer-core pins, the same build npm run setup:chrome installs locally.
+      - uses: actions/cache@v4
+        with:
+          path: .cache/chrome
+          key: chrome-headless-shell-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - run: npm run setup:chrome
+      # The harness's fixtures, the repository-wide checks, Meridian's rule checks, then the proposals and retirement checks across every product and the design loop graph.
+      - run: npm run check:fixtures && npm run typecheck && npm run lint && npm run test && npm run check:product -- --config products/meridian/harness.config.ts && npm run check:proposals && npm run check:retirement && npm run check:loop
         env:
           INVENTORY_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
 
@@ -41,13 +41,13 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Install Chrome
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y wget
-          wget -q -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-          sudo apt-get install -y /tmp/chrome.deb
       - run: npm ci
+      # check:target-size measures in the chrome-headless-shell build puppeteer-core pins, the same build npm run setup:chrome installs locally.
+      - uses: actions/cache@v4
+        with:
+          path: .cache/chrome
+          key: chrome-headless-shell-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - run: npm run setup:chrome
       - run: npm run check:product -- --config products/nook/harness.config.ts
         env:
           INVENTORY_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}

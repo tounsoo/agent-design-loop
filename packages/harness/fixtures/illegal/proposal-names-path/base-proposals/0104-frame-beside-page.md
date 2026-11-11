@@ -1,8 +1,9 @@
+---
+status: decided
+changes:
+  - layouts/side-panel/
+---
 # Proposal 0104: A frame beside the page
-
-Status: open.
-
-Rule or input: a new chrome layout, `layouts/side-panel/`.
 
 ## Reason
 

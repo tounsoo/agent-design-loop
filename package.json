@@ -25,15 +25,17 @@
     "check:one-thing": "tsx packages/harness/src/check-one-thing.ts",
     "check:inventories": "tsx packages/harness/src/check-inventories.ts",
     "check:target-size": "tsx packages/harness/src/check-target-size.ts",
+    "setup:chrome": "tsx packages/harness/src/setup-chrome.ts",
     "check:opt-outs": "tsx packages/harness/src/check-opt-outs.ts",
     "check:retirement": "tsx packages/harness/src/check-retirement.ts",
+    "check:proposals": "tsx packages/harness/src/check-proposals.ts",
     "check:loop": "tsx packages/harness/src/check-loop.ts",
     "test": "vitest run",
     "check:rules": "npm run lint:product-ui && npm run lint:slots && npm run check:step-budget && npm run check:disclosure && npm run check:priority && npm run check:one-thing && npm run check:inventories && npm run check:state-coverage && npm run check:target-size",
     "check:product": "tsx packages/harness/src/check-product.ts",
     "check:meridian": "npm run check:product -- --config products/meridian/harness.config.ts",
     "check:nook": "npm run check:product -- --config products/nook/harness.config.ts",
-    "check": "npm run typecheck && npm run lint && npm run test && npm run check:meridian && npm run check:nook && npm run check:retirement && npm run check:loop",
+    "check": "npm run typecheck && npm run lint && npm run test && npm run check:meridian && npm run check:nook && npm run check:proposals && npm run check:retirement && npm run check:loop",
     "check:fixtures": "tsx packages/harness/src/check-fixtures.ts"
   },
   "dependencies": {
@@ -45,6 +47,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@puppeteer/browsers": "^2.13.2",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",

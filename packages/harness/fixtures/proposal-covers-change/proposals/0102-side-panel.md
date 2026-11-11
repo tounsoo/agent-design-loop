@@ -1,8 +1,9 @@
+---
+status: graduated
+changes:
+  - side-panel
+---
 # Proposal 0102: Add the side-panel layout
-
-Status: open.
-
-Rule or input: `allowed_layouts` gains `side-panel`.
 
 ## Reason
 

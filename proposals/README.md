@@ -15,32 +15,66 @@ The inventories are listed here with Meridian's paths, under `products/meridian/
 
 Editing a layout, content layout, or page-type implementation without changing its id is not an inventory change.
 
-Each proposal includes:
+A proposal starts with front matter the checks read, then three sections with text under each:
 
-- the rule or input it wants to change
-- a reason
-- a preview of the UI or the path after the change
-- the graduation: which file would change on approval
+```md
+---
+status: open
+changes:
+  - side-panel
+  - allowed_layouts
+---
+# Proposal 0102: Add a side panel
 
-`CODEOWNERS` requests review for everything under `proposals/`.
+The rule or input it wants to change.
 
-A proposal is one of two kinds, and its `Status:` line says which.
+## Reason
 
-- **A request**, marked `Status: open`, asks for an inventory to grow. Merging the file records the request and applies nothing. After approval, a later change graduates it into the inventory data and the checks. [Proposal 0001](0001-approval-note.md) is one, and it is still open. Open requests are not shipped behavior.
-- **A decision**, marked `Status: decided`, records a change that lands with its own pull request, so nothing graduates later. Its graduation section says so and lists the files that change. [Proposal 0003](0003-two-step-approve.md), [proposal 0004](0004-config-tasks-and-previews.md), [proposal 0005](0005-config-shells-and-web.md), [proposal 0006](0006-move-into-packages.md), [proposal 0007](0007-check-gaps.md), [proposal 0008](0008-rule-opt-out-and-retirement.md) and [proposal 0009](0009-design-loop-graph.md) are decisions.
+Why the work needs it.
 
-`npm run check:inventories` cannot tell the two apart. It accepts a membership change in the same pull request as soon as that pull request adds a new proposal file containing the words reason, preview, and graduation that also names what changed: the member added or removed, the constant, the config field, or the new product's directory. A proposal that names a different change does not let this one through. Keeping a request's graduation for a later change is the reviewer's call, not the check's.
+## Preview
+
+A preview of the UI or the path after the change.
+
+## Graduation
+
+Which files change on approval.
+```
+
+- `status` is `open`, `decided` or `graduated`.
+- `changes` lists, exactly, each inventory name the proposal changes: the member added or removed, the constant, the config field or its new value, each changed string in `flows`, `adapter.<field>`, the new adapter path, or a new product's directory. A name matches only as listed, so `layouts/side-panel/` does not name `side-panel`. A proposal that changes no inventory writes `changes: []`.
+- `retires`, optional, lists rules the proposal takes out of `check:rules`.
+- `opts-out`, optional, lists opt-outs as `<rule> for <product paths.source>`, as the next section shows.
+
+`npm run check:proposals` fails a proposal with a missing or unknown field, a field that is not a list, or a missing or empty `## Reason`, `## Preview` or `## Graduation`. A heading inside a fenced code block does not count. `CODEOWNERS` requests review for everything under `proposals/`.
+
+### From request to graduation
+
+A proposal moves one step at a time, each in its own pull request:
+
+1. **Open.** The agent adds the file as `status: open`. Merging it records the request and applies nothing. [Proposal 0001](0001-approval-note.md) is open. Open requests are not shipped behavior.
+2. **Decided.** A pull request a designer reviews moves it to `status: decided`. That is the approval. It may still edit the proposal. Once it merges, what the proposal covers is fixed.
+3. **Graduated.** A later pull request makes the change and moves the proposal to `status: graduated`.
+
+`npm run check:inventories` passes an inventory change only when it graduates a proposal: one that is `decided` on the pull request base and `graduated` in the change, and that lists what changed under `changes` as the base has them. A proposal added in the same pull request covers nothing, an open request on the base covers nothing, and a graduating pull request cannot widen what was approved. `check:proposals` fails any other status move, such as `open` to `graduated` or `graduated` back to `decided`, and any change to a decided proposal's `changes`, `retires` or `opts-out`. A new proposal may start as `graduated` only when all three are empty, because then it gates nothing: it records a harness change that `CODEOWNERS` review covers, as [proposal 0003](0003-two-step-approve.md) and [proposal 0007](0007-check-gaps.md) through [proposal 0010](0010-proposal-fields-and-graduation.md) do.
+
+Proposals 0001 and 0003 to 0009 were written before the fields. [Proposal 0010](0010-proposal-fields-and-graduation.md) gave them their fields, and their `Status:` lines became plain prose. A proposal's status is the one field that changes after it merges.
 
 The next design round is more capable because that inventory grew.
 
 ## Opting a product out of a rule
 
-An opt-out is a decision too. A harness rule, meaning a check that `check:rules` in `package.json` runs, applies to every product. A product that should not follow one names it in its config's `optOuts`, with the path of a decided proposal that says why. Besides the reason, preview and graduation, that proposal has one line per rule it turns off, naming the rule and the product's `paths.source`:
+An opt-out is a decision too. A harness rule, meaning a check that `check:rules` in `package.json` runs, applies to every product. A product that should not follow one names it in its config's `optOuts`, with the path of a proposal that says why. That proposal lists each rule it turns off under `opts-out`, with the product's `paths.source`:
 
 ```md
-Status: decided.
-
-Opts out: `check:disclosure` for `products/nook`
+---
+status: decided
+changes: []
+opts-out:
+  - check:disclosure for products/nook
+---
 ```
 
-`npm run check:opt-outs` fails an opt-out whose proposal is missing, is not directly in the config's `paths.proposals` folder (`proposals/` unless the config names another), is not decided, or has no such line for that rule and that product. A line inside a fenced code block, like the one above, or inside an HTML comment, is an example and does not count. Only the first `Status:` line counts. `lint:product-ui` and `check:inventories` cannot be opted out. When a majority of products, and at least two, opt out of the same rule, `npm run check:retirement` fails. Retire the rule with a decided proposal that takes it out of `check:rules`, or withdraw an opt-out. [Proposal 0008](0008-rule-opt-out-and-retirement.md) records both, and [How this design loop works](../packages/harness/docs/how-it-works.md#how-a-pattern-becomes-a-rule) has the whole lifecycle.
+The opt-out graduates like any other change: the proposal merges as `decided`, and the pull request that adds the entry to `optOuts` moves it to `graduated`. `npm run check:opt-outs` fails an opt-out whose proposal is missing, is not directly in the config's `paths.proposals` folder (`proposals/` unless the config names another), is not `graduated`, or has no `opts-out` entry for that rule and that product. `npm run check:retirement` fails a new opt-out whose proposal does not graduate in that pull request, or was decided without that entry. `lint:product-ui` and `check:inventories` cannot be opted out.
+
+When a majority of products, and at least two, opt out of the same rule, `check:retirement` fails. Retire the rule, or withdraw an opt-out. A rule leaves `check:rules` only when a pull request graduates a proposal, decided on the base, that lists it under `retires`; `check:retirement` fails any other removal. [Proposal 0008](0008-rule-opt-out-and-retirement.md) records opt-outs and retirement, [proposal 0010](0010-proposal-fields-and-graduation.md) ties both to graduation, and [How this design loop works](../packages/harness/docs/how-it-works.md#how-a-pattern-becomes-a-rule) has the whole lifecycle.

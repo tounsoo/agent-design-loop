@@ -1,8 +1,10 @@
+---
+status: graduated
+changes: []
+opts-out:
+  - check:colors for packages/harness/fixtures/product
+---
 # Proposal 0001: The fixture product opts out of `check:colors`
-
-Status: decided.
-
-Opts out: `check:colors` for `packages/harness/fixtures/product`
 
 ## Reason
 
@@ -14,4 +16,4 @@ check:product skips `check:colors` for this product and runs every other rule.
 
 ## Graduation
 
-No file changes later. The opt-out lands with this proposal.
+The product's config names this proposal in `optOuts`.

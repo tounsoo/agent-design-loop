@@ -6,6 +6,8 @@ import { parseAdapter, type DesignSystemAdapter } from "./lib/adapter";
 import { collectionCompositionViolations } from "./lib/collection-body";
 import { config, configName, memberOf, pageTypesBarrel, parseConfig, type HarnessConfig, type ParsedConfig } from "./lib/config";
 import { walk } from "./lib/jsx";
+import { resolveBaseRev, tryGit } from "./lib/base";
+import { byBaseName, graduating, parseAll, proposalsAtRev, proposalsInDir, type Proposal } from "./lib/proposals";
 import { collectionShellsOf, shellsOf } from "./lib/shells";
 
 /**
@@ -16,8 +18,9 @@ import { collectionShellsOf, shellsOf } from "./lib/shells";
  *
  * A list the base does not export may be introduced. That is how allowed_layouts
  * was recorded, and how allowed_content_layouts is recorded. It may not change
- * a set the base already had. After a list exists, a membership change needs
- * a new proposal file with a reason, a preview, and a graduation.
+ * a set the base already had. After a list exists, a membership change
+ * graduates a proposal: one that is decided on the base, that this change
+ * marks graduated, and whose `changes` list what changed.
  *
  * allowed_layouts is the app frame. allowed_content_layouts are the
  * compositions that fill a page type's body. A collection ready body has to
@@ -449,55 +452,6 @@ function barrelMembers(file: string): string[] {
   return sortedUnique(ids);
 }
 
-function isProposal(file: string): boolean {
-  const normalized = file.split(path.sep).join("/");
-  return normalized.startsWith("proposals/") && normalized.endsWith(".md") && normalized !== "proposals/README.md";
-}
-
-function proposalsOnDisk(dir: string): Map<string, string> {
-  const root = path.join(dir, "proposals");
-  const files = new Map<string, string>();
-  if (!existsSync(root)) return files;
-  const visit = (current: string, relative: string) => {
-    for (const entry of readdirSync(current, { withFileTypes: true })) {
-      const next = `${relative}/${entry.name}`;
-      const full = path.join(current, entry.name);
-      if (entry.isDirectory()) visit(full, next);
-      else if (isProposal(next)) files.set(next, readFileSync(full, "utf8"));
-    }
-  };
-  visit(root, "proposals");
-  return files;
-}
-
-function proposalNamesAtRev(rev: string): Set<string> {
-  try {
-    const output = execFileSync("git", ["ls-tree", "-r", "--name-only", rev, "proposals"], { encoding: "utf8" });
-    return new Set(
-      output
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(isProposal),
-    );
-  } catch {
-    return new Set();
-  }
-}
-
-function proposalExplains(text: string): boolean {
-  const body = text.toLowerCase();
-  return body.includes("reason") && body.includes("preview") && body.includes("graduation");
-}
-
-/** Proposals the head adds that give a reason, a preview and a graduation, with their text. */
-function explainingProposals(baseNames: Set<string>, head: Map<string, string>): Map<string, string> {
-  const added = new Map<string, string>();
-  for (const [file, text] of [...head].sort(([left], [right]) => left.localeCompare(right))) {
-    if (!baseNames.has(file) && proposalExplains(text)) added.set(file, text);
-  }
-  return added;
-}
-
 /** Every string inside a value, keys of records included, as in a flow's module paths, task ids and preview queries. */
 function stringLeaves(value: unknown): string[] {
   if (typeof value === "string") return [value];
@@ -508,81 +462,68 @@ function stringLeaves(value: unknown): string[] {
   return [];
 }
 
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-/** True when the text names the term, or one of its alternatives, as a whole word: `side-panel` or `layouts/side-panel/`, not `side-panels`. */
-function names(text: string, term: Term): boolean {
-  const options = typeof term === "string" ? [term] : term;
-  return options.some((option) => new RegExp(`(?<![A-Za-z0-9_.-])${escapeRegExp(option)}(?![A-Za-z0-9_-])`).test(text));
-}
-
 function termText(term: Term): string {
   return typeof term === "string" ? `"${term}"` : term.map((option) => `"${option}"`).join(" or ");
 }
 
+/** True when the proposal's `changes` list the term, or one of its alternatives, exactly. */
+function lists(proposal: Proposal, term: Term): boolean {
+  const options = typeof term === "string" ? [term] : term;
+  return options.some((option) => proposal.changes.includes(option));
+}
+
+/** Why a proposal that lists every term of a change still does not cover it. */
+function whyNot(file: string, proposals: ProposalsForChange): string {
+  const key = proposals.key(file);
+  const before = proposals.base.get(key);
+  const after = proposals.head.get(key);
+  if (before === undefined) return `${file} is added in this change. A proposal cannot graduate in the pull request that adds it: merge it as "status: decided" first.`;
+  if (before.status === "open") return `${file} is an open request on the base. A designer approves it (status: decided) in its own pull request before it graduates.`;
+  if (before.status === "graduated") return `${file} graduated before. A proposal graduates once.`;
+  if (after?.status !== "graduated") return `${file} is decided on the base. Mark it "status: graduated" in this change.`;
+  return `${file} does not cover it.`;
+}
+
 /**
- * A membership change passes only when one new proposal covers it: it gives a
- * reason, a preview and a graduation, and it names every term of the change.
- * A proposal for one change does not let another through.
+ * A membership change passes only when one proposal this change graduates
+ * covers it: decided on the base, marked graduated here, and listing every
+ * term of the change in its `changes`, as the base has them. A proposal for
+ * one change does not let another through, and a proposal added in the same
+ * change covers nothing.
  */
-function reportMembership(changes: readonly Change[], explained: ReadonlyMap<string, string>): boolean {
+function reportMembership(changes: readonly Change[], proposals: ProposalsForChange): boolean {
   if (changes.length === 0) return true;
-  if (explained.size === 0) {
-    console.error("inventory: set changed without a proposal.");
-    for (const change of changes) console.error(`inventory: ${change.text}`);
-    return false;
-  }
+  const graduates = graduating(proposals.base, proposals.head);
   const uncovered: string[] = [];
   for (const change of changes) {
-    const covering = [...explained].find(([, text]) => change.terms.every((term) => names(text, term)));
+    const covering = graduates.find((proposal) => change.terms.every((term) => lists(proposal, term)));
     if (covering) {
-      console.log(`inventory: ${change.text} Covered by ${covering[0]}.`);
+      console.log(`inventory: ${change.text} Graduates ${covering.file}.`);
       continue;
     }
-    const missing = change.terms.filter((term) => ![...explained.values()].some((text) => names(text, term)));
+    const candidates = [...proposals.base.values(), ...proposals.head.values()]
+      .filter((proposal) => change.terms.every((term) => lists(proposal, term)))
+      .map((proposal) => proposal.file);
+    const reasons = [...new Set(candidates)].map((file) => whyNot(file, proposals));
+    const missing = change.terms.filter((term) => !graduates.some((proposal) => lists(proposal, term)));
+    const none = reasons.length === 0 && graduates.length > 0 && missing.length > 0 ? `, and none graduating lists ${missing.map(termText).join(", ")}` : "";
     uncovered.push(
-      `inventory: ${change.text} No new proposal covers it: one proposal must name ${change.terms.map(termText).join(", ")}${missing.length > 0 ? `, and none names ${missing.map(termText).join(", ")}` : ""}.`,
+      `inventory: ${change.text} No graduating proposal covers it: one decided proposal must list ${change.terms.map(termText).join(", ")} under changes${none}.`,
+      ...reasons.map((reason) => `inventory:   ${reason}`),
     );
   }
   if (uncovered.length > 0) {
-    console.error(`inventory: set changed without a proposal that covers it. New proposals: ${[...explained.keys()].join(", ")}.`);
+    console.error(
+      graduates.length === 0
+        ? "inventory: set changed without a proposal. An inventory grows only by graduating a proposal a designer already approved."
+        : `inventory: set changed without a proposal that covers it. Graduating: ${graduates.map((proposal) => proposal.file).join(", ")}.`,
+    );
     for (const line of uncovered) console.error(line);
+    for (const problem of proposals.problems) console.error(`inventory: ${problem}`);
     return false;
   }
-  console.log(`inventory: set changed with ${[...explained.keys()].join(", ")}.`);
+  console.log(`inventory: set changed with ${graduates.map((proposal) => proposal.file).join(", ")}.`);
   return true;
-}
-
-function tryGit(args: string[]): string | null {
-  try {
-    return execFileSync("git", args, { encoding: "utf8" });
-  } catch {
-    return null;
-  }
-}
-
-function assertSafeRev(rev: string): void {
-  if (!/^[A-Za-z0-9._/^~-]+$/.test(rev) || rev.startsWith("-")) fail(`inventory: refusing base rev "${rev}".`);
-}
-
-function resolveBaseRev(): string {
-  const fromEnv = process.env.INVENTORY_BASE?.trim();
-  if (fromEnv && fromEnv !== "true" && fromEnv !== "false" && !/^0+$/.test(fromEnv)) {
-    assertSafeRev(fromEnv);
-    if (!tryGit(["rev-parse", "--verify", "--quiet", `${fromEnv}^{commit}`])) {
-      fail(`inventory: base rev ${fromEnv} is not in this clone. Fetch the pull request base.`);
-    }
-    return fromEnv;
-  }
-  const main = ["origin/main", "main"].find((rev) => tryGit(["rev-parse", "--verify", "--quiet", `${rev}^{commit}`]));
-  if (!main) fail("inventory: cannot find main. Fetch the pull request base.");
-  const head = tryGit(["rev-parse", "HEAD"])?.trim();
-  const mainSha = tryGit(["rev-parse", main])?.trim();
-  if (!head || !mainSha) fail("inventory: cannot resolve HEAD.");
-  if (head === mainSha) return mainSha;
-  return tryGit(["merge-base", "HEAD", main])?.trim() || fail("inventory: cannot resolve the pull request base.");
 }
 
 /**
@@ -641,26 +582,39 @@ function summary(inventory: Inventory): string {
 
 const baseFlag = flag("--base");
 const proposalsFlag = flag("--proposals");
-if (proposalsFlag && !baseFlag) fail("inventory: --proposals goes with --base. A pull request's new proposals are the ones its base does not have.");
+const baseProposalsFlag = flag("--base-proposals");
+if ((proposalsFlag || baseProposalsFlag) && !baseFlag) {
+  fail("inventory: --proposals and --base-proposals go with --base. They stand in for the pull request's proposals and its base's.");
+}
+
+/** The proposals on both sides of a change, parsed, with a key that lines a file up across them. */
+type ProposalsForChange = {
+  readonly base: ReadonlyMap<string, Proposal>;
+  readonly head: ReadonlyMap<string, Proposal>;
+  readonly key: (file: string) => string;
+  readonly problems: readonly string[];
+};
 
 /**
- * The proposals the change adds. Against a revision, the files under
- * proposals/ that the revision does not have. A working-tree base shares the
- * head's proposals, so it adds none, unless `--proposals <dir>` names the
- * proposals to read as new: the fixtures have no history to add one in.
+ * Against a revision, the proposals in the config's `paths.proposals` at that
+ * revision and in the working tree. A working-tree base has no history, so
+ * `--base-proposals <dir>` and `--proposals <dir>` name the two sides, lined
+ * up by file name: the fixtures test graduation that way.
  */
-function newProposals(root: Root): Map<string, string> {
-  if (root.kind === "git") return explainingProposals(proposalNamesAtRev(root.rev), proposalsOnDisk(process.cwd()));
-  if (!proposalsFlag) return new Map();
-  const dir = path.resolve(proposalsFlag);
-  if (!existsSync(dir)) fail(`inventory: proposals directory ${proposalsFlag} is missing.`);
-  const files = new Map<string, string>();
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (entry.isFile() && entry.name.endsWith(".md") && entry.name !== "README.md") {
-      files.set(`${proposalsFlag}/${entry.name}`, readFileSync(path.join(dir, entry.name), "utf8"));
-    }
+function proposalsForChange(root: Root): ProposalsForChange {
+  if (root.kind === "git") {
+    const base = parseAll(proposalsAtRev(root.rev, config.paths.proposals));
+    const head = parseAll(proposalsInDir(config.paths.proposals));
+    return { base: base.proposals, head: head.proposals, key: (file) => file, problems: head.problems };
   }
-  return explainingProposals(new Set(), files);
+  const read = (dir: string | null) => {
+    if (dir === null) return parseAll(new Map());
+    if (!existsSync(path.resolve(dir))) fail(`inventory: proposals directory ${dir} is missing.`);
+    return parseAll(proposalsInDir(dir));
+  };
+  const base = read(baseProposalsFlag);
+  const head = read(proposalsFlag);
+  return { base: byBaseName(base.proposals), head: byBaseName(head.proposals), key: (file) => path.posix.basename(file), problems: head.problems };
 }
 const headRoot: Root = { kind: "tree", config };
 
@@ -702,7 +656,15 @@ for (const id of importedMembers(sourceRoot, config.paths.pageTypes)) {
   if (!head.pageTypes.includes(id)) violations.push(`undeclared page type "${id}" is not in the inventory.`);
 }
 
-const baseRoot: Root = baseFlag ? { kind: "tree", config: readBaseConfig(baseFlag) } : gitBase(resolveBaseRev());
+function baseRev(): string {
+  try {
+    return resolveBaseRev();
+  } catch (error) {
+    return fail(`inventory: ${errorText(error)}`);
+  }
+}
+
+const baseRoot: Root = baseFlag ? { kind: "tree", config: readBaseConfig(baseFlag) } : gitBase(baseRev());
 const compareConfig = baseRoot.kind === "git";
 const base = readInventory(baseRoot);
 if (base === null) {
@@ -711,18 +673,18 @@ if (base === null) {
     process.exit(1);
   }
   const rev = baseRoot.kind === "git" ? baseRoot.rev.slice(0, 7) : baseFlag;
-  // A new product is a whole inventory added at once, and so is an existing one moved to new file names, so it needs a new proposal like any other membership change.
+  // A new product is a whole inventory added at once, and so is an existing one moved to new file names, so it needs a graduating proposal like any other membership change.
   const added: Change[] = [
     { text: `base ${rev} has no ${configName} or ${config.paths.inputs}, so this is a new product.`, terms: [path.posix.dirname(configName.split(path.sep).join("/"))] },
   ];
-  if (!reportMembership(added, newProposals(baseRoot))) process.exit(1);
+  if (!reportMembership(added, proposalsForChange(baseRoot))) process.exit(1);
   console.log(`inventory: recorded a new product's inventories.`);
   console.log("inventory: collection bodies use a registered content layout.");
   console.log(`inventory: ${summary(head)}`);
   process.exit(0);
 }
 const changes = membershipChanges(base, head, compareConfig);
-const matched = reportMembership(changes, newProposals(baseRoot));
+const matched = reportMembership(changes, proposalsForChange(baseRoot));
 
 if (violations.length > 0 || !matched) {
   for (const violation of violations) console.error(`inventory: ${violation}`);

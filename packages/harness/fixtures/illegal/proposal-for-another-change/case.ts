@@ -1,4 +1,4 @@
-/** Illegal: the inputs add the side-panel layout, and the one new proposal is about a catalog export. A proposal covers only the change it names. */
+/** Illegal: the inputs add the side-panel layout, and the one graduating proposal is about a catalog export. A proposal covers only the change it lists. */
 export default {
   config: {
     paths: {
@@ -8,7 +8,8 @@ export default {
   },
   base: {},
   proposals: "packages/harness/fixtures/illegal/proposal-for-another-change/proposals",
+  baseProposals: "packages/harness/fixtures/illegal/proposal-for-another-change/base-proposals",
   checks: [
-    { run: "check:inventories", fails: 'No new proposal covers it: one proposal must name "side-panel"' },
+    { run: "check:inventories", fails: 'one decided proposal must list "side-panel" under changes' },
   ],
 };

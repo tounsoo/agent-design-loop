@@ -1,6 +1,10 @@
+---
+status: graduated
+changes: []
+---
 # Proposal 0008: Harness rules apply to every product, with opt-out by proposal and retirement
 
-Status: decided. Ben decided on Nov 11 that an approved pattern graduates straight into the shared harness, not into one product first, with two guards: a product opts out of a rule only by proposal, and a rule most products opt out of gets flagged for retirement. This records that change, which lands with its own pull request, so nothing graduates later.
+Decided, and graduated with its own pull request. Ben decided on Nov 11 that an approved pattern graduates straight into the shared harness, not into one product first, with two guards: a product opts out of a rule only by proposal, and a rule most products opt out of gets flagged for retirement. This records that change, which lands with its own pull request, so nothing graduates later.
 
 Rule or input: the harness config gains two optional fields, `optOuts` and `paths.proposals`. Neither product's config changes. No product input, rule cap, catalog export, flow state or adapter field changes. Two checks are added, `check:opt-outs` and `check:retirement`, and `check:product` learns to skip a rule a product opts out of.
 
