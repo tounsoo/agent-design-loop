@@ -79,7 +79,7 @@ It builds the app, serves it with `vite preview` on `127.0.0.1:4173` (strict por
 
 To look at a Meridian change, run `npm run build && npm run preview`. It is ready when Vite prints `http://127.0.0.1:4173/`. Open the URLs in [features/](features/README.md) there, and stop the preview server you started when done.
 
-In a Claude Duet thread there is no Chrome, and `npm run setup:chrome` cannot download one, so this step is `BLOCKED` there. Say so in the pull request, link the pull request's CI run (it runs `npm run setup:chrome` and `check:target-size`), and name the URLs a reviewer should open. The three fixture cases that measure, `target-size-whole-document`, `illegal/small-control-outside-page` and `illegal/small-control-in-closed-menu`, are `BLOCKED` with it.
+A Claude Duet thread runs this step too: `npm run setup:chrome` downloads chrome-headless-shell into `.cache/chrome` there, and `check:target-size` measures in it. The step is `BLOCKED` only when no Chrome that starts is found: `setup:chrome` cannot download one or has no build for the platform, there is no other Chrome, or the one found does not start. Then say so in the pull request, link the pull request's CI run (it runs `npm run setup:chrome` and `check:target-size`), and name the URLs a reviewer should open. The three fixture cases that measure, `target-size-whole-document`, `illegal/small-control-outside-page` and `illegal/small-control-in-closed-menu`, are `BLOCKED` with it.
 
 ### 4. Loop trace (every change, before you push)
 
