@@ -1,3 +1,5 @@
+export const taskId = "approve-vendor-invoice";
+
 type Node = {
   invoiceOpen: boolean;
   lineItemsOpen: boolean;

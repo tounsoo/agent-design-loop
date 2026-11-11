@@ -9,7 +9,42 @@ const cases = [
   {
     name: "over-budget",
     args: ["scripts/check-step-budget.ts", "--graph", "fixtures/illegal/over-budget/graph.ts"],
-    phrase: "step budget",
+    phrase: "modeled path length 4 exceeds max_steps",
+  },
+  {
+    name: "over-budget-flow",
+    args: ["scripts/check-step-budget.ts", "--graph", "fixtures/illegal/over-budget-flow/graph.ts"],
+    phrase: "shipped flow path length 4 exceeds max_steps",
+  },
+  {
+    name: "task-without-graph",
+    args: ["scripts/check-step-budget.ts", "--flows", "fixtures/illegal/task-without-graph/flows"],
+    phrase: "has no task graph",
+  },
+  {
+    name: "two-questions",
+    args: ["scripts/check-one-thing.ts", "--features", "fixtures/illegal/two-questions"],
+    phrase: "questions outside a disclosure",
+  },
+  {
+    name: "hoisted-question",
+    args: ["scripts/check-one-thing.ts", "--features", "fixtures/illegal/hoisted-question"],
+    phrase: "is not reached from any page",
+  },
+  {
+    name: "dead-question-part",
+    args: ["scripts/check-one-thing.ts", "--catalog", "fixtures/illegal/dead-question-part/catalog.ts"],
+    phrase: "not exported by the catalog",
+  },
+  {
+    name: "disclosures-per-page",
+    args: ["scripts/check-disclosure.ts", "--features", "fixtures/illegal/disclosures-per-page"],
+    phrase: "more than 1 per page",
+  },
+  {
+    name: "missing-disclosed-section",
+    args: ["scripts/check-priority.ts", "--features", "fixtures/illegal/missing-disclosed-section"],
+    phrase: "is not behind a disclosure",
   },
   {
     name: "off-catalog",
