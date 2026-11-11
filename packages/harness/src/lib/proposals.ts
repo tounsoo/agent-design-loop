@@ -35,6 +35,15 @@ import path from "node:path";
  * `[]`. The body needs a `## Reason`, a
  * `## Preview` and a `## Graduation` section, each with text under it.
  *
+ * A proposal that changes or adds inventory members also lists the states
+ * the change shows, before anything is built, in a `## States` section of
+ * `- <state>: <what the screen shows>` items: at least one ordinary state,
+ * and each of EDGE_STATES, described or written `Out of scope, <why>`. A
+ * proposal whose change shows on no screen writes the one item
+ * `- None: <why>`. check:proposals requires the section from a proposal the
+ * change adds and from one it moves to `decided`, so proposals approved
+ * before the section existed keep their text.
+ *
  * A change the checks gate, an inventory change, a new opt-out or a retired
  * rule, graduates a proposal: the proposal must already be `decided` on the
  * pull request base, and the pull request marks it `graduated`. What it
@@ -49,6 +58,12 @@ import path from "node:path";
 export const STATUSES = ["open", "decided", "graduated"] as const;
 export type ProposalStatus = (typeof STATUSES)[number];
 
+/** The edge cases every `## States` section answers, each described or marked out of scope. */
+export const EDGE_STATES = ["Empty", "Loading", "Error", "Long content", "Permissions", "Over time"] as const;
+const NO_STATES = "None";
+
+export type ProposalState = { readonly name: string; readonly text: string; readonly outOfScope: boolean };
+
 export type OptOutEntry = { readonly rule: string; readonly source: string };
 
 export type Proposal = {
@@ -59,6 +74,8 @@ export type Proposal = {
   readonly optsOut: readonly OptOutEntry[];
   /** Members added to an inventory list in the pull request that adds this proposal. Never with anything else. */
   readonly adds: readonly string[];
+  /** The `## States` items, or null when the proposal has no such section. */
+  readonly states: readonly ProposalState[] | null;
 };
 
 export type ParsedProposal = { readonly proposal: Proposal | null; readonly problems: readonly string[] };
@@ -67,6 +84,7 @@ const LIST_KEYS = ["changes", "retires", "opts-out", "adds"] as const;
 const KEYS = ["status", ...LIST_KEYS] as const;
 const REQUIRED_KEYS = ["status", "changes"] as const;
 export const SECTIONS = ["Reason", "Preview", "Graduation"] as const;
+const STATES_SECTION = "States";
 
 function frontMatter(lines: readonly string[]): { block: string[]; rest: string[] } | null {
   if (lines[0]?.trim() !== "---") return null;
@@ -120,8 +138,8 @@ function readFields(block: readonly string[], problems: string[]): Map<string, s
   return fields;
 }
 
-/** The body's `## ` sections that start with each required name, and whether each has text under it. */
-function sectionProblems(lines: readonly string[]): string[] {
+/** The text under each `## ` heading that starts with `name`, or undefined when there is none. */
+function readSections(lines: readonly string[], names: readonly string[]): Map<string, string | undefined> {
   // A comment is not text a reader sees, and a heading inside one is not a section. Blank it, keeping its lines so indexes hold.
   const body = lines
     .join("\n")
@@ -141,19 +159,86 @@ function sectionProblems(lines: readonly string[]): string[] {
       if (heading?.[1]) headings.push({ index, level: heading[1].length, text: heading[2] ?? "" });
     }
   });
-  const problems: string[] = [];
-  for (const name of SECTIONS) {
+  const sections = new Map<string, string | undefined>();
+  for (const name of names) {
     const position = headings.findIndex((heading) => heading.level === 2 && new RegExp(`^${name}\\b`).test(heading.text));
     const start = headings[position];
     if (start === undefined) {
-      problems.push(`has no "## ${name}" section.`);
+      sections.set(name, undefined);
       continue;
     }
     const end = headings.slice(position + 1).find((heading) => heading.level <= 2)?.index;
-    const content = body.slice(start.index + 1, end).join("\n");
-    if (content.trim() === "") problems.push(`"## ${name}" section is empty.`);
+    sections.set(name, body.slice(start.index + 1, end).join("\n"));
   }
-  return problems;
+  return sections;
+}
+
+const sameName = (left: string, right: string) => left.toLowerCase() === right.toLowerCase();
+
+/**
+ * The `- <state>: <text>` items of a `## States` section, and what is wrong
+ * with them. Prose around the list is allowed; only items at the start of a
+ * line are read, so a nested line belongs to the item above it.
+ */
+function readStates(content: string): { states: ProposalState[]; problems: string[] } {
+  const states: ProposalState[] = [];
+  const problems: string[] = [];
+  let fence: string | null = null;
+  for (const line of content.split("\n")) {
+    const marker = /^ {0,3}(`{3,}|~{3,})/.exec(line)?.[1];
+    if (marker) fence = fence === null ? marker : marker.startsWith(fence) ? null : fence;
+    if (fence !== null || marker) continue;
+    const item = /^[-*+][ \t]+(.*)$/.exec(line)?.[1]?.trim();
+    if (item === undefined) continue;
+    // "**Empty:** text", "**Empty**: text" and "Empty: text" all name the state Empty.
+    const match = /^(?:\*\*)?([^:*]+?)(?:\*\*)?:(?:\*\*)?[ \t]*(.*)$/.exec(item);
+    const name = match?.[1]?.trim();
+    if (!match || !name) {
+      problems.push(`"## States" item "${item}" is not "- <state>: <what the screen shows>".`);
+      continue;
+    }
+    const text = (match[2] ?? "").trim();
+    if (states.some((state) => sameName(state.name, name))) problems.push(`"## States" lists "${name}" twice.`);
+    const outOfScope = /^out of scope\b/i.test(text);
+    if (text === "") problems.push(`"## States" item "${name}" says nothing. Say what the screen shows, or write "Out of scope, <why>".`);
+    else if (outOfScope && text.replace(/^out of scope\b[\s:,.;\-\u2013\u2014]*/i, "") === "") {
+      problems.push(`"## States" item "${name}" is out of scope with no reason. Write "Out of scope, <why>".`);
+    }
+    states.push({ name, text, outOfScope });
+  }
+  if (states.length === 0) {
+    problems.push(`"## States" lists no states. Write one "- <state>: <what the screen shows>" item for each, the edge cases ${EDGE_STATES.join(", ")} included.`);
+    return { states, problems };
+  }
+  const none = states.find((state) => sameName(state.name, NO_STATES));
+  if (none) {
+    if (states.length > 1) problems.push(`"## States" lists "${NO_STATES}" beside other states. "- ${NO_STATES}: <why>" stands alone, for a change that shows on no screen.`);
+    return { states, problems };
+  }
+  if (states.every((state) => EDGE_STATES.some((edge) => sameName(edge, state.name)))) {
+    problems.push(`"## States" lists only edge cases. Name the ordinary states too, each on its own line, such as "- Pending: ...".`);
+  }
+  for (const edge of EDGE_STATES) {
+    if (!states.some((state) => sameName(state.name, edge))) {
+      problems.push(`"## States" has no "${edge}" item. Say what the screen shows, or write "- ${edge}: Out of scope, <why>".`);
+    }
+  }
+  return { states, problems };
+}
+
+/** The required sections, each with text, and the `## States` section when there is one. */
+function sectionProblems(lines: readonly string[]): { states: ProposalState[] | null; problems: string[] } {
+  const sections = readSections(lines, [...SECTIONS, STATES_SECTION]);
+  const problems: string[] = [];
+  for (const name of SECTIONS) {
+    const content = sections.get(name);
+    if (content === undefined) problems.push(`has no "## ${name}" section.`);
+    else if (content.trim() === "") problems.push(`"## ${name}" section is empty.`);
+  }
+  const content = sections.get(STATES_SECTION);
+  if (content === undefined) return { states: null, problems };
+  const read = readStates(content);
+  return { states: read.states, problems: [...problems, ...read.problems] };
 }
 
 /** Reads a proposal's front matter and sections. Every problem names what is missing or wrong. */
@@ -195,7 +280,8 @@ export function parseProposal(file: string, text: string): ParsedProposal {
       problems.push(`lists adds, so its status is graduated: it graduates in the pull request that adds it. A request that waits for approval lists its members under changes.`);
     }
   }
-  problems.push(...sectionProblems(split.rest));
+  const sections = sectionProblems(split.rest);
+  problems.push(...sections.problems);
   if (problems.length > 0) return { proposal: null, problems };
   return {
     proposal: {
@@ -205,6 +291,7 @@ export function parseProposal(file: string, text: string): ParsedProposal {
       retires: lists.get("retires") ?? [],
       optsOut,
       adds,
+      states: sections.states,
     },
     problems,
   };
@@ -318,8 +405,10 @@ const sameList = (left: readonly string[], right: readonly string[]) => JSON.str
  * decided, what a proposal covers does not change. A new proposal may be
  * `graduated` at once only when it covers nothing the checks gate, as a
  * change to the harness's own code does, or when it only adds, which
- * check:inventories holds to additions. `legacy` names base files that
- * exist but have no fields, which are not compared.
+ * check:inventories holds to additions. A proposal that changes or adds
+ * members needs a `## States` section when it is new or moves to `decided`.
+ * `legacy` names base files that exist but have no fields, which are not
+ * compared.
  */
 export function transitionProblems(
   base: ReadonlyMap<string, Proposal>,
@@ -340,6 +429,13 @@ export function transitionProblems(
     if (legacy.has(key)) continue;
     const before = base.get(key);
     const gated = after.changes.length > 0 || after.retires.length > 0 || after.optsOut.length > 0;
+    // States are listed before anything is built: in the pull request that adds the proposal, and at the latest in the one that approves it.
+    const approving = before === undefined || (before.status === "open" && after.status === "decided");
+    if (approving && after.states === null && (after.changes.length > 0 || after.adds.length > 0)) {
+      problems.push(
+        `${after.file} ${before === undefined ? "is new" : "moves open → decided"} and ${after.changes.length > 0 ? `changes ${after.changes.join(", ")}` : `adds ${after.adds.join(", ")}`}, but has no "## States" section. List every state the change shows before it is built, the edge cases ${EDGE_STATES.join(", ")} included, or "- None: <why>" when it shows on no screen.`,
+      );
+    }
     if (before === undefined) {
       if (after.status === "graduated" && gated) {
         problems.push(
