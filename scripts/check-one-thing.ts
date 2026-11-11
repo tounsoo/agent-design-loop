@@ -1,52 +1,52 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import ts from "typescript";
-import { allowed_page_types } from "../src/inputs/product";
 import { MAX_VISIBLE_QUESTIONS } from "../src/rules/ux-rules";
 import { attributeValue, jsxTagName, listSourceFiles, parseFile, walk } from "./lib/jsx";
+import { discoverShells, missingCatalogParts, pagesIn, tagsInScope } from "./lib/page-scope";
 
 /**
  * One job per page. Page-type membership lives in allowed_page_types and
  * check:inventories. This check reads that inventory. It does not keep a
  * second list of page type ids.
+ *
+ * A question is a catalog form field. Todae's Field.Root wraps every input,
+ * select and textarea. A question inside a disclosure is not visible first.
+ * A question on a branch, like the request-changes reason, still counts:
+ * the check reads code, not the state at runtime.
  */
+const QUESTION_PARTS = ["Field.Root"] as const;
+
+function flag(name: string, fallback: string): string {
+  const index = process.argv.indexOf(name);
+  if (index === -1) return fallback;
+  const value = process.argv[index + 1];
+  if (!value || value.startsWith("--")) {
+    console.error(`one thing: missing ${name} path`);
+    process.exit(1);
+  }
+  return value;
+}
+
+const featuresRoot = path.resolve(flag("--features", "src/features"));
+const catalogFile = path.resolve(flag("--catalog", "src/catalog/index.ts"));
 
 const violations: string[] = [];
 
-type Shell = { pageType: string; name: string };
-
-function valueExports(file: string): string[] {
-  const source = parseFile(file);
-  const names: string[] = [];
-  walk(source, (node) => {
-    if (!ts.isExportDeclaration(node) || node.isTypeOnly || !node.exportClause || !ts.isNamedExports(node.exportClause)) return;
-    for (const element of node.exportClause.elements) {
-      if (!element.isTypeOnly) names.push(element.name.text);
-    }
-  });
-  return names;
+for (const part of missingCatalogParts(catalogFile, QUESTION_PARTS)) {
+  violations.push(
+    `one thing: question part ${part} is not exported by the catalog, so the visible-question cap cannot fire.`,
+  );
 }
 
-const shells: Shell[] = [];
-for (const pageType of allowed_page_types) {
-  const modulePath = path.resolve("src/page-types", pageType, "index.ts");
-  if (!existsSync(modulePath)) {
-    violations.push(`one thing: page type "${pageType}" has no shell module.`);
-    continue;
-  }
-  const names = valueExports(modulePath);
-  if (names.length === 0) {
-    violations.push(`one thing: page type "${pageType}" does not export a shell.`);
-    continue;
-  }
-  for (const name of names) shells.push({ pageType, name });
-}
+const { shells, problems } = discoverShells();
+for (const problem of problems) violations.push(`one thing: ${problem}`);
 
 const shellCounts = new Map<string, number>(shells.map((shell) => [shell.name, 0]));
 const collectionShells = new Set(shells.filter((shell) => shell.pageType === "collection").map((shell) => shell.name));
 const scannedLayouts = new Set<string>();
 
-for (const file of listSourceFiles(path.resolve("src/features"))) {
+for (const file of listSourceFiles(featuresRoot)) {
   const source = parseFile(file);
   const relative = path.relative(process.cwd(), file);
   for (const shell of shells) {
@@ -75,20 +75,25 @@ for (const file of listSourceFiles(path.resolve("src/features"))) {
       }
     }
   }
+}
+
+for (const page of pagesIn(featuresRoot, shells)) {
   let visibleQuestions = 0;
-  for (const fieldset of shellElements(source, "Fieldset.Root")) {
-    if (!hasAncestor(fieldset, "Disclosure.Root")) visibleQuestions += 1;
+  for (const scope of page.scopes) {
+    for (const part of QUESTION_PARTS) {
+      visibleQuestions += tagsInScope(scope, part).filter((found) => found.disclosures === 0).length;
+    }
   }
   if (visibleQuestions > MAX_VISIBLE_QUESTIONS) {
     violations.push(
-      `one thing: ${relative} shows ${visibleQuestions} questions before disclosure (max ${MAX_VISIBLE_QUESTIONS}).`,
+      `one thing: ${page.file}:${page.line} ${page.shell.name} page shows ${visibleQuestions} questions outside a disclosure (max ${MAX_VISIBLE_QUESTIONS}).`,
     );
   }
 }
 
 for (const [tag, count] of shellCounts) {
   if (count !== 1) {
-    violations.push(`one thing: expected exactly one ${tag} in src/features, found ${count}.`);
+    violations.push(`one thing: expected exactly one ${tag} in ${path.relative(process.cwd(), featuresRoot)}, found ${count}.`);
   }
 }
 
@@ -135,18 +140,12 @@ function contentLayoutsIn(root: ts.Node, source: ts.SourceFile): string[] {
   return [...new Set(ids)];
 }
 
-function hasAncestor(node: ts.Node, tag: string): boolean {
-  let current = node.parent;
-  while (current) {
-    if (ts.isJsxElement(current) && jsxTagName(current.openingElement.tagName) === tag) return true;
-    current = current.parent;
-  }
-  return false;
-}
 
 if (violations.length > 0) {
   for (const violation of violations) console.error(violation);
   process.exit(1);
 }
 
-console.log("one thing: one shell per page type, no primary on the collection page.");
+console.log(
+  `one thing: one shell per page type, no primary on the collection page, at most ${MAX_VISIBLE_QUESTIONS} question outside a disclosure per page.`,
+);

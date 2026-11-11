@@ -4,7 +4,7 @@ This repository is a test of one idea: an agent designs better UI when the const
 
 The product is **Meridian**, an accounts-payable workspace. The task the code already names is `approve-vendor-invoice`: review a vendor invoice and approve it. The screen a newcomer should picture is the **To approve** queue, and the invoice that opens from it.
 
-This page is for a designer or engineer who has never opened the repo. It describes main at `4a473ed`, the commit that merged [pull request 8](https://github.com/tounsoo/agent-design-loop/pull/8). If this page and the code disagree, the code and the checks win. [AGENTS.md](../AGENTS.md) stays a pointer for the agent. It does not restate the inventories, and this page is not a second inventory.
+This page is for a designer or engineer who has never opened the repo. It describes main, and it is not pinned to a commit, because a pin goes stale on the next merge. If this page and the code disagree, the code and the checks win. [AGENTS.md](../AGENTS.md) stays a pointer for the agent. It does not restate the inventories, and this page is not a second inventory.
 
 ## The control ladder
 
@@ -146,7 +146,7 @@ flowchart TB
   ready -->|"submit a non-empty reason"| changes
 ```
 
-`transition` ignores `approve` on the collection screen and in `error`. An empty reason cannot reach `changes-requested`. `invoice-approved` and `changes-requested` have no further moves. Approve in the transition function does not itself require the line-item disclosure to be open. The step budget is a separate graph, below.
+`transition` ignores `approve` on the collection screen and in `error`. An empty reason cannot reach `changes-requested`. `invoice-approved` and `changes-requested` have no further moves. Approve in the transition function does not itself require the line-item disclosure to be open. The step budget measures both this reducer and a separate task graph, below.
 
 ### Product-owned inputs
 
@@ -158,18 +158,24 @@ The rules read numbers and names the product owns, so a check can fail without a
 | Priority | Approve, rank 1, primary. Request changes, rank 2, secondary. | `priority` in `src/inputs/product.ts` |
 | Page types | `collection`, `detail` | `allowed_page_types` |
 | Disclosure depth | 1. Line items are the one disclosure. Nothing nests under them. | `MAX_DISCLOSURE_DEPTH` in `src/rules/ux-rules.ts` |
+| Disclosed sections | `Line items` sit behind a disclosure | `disclosed_sections` in `src/inputs/product.ts` |
 | Disclosures per page | 1 | `MAX_DISCLOSURES_PER_PAGE` |
-| Visible questions | 1, before a disclosure or the request-changes branch opens | `MAX_VISIBLE_QUESTIONS` |
+| Visible questions | 1 per page outside a disclosure. A field on a branch, like the request-changes reason, still counts. | `MAX_VISIBLE_QUESTIONS` |
 | Target size | 24 CSS px. No product exception is recorded. | `TARGET_MIN_PX` |
 
-The task path the budget check measures is the shortest path in `src/flows/invoice-approval/graph.ts`. Request changes is not an edge. There is no approval-note step.
+The budget check measures two paths for every task in `tasks`. Each task needs one `graph.ts` under `src/flows` that exports its `taskId`.
+
+- **Modeled path.** The shortest path through the task graph in `src/flows/invoice-approval/graph.ts`. This is the reviewed path the budget is set for. Request changes is not an edge. There is no approval-note step.
+- **Shipped path.** The shortest path through the real `transition` reducer, from `flowStart` (the loaded To approve queue) over `userEvents` (the events a person can cause) to `success_state`. Today it is `open-invoice → approve`, 2 steps, because the reducer does not require Line items before Approve.
+
+Both must fit `max_steps`. A reducer that grows a step fails the build even if nobody updates the graph.
 
 ```mermaid
 flowchart LR
   open["1. open-invoice"] --> lines["2. open-line-items"] --> approve["3. approve"]
 ```
 
-The path length is 3, and `max_steps` is 3. Success is the state `invoice-approved`, which is not an extra counted step. [Proposal 0001](../proposals/0001-approval-note.md) asks to require an approval note and raise the budget to 4. It is open. It is not applied. The shipped invoice does not ask for a note.
+The modeled path length is 3, and `max_steps` is 3. Success is the state `invoice-approved`, which is not an extra counted step. [Proposal 0001](../proposals/0001-approval-note.md) asks to require an approval note and raise the budget to 4. It is open. It is not applied. The shipped invoice does not ask for a note.
 
 ## Which check enforces which rule
 
@@ -180,13 +186,13 @@ The `input` column is the field on the rule. The last column is the file the scr
 ```mermaid
 flowchart LR
   cost["minimize-interaction-cost"] --> budget["check:step-budget"]
-  budget --> tasks["product.ts tasks, and the task graph"]
+  budget --> tasks["product.ts tasks, the task graph, and the transition reducer"]
   reveal["progressive-reveal"] --> slots["lint:slots"]
   reveal --> disclosure["check:disclosure"]
   reveal --> priorityCheck["check:priority"]
   slots --> slotFile["DetailPage primary slot, no product file"]
   disclosure --> caps["ux-rules.ts disclosure caps"]
-  priorityCheck --> ranks["product.ts priority"]
+  priorityCheck --> ranks["product.ts priority and disclosed_sections"]
   one["one-thing-per-page"] --> oneCheck["check:one-thing"]
   oneCheck --> pageList["product.ts allowed_page_types"]
   oneCheck --> visible["ux-rules.ts MAX_VISIBLE_QUESTIONS"]
@@ -198,19 +204,19 @@ flowchart LR
 
 | Rule | Check named on the rule | Input named on the rule | What the script reads | Review question |
 | --- | --- | --- | --- | --- |
-| `minimize-interaction-cost` | `npm run check:step-budget` | `src/inputs/product.ts#tasks` | `tasks` for `approve-vendor-invoice`, and `taskHappyPath()` in `src/flows/invoice-approval/graph.ts` | Is an extra step earning its cost? |
-| `progressive-reveal` | `npm run lint:slots && npm run check:disclosure && npm run check:priority` | `src/inputs/product.ts#priority` | Slot shape in JSX. Disclosure caps in `src/rules/ux-rules.ts`. `priority` in `src/inputs/product.ts`. | Is the thing shown first actually what people need first? |
+| `minimize-interaction-cost` | `npm run check:step-budget` | `src/inputs/product.ts#tasks` | Every entry in `tasks`. For each, the task graph and the `transition` reducer exported by a `graph.ts` under `src/flows` | Is an extra step earning its cost? |
+| `progressive-reveal` | `npm run lint:slots && npm run check:disclosure && npm run check:priority` | `src/inputs/product.ts#priority` | Slot shape in JSX. Disclosure caps in `src/rules/ux-rules.ts`. `priority` and `disclosed_sections` in `src/inputs/product.ts`. | Is the thing shown first actually what people need first? |
 | `one-thing-per-page` | `npm run check:one-thing` | `src/inputs/product.ts#allowed_page_types` | `allowed_page_types`, and `MAX_VISIBLE_QUESTIONS` | Does research support grouping these questions? |
 | `exhaustive-states` | `npm run check:state-coverage` | `src/flows/invoice-approval/states.ts#modeledStates` | `modeledStates`, and the `case` labels in `src/features/invoice-approval/views.tsx` | Did we model the states that actually happen? |
 | `target-size` | `npm run check:target-size` | No product exception is recorded. WCAG 2.5.8 spacing may pass an undersized control. | `TARGET_MIN_PX` | Should an important control aim for the stricter 44 CSS px enhanced size? |
 
 What each script fails, in the words the code implements:
 
-- **Step budget.** The shortest path must exist, `success_state` must be `invoice-approved`, and the path length must be at most `max_steps`. A longer graph, such as `fixtures/illegal/over-budget`, fails.
+- **Step budget.** Every task has exactly one task graph, and every graph's `taskId` is a task. For each task, the modeled path and the shipped path must exist and be at most `max_steps`. `fixtures/illegal/over-budget` has a longer graph. `fixtures/illegal/over-budget-flow` has a 3-step graph and a reducer that needs 4. `fixtures/illegal/task-without-graph` has no graph for `approve-vendor-invoice`.
 - **Slots.** Every `DetailPage` has exactly one `DetailPage.Primary`, and that slot has exactly one primary `Button.Root`. `fixtures/illegal/two-primaries` puts two buttons there.
-- **Disclosure.** In each file under `src/features`, the number of `Disclosure.Root` elements is at most `MAX_DISCLOSURES_PER_PAGE`, and nesting is at most `MAX_DISCLOSURE_DEPTH`.
-- **Priority.** The only primary button's text is the rank-1 action, Approve, and it is not inside a disclosure. The rank-2 action, Request changes, is one `variant="secondary"` button. A disclosure summary reads `Line items`.
-- **One thing.** `allowed_page_types` decides which shells exist. The check does not keep a second list of page-type ids. Each shell is rendered once in `src/features`. A collection page has no primary button, including inside a content layout that page uses. A `Fieldset.Root` outside a disclosure counts toward `MAX_VISIBLE_QUESTIONS`.
+- **Disclosure.** A page is one rendered page-type shell in `src/features`, plus what renders on it: components its JSX uses (local, or imported from a relative path), its content layouts, the page-type shell module, and the chrome layouts. `scripts/lib/page-scope.ts` builds that scope. On each page, the number of `Disclosure.Root` elements is at most `MAX_DISCLOSURES_PER_PAGE`, and nesting, followed across components, is at most `MAX_DISCLOSURE_DEPTH`. `fixtures/illegal/disclosures-per-page` puts one disclosure in each of two component files on one page. The check also fails if the catalog stops exporting `Disclosure`.
+- **Priority.** The only primary button's text is the rank-1 action, Approve, and it is not inside a disclosure. The rank-2 action, Request changes, is one `variant="secondary"` button. Each entry in `disclosed_sections` is the text of a `Disclosure.Summary`. `fixtures/illegal/missing-disclosed-section` shows line items in the open.
+- **One thing.** `allowed_page_types` decides which shells exist. The check does not keep a second list of page-type ids. Each shell is rendered once in `src/features`. A collection page has no primary button, including inside a content layout that page uses. A question is a `Field.Root`, the catalog part that wraps every Todae input, select and textarea. On each page, in the same scope as the disclosure check, the questions outside a disclosure are at most `MAX_VISIBLE_QUESTIONS`. A field shown only on a branch still counts, because the check reads code, not runtime state. The detail page's one question is the request-changes reason. The collection page's one question is the data table's search field. The check fails if the catalog stops exporting `Field`, so the cap cannot go quiet. `fixtures/illegal/two-questions` and `fixtures/illegal/dead-question-part` prove both.
 - **State coverage.** Every string in `modeledStates` is a `case` in the views. `fixtures/illegal/missing-view` omits `invoice-approved`. Typecheck is a second gate for the same idea: `renderedStates` has to satisfy `ModeledState`.
 - **Target size.** Invoice controls inside `[data-page]` are at least 24 CSS px on each side, or the WCAG 2.5.8 spacing exception applies. The script also checks that the Todae button token floor is at least 24. It needs Chrome. It opens the preview states listed in `scripts/check-target-size.ts`, and clicks a disclosure summary on the page when one is present.
 
@@ -245,7 +251,13 @@ The fixtures the gate has to reject:
 | Fixture | What is wrong | Phrase the output must contain |
 | --- | --- | --- |
 | `two-primaries` | Two buttons in the detail primary slot | `primary slot` |
-| `over-budget` | A task path with an approval-note step | `step budget` |
+| `over-budget` | A task graph with an approval-note step | `modeled path length 4 exceeds max_steps` |
+| `over-budget-flow` | A 3-step graph, and a reducer that needs Line items and a note before Approve | `shipped flow path length 4 exceeds max_steps` |
+| `task-without-graph` | The only graph models a task that is not in `tasks` | `has no task graph` |
+| `two-questions` | A note field and a reason field outside a disclosure on one detail page | `questions outside a disclosure` |
+| `dead-question-part` | A catalog without `Field` | `not exported by the catalog` |
+| `disclosures-per-page` | Two disclosures on one detail page, one per component file | `more than 1 per page` |
+| `missing-disclosed-section` | Line items in a table with no disclosure | `is not behind a disclosure` |
 | `off-catalog` | A raw `<button>` | `off-catalog` |
 | `missing-view` | `invoice-approved` has no view case | `has no view` |
 | `undeclared-layout` | A `side-panel` directory beside `app-shell` | `undeclared layout` |
@@ -283,7 +295,7 @@ The next round is more capable because the structure grew. The agent reads a lon
 
 `npm run check:inventories` compares membership with the pull request base. On CI the base is `INVENTORY_BASE`. Locally, if that variable is unset, the script uses `origin/main` or `main`. If `HEAD` is that commit, it compares the tree with itself. Otherwise it uses the merge-base of `HEAD` and main.
 
-A list the base file does not export is skipped. That is the bootstrap that recorded `allowed_layouts`, and the one that recorded `allowed_content_layouts` in pull request 8. On main at `4a473ed` both lists exist, so a later pull request cannot introduce either list again. Adding or removing an id is a membership change.
+A list the base file does not export is skipped. That is the bootstrap that recorded `allowed_layouts`, and the one that recorded `allowed_content_layouts` in pull request 8. Since pull request 8 both lists exist on main, so a later pull request cannot introduce either list again. Adding or removing an id is a membership change.
 
 ```mermaid
 flowchart TB
@@ -309,6 +321,7 @@ Compared values, from `membershipChanges` in `scripts/check-inventories.ts`:
 - `modeledStates`
 - each task's `max_steps`
 - each priority item's action, rank, and level
+- `disclosed_sections`, only when the base already exports it
 - `MAX_DISCLOSURE_DEPTH`, `MAX_DISCLOSURES_PER_PAGE`, `MAX_VISIBLE_QUESTIONS`, and `TARGET_MIN_PX`
 
 String lists are sorted and de-duplicated before the comparison, so reordering `allowed_page_types` without adding or removing an id is not a change. Changing `max_steps` from 3 to 4 is a change, even though the task id stays.

@@ -29,3 +29,14 @@ export function shortestPath<T>(
 
   return null;
 }
+
+/**
+ * Edges from a reducer: every event is a step, and an event the reducer
+ * ignores leads back to a state already seen.
+ */
+export function eventEdges<S, E extends { readonly type: string }>(
+  events: readonly E[],
+  reduce: (state: S, event: E) => S,
+): TaskEdge<S>[] {
+  return events.map((event) => ({ step: event.type, when: () => true, apply: (state) => reduce(state, event) }));
+}
