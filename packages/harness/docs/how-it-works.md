@@ -98,7 +98,7 @@ flowchart TB
   n_build["llm: Build the screen from the catalog, inside the inventories"]
   n_checks[["eval: Run the build gate"]]
   n_triage{"router: Can the fix stay inside the inventories?"}
-  n_propose["llm: Write a proposal with a reason, a preview and a graduation"]
+  n_propose["llm: Write a proposal with a reason, every state, a preview and a graduation"]
   n_scope{"router: Does the proposal only add members to an inventory list?"}
   n_proposal_pull_request[("checkpoint: Open a pull request with the proposal")]
   n_approval(["human: A designer reviews the proposal's pull request"])
@@ -276,7 +276,7 @@ A gap is a design that needs a catalog export, a layout, a content layout, a pag
 ```mermaid
 flowchart TB
   gap["The work needs something the inventories do not record."]
-  file["A pull request adds a proposal, status: open, with its changes, a reason, a preview, and a graduation."]
+  file["A pull request adds a proposal, status: open, with its changes, a reason, its states, a preview, and a graduation."]
   record["Merging it records the request. It does not apply the change."]
   person["A designer approves it: a reviewed pull request moves it to status: decided."]
   graduate["A later pull request makes the change and moves it to status: graduated. check:inventories reads the base's decided proposal."]
@@ -286,11 +286,11 @@ flowchart TB
   gap --> adds --> next
 ```
 
-[`proposals/README.md`](../../../proposals/README.md) gives the format: front matter with `status` and `changes`, the exact inventory names the proposal changes, then `## Reason`, `## Preview` and `## Graduation`, each with text. `npm run check:proposals` fails a file without them, and fails a status that moves more than one step or backwards. A proposal's file name is its ID: a new one is named for the UTC day it was written and a slug, such as `2026-11-12-side-panel.md`, so two pull requests written in parallel pick different names without a shared counter, and the check fails a new proposal named any other way or dated after tomorrow in UTC. The proposals that merged with a number, from 0001, keep those names. `CODEOWNERS` requests review from `@tounsoo` for everything under `proposals/`.
+[`proposals/README.md`](../../../proposals/README.md) gives the format: front matter with `status` and `changes`, the exact inventory names the proposal changes, then `## Reason`, `## Preview` and `## Graduation`, each with text. A proposal that changes or adds members also lists its `## States`: the ordinary states and each edge case (empty, loading, error, long content, permissions, over time), described or marked out of scope, so the designer sees them before anything is built. `npm run check:proposals` fails a file without them, fails a status that moves more than one step or backwards, and asks for the states only from a proposal the change adds or approves, so proposals approved before the section keep their text. A proposal's file name is its ID: a new one is named for the UTC day it was written and a slug, such as `2026-11-12-side-panel.md`, so two pull requests written in parallel pick different names without a shared counter, and the check fails a new proposal named any other way or dated after tomorrow in UTC. The proposals that merged with a number, from 0001, keep those names. `CODEOWNERS` requests review from `@tounsoo` for everything under `proposals/`.
 
 Proposal 0001 is the example on main of a request that has been recorded and not applied. It asks for an approval note and `max_steps` 4. Proposal 0003 corrects its step counts rather than editing it. Until a graduating change lands, the budget stays 3 and the note stays out of the UI.
 
-A proposal that changes no inventory, such as a change to the harness's own code, lists `changes: []` and may start as `graduated`, because it gates nothing. Proposals 0003 and 0007 through 0012 are those.
+A proposal that changes no inventory, such as a change to the harness's own code, lists `changes: []` and may start as `graduated`, because it gates nothing. Proposals 0003, 0007 through 0013, 2026-11-11-dated-proposal-names and 2026-11-11-proposals-list-every-state are those.
 
 An addition can skip the approval pull request. A change that only adds members to the catalog exports, `allowed_layouts`, `allowed_content_layouts`, `allowed_page_types` or the flow states graduates a proposal the same pull request adds, `status: graduated`, that lists those members under `adds` and nothing else. The design loop's `scope` router sends such a proposal straight to `graduate`. Everything else, removals, renames, rule inputs, config, opt-outs and retirements, keeps two pull requests. [Proposal 0012](../../../proposals/0012-additions-in-one-pull-request.md) records it. Proposals 0004 to 0006 changed inventories and landed with their changes, before the fields existed; [proposal 0011](../../../proposals/0011-proposal-fields-and-graduation.md) gave them `status: graduated`.
 
