@@ -81,16 +81,33 @@ try {
     const url = new URL(base);
     url.search = state;
     await page.goto(url.href, { waitUntil: "networkidle0" });
+    const nextFrame = () => page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve(undefined))));
+    const measure = async () => {
+      for (const problem of undersized(await page.evaluate(collectTargets))) {
+        const failure = `${state}: ${problem}`;
+        if (!failures.includes(failure)) failures.push(failure);
+      }
+    };
     const summary = await page.$("[data-page] summary");
     if (summary) {
       await summary.click();
-      await page.evaluate(
-        () => new Promise((resolve) => requestAnimationFrame(() => resolve(undefined))),
-      );
+      await nextFrame();
     }
-    const boxes = await page.evaluate(collectTargets);
-    const problems = undersized(boxes);
-    for (const problem of problems) failures.push(`${state}: ${problem}`);
+    await measure();
+    // Every other closed disclosure in the document, the chrome's included, is
+    // opened on its own, measured, and closed again, so its controls are
+    // measured without one open menu covering another's.
+    for (const other of await page.$$("summary")) {
+      const closed = await other.evaluate(
+        (element) => element.parentElement instanceof HTMLDetailsElement && !element.parentElement.open && element.getClientRects().length > 0,
+      );
+      if (!closed) continue;
+      await other.click();
+      await nextFrame();
+      await measure();
+      await other.click();
+      await nextFrame();
+    }
   }
 } finally {
   await browser.close();
@@ -147,9 +164,9 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+/** Every control in the document: the page, and the chrome and anything else around it. */
 function collectTargets(): Box[] {
-  const root = document.querySelector("[data-page]");
-  if (!root) return [];
+  const root = document.body;
   const selector = "button, summary, a[href], input, textarea, label, [role='radio'], [role='checkbox'], [role='switch']";
   return [...root.querySelectorAll<HTMLElement>(selector)].flatMap((element) => {
     if (element instanceof HTMLInputElement && element.closest("label")) return [];
