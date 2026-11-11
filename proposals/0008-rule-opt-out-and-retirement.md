@@ -25,19 +25,24 @@ A product that opts out of `check:disclosure` adds one line to its config:
 
 ```ts
 optOuts: {
-  "check:disclosure": "proposals/0009-nook-has-no-disclosure.md",
+  "check:disclosure": "proposals/0103-nook-has-no-disclosure.md",
 },
 ```
 
-and the proposal it names says, besides its reason, preview and graduation:
+and the proposal it names lists the opt-out in its front matter, besides its reason, preview and graduation:
 
 ```md
-Status: decided.
-
-Opts out: `check:disclosure` for `products/nook`
+---
+status: graduated
+changes: []
+opts-out:
+  - check:disclosure for products/nook
+---
 ```
 
-`check:product` then prints `skipped check:disclosure, which this product opts out of in proposals/0009-nook-has-no-disclosure.md.` and runs every other rule.
+This example used `Status:` and `Opts out:` lines when it merged. [Proposal 0011](0011-proposal-fields-and-graduation.md) replaced them with these fields, and made an opt-out name a graduated proposal, not a decided one. `0103` is a made-up number, like the `0102` example in the [proposals README](README.md); the real proposal 0009 is the design loop graph.
+
+`check:product` then prints `check:product: skipped check:disclosure, which this product opts out of in proposals/0103-nook-has-no-disclosure.md.` and runs every other rule.
 
 If Meridian later opts out of `check:disclosure` too, both products of two have opted out, and `check:retirement` fails with `check:disclosure: opted out by 2 of 2 products (products/meridian, products/nook).`
 
