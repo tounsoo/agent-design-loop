@@ -6,25 +6,24 @@ export const taskId = "approve-vendor-invoice";
 
 export type TaskNode = {
   readonly invoiceOpen: boolean;
-  readonly lineItemsOpen: boolean;
   readonly approved: boolean;
 };
 
 export const taskStart: TaskNode = {
   invoiceOpen: false,
-  lineItemsOpen: false,
   approved: false,
 };
 
 /**
  * The task is "review a vendor invoice and approve it".
- * Success requires opening one invoice, opening its line items, and Approve.
+ * Success requires opening one invoice, then Approve.
+ * Line items are an optional look behind the disclosure. Approve does not
+ * require them, so opening them is not a step on this path.
  * Request changes is a separate branch and is not on this path.
  * There is no approval-note step.
  *
- * This is the reviewed path the budget is set for. The shipped transition
- * reducer does not require Line items before Approve, so its shortest path is
- * shorter. check:step-budget measures both against max_steps.
+ * This is the reviewed path the budget is set for. check:step-budget measures
+ * it and the shipped transition reducer, and fails when their lengths differ.
  */
 export const taskEdges: readonly TaskEdge<TaskNode>[] = [
   {
@@ -33,13 +32,8 @@ export const taskEdges: readonly TaskEdge<TaskNode>[] = [
     apply: (node) => ({ ...node, invoiceOpen: true }),
   },
   {
-    step: "open-line-items",
-    when: (node) => node.invoiceOpen && !node.lineItemsOpen && !node.approved,
-    apply: (node) => ({ ...node, lineItemsOpen: true }),
-  },
-  {
     step: "approve",
-    when: (node) => node.invoiceOpen && node.lineItemsOpen && !node.approved,
+    when: (node) => node.invoiceOpen && !node.approved,
     apply: (node) => ({ ...node, approved: true }),
   },
 ];

@@ -17,6 +17,11 @@ const cases = [
     phrase: "shipped flow path length 4 exceeds max_steps",
   },
   {
+    name: "graph-flow-drift",
+    args: ["scripts/check-step-budget.ts", "--graph", "fixtures/illegal/graph-flow-drift/graph.ts"],
+    phrase: "does not match the modeled path length",
+  },
+  {
     name: "task-without-graph",
     args: ["scripts/check-step-budget.ts", "--flows", "fixtures/illegal/task-without-graph/flows"],
     phrase: "has no task graph",

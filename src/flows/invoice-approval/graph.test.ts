@@ -4,22 +4,21 @@ import { flowStart, taskHappyPath, taskId, transition, userEvents } from "./grap
 import { eventEdges, shortestPath, type TaskEdge } from "./shortest-path";
 
 describe("approve-vendor-invoice happy path", () => {
-  it("is the three steps the task allows", () => {
+  it("is two steps, inside the budget", () => {
     const task = tasks.find((item) => item.id === "approve-vendor-invoice");
     expect(task?.max_steps).toBe(3);
     expect(task?.success_state).toBe("invoice-approved");
-    expect(taskHappyPath()).toEqual(["open-invoice", "open-line-items", "approve"]);
+    expect(taskHappyPath()).toEqual(["open-invoice", "approve"]);
     expect(taskHappyPath().length).toBeLessThanOrEqual(task?.max_steps ?? 0);
   });
 
-  it("grows past the budget when an approval note is required", () => {
+  it("is one step longer, and still inside the budget, when an approval note is required", () => {
     type Node = {
       invoiceOpen: boolean;
-      lineItemsOpen: boolean;
       noteWritten: boolean;
       approved: boolean;
     };
-    const start: Node = { invoiceOpen: false, lineItemsOpen: false, noteWritten: false, approved: false };
+    const start: Node = { invoiceOpen: false, noteWritten: false, approved: false };
     const edges: readonly TaskEdge<Node>[] = [
       {
         step: "open-invoice",
@@ -27,13 +26,8 @@ describe("approve-vendor-invoice happy path", () => {
         apply: (node) => ({ ...node, invoiceOpen: true }),
       },
       {
-        step: "open-line-items",
-        when: (node) => node.invoiceOpen && !node.lineItemsOpen,
-        apply: (node) => ({ ...node, lineItemsOpen: true }),
-      },
-      {
         step: "write-approval-note",
-        when: (node) => node.lineItemsOpen && !node.noteWritten,
+        when: (node) => node.invoiceOpen && !node.noteWritten,
         apply: (node) => ({ ...node, noteWritten: true }),
       },
       {
@@ -43,10 +37,10 @@ describe("approve-vendor-invoice happy path", () => {
       },
     ];
     const path = shortestPath(start, edges, (node) => node.approved);
-    const task = tasks[0];
-    expect(path).toEqual(["open-invoice", "open-line-items", "write-approval-note", "approve"]);
-    expect(task).toBeDefined();
-    expect((path?.length ?? 0) > (task?.max_steps ?? 0)).toBe(true);
+    const task = tasks.find((item) => item.id === "approve-vendor-invoice");
+    expect(path).toEqual(["open-invoice", "write-approval-note", "approve"]);
+    expect(path?.length).toBe(taskHappyPath().length + 1);
+    expect(path?.length ?? Infinity).toBeLessThanOrEqual(task?.max_steps ?? 0);
   });
 });
 
@@ -54,7 +48,7 @@ describe("approve-vendor-invoice shipped flow", () => {
   it("reaches invoice-approved without opening line items", () => {
     const path = shortestPath(flowStart, eventEdges(userEvents, transition), (state) => state.status === "invoice-approved");
     expect(path).toEqual(["open-invoice", "approve"]);
-    expect(path?.length ?? Infinity).toBeLessThanOrEqual(taskHappyPath().length);
+    expect(path).toEqual(taskHappyPath());
   });
 
   it("models the task the product inputs name", () => {

@@ -15,6 +15,8 @@ import { eventEdges, shortestPath, type TaskEdge } from "../src/flows/invoice-ap
  *
  * The graph is the path the budget is set for. The reducer is what ships. Both
  * must fit, so a reducer that grows a step cannot hide behind a stale graph.
+ * Their lengths must also match, so a reducer that drops a reviewed step, or a
+ * graph that keeps a step the reducer never needed, fails too.
  */
 
 type GraphModule = {
@@ -112,6 +114,11 @@ for (const task of tasks) {
   console.log(`  shipped path (${shipped.length}): ${shipped.join(" → ")}`);
   if (shipped.length > task.max_steps) {
     violations.push(`step budget: shipped flow path length ${shipped.length} exceeds max_steps ${task.max_steps} for ${task.id}.`);
+  }
+  if (modeled && shipped.length !== modeled.length) {
+    violations.push(
+      `step budget: shipped flow path length ${shipped.length} does not match the modeled path length ${modeled.length} for ${task.id}. Update the task graph or the reducer so they agree.`,
+    );
   }
 }
 
