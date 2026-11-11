@@ -2,7 +2,7 @@
 status: graduated
 changes: []
 ---
-# Proposal 0016: Proposals list every state before building
+# Proposals list every state before building
 
 Decided, and graduated with its own pull request. Ben asked for it after the Meridian demo in pull request 32 raised two design questions only once the screen was built: an approved invoice past its due date showed no sign of it, and the new progress list repeated the status row above it. Both were visible in the proposal's terms before the build, had anyone listed the states. No inventory changes, so it lists no changes and graduates at once.
 
@@ -24,20 +24,20 @@ Requiring the section of every proposal on main that lists changes would mean ba
 `check:proposals` on a new proposal that adds a catalog export and lists only its ordinary state:
 
 ```
-proposals: compared with f1ed1b0:
-- proposals/0099-steps.md "## States" has no "Empty" item. Say what the screen shows, or write "- Empty: Out of scope, <why>".
-- proposals/0099-steps.md "## States" has no "Loading" item. Say what the screen shows, or write "- Loading: Out of scope, <why>".
-- proposals/0099-steps.md "## States" has no "Error" item. Say what the screen shows, or write "- Error: Out of scope, <why>".
-- proposals/0099-steps.md "## States" has no "Long content" item. Say what the screen shows, or write "- Long content: Out of scope, <why>".
-- proposals/0099-steps.md "## States" has no "Permissions" item. Say what the screen shows, or write "- Permissions: Out of scope, <why>".
-- proposals/0099-steps.md "## States" has no "Over time" item. Say what the screen shows, or write "- Over time: Out of scope, <why>".
+proposals: compared with 1caa889:
+- proposals/2026-11-12-steps.md "## States" has no "Empty" item. Say what the screen shows, or write "- Empty: Out of scope, <why>".
+- proposals/2026-11-12-steps.md "## States" has no "Loading" item. Say what the screen shows, or write "- Loading: Out of scope, <why>".
+- proposals/2026-11-12-steps.md "## States" has no "Error" item. Say what the screen shows, or write "- Error: Out of scope, <why>".
+- proposals/2026-11-12-steps.md "## States" has no "Long content" item. Say what the screen shows, or write "- Long content: Out of scope, <why>".
+- proposals/2026-11-12-steps.md "## States" has no "Permissions" item. Say what the screen shows, or write "- Permissions: Out of scope, <why>".
+- proposals/2026-11-12-steps.md "## States" has no "Over time" item. Say what the screen shows, or write "- Over time: Out of scope, <why>".
 ```
 
 The same proposal with no `## States` section at all:
 
 ```
-proposals: compared with f1ed1b0:
-- proposals/0099-steps.md is new and adds Steps, but has no "## States" section. List every state the change shows before it is built, the edge cases Empty, Loading, Error, Long content, Permissions, Over time included, or "- None: <why>" when it shows on no screen.
+proposals: compared with 1caa889:
+- proposals/2026-11-12-steps.md is new and adds Steps, but has no "## States" section. List every state the change shows before it is built, the edge cases Empty, Loading, Error, Long content, Permissions, Over time included, or "- None: <why>" when it shows on no screen.
 ```
 
 ## Graduation
