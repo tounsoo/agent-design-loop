@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveBaseRev, tryGit } from "./lib/base";
 import { optOutProblems, retirementCandidates, RETIREMENT_MIN_PRODUCTS, ungraduatedOptOuts, unretiredRemovals, type OptOutProduct } from "./lib/opt-outs";
-import { parseConfig } from "./lib/parse-config";
+import { DEFAULT_PROPOSALS, parseConfig } from "./lib/parse-config";
 import { graduating, parseAll, proposalsAtRev, proposalsInDir, type Proposal } from "./lib/proposals";
 import { ruleChecks } from "./lib/scripts";
 
@@ -84,7 +84,10 @@ try {
   process.exit(1);
 }
 
-const proposalDirs = [...new Set(products.map((product) => product.proposals))].sort();
+// A retirement belongs to no one product, so proposals/ is read even when every product keeps its proposals elsewhere, as check:proposals does.
+const proposalDirs = [
+  ...new Set([DEFAULT_PROPOSALS, ...products.map((product) => product.proposals)].map((dir) => path.posix.normalize(dir).replace(/\/+$/, ""))),
+].sort();
 const graduates: Proposal[] = proposalDirs.flatMap((dir) =>
   graduating(parseAll(proposalsAtRev(rev, dir)).proposals, parseAll(proposalsInDir(dir)).proposals),
 );

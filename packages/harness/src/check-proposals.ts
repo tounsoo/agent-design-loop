@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -26,7 +26,8 @@ if (process.argv.length > 2) {
 const harnessDir = path.relative(process.cwd(), path.dirname(path.dirname(fileURLToPath(import.meta.url)))).split(path.sep).join("/");
 const configs = execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard"], { encoding: "utf8" })
   .split("\n")
-  .filter((file) => path.posix.basename(file) === "harness.config.ts" && !file.startsWith(`${harnessDir}/`));
+  // A config deleted from the working tree but still in the index is no longer a product, as check:retirement reads it.
+  .filter((file) => path.posix.basename(file) === "harness.config.ts" && !file.startsWith(`${harnessDir}/`) && existsSync(file));
 const dirs = [
   ...new Set([DEFAULT_PROPOSALS, ...configs.map((file) => parseConfig(readFileSync(file, "utf8"), file).paths.proposals)].map((dir) => path.posix.normalize(dir).replace(/\/+$/, ""))),
 ].sort();
