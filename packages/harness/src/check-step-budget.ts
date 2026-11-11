@@ -26,7 +26,7 @@ import { eventEdges, measureRoutes, shortestPath, type RouteMeasure, type TaskEd
  * event that a task graph in the same flows[] entry names as a step, so in a
  * flow with a hold-room task and a book-room task, hold is a step of book-room
  * too, and hold then book is a route to book-room's success. A route takes any
- * steps the flow allows, never back to a state it has passed, then finishes
+ * steps the flow allows, each at most once and never back to a state it has passed, then finishes
  * the shortest way any user event allows. Events no task names, such as an
  * optional look or Back, are detours a person chooses, so they count only when
  * the finish needs them. measureRoutes in lib/shortest-path.ts does the search.

@@ -39,12 +39,18 @@ type Search = ({ readonly kind: "found"; readonly path: readonly string[] } | { 
 
 function search<T>(start: T, edges: readonly TaskEdge<T>[], isSuccess: (node: T) => boolean, maxStates: number): Search {
   const seen = new Set<string>([stateKey(start)]);
-  const queue: { node: T; path: string[] }[] = [{ node: start, path: [] }];
+  // Each entry keeps the step that reached it and its parent's index, so no path is copied.
+  const queue: { node: T; step: string; parent: number }[] = [{ node: start, step: "", parent: -1 }];
+  const pathTo = (index: number) => {
+    const path: string[] = [];
+    for (let at = index; at > 0; at = queue[at]?.parent ?? 0) path.unshift(queue[at]?.step ?? "");
+    return path;
+  };
 
-  while (queue.length > 0) {
-    const current = queue.shift();
+  for (let index = 0; index < queue.length; index += 1) {
+    const current = queue[index];
     if (!current) break;
-    if (isSuccess(current.node)) return { kind: "found", path: current.path, seen: seen.size };
+    if (isSuccess(current.node)) return { kind: "found", path: pathTo(index), seen: seen.size };
     for (const edge of edges) {
       if (!edge.when(current.node)) continue;
       const next = edge.apply(current.node);
@@ -53,7 +59,7 @@ function search<T>(start: T, edges: readonly TaskEdge<T>[], isSuccess: (node: T)
       seen.add(key);
       // A reducer with unbounded state (a counter, free text) would never end the search.
       if (seen.size > maxStates) return { kind: "capped", seen: seen.size };
-      queue.push({ node: next, path: [...current.path, edge.step] });
+      queue.push({ node: next, step: edge.step, parent: index });
     }
   }
 
@@ -89,8 +95,10 @@ export type RouteMeasure =
 
 /**
  * Every route to success, not only the shortest. A route takes steps, edges
- * whose step is in `steps`, in any order the edges allow and never back to a
- * state it has already passed, then finishes the shortest way any edge allows.
+ * whose step is in `steps`, in any order the edges allow, each step at most
+ * once and never back to a state it has already passed, then finishes the
+ * shortest way any edge allows. Taking a step twice, such as selecting a
+ * second row, is a detour like any other.
  * An edge outside `steps` (an optional look, a setting with a default, Back)
  * is not a step a person chooses, so it only counts when the finish needs it.
  *
@@ -150,12 +158,14 @@ export function measureRoutes<T>(
   };
   /** Per state measured once: the deepest it was measured at, and its longest suffix. */
   const measured = new Map<string, { depth: number; suffix: readonly string[] | null }>();
+  /** A state and the steps taken to reach it: what follows depends on both. */
+  const measureKey = (key: string, taken: readonly string[]) => `${key}|${JSON.stringify([...new Set(taken)].sort())}`;
   let routes = 0;
 
   type Walk = { kind: "over"; route: readonly string[] } | { kind: "too-many"; limit: string } | { kind: "within"; suffix: readonly string[] | null };
 
   const walk = (node: T, key: string, taken: readonly string[], passed: ReadonlySet<string>): Walk => {
-    const known = measured.get(key);
+    const known = measured.get(measureKey(key, taken));
     // No longer route was over budget from deeper, so none is from here.
     if (known && known.depth >= taken.length) return { kind: "within", suffix: known.suffix };
     routes += 1;
@@ -169,7 +179,7 @@ export function measureRoutes<T>(
     let suffix: readonly string[] = rest;
     if (rest.length > 0) {
       for (const edge of stepEdges) {
-        if (!edge.when(node)) continue;
+        if (taken.includes(edge.step) || !edge.when(node)) continue;
         const next = edge.apply(node);
         const nextKey = keyOf(next);
         if (passed.has(nextKey)) continue;
@@ -180,7 +190,7 @@ export function measureRoutes<T>(
     }
     // Measure once only when the route so far cannot be met again ahead.
     const later = reachable(node, key);
-    if (later && ![...passed].some((state) => state !== key && later.has(state))) measured.set(key, { depth: taken.length, suffix });
+    if (later && ![...passed].some((state) => state !== key && later.has(state))) measured.set(measureKey(key, taken), { depth: taken.length, suffix });
     return { kind: "within", suffix };
   };
 

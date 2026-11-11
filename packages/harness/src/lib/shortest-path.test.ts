@@ -118,6 +118,20 @@ describe("measureRoutes", () => {
     expect(Date.now() - started).toBeLessThan(2_000);
   });
 
+  it("takes each step at most once, so selecting and clearing rows is a detour", () => {
+    // select-row toggles one of two rows; a route that selects a, selects b and clears a is not a new way through.
+    type Rows = { readonly a: boolean; readonly b: boolean; readonly approved: boolean };
+    const edges = [
+      { step: "select-row", when: (node: Rows) => !node.approved, apply: (node: Rows) => ({ ...node, a: !node.a }) },
+      { step: "select-row", when: (node: Rows) => !node.approved, apply: (node: Rows) => ({ ...node, b: !node.b }) },
+      { step: "approve-selected", when: (node: Rows) => node.a || node.b, apply: (node: Rows) => ({ ...node, approved: true }) },
+    ];
+    expect(measureRoutes<Rows>({ a: false, b: false, approved: false }, edges, (node) => node.approved, new Set(["select-row", "approve-selected"]), 2)).toEqual({
+      kind: "within",
+      longest: ["select-row", "approve-selected"],
+    });
+  });
+
   it("gives up past its route limit instead of searching forever", () => {
     // Six steps from every state, each to a new state, and done finishes from any of them.
     const edges = [
