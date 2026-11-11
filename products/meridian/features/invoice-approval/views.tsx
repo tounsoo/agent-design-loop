@@ -19,6 +19,7 @@ import {
 } from "../../catalog";
 import {
   formatMoney,
+  lineTotal,
   routeHref,
   statusLabel,
   type CollectionRoute,
@@ -170,6 +171,12 @@ function LineItems({
             </Table.Row>
           ))}
         </Table.Body>
+        <Table.Foot>
+          <Table.Row>
+            <Table.HeaderCell scope="row">Total</Table.HeaderCell>
+            <Table.Cell>{formatMoney(lineTotal(invoice))}</Table.Cell>
+          </Table.Row>
+        </Table.Foot>
       </Table.Root>
     </Disclosure.Root>
   );

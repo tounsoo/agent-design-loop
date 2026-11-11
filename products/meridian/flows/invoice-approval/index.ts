@@ -3,6 +3,7 @@ export {
   invoiceById,
   isModeledState,
   isScreen,
+  lineTotal,
   loadErrorMessage,
   modeledStates,
   sampleInvoices,

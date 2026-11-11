@@ -43,7 +43,7 @@ On an invoice (`?invoice=inv-1842`):
 
 Search, filters, sort, and paging are available on collections. They are not steps on the happy path.
 
-The happy path is two steps: open an invoice, Approve. That lands on `invoice-approved`. Opening Line items is optional and not counted. `max_steps` stays 3. There is no approval note and no confirm step. `check:step-budget` measures the task graph and the shipped reducer, and fails when either is over budget or the two paths are not the same steps.
+The happy path is two steps: open an invoice, Approve. That lands on `invoice-approved`. Opening Line items is optional and not counted. `max_steps` stays 3. There is no approval note and no confirm step. `check:step-budget` measures the task graph and the shipped reducer, and fails when either shortest path is over budget, when the two are not the same steps, or when any other route to `invoice-approved` is over budget.
 
 [Proposal 0001](../../proposals/0001-approval-note.md) asks to require an approval note before Approve and raise the budget to 4. It is not applied. [Proposal 0003](../../proposals/0003-two-step-approve.md) corrects its counts: the shipped path is 2 steps, so the note would make 3, inside the current budget.
 
