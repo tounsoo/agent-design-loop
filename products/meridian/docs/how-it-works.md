@@ -131,12 +131,14 @@ The rules read numbers and names the product owns, so a check can fail without a
 | Visible questions | 1 per page outside a disclosure. A field on a branch, like the request-changes reason, still counts. | `MAX_VISIBLE_QUESTIONS` |
 | Target size | 24 CSS px. No product exception is recorded. | `TARGET_MIN_PX` |
 
-The budget check measures two paths for every task in `tasks`. Each task maps to one task graph module under `flows[].tasks` in `products/meridian/harness.config.ts`. Meridian's one task maps to `products/meridian/flows/invoice-approval/graph.ts`.
+The budget check measures two paths, and then every route, for every task in `tasks`. Each task maps to one task graph module under `flows[].tasks` in `products/meridian/harness.config.ts`. Meridian's one task maps to `products/meridian/flows/invoice-approval/graph.ts`.
 
 - **Modeled path.** The shortest path through the task graph in `products/meridian/flows/invoice-approval/graph.ts`. This is the reviewed path the budget is set for. Request changes is not an edge. Opening Line items is optional, so it is not an edge either. There is no approval-note step.
 - **Shipped path.** The shortest path through the real `transition` reducer, from `flowStart` (the loaded To approve queue) over `userEvents` (the events a person can cause) to `success_state`. Today it is `open-invoice → approve`, 2 steps.
 
 Both must fit `max_steps`, and they must be the same steps. Graph step names are the event types they stand for. A reducer that grows a step fails the build even if nobody updates the graph. A reducer that drops or swaps a step, or a graph that keeps one the reducer never needed, fails too.
+
+- **Every other route.** The shortest path is not the only way through. A route takes any steps a task graph names, in any order, each once, then finishes the shortest way. Every route to `invoice-approved`, in the task graph and in the reducer, must also fit `max_steps`. Opening Line items and starting a change request are events no task names, so they count only when the finish needs them, and it does not. Search, filters and paging are not flow events at all. Today the longest route is `open-invoice → approve`, the same 2 steps. [Proposal 0013](../../../proposals/0013-every-route-in-the-step-budget.md) records the rule.
 
 ```mermaid
 flowchart LR
@@ -166,6 +168,6 @@ flowchart TB
 
 The proposal on that branch, `proposals/0002-tracking-board-card.md`, explained why the other inventory was the wrong one to grow. A page type is a new shell. Tracking still uses the collection shell: one heading, a description, a body, and no primary action. Loading, empty, and error stay in that shell. The reader picks one invoice and opens the existing detail. The difference from To approve, All invoices, and Vendors is the body, columns of cards instead of a filter bar and a table. Content layouts are the compositions that fill a page type's body. Adding a page type would duplicate the collection shell for a body the content-layout inventory was added to hold. `check:one-thing` reads `allowed_page_types` for the shells a page can use.
 
-The same proposal also asked to export `Card` from the catalog, because the card was not in the catalog on main. The check accepts either a new content layout or a new page type once a proposal file explains it. It does not choose. That judgment is written down in [`products/meridian/review/content-layouts.md`](../review/content-layouts.md) on main. Pull request 7 had its own note, `review/invoice-tracking.md`, which closed with it.
+The same proposal also asked to export `Card` from the catalog, because the card was not in the catalog on main. The check then accepted either a new content layout or a new page type once a proposal file explained it. It did not choose, and it still does not. That judgment is written down in [`products/meridian/review/content-layouts.md`](../review/content-layouts.md) on main. Pull request 7 had its own note, `review/invoice-tracking.md`, which closed with it.
 
 What this example shows about the checks, and what it does not, is in [What this shows, and what it does not](../../../packages/harness/docs/how-it-works.md#what-this-shows-and-what-it-does-not) on the harness page.

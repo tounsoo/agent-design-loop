@@ -110,6 +110,13 @@ describe("invoice approval views", () => {
     expect(screen.getByRole("button", { name: "Approve" })).toBeDisabled();
   });
 
+  it("totals the line items under the table", () => {
+    renderApproval("?state=ready&page=detail");
+    const total = screen.getByRole("rowheader", { name: "Total" }).closest("tr");
+    expect(total?.parentElement?.tagName).toBe("TFOOT");
+    expect(total).toHaveTextContent("$4,280.00");
+  });
+
   it("approves in two steps, with Line items left closed", async () => {
     const user = userEvent.setup();
     renderApproval();
