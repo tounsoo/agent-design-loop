@@ -22,3 +22,5 @@ Loop: read inventories → generate within constraints → run checks and fix �
 Checks: `npm run check:fixtures && npm run check`
 
 If the work needs a catalog export, layout, content layout, page type, flow state, or rule input that is not in those inventories, open a proposal. Do not invent the missing piece, and do not edit an inventory to sneak the change through.
+
+Every harness rule applies to every product. If one should not apply to a product, the proposal is an opt-out, as `proposals/README.md` describes. Do not skip or weaken the check.

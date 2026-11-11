@@ -18,9 +18,9 @@ Two products use it in this repository: [Meridian](../../products/meridian/READM
 npm run check:fixtures && npm run check
 ```
 
-`check:fixtures` runs the harness's own tests. `fixtures/product/` is a small product with its own `harness.config.ts` that every check passes. Each folder beside it, and each one under `fixtures/illegal/`, has a `case.ts` that changes some of that config's paths and names the checks to run, with the phrase each must print. The run exits 0 only when the illegal cases fail and the legal ones pass: the fixture product, the stand-in design system in `fixtures/fake-ds/`, and small products of their own (`fixtures/two-tasks/`, `fixtures/two-collection-pages/`, `fixtures/own-sections/`) that show a rule reads its product's config and inputs, not Meridian's. `npm run check:fixtures -- illegal/two-primaries` runs one case.
+`check:fixtures` runs the harness's own tests. `fixtures/product/` is a small product with its own `harness.config.ts` that every check passes. Each folder beside it, and each one under `fixtures/illegal/`, has a `case.ts` that changes some of that config's paths and names the checks to run, with the phrase each must print. The run exits 0 only when the illegal cases fail and the legal ones pass: the fixture product, the stand-in design system in `fixtures/fake-ds/`, and small products of their own (`fixtures/two-tasks/`, `fixtures/two-collection-pages/`, `fixtures/own-sections/`) that show a rule reads its product's config and inputs, not Meridian's. `fixtures/opt-out/` and the `fixtures/illegal/opt-out-*` cases test `check:opt-outs`, and the retirement threshold has Vitest tests in `src/lib/opt-outs.test.ts`. `npm run check:fixtures -- illegal/two-primaries` runs one case.
 
-`check` is the build gate. It runs `typecheck`, `lint`, and `test` once for the whole repository, then `check:meridian` and `check:nook`. Each of those runs `check:product` on one product's config.
+`check` is the build gate. It runs `typecheck`, `lint`, and `test` once for the whole repository, then `check:meridian` and `check:nook`, then `check:retirement`. Each of the two product scripts runs `check:product` on one product's config.
 
 | Command | What it fails |
 | --- | --- |
@@ -44,13 +44,20 @@ The rule checks read one product. `check:rules` lists them, in this order, and e
 
 There is no LLM judge on CI.
 
+Two more checks guard the rules themselves. Neither is in `check:rules`, and a product cannot opt out of either.
+
+| Command | What it fails |
+| --- | --- |
+| `npm run check:opt-outs` | Needs `--config`. An entry in the config's `optOuts` that names a rule `check:rules` does not run, a core rule (`lint:product-ui` or `check:inventories`), or a proposal that is missing, is not directly in `paths.proposals`, is not `Status: decided`, or has no `Opts out:` line naming the rule and the product's `paths.source`. `check:product` runs it before any rule check |
+| `npm run check:retirement` | Takes no flags. Reads every `harness.config.ts` git knows of outside this package, tracked or new. Fails when two configs name the same `paths.source`, when any product's opt-outs fail the rules of `check:opt-outs`, and when a majority of products, and at least two, opt out of the same rule. With two products, both must opt out |
+
 ### Check one product
 
 ```sh
 npm run check:product -- --config products/nook/harness.config.ts
 ```
 
-`check:product` runs every check in `check:rules` against that config, in the same order, and stops at the first failure. It reads the list from `package.json`, so the two cannot drift. `npm run check:meridian` and `npm run check:nook` call it with their product's config.
+`check:product` runs `check:opt-outs`, then every check in `check:rules` against that config, in the same order, and stops at the first failure. It skips a rule the config opts out of, and says so. It reads the list from `package.json`, so the two cannot drift. `npm run check:meridian` and `npm run check:nook` call it with their product's config.
 
 A check reads its paths only from the config that `--config <file>` names. There is no config at the repository root, so a rule check run without `--config` exits with "give the product's config". Besides `--config`, `check:inventories` reads `--base <file>` and `check:target-size` reads `--list`. Any other flag, and any `--name=<value>` form, is refused, so a stale invocation cannot pass on the wrong product.
 
@@ -69,7 +76,7 @@ A product keeps its inventories under `products/<name>/` and names them in its o
 5. Add a `check:<name>` script that runs `npm run check:product -- --config products/<name>/harness.config.ts`, and add it to `check`, as `check:meridian` and `check:nook` are.
 6. Add a CI job that runs `check:product` on the config and sets `INVENTORY_BASE`, as the `nook` job in `.github/workflows/ci.yml` does.
 
-The config has four parts. `HarnessConfig` in `src/lib/parse-config.ts` documents each field.
+The config has four parts, and an optional fifth. `HarnessConfig` in `src/lib/parse-config.ts` documents each field.
 
 | Field | What it names |
 | --- | --- |
@@ -77,8 +84,9 @@ The config has four parts. `HarnessConfig` in `src/lib/parse-config.ts` document
 | `paths` | `source`, `features`, `layouts`, `contentLayouts`, `pageTypes`, `catalog`, `inputs`, `rules`, `styles`, `app`, and `web`: where each inventory and the product UI live |
 | `shells` | `primarySlots`, the page types whose shell holds one primary action, and `collections`, the page types that are collections, with their chrome slots |
 | `flows` | Each flow's `states` and `views` modules, its `tasks` mapped to task graph modules, and its `previews` |
+| `optOuts` | Optional. The harness rules this product does not follow, each mapped to the decided proposal that says why. `paths.proposals`, also optional, is the folder an opt-out's proposal must sit in, `proposals` by default. Changing it is a config path change, so `check:inventories` asks for a proposal. That check still counts proposals under `proposals/` only |
 
-`CODEOWNERS` already asks for review on `/products/*/harness.config.ts`, `/proposals/`, `/packages/adapter-todae/`, and `/.github/workflows/`. Changing a config path can empty a check, so a config change needs a proposal and that review.
+`CODEOWNERS` already asks for review on `/products/*/harness.config.ts`, `/proposals/`, `/packages/harness/`, `/packages/adapter-todae/`, and `/.github/workflows/`. Changing a config path can empty a check, so a config change needs a proposal and that review.
 
 ## Use it as a testing ground
 
@@ -93,6 +101,10 @@ The config has four parts. `HarnessConfig` in `src/lib/parse-config.ts` document
 A proposal is how an inventory grows. [proposals/README.md](../../proposals/README.md) lists the inventories and what a proposal file must contain.
 
 When a human approves a proposal, a change graduates it into the inventory data and the checks: the catalog, a layout, a content layout, a page-type shell, the flow model, or the product inputs. The next run is constrained by that change. The inventory check accepts that change in the same pull request as the proposal, so a reviewer decides whether it should have waited. A proposal can also record a decision that lands with its own pull request, as [proposal 0003](../../proposals/0003-two-step-approve.md) through [proposal 0006](../../proposals/0006-move-into-packages.md) do.
+
+## Rules apply to every product
+
+A rule is a check that `check:rules` runs. An approved pattern graduates straight into the harness as one of those, so it applies to every product from the pull request that adds it. A product that should not follow a rule opts out with a decided proposal, and a rule most products opt out of is flagged for retirement, so the harness can shrink as well as grow. [How a pattern becomes a rule](docs/how-it-works.md#how-a-pattern-becomes-a-rule) walks the lifecycle, and [proposals/README.md](../../proposals/README.md#opting-a-product-out-of-a-rule) gives the opt-out format.
 
 ## The design system adapter
 

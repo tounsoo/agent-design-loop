@@ -192,6 +192,30 @@ A proposal can also record a decision instead of a request. Proposals 0003 throu
 
 The next round is more capable because the structure grew. The agent reads a longer allowlist and a check that enforces it. The skill text did not have to get longer. The page's words for that move are "encode it. Delete the instruction."
 
+## How a pattern becomes a rule
+
+The harness grows by rules, not only by inventories. A rule is a check that `check:rules` in `package.json` runs, such as `check:disclosure`. A new rule goes straight into the shared harness. It does not live in one product first, because agents design best from one set of rules, and a rule kept in one product leaves the others on a different set with nothing to say when it should move.
+
+That has a cost. One product's quirk can become every product's rule, and rules only pile up. Two guards answer it: a product opts out of a rule only by proposal, and a rule most products opt out of is flagged for retirement. [Proposal 0008](../../../proposals/0008-rule-opt-out-and-retirement.md) records the decision.
+
+```mermaid
+flowchart LR
+  proposed["Proposed. A proposal asks for a rule."]
+  approved["Approved. A designer reviews it. CODEOWNERS asks for review on proposals/ and packages/harness/."]
+  graduated["Graduated. The rule is a check in check:rules and applies to every product."]
+  optout["Opted out. A product names the rule in its config's optOuts, with a decided proposal that says why."]
+  retired["Retired. A majority of products opt out. check:retirement fails until a decided proposal takes the rule out of check:rules."]
+  proposed --> approved --> graduated --> optout --> retired
+```
+
+1. **Proposed.** A proposal under `proposals/` asks for the rule, with a reason, a preview and a graduation, like any other proposal.
+2. **Approved.** A designer approves it. `CODEOWNERS` asks for review on `proposals/` and on `packages/harness/`, where the rule will live.
+3. **Graduated.** The rule lands as a check in `packages/harness/src/`, and `check:rules` runs it. From that pull request on, it applies to every product, and `check:product` runs it on each.
+4. **Opted out.** A product that should not follow the rule adds it to `optOuts` in its `harness.config.ts`, naming a decided proposal. The proposal says why, and has the line ``Opts out: `<rule>` for `<paths.source>` ``. `check:opt-outs` runs first in `check:product`, and fails when the proposal is missing, undecided, outside `paths.proposals`, or names another rule or product. Then `check:product` skips the rule for that product, and says so. `lint:product-ui` and `check:inventories` cannot be opted out: the first is the loop's rule that UI comes only from the catalog, and the second is what makes a proposal necessary at all.
+5. **Retired.** `check:retirement` reads every product's config, checks each one's opt-outs the way `check:opt-outs` does, and fails when two configs name the same product. When a majority of products, and at least two, opt out of the same rule, it fails and names the rule and the products. With two products that means both. A rule most products turn off is not a shared rule. The fix is a decided proposal that removes the rule from `check:rules`, or withdrawing an opt-out. `CODEOWNERS` asks for review on `package.json`, where `check:rules` lives, but no check yet ties a rule's removal to that proposal. Once a rule is gone from `check:rules`, an opt-out that still names it fails `check:opt-outs`, so the opt-outs are cleaned up with it.
+
+An opt-out is a change to a product's config, so `CODEOWNERS` asks for the same review as any config change. `check:inventories` does not compare `optOuts`. `check:opt-outs` is what ties each one to its proposal.
+
 ## When a proposal is required
 
 `npm run check:inventories` compares membership with the pull request base. On CI the base is `INVENTORY_BASE`. If that variable is unset, empty, `true`, `false`, or all zeros (what `github.event.before` holds when a push has no previous commit), the script uses `origin/main`, or a local `main` when the clone has no `origin/main`. If `HEAD` is that commit, it compares the tree with itself. Otherwise it uses the merge-base of `HEAD` and main.
