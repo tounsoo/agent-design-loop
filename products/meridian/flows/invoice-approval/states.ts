@@ -197,6 +197,11 @@ export function formatMoney(cents: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
 }
 
+/** The sum of an invoice's lines, so a reviewer can hold it against the amount. */
+export function lineTotal(invoice: Invoice): number {
+  return invoice.lines.reduce((sum, line) => sum + line.amountCents, 0);
+}
+
 export function invoiceById(id: string): Invoice | undefined {
   return sampleInvoices.find((invoice) => invoice.id === id);
 }
