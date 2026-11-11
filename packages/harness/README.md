@@ -84,7 +84,7 @@ The config has four parts, and an optional fifth. `HarnessConfig` in `src/lib/pa
 | `paths` | `source`, `features`, `layouts`, `contentLayouts`, `pageTypes`, `catalog`, `inputs`, `rules`, `styles`, `app`, and `web`: where each inventory and the product UI live |
 | `shells` | `primarySlots`, the page types whose shell holds one primary action, and `collections`, the page types that are collections, with their chrome slots |
 | `flows` | Each flow's `states` and `views` modules, its `tasks` mapped to task graph modules, and its `previews` |
-| `optOuts` | Optional. The harness rules this product does not follow, each mapped to the decided proposal that says why. `paths.proposals`, also optional, says where proposals live and defaults to `proposals` |
+| `optOuts` | Optional. The harness rules this product does not follow, each mapped to the decided proposal that says why. `paths.proposals`, also optional, is the folder an opt-out's proposal must sit in, `proposals` by default. Changing it is a config path change, so `check:inventories` asks for a proposal. That check still counts proposals under `proposals/` only |
 
 `CODEOWNERS` already asks for review on `/products/*/harness.config.ts`, `/proposals/`, `/packages/harness/`, `/packages/adapter-todae/`, and `/.github/workflows/`. Changing a config path can empty a check, so a config change needs a proposal and that review.
 

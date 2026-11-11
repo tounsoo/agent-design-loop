@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { retirementCandidates, RETIREMENT_MIN_PRODUCTS, type OptOutProduct } from "./lib/opt-outs";
@@ -11,7 +11,8 @@ import { parseConfig } from "./lib/parse-config";
  * most products turn off is not a shared rule: retire it with a proposal that
  * takes it out of `check:rules`, or withdraw an opt-out. A product is any
  * `harness.config.ts` git knows of, tracked or new, outside the harness
- * package, whose fixtures are not products.
+ * package, whose fixtures are not products. A tracked config deleted from the
+ * working tree is no longer a product.
  */
 
 if (process.argv.length > 2) {
@@ -23,10 +24,10 @@ const harnessDir = path.relative(process.cwd(), path.dirname(path.dirname(fileUR
 
 function productConfigs(): string[] {
   const output = execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard"], { encoding: "utf8" });
-  return output
+  const files = output
     .split("\n")
-    .filter((file) => path.posix.basename(file) === "harness.config.ts" && !file.startsWith(`${harnessDir}/`))
-    .sort();
+    .filter((file) => path.posix.basename(file) === "harness.config.ts" && !file.startsWith(`${harnessDir}/`) && existsSync(file));
+  return [...new Set(files)].sort();
 }
 
 const files = productConfigs();
@@ -39,6 +40,17 @@ const products: OptOutProduct[] = files.map((file) => {
   const parsed = parseConfig(readFileSync(file, "utf8"), file);
   return { source: parsed.paths.source, proposals: parsed.paths.proposals, optOuts: parsed.optOuts };
 });
+const bySource = new Map<string, string[]>();
+files.forEach((file, index) => {
+  const source = products[index]?.source ?? "";
+  bySource.set(source, [...(bySource.get(source) ?? []), file]);
+});
+const shared = [...bySource.entries()].filter(([, configs]) => configs.length > 1);
+if (shared.length > 0) {
+  for (const [source, configs] of shared) console.error(`retirement: ${configs.join(" and ")} both name paths.source ${source}, so that product would count twice.`);
+  process.exit(1);
+}
+
 const candidates = retirementCandidates(products);
 
 if (candidates.length > 0) {

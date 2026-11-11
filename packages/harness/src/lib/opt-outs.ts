@@ -26,10 +26,30 @@ export type OptOutProduct = {
 
 const OPTS_OUT = /^Opts out: `([^`]+)` for `([^`]+)`\.?[ \t]*$/gm;
 
-const FENCED = /^(`{3,}|~{3,})[^\n]*\n[\s\S]*?^\1[ \t]*$/gm;
-
+/**
+ * The proposal's text without what does not render as prose: fenced code
+ * blocks, as CommonMark reads them, and HTML comments. Either one left
+ * unclosed runs to the end of the file.
+ */
 function withoutExamples(text: string): string {
-  return text.replace(FENCED, "");
+  const prose = text.replace(/<!--[\s\S]*?(?:-->|$(?![\s\S]))/g, "");
+  const kept: string[] = [];
+  let fence: { char: string; length: number } | null = null;
+  for (const line of prose.split(/\r?\n/)) {
+    const marker = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+    if (fence === null) {
+      if (marker?.[1] && !(marker[1].startsWith("`") && marker[2]?.includes("`"))) fence = { char: marker[1][0] ?? "", length: marker[1].length };
+      else kept.push(line);
+    } else if (marker?.[1] && marker[1][0] === fence.char && marker[1].length >= fence.length && marker[2]?.trim() === "") {
+      fence = null;
+    }
+  }
+  return kept.join("\n");
+}
+
+/** The word on a proposal's first `Status:` line, such as `decided` or `open`, or null when it has none. */
+export function proposalStatus(text: string): string | null {
+  return /^Status:[ \t]*([\w-]+)/m.exec(withoutExamples(text))?.[1] ?? null;
 }
 
 /**
@@ -68,7 +88,7 @@ export function optOutProblems(product: OptOutProduct, rules: readonly string[],
       problems.push(`${where}: ${proposal} does not exist.`);
       continue;
     }
-    if (!/^Status: decided\b/m.test(withoutExamples(text))) {
+    if (proposalStatus(text) !== "decided") {
       problems.push(`${where}: ${proposal} is not decided. An opt-out applies now, so its proposal needs "Status: decided".`);
     }
     if (!optOutLines(text).some((line) => line.rule === rule && line.source === product.source)) {

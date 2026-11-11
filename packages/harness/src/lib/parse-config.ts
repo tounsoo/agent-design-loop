@@ -71,7 +71,7 @@ export type HarnessConfig = {
     readonly app: readonly string[];
     /** The directory with the product's index.html, which check:target-size builds and serves with Vite. */
     readonly web: string;
-    /** Where proposals live, so check:opt-outs can find the proposal behind an opt-out. Defaults to `proposals`. */
+    /** The folder check:opt-outs requires an opt-out's proposal to sit in. Defaults to `proposals`. check:inventories counts proposals under `proposals/` only. */
     readonly proposals?: string;
   };
   readonly shells: ShellRules;
