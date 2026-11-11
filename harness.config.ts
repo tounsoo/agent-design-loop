@@ -1,12 +1,14 @@
 import type { HarnessConfig } from "./scripts/lib/config";
 
 /**
- * Meridian's paths for the checks in scripts/. Plain literals only: the
- * inventory check reads this file at the pull request base with `git show`.
- * Changing it changes what every check reads, so a change needs a proposal
- * under proposals/, and CODEOWNERS asks for review.
+ * Meridian's paths for the checks in scripts/, and the design system adapter
+ * that names Todae's parts for them. Plain literals only: the inventory check
+ * reads this file at the pull request base with `git show`. Changing it
+ * changes what every check reads, so a change needs a proposal under
+ * proposals/, and CODEOWNERS asks for review.
  */
 export default {
+  adapter: "adapters/todae.ts",
   paths: {
     source: "src",
     features: "src/features",

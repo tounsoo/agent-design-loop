@@ -1,27 +1,18 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import ts from "typescript";
+import { adapter } from "./adapter";
 import { config, memberOf, styleOwnerDirs } from "./config";
 import { jsxTagName, listSourceFiles, parseFile, walk } from "./jsx";
 
 /**
  * A collection's ready body has to be a registered content layout. Loading,
  * empty, and error may stay in the page shell: their markup is only the
- * catalog's status pieces. Anything else in the collection — a board, a
+ * catalog's status pieces, the adapter's statusParts. Anything else in the collection — a board, a
  * card column, page CSS that no registered content layout uses — fails.
  */
 
-const STATE_ROOTS = new Set([
-  "Alert",
-  "Button",
-  "EmptyState",
-  "ErrorMessage",
-  "Loader",
-  "Skeleton",
-  "Stack",
-  "Text",
-  "VisuallyHidden",
-]);
+const STATE_ROOTS = new Set(adapter.statusParts);
 
 const CHROME_SLOTS = new Set(["CollectionPage.Heading", "CollectionPage.Description"]);
 

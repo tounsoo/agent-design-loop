@@ -1,5 +1,6 @@
 import path from "node:path";
 import ts from "typescript";
+import { adapter, isDesignSystemImport } from "./lib/adapter";
 import { config, uiRoots } from "./lib/config";
 import { attributeValue, jsxTagName, lineOf, listSourceFiles, parseFile, walk } from "./lib/jsx";
 
@@ -7,6 +8,7 @@ const rootArg = process.argv.indexOf("--root");
 const roots = rootArg === -1 ? uiRoots : [process.argv[rootArg + 1] ?? ""];
 
 const forbiddenTags = new Set(["button", "input", "select", "textarea", "a"]);
+/** Other component kits. The adapter's own packages are not foreign, even when they are on this list. */
 const foreignPackages = ["@mui/", "antd", "@chakra-ui/", "react-bootstrap", "@radix-ui/"];
 
 type Violation = { file: string; line: number; message: string };
@@ -26,19 +28,19 @@ function scan(file: string): void {
   walk(source, (node) => {
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
       const spec = node.moduleSpecifier.text;
-      const fromTodae = spec === "@tounsoo/todae" || spec.startsWith("@tounsoo/todae/");
-      if (fromTodae && !catalog) {
+      const fromDesignSystem = isDesignSystemImport(spec);
+      if (fromDesignSystem && !catalog) {
         violations.push({
           file,
           line: lineOf(source, node),
           message: `off-catalog: import "${spec}" directly. Product UI must import from ${path.dirname(config.paths.catalog)}.`,
         });
       }
-      if (foreignPackages.some((name) => spec === name.slice(0, -1) || spec.startsWith(name))) {
+      if (!fromDesignSystem && foreignPackages.some((name) => spec === name.slice(0, -1) || spec.startsWith(name))) {
         violations.push({
           file,
           line: lineOf(source, node),
-          message: `off-catalog: import "${spec}" is not the Todae catalog.`,
+          message: `off-catalog: import "${spec}" is not the ${adapter.name} catalog.`,
         });
       }
     }

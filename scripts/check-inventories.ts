@@ -2,8 +2,9 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import ts from "typescript";
+import { parseAdapter, type DesignSystemAdapter } from "./lib/adapter";
 import { collectionCompositionViolations } from "./lib/collection-body";
-import { CONFIG_FILE, config, memberOf, pageTypesBarrel, parseConfig, type HarnessConfig } from "./lib/config";
+import { CONFIG_FILE, config, memberOf, pageTypesBarrel, parseConfig, type HarnessConfig, type ParsedConfig } from "./lib/config";
 import { walk } from "./lib/jsx";
 
 /**
@@ -23,7 +24,9 @@ import { walk } from "./lib/jsx";
  *
  * harness.config.ts says where each inventory lives, so it is an inventory
  * too. The base is read with its own config. A base without one is read with
- * the head's paths, once: the pull request that records the config.
+ * the head's paths, once: the pull request that records the config. The
+ * design system adapter the config names is an inventory as well, compared
+ * field by field. A base whose config names no adapter records it once.
  */
 
 type StepBudget = { id: string; max_steps: number };
@@ -43,7 +46,9 @@ type Inventory = {
   visibleQuestions: number;
   targetMinPx: number;
   /** The root's own harness config, or null when the root has none. */
-  config: HarnessConfig | null;
+  config: ParsedConfig | null;
+  /** The adapter the root's config names, or null when it names none. */
+  adapter: DesignSystemAdapter | null;
 };
 
 type Root = { kind: "dir"; dir: string } | { kind: "git"; rev: string };
@@ -99,7 +104,7 @@ function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function configAt(root: Root): HarnessConfig | null {
+function configAt(root: Root): ParsedConfig | null {
   let text: string | null = null;
   if (root.kind === "dir") {
     const full = path.join(root.dir, CONFIG_FILE);
@@ -115,6 +120,16 @@ function configAt(root: Root): HarnessConfig | null {
   const label = root.kind === "dir" ? path.join(root.dir, CONFIG_FILE) : `${root.rev}:${CONFIG_FILE}`;
   try {
     return parseConfig(text, label);
+  } catch (error) {
+    return fail(`inventory: ${label}: ${errorText(error)}`);
+  }
+}
+
+function adapterAt(root: Root, own: ParsedConfig | null): DesignSystemAdapter | null {
+  if (own?.adapter == null) return null;
+  const label = root.kind === "dir" ? path.join(root.dir, own.adapter) : `${root.rev}:${own.adapter}`;
+  try {
+    return parseAdapter(readText(root, own.adapter), label);
   } catch (error) {
     return fail(`inventory: ${label}: ${errorText(error)}`);
   }
@@ -256,6 +271,7 @@ function readInventory(root: Root): Inventory {
     visibleQuestions: exportedNumber(rules, "MAX_VISIBLE_QUESTIONS"),
     targetMinPx: exportedNumber(rules, "TARGET_MIN_PX"),
     config: own,
+    adapter: adapterAt(root, own),
   };
 }
 
@@ -287,6 +303,16 @@ function membershipChanges(base: Inventory, head: Inventory): string[] {
         compare(`${CONFIG_FILE} paths.${key}`, base.config.paths[key as keyof HarnessConfig["paths"]], head.config.paths[key as keyof HarnessConfig["paths"]]);
       }
       compare(`${CONFIG_FILE} flows`, base.config.flows, head.config.flows);
+      if (base.config.adapter !== null) compare(`${CONFIG_FILE} adapter`, base.config.adapter, head.config.adapter);
+    }
+  }
+  if (base.adapter !== null) {
+    if (head.adapter === null) lines.push("the design system adapter was removed.");
+    else {
+      const keys = sortedUnique([...Object.keys(base.adapter), ...Object.keys(head.adapter)]);
+      for (const key of keys) {
+        compare(`adapter ${key}`, base.adapter[key as keyof DesignSystemAdapter], head.adapter[key as keyof DesignSystemAdapter]);
+      }
     }
   }
   return lines;
@@ -462,6 +488,7 @@ function introducedLists(base: Inventory, head: Inventory): string[] {
   if (base.layouts === null) introduced.push("allowed_layouts");
   if (base.contentLayouts === null) introduced.push("allowed_content_layouts");
   if (base.config === null && head.config !== null) introduced.push(CONFIG_FILE);
+  if (base.adapter === null && head.adapter !== null) introduced.push("design system adapter");
   return introduced;
 }
 

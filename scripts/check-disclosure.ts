@@ -1,4 +1,5 @@
 import path from "node:path";
+import { adapter } from "./lib/adapter";
 import { config, loadRules } from "./lib/config";
 import { lineOf } from "./lib/jsx";
 import { discoverShells, missingCatalogParts, pagesIn, tagsInScope, unreachedTags } from "./lib/page-scope";
@@ -8,7 +9,7 @@ import { discoverShells, missingCatalogParts, pagesIn, tagsInScope, unreachedTag
  * features path, the components it renders, its content layouts, the shell
  * module, and the chrome layouts around it. See scripts/lib/page-scope.ts.
  */
-const DISCLOSURE = "Disclosure.Root";
+const DISCLOSURE = adapter.disclosure.root;
 const { MAX_DISCLOSURE_DEPTH, MAX_DISCLOSURES_PER_PAGE } = await loadRules();
 
 function flag(name: string, fallback: string): string {

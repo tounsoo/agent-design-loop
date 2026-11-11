@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import ts from "typescript";
+import { adapter, isPrimaryVariant } from "./lib/adapter";
 import { config, loadRules, memberOf } from "./lib/config";
 import { attributeValue, jsxTagName, listSourceFiles, parseFile, walk } from "./lib/jsx";
 import { discoverShells, missingCatalogParts, pagesIn, tagsInScope, unreachedTags } from "./lib/page-scope";
@@ -10,12 +11,13 @@ import { discoverShells, missingCatalogParts, pagesIn, tagsInScope, unreachedTag
  * check:inventories. This check reads that inventory. It does not keep a
  * second list of page type ids.
  *
- * A question is a catalog form field. Todae's Field.Root wraps every input,
- * select and textarea. A question inside a disclosure is not visible first.
+ * A question is a catalog form field: a part the adapter names in questions,
+ * which wraps an input, select or textarea. A question inside a disclosure
+ * is not visible first.
  * A question on a branch, like the request-changes reason, still counts:
  * the check reads code, not the state at runtime.
  */
-const QUESTION_PARTS = ["Field.Root"] as const;
+const QUESTION_PARTS = adapter.questions;
 const { MAX_VISIBLE_QUESTIONS } = await loadRules();
 
 function flag(name: string, fallback: string): string {
@@ -120,9 +122,8 @@ function primaryButtons(root: ts.Node): ts.Node[] {
   const found: ts.Node[] = [];
   walk(root, (node) => {
     const opening = ts.isJsxElement(node) ? node.openingElement : ts.isJsxSelfClosingElement(node) ? node : null;
-    if (!opening || jsxTagName(opening.tagName) !== "Button.Root") return;
-    const variant = attributeValue(opening, "variant");
-    if (variant === null || variant === "primary") found.push(node);
+    if (!opening || jsxTagName(opening.tagName) !== adapter.action.tag) return;
+    if (isPrimaryVariant(attributeValue(opening, adapter.action.variantProp))) found.push(node);
   });
   return found;
 }
