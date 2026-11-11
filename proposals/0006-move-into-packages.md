@@ -1,5 +1,5 @@
 ---
-status: graduated
+status: adopted
 changes:
   - products/meridian/harness.config.ts
   - paths.source
@@ -54,7 +54,7 @@ Nook's config changes only its `adapter` line.
 
 Every check prints what it printed on `6acd08f`, with the new paths. `check:inventories` reports the config path changes with this proposal, and no membership change, for both products.
 
-## Graduation
+## Adoption
 
 - No file changes on approval. These change in the same pull request:
   - `products/meridian/` (from `src/`, `index.html`, `harness.config.ts` and `review/`) and `products/nook/harness.config.ts`.

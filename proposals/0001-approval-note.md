@@ -33,7 +33,7 @@ Proposed path:
 
 The note would be required before Approve. The detail primary slot would still hold one button.
 
-## Graduation, after approval
+## Adoption, after approval
 
 - `products/meridian/inputs/product.ts`: `max_steps` for `approve-vendor-invoice` from 3 to 4
 - `products/meridian/flows/invoice-approval`: Approve is legal only after a non-empty note is on the detail state

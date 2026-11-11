@@ -1,4 +1,4 @@
-/** Illegal: an opt-out whose proposal is an open request, not a graduated decision. */
+/** Illegal: an opt-out whose proposal is an open request, not an adopted decision. */
 export default {
   config: {
     paths: {
@@ -9,6 +9,6 @@ export default {
     },
   },
   checks: [
-    { run: "check:opt-outs", fails: "is open, not graduated" },
+    { run: "check:opt-outs", fails: "is open, not adopted" },
   ],
 };

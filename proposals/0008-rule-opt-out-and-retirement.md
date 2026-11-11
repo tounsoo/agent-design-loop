@@ -1,5 +1,5 @@
 ---
-status: graduated
+status: adopted
 changes: []
 ---
 # Proposal 0008: Harness rules apply to every product, with opt-out by proposal and retirement
@@ -33,7 +33,7 @@ and the proposal it names lists the opt-out in its front matter, besides its rea
 
 ```md
 ---
-status: graduated
+status: adopted
 changes: []
 opts-out:
   - check:disclosure for products/nook
@@ -54,7 +54,7 @@ The pattern lifecycle the docs now describe:
 4. Opted out. A product that should not follow it writes a decided proposal and names it in `optOuts`.
 5. Retired. When a majority of products opt out, `check:retirement` flags it, and a decided proposal takes it out of `check:rules`.
 
-## Graduation
+## Adoption
 
 No file changes later. These change in the same pull request:
 

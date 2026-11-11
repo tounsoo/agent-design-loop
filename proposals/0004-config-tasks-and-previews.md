@@ -1,5 +1,5 @@
 ---
-status: graduated
+status: adopted
 changes:
   - flows
   - paths.flows
@@ -47,7 +47,7 @@ flows: [
 
 Meridian's results do not change. `check:step-budget` measures the same graph, `open-invoice → approve`, 2 steps against 3. `check:target-size` opens the same ten previews in the same order: `loading`, `empty` and `error` bare, `ready` five ways, and the two outcome states on the detail page.
 
-## Graduation
+## Adoption
 
 - No file changes on approval. These change in the same pull request:
   - `harness.config.ts` and `scripts/lib/config.ts`, which parses the two fields and drops `paths.flows`.

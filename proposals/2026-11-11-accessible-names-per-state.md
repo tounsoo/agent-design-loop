@@ -1,5 +1,5 @@
 ---
-status: graduated
+status: adopted
 changes: []
 ---
 # Hold what a screen reader hears to what each state declares
@@ -40,7 +40,7 @@ accessible names: 10 previews announce the 36 things their flows declare, and ev
 accessible names: 7 previews announce the 20 things their flows declare, and every control has a name.
 ```
 
-## Graduation
+## Adoption
 
 - No file changes on approval. These change in the same pull request:
   - `packages/harness/src/check-accessible-names.ts` and `packages/harness/src/lib/accessible-names.ts`, with Vitest tests, and `AccessibleNames` and `Announcement` exported from the harness package.
