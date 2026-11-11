@@ -219,23 +219,27 @@ export function parseProposal(file: string, text: string): ParsedProposal {
  */
 const DATED_NAME = /^(\d{4})-(\d{2})-(\d{2})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
 
-function isDatedName(name: string): boolean {
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** True for a real calendar day from 2000 that is no later than tomorrow in UTC, which leaves room for a writer ahead of UTC. */
+function isDatedName(name: string, today: Date): boolean {
   const match = DATED_NAME.exec(name);
   if (!match) return false;
   const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
   const date = new Date(Date.UTC(year, month - 1, day));
-  return year >= 2000 && date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+  const real = year >= 2000 && date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+  return real && date.getTime() <= today.getTime() + DAY_MS;
 }
 
-/** Each proposal file the head adds, by path, whose name is not a real date and a lowercase slug. */
-export function nameProblems(base: Iterable<string>, head: Iterable<string>): string[] {
+/** Each proposal file the head adds, by path, whose name is not a real, past or present day and a lowercase slug. */
+export function nameProblems(base: Iterable<string>, head: Iterable<string>, today: Date = new Date()): string[] {
   const before = new Set(base);
   const problems: string[] = [];
   for (const file of [...head].sort()) {
     const name = path.posix.basename(file);
-    if (before.has(file) || isDatedName(name)) continue;
+    if (before.has(file) || isDatedName(name, today)) continue;
     const slug = name.replace(/\.md$/, "").replace(/^\d{4}(?:-\d{2}-\d{2})?-/, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "slug";
-    const example = path.posix.join(path.posix.dirname(file), `${new Date().toISOString().slice(0, 10)}-${slug}.md`);
+    const example = path.posix.join(path.posix.dirname(file), `${today.toISOString().slice(0, 10)}-${slug}.md`);
     problems.push(
       `${file} is a new proposal, so its name is the UTC day it was written and a lowercase slug, such as ${example}. A dated name cannot collide with a proposal another pull request adds in parallel, as the next free number can.`,
     );

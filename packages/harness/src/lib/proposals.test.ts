@@ -241,6 +241,12 @@ describe("nameProblems", () => {
     expect(nameProblems(base, ["proposals/0013-every-route-in-budget.md"])).toHaveLength(1);
   });
 
+  it("fails a day after tomorrow in UTC, and passes tomorrow for a writer ahead of UTC", () => {
+    const today = new Date(Date.UTC(2026, 10, 11, 22));
+    expect(nameProblems([], ["proposals/2026-11-12-steps.md"], today)).toEqual([]);
+    expect(nameProblems([], ["proposals/2099-01-01-steps.md"], today)).toHaveLength(1);
+  });
+
   it("fails a date that is not on the calendar, a slug with capitals, and a name with no slug", () => {
     const head = ["proposals/2026-02-30-steps.md", "proposals/2026-11-12-Steps.md", "proposals/2026-11-12.md", "proposals/26-11-12-steps.md"];
     expect(nameProblems([], head)).toHaveLength(4);

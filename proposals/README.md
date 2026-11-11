@@ -15,7 +15,7 @@ The inventories are listed here with Meridian's paths, under `products/meridian/
 
 Editing a layout, content layout, or page-type implementation without changing its id is not an inventory change.
 
-A proposal's file name is its ID. Name a new one for the day you write it, in UTC, and a short lowercase slug: `2026-11-12-side-panel.md`. Cite it by that name, as proposal 2026-11-12-side-panel. Two pull requests written in parallel then pick different names without knowing about each other, where both used to reach for the next free number. The proposals that merged with a number, from 0001, keep those names, because a decided or graduated proposal keeps its file name.
+A proposal's file name is its ID. Name a new one for the day you write it, in UTC, and a short lowercase slug: `2026-11-12-side-panel.md`. Cite it by that name, as proposal 2026-11-12-side-panel. Two pull requests written in parallel then pick different names without knowing about each other, where both used to reach for the next free number. Two that pick the same day and slug add the same file, which git refuses to merge when the texts differ. The proposals that merged with a number, from 0001, keep those names, because a decided or graduated proposal keeps its file name.
 
 A proposal starts with front matter the checks read, then three sections with text under each:
 
@@ -49,7 +49,7 @@ Which files change on approval.
 - `opts-out`, optional, lists opt-outs as `<rule> for <product paths.source>`, as the next section shows.
 - `adds`, optional, lists members a proposal adds in one pull request, as [Adding in one pull request](#adding-in-one-pull-request) shows. A proposal with `adds` lists nothing under `changes`, `retires` or `opts-out`, and its status is `graduated`.
 
-`npm run check:proposals` fails a proposal the change adds or renames whose file name is not a real calendar day and a lowercase slug, and it fails a proposal with a missing or unknown field, a field that is not a list, `adds` beside anything under `changes`, `retires` or `opts-out` or on a proposal that is not `graduated`, or a missing or empty `## Reason`, `## Preview` or `## Graduation`. A heading inside a fenced code block or an HTML comment does not count, and a list item or value is a bare name, with no quotes or `#` comment. The check reads `proposals/`, every folder a product config names in `paths.proposals`, and any other folder named `proposals`. `CODEOWNERS` requests review for everything under `proposals/`.
+`npm run check:proposals` fails a proposal the change adds or renames whose file name is not a real calendar day, no later than tomorrow in UTC, and a lowercase slug, and it fails a proposal with a missing or unknown field, a field that is not a list, `adds` beside anything under `changes`, `retires` or `opts-out` or on a proposal that is not `graduated`, or a missing or empty `## Reason`, `## Preview` or `## Graduation`. A heading inside a fenced code block or an HTML comment does not count, and a list item or value is a bare name, with no quotes or `#` comment. The check reads `proposals/`, every folder a product config names in `paths.proposals`, and any other folder named `proposals`. `CODEOWNERS` requests review for everything under `proposals/`.
 
 ### From request to graduation
 
