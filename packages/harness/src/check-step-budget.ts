@@ -20,6 +20,12 @@ import { eventEdges, shortestPath, type TaskEdge } from "./lib/shortest-path";
  * The two paths must also be the same steps, so a reducer that drops or swaps
  * a reviewed step, or a graph that keeps a step the reducer never needed,
  * fails too. Graph step names are the event types they stand for.
+ *
+ * A flow state's name is its `status` field, the name the product inputs'
+ * success_state uses. A flow whose states keep that name elsewhere exports
+ * `flowStatus(state)` from the graph module to read it. A reached state with
+ * no name fails, so a state shape without `status` cannot read as a flow that
+ * never reaches success.
  * shortestPath returns the first shortest path in edge order. If a graph or
  * reducer ever has two shortest paths, order its edges or userEvents so the
  * reviewed one comes first.
@@ -33,6 +39,7 @@ type GraphModule = {
   flowStart?: unknown;
   userEvents?: readonly { readonly type: string }[];
   transition?: (state: unknown, event: { readonly type: string }) => unknown;
+  flowStatus?: (state: unknown) => unknown;
 };
 
 const { tasks } = await loadInputs();
@@ -94,9 +101,27 @@ for (const task of tasks) {
     violations.push(`step budget: ${file} does not export flowStart, userEvents and transition, so the shipped flow is not measured.`);
     continue;
   }
-  const reached = (state: unknown) =>
-    typeof state === "object" && state !== null && (state as { status?: unknown }).status === task.success_state;
+  if (module.flowStatus !== undefined && typeof module.flowStatus !== "function") {
+    violations.push(`step budget: ${file} exports flowStatus, but it is not a function.`);
+    continue;
+  }
+  const statusOf = (state: unknown): unknown =>
+    module.flowStatus ? module.flowStatus(state) : typeof state === "object" && state !== null ? (state as { status?: unknown }).status : undefined;
+  const unnamed: unknown[] = [];
+  const reached = (state: unknown) => {
+    const status = statusOf(state);
+    if (typeof status !== "string") unnamed.push(state);
+    return status === task.success_state;
+  };
   const shipped = shortestPath(flowStart, eventEdges(userEvents, transition), reached);
+  if (unnamed.length > 0) {
+    violations.push(
+      module.flowStatus
+        ? `step budget: flowStatus in ${file} gives no state name for ${JSON.stringify(unnamed[0])}.`
+        : `step budget: the shipped flow in ${file} reaches ${JSON.stringify(unnamed[0])}, which has no status field. Export flowStatus(state) from the graph module to name its states.`,
+    );
+    continue;
+  }
   if (!shipped) {
     violations.push(`step budget: the shipped flow in ${file} never reaches ${task.success_state}.`);
     continue;
