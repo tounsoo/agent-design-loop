@@ -5,31 +5,31 @@
 export const uxRules = [
   {
     id: "minimize-interaction-cost",
-    structuralCheck: "npm run check:step-budget",
+    structuralCheck: "npm run check:step-budget -- --config products/meridian/harness.config.ts",
     input: "products/meridian/inputs/product.ts#tasks",
     reviewQuestion: "Is an extra step earning its cost?",
   },
   {
     id: "progressive-reveal",
-    structuralCheck: "npm run lint:slots && npm run check:disclosure && npm run check:priority",
+    structuralCheck: "npm run lint:slots -- --config products/meridian/harness.config.ts && npm run check:disclosure -- --config products/meridian/harness.config.ts && npm run check:priority -- --config products/meridian/harness.config.ts",
     input: "products/meridian/inputs/product.ts#priority",
     reviewQuestion: "Is the thing shown first actually what people need first?",
   },
   {
     id: "one-thing-per-page",
-    structuralCheck: "npm run check:one-thing",
+    structuralCheck: "npm run check:one-thing -- --config products/meridian/harness.config.ts",
     input: "products/meridian/inputs/product.ts#allowed_page_types",
     reviewQuestion: "Does research support grouping these questions?",
   },
   {
     id: "exhaustive-states",
-    structuralCheck: "npm run check:state-coverage",
+    structuralCheck: "npm run check:state-coverage -- --config products/meridian/harness.config.ts",
     input: "products/meridian/flows/invoice-approval/states.ts#modeledStates",
     reviewQuestion: "Did we model the states that actually happen?",
   },
   {
     id: "target-size",
-    structuralCheck: "npm run check:target-size",
+    structuralCheck: "npm run check:target-size -- --config products/meridian/harness.config.ts",
     input: "No product exception is recorded. WCAG 2.5.8 spacing may pass an undersized control.",
     reviewQuestion: "Should an important control aim for the stricter 44 CSS px enhanced size?",
   },
