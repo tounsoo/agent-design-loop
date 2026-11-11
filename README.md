@@ -76,19 +76,19 @@ A state the model does not name is ignored, and the page stays on To approve.
 npm run check:fixtures && npm run check
 ```
 
-`check:fixtures` exits 0 only when the illegal fixtures fail their checks and the stand-in design system in `fixtures/fake-ds/` passes them. `check` is the build gate:
+`check:fixtures` exits 0 only when the illegal fixtures fail their checks and the legal ones pass: the stand-in design system in `fixtures/fake-ds/`, and small products of their own (`fixtures/two-tasks/`, `fixtures/two-collection-pages/`, `fixtures/own-sections/`) that show a rule reads its product's config and inputs, not Meridian's. `check` is the build gate:
 
 | Command | What it fails |
 | --- | --- |
 | `npm run typecheck` | A modeled state with no exhaustive view, and ordinary type errors |
 | `npm run lint` | ESLint, plus off-catalog UI and the detail primary-slot contract |
-| `npm run check:step-budget` | A task path longer than that task's `max_steps`, or a task graph and shipped reducer whose paths differ |
+| `npm run check:step-budget` | A task path longer than that task's `max_steps`, a task graph and shipped reducer whose paths differ, or a task in `tasks` with no graph mapped under `flows[].tasks` in `harness.config.ts`. Every task is measured |
 | `npm run check:disclosure` | Disclosure depth or count above the cap |
-| `npm run check:priority` | A primary action that is not Approve, or Request changes shown as primary |
-| `npm run check:one-thing` | More than one shell for a page type, or a primary on a collection page. Page-type membership is `allowed_page_types`, which this check reads |
+| `npm run check:priority` | A primary action that is not Approve, Request changes shown as primary, or a section in `disclosed_sections` that is not behind a disclosure |
+| `npm run check:one-thing` | Per page: a page rendered inside another page, a primary on a collection page, or more visible questions than the cap. Also a page type that renders no page. A product may render a page type as often as it needs. Page-type membership is `allowed_page_types`, which this check reads |
 | `npm run check:inventories` | A chrome layout, content layout, or page type outside the allowlists; a collection body that is not a registered content layout; or an inventory-set change versus the pull request base with no new proposal. A list the base does not export yet may be recorded once. That bootstrap covered `allowed_layouts` and `allowed_content_layouts`, and it covers `harness.config.ts` and the design system adapter it names, which are inventories too |
 | `npm run check:state-coverage` | A modeled flow state with no view |
-| `npm run check:target-size` | An invoice control under WCAG 2.5.8 (24 CSS px), spacing exception included. Needs Chrome. |
+| `npm run check:target-size` | A control under WCAG 2.5.8 (24 CSS px), spacing exception included, on any modeled state. It opens every state in `modeledStates`, with the query strings `flows[].previews` in `harness.config.ts` adds. Needs Chrome; `--list` prints the previews without it. |
 | `npm run test` | The flow, the two-step journey, the request-changes branch, and the rendered states |
 
 There is no LLM judge on CI.
@@ -122,6 +122,7 @@ src/features/invoice-approval/       To approve, All invoices, Vendors, and the 
 src/harness/state-preview/           Meridian's state preview: ?state=, ?page=, ?route=, and ?invoice=
 fixtures/illegal/                    known-bad shapes; check:fixtures proves each one still fails
 fixtures/fake-ds/                    a stand-in design system with no Todae names; the checks must pass it
+fixtures/two-tasks/ and others       small products of their own, run with --config; the checks must pass them
 proposals/                           escape hatch
 review/                              judgment the checks cannot make
 ```

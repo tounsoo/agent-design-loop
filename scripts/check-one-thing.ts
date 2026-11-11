@@ -3,13 +3,19 @@ import path from "node:path";
 import ts from "typescript";
 import { adapter, isPrimaryVariant } from "./lib/adapter";
 import { config, loadRules, memberOf } from "./lib/config";
-import { attributeValue, jsxTagName, listSourceFiles, parseFile, walk } from "./lib/jsx";
-import { discoverShells, missingCatalogParts, pagesIn, tagsInScope, unreachedTags } from "./lib/page-scope";
+import { attributeValue, jsxTagName, lineOf, listSourceFiles, parseFile, walk } from "./lib/jsx";
+import { discoverShells, missingCatalogParts, openingOf, pagesIn, tagsInScope, unreachedTags } from "./lib/page-scope";
 
 /**
  * One job per page. Page-type membership lives in allowed_page_types and
  * check:inventories. This check reads that inventory. It does not keep a
  * second list of page type ids.
+ *
+ * A page is one rendered page-type shell (see scripts/lib/page-scope.ts). The
+ * rules hold per page, not per product: a product may render as many pages of
+ * a type as it needs, from as many files, but no page renders another page
+ * inside it. Each allowed page type renders at least one page, so the rules
+ * below cannot pass over a page type nobody renders.
  *
  * A question is a catalog form field: a part the adapter names in questions,
  * which wraps an input, select or textarea. A question inside a disclosure
@@ -45,7 +51,6 @@ for (const part of missingCatalogParts(catalogFile, QUESTION_PARTS)) {
 const { shells, problems } = discoverShells();
 for (const problem of problems) violations.push(`one thing: ${problem}`);
 
-const shellCounts = new Map<string, number>(shells.map((shell) => [shell.name, 0]));
 const collectionShells = new Set(shells.filter((shell) => shell.pageType === "collection").map((shell) => shell.name));
 const scannedLayouts = new Set<string>();
 
@@ -53,13 +58,8 @@ for (const file of listSourceFiles(featuresRoot)) {
   const source = parseFile(file);
   const relative = path.relative(process.cwd(), file);
   for (const shell of shells) {
-    const pages = shellElements(source, shell.name);
-    shellCounts.set(shell.name, (shellCounts.get(shell.name) ?? 0) + pages.length);
-    if (pages.length > 1) {
-      violations.push(`one thing: ${relative} renders ${pages.length} ${shell.name} shells.`);
-    }
     if (!collectionShells.has(shell.name)) continue;
-    for (const page of pages) {
+    for (const page of shellElements(source, shell.name)) {
       const primary = primaryButtons(page);
       if (primary.length > 0) {
         violations.push(`one thing: ${relative} puts a primary button on the collection page.`);
@@ -81,6 +81,28 @@ for (const file of listSourceFiles(featuresRoot)) {
 }
 
 const pages = pagesIn(featuresRoot, shells);
+const shellNames = new Set(shells.map((shell) => shell.name));
+
+for (const page of pages) {
+  for (const scope of page.scopes) {
+    walk(scope.node, (node) => {
+      const opening = openingOf(node);
+      if (!opening || node === page.node) return;
+      const tag = jsxTagName(opening.tagName);
+      if (!shellNames.has(tag)) return;
+      const where = `${path.relative(process.cwd(), scope.source.fileName)}:${lineOf(scope.source, opening)}`;
+      violations.push(`one thing: ${page.file}:${page.line} ${page.shell.name} page renders a ${tag} page inside it, at ${where}. One page does one job.`);
+    });
+  }
+}
+
+for (const pageType of new Set(shells.map((shell) => shell.pageType))) {
+  if (!pages.some((page) => page.shell.pageType === pageType)) {
+    violations.push(
+      `one thing: page type "${pageType}" renders no page in ${path.relative(process.cwd(), featuresRoot)}, so its per-page rules cannot run.`,
+    );
+  }
+}
 for (const part of QUESTION_PARTS) {
   for (const where of unreachedTags(featuresRoot, pages, part)) {
     violations.push(
@@ -100,12 +122,6 @@ for (const page of pages) {
     violations.push(
       `one thing: ${page.file}:${page.line} ${page.shell.name} page shows ${visibleQuestions} questions outside a disclosure (max ${MAX_VISIBLE_QUESTIONS}).`,
     );
-  }
-}
-
-for (const [tag, count] of shellCounts) {
-  if (count !== 1) {
-    violations.push(`one thing: expected exactly one ${tag} in ${path.relative(process.cwd(), featuresRoot)}, found ${count}.`);
   }
 }
 
@@ -151,12 +167,11 @@ function contentLayoutsIn(root: ts.Node, source: ts.SourceFile): string[] {
   return [...new Set(ids)];
 }
 
-
 if (violations.length > 0) {
   for (const violation of violations) console.error(violation);
   process.exit(1);
 }
 
 console.log(
-  `one thing: one shell per page type, no primary on the collection page, at most ${MAX_VISIBLE_QUESTIONS} question outside a disclosure per page.`,
+  `one thing: one job per page on ${pages.length} pages: no page inside another, no primary on a collection page, at most ${MAX_VISIBLE_QUESTIONS} question outside a disclosure per page.`,
 );

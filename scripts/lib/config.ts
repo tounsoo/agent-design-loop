@@ -19,6 +19,17 @@ export type FlowConfig = {
   readonly states: string;
   /** Module with a `case` for each modeled state. */
   readonly views: string;
+  /**
+   * Task id in the product inputs' tasks → the task graph module that models
+   * it. check:step-budget measures every task through the module named here.
+   */
+  readonly tasks?: { readonly [taskId: string]: string };
+  /**
+   * How check:target-size opens a modeled state, as query strings added to
+   * `?state=<state>`. Every modeled state is opened: once bare when it has no
+   * entry here, once per query string when it has one.
+   */
+  readonly previews?: { readonly [state: string]: readonly string[] };
 };
 
 export type HarnessConfig = {
@@ -35,11 +46,9 @@ export type HarnessConfig = {
     readonly contentLayouts: string;
     /** Page-type shells, one directory per allowed_page_types id, with an index.ts barrel. */
     readonly pageTypes: string;
-    /** Flows, one directory per flow; a graph.ts there is a task graph. */
-    readonly flows: string;
     /** The one module product UI imports components from. */
     readonly catalog: string;
-    /** Product inputs: tasks, priority, disclosed sections and the allowed lists. */
+    /** Product inputs: tasks, priority, disclosed sections and the allowed lists. Task graphs are under flows[].tasks. */
     readonly inputs: string;
     /** UX rule caps. */
     readonly rules: string;
@@ -109,6 +118,25 @@ export function requireString(record: Record<string, unknown>, key: string, wher
   return value;
 }
 
+function stringRecord(record: Record<string, unknown>, key: string, where: string): Record<string, string> {
+  const value = record[key];
+  if (value === undefined) return {};
+  if (!isRecord(value)) throw new Error(`${where}.${key} must be an object.`);
+  for (const [name, item] of Object.entries(value)) {
+    if (typeof item !== "string" || item === "") throw new Error(`${where}.${key}.${name} must be a non-empty string.`);
+  }
+  return value as Record<string, string>;
+}
+
+function stringListRecord(record: Record<string, unknown>, key: string, where: string): Record<string, string[]> {
+  const value = record[key];
+  if (value === undefined) return {};
+  if (!isRecord(value)) throw new Error(`${where}.${key} must be an object.`);
+  const lists: Record<string, string[]> = {};
+  for (const name of Object.keys(value)) lists[name] = requireStrings(value, name, `${where}.${key}`);
+  return lists;
+}
+
 export function requireStrings(record: Record<string, unknown>, key: string, where: string): string[] {
   const value = record[key];
   if (!Array.isArray(value) || !value.every((item) => typeof item === "string" && item !== "")) {
@@ -145,7 +173,6 @@ export function parseConfig(text: string, label = CONFIG_FILE): ParsedConfig {
       layouts: requireString(paths, "layouts", "config.paths"),
       contentLayouts: requireString(paths, "contentLayouts", "config.paths"),
       pageTypes: requireString(paths, "pageTypes", "config.paths"),
-      flows: requireString(paths, "flows", "config.paths"),
       catalog: requireString(paths, "catalog", "config.paths"),
       inputs: requireString(paths, "inputs", "config.paths"),
       rules: requireString(paths, "rules", "config.paths"),
@@ -155,26 +182,54 @@ export function parseConfig(text: string, label = CONFIG_FILE): ParsedConfig {
     flows: value.flows.map((flow, index) => {
       const where = `config.flows[${index}]`;
       if (!isRecord(flow)) throw new Error(`${where} must be an object.`);
-      return { states: requireString(flow, "states", where), views: requireString(flow, "views", where) };
+      // tasks and previews are optional so a base written before them still parses.
+      return {
+        states: requireString(flow, "states", where),
+        views: requireString(flow, "views", where),
+        tasks: stringRecord(flow, "tasks", where),
+        previews: stringListRecord(flow, "previews", where),
+      };
     }),
   };
 }
 
-function loadConfig(): HarnessConfig {
-  const file = path.resolve(CONFIG_FILE);
+/**
+ * `--config <file>` points one run at another config, which is how the
+ * fixtures give a check a product of their own. Paths inside it stay relative
+ * to the repository root.
+ */
+function configFile(): string {
+  if (process.argv.some((arg) => arg.startsWith("--config="))) throw new Error("write --config <file>, not --config=<file>.");
+  const index = process.argv.indexOf("--config");
+  if (index === -1) return CONFIG_FILE;
+  const value = process.argv[index + 1];
+  if (!value || value.startsWith("--")) throw new Error("missing --config path.");
+  return value;
+}
+
+function loadConfig(): { name: string; config: HarnessConfig } {
   try {
-    if (!existsSync(file)) throw new Error(`${CONFIG_FILE} is missing. Run the checks from the repository root.`);
-    const parsed = parseConfig(readFileSync(file, "utf8"));
+    const name = configFile();
+    const file = path.resolve(name);
+    if (!existsSync(file)) {
+      throw new Error(name === CONFIG_FILE ? `${CONFIG_FILE} is missing. Run the checks from the repository root.` : `${name} is missing.`);
+    }
+    const parsed = parseConfig(readFileSync(file, "utf8"), name);
     if (parsed.adapter === null) throw new Error("config.adapter must name the design system adapter module.");
-    return { ...parsed, adapter: parsed.adapter };
+    return { name, config: { ...parsed, adapter: parsed.adapter } };
   } catch (error) {
     console.error(`harness config: ${error instanceof Error ? error.message : String(error)}`);
     process.exit(1);
   }
 }
 
-/** The product's config, read from the working directory. */
-export const config: HarnessConfig = loadConfig();
+const loaded = loadConfig();
+
+/** The product's config, read from the working directory or from `--config`. */
+export const config: HarnessConfig = loaded.config;
+
+/** The config file this run read: harness.config.ts, or the one `--config` names. */
+export const configName: string = loaded.name;
 
 /** The page-type barrel, which declares the page types the app renders. */
 export const pageTypesBarrel = path.join(config.paths.pageTypes, "index.ts");
