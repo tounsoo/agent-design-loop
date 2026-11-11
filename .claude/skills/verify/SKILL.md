@@ -39,7 +39,7 @@ A wrong Node major or a dirty tree is `BLOCKED` until fixed. With neither, run `
 npm run check:fixtures && npm run check
 ```
 
-This is the command CI runs and the one `AGENTS.md` names. `check:fixtures` runs each case listed in `scripts/check-fixtures.ts` against its check. It passes only when every illegal case fails with its expected message and every legal case passes with its expected message. The legal cases are the stand-in design system in `fixtures/fake-ds/`, which shows a check reads its names from the adapter, and small products of their own run with `--config`, which show a rule reads its product's config and inputs. `check` then runs typecheck, lint, the rule checks and the Vitest suite against the real app. The Vitest suite drives Meridian with Testing Library and `user-event` in jsdom: it follows an invoice link, opens Line items, presses Approve, and requests changes with and without a reason.
+This is the command CI runs and the one `AGENTS.md` names. `check:fixtures` runs every case folder under `fixtures/` against the checks its `case.ts` names, on the fixture product's config (`fixtures/product/harness.config.ts`) with the paths the case changes. It passes only when every illegal case fails with its expected message and every legal case passes with its expected message. The legal cases are the fixture product itself, the stand-in design system in `fixtures/fake-ds/`, which shows a check reads its names from the adapter, and small products of their own, which show a rule reads its product's config and inputs. `check` then runs typecheck, lint, the rule checks and the Vitest suite against the real app. The Vitest suite drives Meridian with Testing Library and `user-event` in jsdom: it follows an invoice link, opens Line items, presses Approve, and requests changes with and without a reason.
 
 `check` ends with `check:target-size` before `test`, so without Chrome it stops there. Then run the rest by hand and mark step 3 `BLOCKED`:
 
@@ -51,9 +51,9 @@ npm run typecheck && npm run lint && npm run check:step-budget && npm run check:
 
 ### 2. Fixture and inventory proof (a change to a check, a rule, a rule input or an inventory)
 
-A check that passes the real app proves nothing until it can also fail. When a change adds or tightens a check, add a case under `fixtures/illegal/` and a row in `scripts/check-fixtures.ts` in the same pull request, with the phrase the check prints. Then show both sides in the pull request: the check passing on the app (step 1) and `check:fixtures` printing `<case> failed the check as required`. A fixture that starts passing is a `FAIL`, never a fixture to delete.
+A check that passes the real app proves nothing until it can also fail. When a change adds or tightens a check, add a case folder under `fixtures/illegal/` in the same pull request, with a `case.ts` that names the paths it changes and the phrase the check prints. Then show both sides in the pull request: the check passing on the app (step 1) and `check:fixtures` printing `<case> <check> failed as required`. A fixture that starts passing is a `FAIL`, never a fixture to delete.
 
-When a change loosens a check, or makes it read a product's config or inputs instead of Meridian's, add a legal case too: a row in the legal list of `scripts/check-fixtures.ts`, with a folder under `fixtures/` (or a `--config` of its own) that the old check failed and the new one passes. Show `check:fixtures` printing `<case> passed the check as required`. A legal case that starts failing is a `FAIL` too.
+When a change loosens a check, or makes it read a product's config or inputs instead of Meridian's, add a legal case too: a folder under `fixtures/` with a `case.ts` that expects the check to pass, which the old check failed and the new one passes. Show `check:fixtures` printing `<case> <check> passed as required`. A legal case that starts failing is a `FAIL` too.
 
 When a change touches an inventory (anything `proposals/README.md` lists), `check:inventories` must still print `membership matches <base sha>`. If membership changed, the pull request needs a new file under `proposals/`; see `proposals/README.md`.
 

@@ -1,4 +1,4 @@
-import { CollectionPage } from "../../src/page-types/collection";
+import { CollectionPage } from "../product/page-types/collection";
 
 /** Legal: the first collection page. */
 export function Queue() {

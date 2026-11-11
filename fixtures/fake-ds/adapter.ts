@@ -3,7 +3,7 @@ import type { DesignSystemAdapter } from "../../scripts/lib/adapter";
 /**
  * A stand-in design system that shares no name with Todae. An action is only
  * primary with tone="strong", where Todae's Button.Root is primary by default.
- * The fixtures run the checks with `--adapter` set to this file, so a Todae
+ * The fake-ds cases run the checks on a config that names this file, so a Todae
  * name left in a check fails them.
  */
 export default {

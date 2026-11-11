@@ -1,319 +1,201 @@
 import { spawnSync } from "node:child_process";
-
-const fakeAdapter = ["--adapter", "fixtures/fake-ds/adapter.ts"];
-const fakeFeatures = "fixtures/fake-ds/features";
-const fakeCatalog = "fixtures/fake-ds/catalog.ts";
-const twoTasks = ["--config", "fixtures/two-tasks/harness.config.ts"];
-const ownSections = ["--config", "fixtures/own-sections/harness.config.ts"];
-
-const cases = [
-  {
-    name: "two-primaries",
-    args: ["scripts/check-slots.ts", "--root", "fixtures/illegal/two-primaries"],
-    phrase: "primary slot",
-  },
-  {
-    name: "over-budget",
-    args: ["scripts/check-step-budget.ts", "--graph", "fixtures/illegal/over-budget/graph.ts"],
-    phrase: "modeled path length 4 exceeds max_steps",
-  },
-  {
-    name: "over-budget-flow",
-    args: ["scripts/check-step-budget.ts", "--graph", "fixtures/illegal/over-budget-flow/graph.ts"],
-    phrase: "shipped flow path length 4 exceeds max_steps",
-  },
-  {
-    name: "graph-flow-drift",
-    args: ["scripts/check-step-budget.ts", "--graph", "fixtures/illegal/graph-flow-drift/graph.ts"],
-    phrase: "does not match the modeled path",
-  },
-  {
-    name: "task-without-graph",
-    args: ["scripts/check-step-budget.ts", "--config", "fixtures/illegal/task-without-graph/harness.config.ts"],
-    phrase: 'task "archive-note" has no task graph',
-  },
-  {
-    name: "second-task-over-budget",
-    args: ["scripts/check-step-budget.ts", "--config", "fixtures/illegal/second-task-over-budget/harness.config.ts"],
-    phrase: "modeled path length 3 exceeds max_steps 2 for archive-note",
-  },
-  {
-    name: "graph-without-task-id",
-    args: ["scripts/check-step-budget.ts", "--config", "fixtures/illegal/graph-without-task-id/harness.config.ts"],
-    phrase: "does not export a taskId",
-  },
-  {
-    name: "stale-preview",
-    args: ["scripts/check-target-size.ts", "--list", "--config", "fixtures/illegal/stale-preview/harness.config.ts"],
-    phrase: 'previews names "confirming", which is not a modeled state',
-  },
-  {
-    name: "preview-sets-state",
-    args: ["scripts/check-target-size.ts", "--list", "--config", "fixtures/illegal/preview-sets-state/harness.config.ts"],
-    phrase: "sets state itself",
-  },
-  {
-    name: "nested-page",
-    args: ["scripts/check-one-thing.ts", "--features", "fixtures/illegal/nested-page"],
-    phrase: "DetailPage page renders a CollectionPage page inside it",
-  },
-  {
-    name: "aliased-nested-page",
-    args: ["scripts/check-one-thing.ts", "--features", "fixtures/illegal/aliased-nested-page"],
-    phrase: "CollectionPage page renders a DetailPage page inside it",
-  },
-  {
-    name: "two-questions",
-    args: ["scripts/check-one-thing.ts", "--features", "fixtures/illegal/two-questions"],
-    phrase: "questions outside a disclosure",
-  },
-  {
-    name: "hoisted-question",
-    args: ["scripts/check-one-thing.ts", "--features", "fixtures/illegal/hoisted-question"],
-    phrase: "is not reached from any page",
-  },
-  {
-    name: "dead-question-part",
-    args: ["scripts/check-one-thing.ts", "--catalog", "fixtures/illegal/dead-question-part/catalog.ts"],
-    phrase: "not exported by the catalog",
-  },
-  {
-    name: "disclosures-per-page",
-    args: ["scripts/check-disclosure.ts", "--features", "fixtures/illegal/disclosures-per-page"],
-    phrase: "more than 1 per page",
-  },
-  {
-    name: "missing-disclosed-section",
-    args: ["scripts/check-priority.ts", "--features", "fixtures/illegal/missing-disclosed-section"],
-    phrase: "is not behind a disclosure",
-  },
-  {
-    // The own-sections product discloses "Attachments". Meridian's features disclose "Line items" only.
-    name: "renamed-disclosed-section",
-    args: ["scripts/check-priority.ts", ...ownSections, "--features", "src/features"],
-    phrase: '"Attachments" is not behind a disclosure',
-  },
-  {
-    name: "off-catalog",
-    args: ["scripts/lint-product-ui.ts", "--root", "fixtures/illegal/off-catalog"],
-    phrase: "off-catalog",
-  },
-  {
-    name: "missing-view",
-    args: [
-      "scripts/check-state-coverage.ts",
-      "--states",
-      "fixtures/illegal/missing-view/model.ts",
-      "--views",
-      "fixtures/illegal/missing-view/views.ts",
-    ],
-    phrase: "has no view",
-  },
-  {
-    name: "undeclared-layout",
-    args: ["scripts/check-inventories.ts", "--layouts", "fixtures/illegal/undeclared-layout"],
-    phrase: "undeclared layout",
-  },
-  {
-    name: "inventory-expansion",
-    args: [
-      "scripts/check-inventories.ts",
-      "--head",
-      "fixtures/illegal/inventory-expansion/head",
-      "--base",
-      "fixtures/illegal/inventory-expansion/base",
-    ],
-    phrase: "without a proposal",
-  },
-  {
-    name: "undeclared-content-layout",
-    args: ["scripts/check-inventories.ts", "--content-layouts", "fixtures/illegal/undeclared-content-layout"],
-    phrase: "undeclared content layout",
-  },
-  {
-    name: "content-layout-expansion",
-    args: [
-      "scripts/check-inventories.ts",
-      "--head",
-      "fixtures/illegal/content-layout-expansion/head",
-      "--base",
-      "fixtures/illegal/content-layout-expansion/base",
-    ],
-    phrase: "without a proposal",
-  },
-  {
-    name: "ad-hoc-content",
-    args: ["scripts/check-inventories.ts", "--features", "fixtures/illegal/ad-hoc-content"],
-    phrase: "not a registered content layout",
-  },
-  {
-    name: "fake-ds-two-primaries",
-    args: ["scripts/check-slots.ts", "--root", "fixtures/illegal/fake-ds-two-primaries", ...fakeAdapter],
-    phrase: "found 2 primary and 2 Action",
-  },
-  {
-    name: "fake-ds-nested-reveal",
-    args: [
-      "scripts/check-disclosure.ts",
-      "--features",
-      "fixtures/illegal/fake-ds-nested-reveal",
-      "--catalog",
-      fakeCatalog,
-      ...fakeAdapter,
-    ],
-    phrase: "disclosure depth 2 exceeds 1",
-  },
-  {
-    name: "fake-ds-over-caps disclosures",
-    args: [
-      "scripts/check-disclosure.ts",
-      "--features",
-      "fixtures/illegal/fake-ds-over-caps",
-      "--catalog",
-      fakeCatalog,
-      ...fakeAdapter,
-    ],
-    phrase: "page has 2 disclosures",
-  },
-  {
-    name: "fake-ds-over-caps questions",
-    args: [
-      "scripts/check-one-thing.ts",
-      "--features",
-      "fixtures/illegal/fake-ds-over-caps",
-      "--catalog",
-      fakeCatalog,
-      ...fakeAdapter,
-    ],
-    phrase: "shows 2 questions outside a disclosure",
-  },
-  {
-    name: "fake-ds-over-caps priority",
-    args: ["scripts/check-priority.ts", "--features", "fixtures/illegal/fake-ds-over-caps", ...fakeAdapter],
-    phrase: "a primary button is inside a disclosure",
-  },
-  {
-    name: "fake-ds-collection-primary",
-    args: [
-      "scripts/check-one-thing.ts",
-      "--features",
-      "fixtures/illegal/fake-ds-collection-primary",
-      "--catalog",
-      fakeCatalog,
-      ...fakeAdapter,
-    ],
-    phrase: "puts a primary button on the collection page",
-  },
-  {
-    name: "fake-ds-hoisted disclosure",
-    args: ["scripts/check-disclosure.ts", "--features", "fixtures/illegal/fake-ds-hoisted", "--catalog", fakeCatalog, ...fakeAdapter],
-    phrase: "Reveal.Root is not reached from any page",
-  },
-  {
-    name: "fake-ds-hoisted question",
-    args: ["scripts/check-one-thing.ts", "--features", "fixtures/illegal/fake-ds-hoisted", "--catalog", fakeCatalog, ...fakeAdapter],
-    phrase: "Ask is not reached from any page",
-  },
-  {
-    name: "fake-ds-off-catalog",
-    args: ["scripts/lint-product-ui.ts", "--root", "fixtures/illegal/fake-ds-off-catalog", ...fakeAdapter],
-    phrase: 'off-catalog: import "@fake/ds" directly',
-  },
-];
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { defaultExportLiteral, isRecord, parseConfig, requireString, requireStrings, type ParsedConfig } from "./lib/config";
 
 /**
- * Legal cases must pass. fixtures/fake-ds is UI for a stand-in design system
- * that shares no name with Todae. Run with the same arguments but no
- * --adapter, every fake-ds check below but the off-catalog lint fails it, so
- * passing here shows the check reads its names from the adapter. The other
- * legal cases are small products of their own, which show that a rule reads
- * its product's config and inputs rather than Meridian's.
+ * The fixtures are the harness's own tests. fixtures/product is a small
+ * product with its own harness config that passes every check. Every other
+ * folder directly under fixtures/ or fixtures/illegal/ is a case, and so is
+ * the product itself: its case.ts names the paths it replaces in the
+ * product's config and the checks to run on the result. A check runs the way
+ * a product runs it, as its npm script with `--config`, so a case differs
+ * from the product only in what it names.
+ *
+ * case.ts is plain literals:
+ *
+ *   export default {
+ *     config: { adapter?, paths?: { <key>: path }, flows? },
+ *     base?: { adapter?, paths?, flows? },
+ *     checks: [{ run: "check:one-thing", args?: ["--list"], fails | passes: "<phrase>" }],
+ *   };
+ *
+ * A fixture has no pull request base, so check:inventories compares it with
+ * the product plus `base`'s overrides when the case gives a base, and with
+ * the case itself when it does not.
+ *
+ * Name cases to run only those: `npm run check:fixtures -- illegal/two-primaries`.
  */
-const legalCases = [
-  {
-    name: "fake-ds slots",
-    args: ["scripts/check-slots.ts", "--root", fakeFeatures, ...fakeAdapter],
-    phrase: "exactly one primary button on 1 detail page",
-  },
-  {
-    name: "fake-ds priority",
-    args: ["scripts/check-priority.ts", "--features", fakeFeatures, ...fakeAdapter],
-    phrase: '"Approve" is the primary button',
-  },
-  {
-    name: "fake-ds disclosure",
-    args: ["scripts/check-disclosure.ts", "--features", fakeFeatures, "--catalog", fakeCatalog, ...fakeAdapter],
-    phrase: "across 2 pages",
-  },
-  {
-    name: "fake-ds one thing",
-    args: ["scripts/check-one-thing.ts", "--features", fakeFeatures, "--catalog", fakeCatalog, ...fakeAdapter],
-    phrase: "one job per page",
-  },
-  {
-    name: "two-tasks step budget",
-    args: ["scripts/check-step-budget.ts", ...twoTasks],
-    phrase: "step budget: archive-note (max_steps 2)",
-  },
-  {
-    name: "two-tasks previews",
-    args: ["scripts/check-target-size.ts", "--list", ...twoTasks],
-    phrase: "target size: preview ?state=archived",
-  },
-  {
-    name: "two-collection-pages one thing",
-    args: ["scripts/check-one-thing.ts", "--features", "fixtures/two-collection-pages"],
-    phrase: "one job per page on 3 pages",
-  },
-  {
-    name: "own-sections priority",
-    args: ["scripts/check-priority.ts", ...ownSections],
-    phrase: 'disclosed: "Attachments"',
-  },
-  {
-    name: "fake-ds collection body",
-    args: ["scripts/check-inventories.ts", "--features", fakeFeatures, ...fakeAdapter],
-    phrase: "collection bodies use a registered content layout",
-  },
-  {
-    name: "fake-ds off-catalog",
-    args: ["scripts/lint-product-ui.ts", "--root", fakeFeatures, ...fakeAdapter],
-    phrase: "off-catalog: clean",
-  },
-];
 
-let failed = false;
+const FIXTURES = "fixtures";
+const PRODUCT_CONFIG = "fixtures/product/harness.config.ts";
+const CONTAINERS = new Set([FIXTURES, `${FIXTURES}/illegal`]);
 
-function run(args: readonly string[]) {
-  const result = spawnSync(process.execPath, ["--import", "tsx", ...args], {
-    encoding: "utf8",
+type Overrides = { adapter?: string; paths?: Record<string, string | string[]>; flows?: unknown[] };
+type Check = { run: string; args: string[]; expect: "fails" | "passes"; phrase: string };
+type Case = { dir: string; config: Overrides; base: Overrides | null; checks: Check[] };
+
+function scriptFiles(): Map<string, string> {
+  const scripts = (JSON.parse(readFileSync("package.json", "utf8")) as { scripts: Record<string, string> }).scripts;
+  const files = new Map<string, string>();
+  for (const [name, command] of Object.entries(scripts)) {
+    const match = /^tsx (scripts\/[\w-]+\.ts)$/.exec(command);
+    if (match?.[1]) files.set(name, match[1]);
+  }
+  return files;
+}
+
+function overrides(value: unknown, where: string, product: ParsedConfig): Overrides {
+  if (value === undefined) return {};
+  if (!isRecord(value)) throw new Error(`${where} must be an object.`);
+  const unknown = Object.keys(value).filter((key) => !["adapter", "paths", "flows"].includes(key));
+  if (unknown.length > 0) throw new Error(`${where} has unknown keys: ${unknown.join(", ")}.`);
+  const result: Overrides = {};
+  if (value.adapter !== undefined) result.adapter = requireString(value, "adapter", where);
+  if (value.paths !== undefined) {
+    if (!isRecord(value.paths)) throw new Error(`${where}.paths must be an object.`);
+    const paths: Record<string, string | string[]> = {};
+    for (const key of Object.keys(value.paths)) {
+      if (!Object.hasOwn(product.paths, key)) throw new Error(`${where}.paths.${key} is not a config path.`);
+      paths[key] = key === "app" ? requireStrings(value.paths, key, `${where}.paths`) : requireString(value.paths, key, `${where}.paths`);
+    }
+    result.paths = paths;
+  }
+  if (value.flows !== undefined) {
+    if (!Array.isArray(value.flows)) throw new Error(`${where}.flows must be an array.`);
+    result.flows = value.flows;
+  }
+  return result;
+}
+
+function parseCase(dir: string, product: ParsedConfig, scripts: Map<string, string>): Case {
+  const file = path.join(dir, "case.ts");
+  const value = defaultExportLiteral(readFileSync(file, "utf8"), file, "case");
+  if (!isRecord(value)) throw new Error(`${file} must export an object.`);
+  const unknown = Object.keys(value).filter((key) => !["config", "base", "checks"].includes(key));
+  if (unknown.length > 0) throw new Error(`${file} has unknown keys: ${unknown.join(", ")}.`);
+  if (!Array.isArray(value.checks) || value.checks.length === 0) throw new Error(`${file} must list at least one check.`);
+  const checks = value.checks.map((item, index): Check => {
+    const where = `${file} checks[${index}]`;
+    if (!isRecord(item)) throw new Error(`${where} must be an object.`);
+    const run = requireString(item, "run", where);
+    if (!scripts.has(run)) throw new Error(`${where}.run "${run}" is not an npm script that runs one check.`);
+    const args = item.args === undefined ? [] : requireStrings(item, "args", where);
+    if (args.some((arg) => arg === "--config" || arg === "--base")) throw new Error(`${where}.args may not set --config or --base.`);
+    if ((item.fails === undefined) === (item.passes === undefined)) throw new Error(`${where} must give exactly one of fails or passes.`);
+    const expect = item.fails === undefined ? "passes" : "fails";
+    return { run, args, expect, phrase: requireString(item, expect, where) };
   });
-  return { result, output: `${result.stdout ?? ""}\n${result.stderr ?? ""}` };
+  const config = overrides(value.config, `${file} config`, product);
+  const base = value.base === undefined ? null : overrides(value.base, `${file} base`, product);
+  // A missing path makes a check crash, and a crash prints the path, so a
+  // phrase found in a path could pass a case that never ran its rule.
+  const named = [dir, ...pathsIn(config), ...(base ? pathsIn(base) : [])];
+  for (const missing of named.filter((name) => !existsSync(name))) throw new Error(`${file} names ${missing}, which does not exist.`);
+  for (const check of checks) {
+    const echoed = named.find((name) => name.includes(check.phrase));
+    if (echoed) throw new Error(`${file} expects "${check.phrase}", which is part of the path ${echoed}, so it cannot show the rule ran.`);
+  }
+  return { dir, config, base, checks };
 }
 
-for (const testCase of cases) {
-  const { result, output } = run(testCase.args);
-  const exited = result.status !== 0 && result.status !== null;
-  const explained = output.includes(testCase.phrase);
-  if (exited && explained) {
-    console.log(`fixtures: ${testCase.name} failed the check as required (exit ${result.status}).`);
-    continue;
+/** Every repo path a case's overrides name. */
+function pathsIn(change: Overrides): string[] {
+  const found: string[] = [];
+  const collect = (value: unknown): void => {
+    if (typeof value === "string") found.push(value);
+    else if (Array.isArray(value)) value.forEach(collect);
+    else if (isRecord(value)) Object.values(value).forEach(collect);
+  };
+  collect(change.adapter);
+  collect(change.paths);
+  for (const flow of change.flows ?? []) {
+    if (!isRecord(flow)) continue;
+    collect(flow.states);
+    collect(flow.views);
+    collect(flow.tasks);
   }
-  failed = true;
-  console.error(`fixtures: ${testCase.name} was expected to fail with "${testCase.phrase}".`);
-  console.error(output.trim() || `(status ${result.status}, signal ${result.signal})`);
+  return found;
 }
 
-for (const testCase of legalCases) {
-  const { result, output } = run(testCase.args);
-  if (result.status === 0 && output.includes(testCase.phrase)) {
-    console.log(`fixtures: ${testCase.name} passed the check as required.`);
-    continue;
+function caseDirs(): string[] {
+  const dirs: string[] = [];
+  for (const container of CONTAINERS) {
+    for (const entry of readdirSync(container, { withFileTypes: true })) {
+      const dir = `${container}/${entry.name}`;
+      const isDir = entry.isDirectory() || (entry.isSymbolicLink() && statSync(dir).isDirectory());
+      if (isDir && !CONTAINERS.has(dir)) dirs.push(dir);
+    }
   }
-  failed = true;
-  console.error(`fixtures: ${testCase.name} was expected to pass with "${testCase.phrase}".`);
-  console.error(output.trim() || `(status ${result.status}, signal ${result.signal})`);
+  const named = process.argv.slice(2).map((name) => `${FIXTURES}/${name.replace(/\/+$/, "")}`);
+  const unknown = named.filter((dir) => !dirs.includes(dir));
+  if (unknown.length > 0) {
+    console.error(`fixtures: no case folder ${unknown.join(", ")}.`);
+    process.exit(1);
+  }
+  return (named.length > 0 ? named : dirs).sort();
+}
+
+/** The product's config with a case's overrides, written where a check can read it with --config. */
+function writeConfig(product: ParsedConfig, change: Overrides, file: string): string {
+  const merged = {
+    adapter: change.adapter ?? product.adapter,
+    paths: { ...product.paths, ...change.paths },
+    flows: change.flows ?? product.flows,
+  };
+  const text = `export default ${JSON.stringify(merged, null, 2)};\n`;
+  parseConfig(text, file);
+  writeFileSync(file, text);
+  return file;
+}
+
+const scripts = scriptFiles();
+const product = parseConfig(readFileSync(PRODUCT_CONFIG, "utf8"), PRODUCT_CONFIG);
+const scratch = mkdtempSync(path.join(tmpdir(), "fixtures-"));
+let failed = false;
+let ran = 0;
+
+try {
+  for (const dir of caseDirs()) {
+    if (!existsSync(path.join(dir, "case.ts"))) {
+      failed = true;
+      console.error(`fixtures: ${dir} has no case.ts, so no check runs it.`);
+      continue;
+    }
+    let testCase: Case;
+    try {
+      testCase = parseCase(dir, product, scripts);
+    } catch (error) {
+      failed = true;
+      console.error(`fixtures: ${error instanceof Error ? error.message : String(error)}`);
+      continue;
+    }
+    const slug = dir.replace(/\//g, "_");
+    const config = writeConfig(product, testCase.config, path.join(scratch, `${slug}.config.ts`));
+    const base = testCase.base ? writeConfig(product, testCase.base, path.join(scratch, `${slug}.base.ts`)) : config;
+    const name = path.relative(FIXTURES, dir);
+
+    for (const check of testCase.checks) {
+      ran += 1;
+      const extra = check.run === "check:inventories" ? ["--base", base] : [];
+      const args = [scripts.get(check.run) ?? "", ...check.args, "--config", config, ...extra];
+      const result = spawnSync(process.execPath, ["--import", "tsx", ...args], { encoding: "utf8" });
+      const output = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+      const passed = result.status === 0;
+      const exitedAsExpected = check.expect === "passes" ? passed : !passed && result.status !== null;
+      if (exitedAsExpected && output.includes(check.phrase)) {
+        console.log(`fixtures: ${name} ${check.run} ${check.expect === "passes" ? "passed" : "failed"} as required.`);
+        continue;
+      }
+      failed = true;
+      console.error(`fixtures: ${name} ${check.run} was expected to ${check.expect === "passes" ? "pass" : "fail"} with "${check.phrase}".`);
+      console.error(output.trim() || `(status ${result.status}, signal ${result.signal})`);
+    }
+  }
+} finally {
+  rmSync(scratch, { recursive: true, force: true });
 }
 
 if (failed) process.exit(1);
-console.log("fixtures: illegal cases failed the checks, and legal cases passed.");
+console.log(`fixtures: ${ran} checks ran on their cases as required.`);

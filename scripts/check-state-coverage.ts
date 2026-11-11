@@ -1,19 +1,7 @@
 import path from "node:path";
 import ts from "typescript";
-import { config, type FlowConfig } from "./lib/config";
+import { config } from "./lib/config";
 import { parseFile, walk } from "./lib/jsx";
-
-const statesArg = process.argv.indexOf("--states");
-const viewsArg = process.argv.indexOf("--views");
-const flows: readonly Pick<FlowConfig, "states" | "views">[] =
-  statesArg === -1 && viewsArg === -1
-    ? config.flows
-    : [
-        {
-          states: statesArg === -1 ? (config.flows[0]?.states ?? "") : (process.argv[statesArg + 1] ?? ""),
-          views: viewsArg === -1 ? (config.flows[0]?.views ?? "") : (process.argv[viewsArg + 1] ?? ""),
-        },
-      ];
 
 function exportedStringArray(file: string, name: string): string[] | null {
   const source = parseFile(path.resolve(file));
@@ -50,12 +38,7 @@ function switchCases(file: string): Set<string> {
 
 let failed = false;
 
-for (const { states: statesFile, views: viewsFile } of flows) {
-  if (!statesFile || !viewsFile) {
-    console.error("state coverage: missing --states or --views path");
-    process.exit(1);
-  }
-
+for (const { states: statesFile, views: viewsFile } of config.flows) {
   const modeled = exportedStringArray(statesFile, "modeledStates");
   if (!modeled || modeled.length === 0) {
     console.error(`state coverage: ${statesFile} does not export modeledStates`);

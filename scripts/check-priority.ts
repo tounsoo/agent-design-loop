@@ -14,18 +14,7 @@ if (!primaryItem || primaryItem.level !== "primary" || !secondaryItem || seconda
   process.exit(1);
 }
 
-function flag(name: string, fallback: string): string {
-  const index = process.argv.indexOf(name);
-  if (index === -1) return fallback;
-  const value = process.argv[index + 1];
-  if (!value || value.startsWith("--")) {
-    console.error(`priority: missing ${name} path`);
-    process.exit(1);
-  }
-  return value;
-}
-
-const featuresRoot = path.resolve(flag("--features", config.paths.features));
+const featuresRoot = path.resolve(config.paths.features);
 
 type Hit = { file: string; line: number; text: string; inDisclosure: boolean; variant: string | null | "dynamic" };
 

@@ -1,5 +1,5 @@
 import { Reveal } from "../../fake-ds/catalog";
-import { DetailPage } from "../../../src/page-types/detail";
+import { DetailPage } from "../../product/page-types/detail";
 
 /** Illegal under the stand-in adapter: a disclosure inside a disclosure. The depth cap is one. */
 export function FakeNestedReveal() {

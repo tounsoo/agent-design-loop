@@ -194,12 +194,33 @@ export function parseConfig(text: string, label = CONFIG_FILE): ParsedConfig {
 }
 
 /**
+ * The flags a check reads besides `--config`. A flag no check reads is an
+ * error, not ignored, so a stale invocation cannot pass on the wrong product.
+ */
+const CHECK_FLAGS: Record<string, readonly string[]> = {
+  "check-inventories.ts": ["--base"],
+  "check-target-size.ts": ["--list"],
+};
+
+function rejectUnknownFlags(): void {
+  const script = path.basename(process.argv[1] ?? "");
+  if (script === "check-fixtures.ts") return;
+  const known = new Set(["--config", ...(CHECK_FLAGS[script] ?? [])]);
+  for (const arg of process.argv.slice(2)) {
+    if (!arg.startsWith("--")) continue;
+    const name = arg.split("=")[0] ?? arg;
+    if (!known.has(name)) throw new Error(`${script} does not read ${name}. It reads ${[...known].join(", ")}.`);
+    if (arg.includes("=")) throw new Error(`write ${name} <value>, not ${name}=<value>.`);
+  }
+}
+
+/**
  * `--config <file>` points one run at another config, which is how the
  * fixtures give a check a product of their own. Paths inside it stay relative
  * to the repository root.
  */
 function configFile(): string {
-  if (process.argv.some((arg) => arg.startsWith("--config="))) throw new Error("write --config <file>, not --config=<file>.");
+  rejectUnknownFlags();
   const index = process.argv.indexOf("--config");
   if (index === -1) return CONFIG_FILE;
   const value = process.argv[index + 1];

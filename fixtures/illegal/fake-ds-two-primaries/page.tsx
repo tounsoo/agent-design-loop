@@ -1,5 +1,5 @@
 import { Action } from "../../fake-ds/catalog";
-import { DetailPage } from "../../../src/page-types/detail";
+import { DetailPage } from "../../product/page-types/detail";
 
 /** Illegal under the stand-in adapter: two strong actions in the detail primary slot. The slot check must fail. */
 export function FakeTwoPrimaries() {

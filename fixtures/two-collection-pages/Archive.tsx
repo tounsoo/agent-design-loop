@@ -1,4 +1,4 @@
-import { CollectionPage } from "../../src/page-types/collection";
+import { CollectionPage } from "../product/page-types/collection";
 
 /** Legal: a second collection page in another file. Under the old per-product count this failed. */
 export function Archive() {

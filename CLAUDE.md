@@ -24,7 +24,7 @@ The build gate, the same command CI runs:
 npm run check:fixtures && npm run check
 ```
 
-- `check:fixtures` passes only when every illegal case listed in `scripts/check-fixtures.ts` fails its check with the expected message and every legal case passes its check with its expected message. The legal cases are the stand-in design system in `fixtures/fake-ds/` and small products of their own, run with `--config`. A folder under `fixtures/` with no row there never runs.
+- `check:fixtures` runs the harness's own tests. `fixtures/product/` is a small product with its own `harness.config.ts` that every check passes. Every other folder directly under `fixtures/` or `fixtures/illegal/` is a case whose `case.ts` changes some of that config's paths and names the checks to run on it, each as its npm script with `--config`. It passes only when every illegal case fails with its expected message and every legal case passes with its expected message. A folder with no `case.ts` fails the run. `npm run check:fixtures -- illegal/two-primaries` runs one case.
 - `check` runs typecheck, lint (ESLint, off-catalog UI, detail slots), step budget, disclosure, priority, one-thing, inventories, state coverage, target size and the Vitest suite, in that order. The README's "Run the checks" table says what each one fails.
 - `check:target-size` builds the app, serves it with `vite preview` on port 4173 and measures controls in headless Chrome. It finds Chrome at `CHROME_PATH` or the usual `/usr/bin` paths, and fails without one.
 - `check:inventories` compares inventory membership with `INVENTORY_BASE` when set. CI sets it to the pull request base, or to the previous commit on a push to `main`. Unset, it uses the merge base with `origin/main`, or with a local `main`.

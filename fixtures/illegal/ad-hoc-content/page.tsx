@@ -1,5 +1,5 @@
-import { Card, Stack } from "../../../src/catalog";
-import { CollectionPage } from "../../../src/page-types/collection";
+import { Card, Stack } from "../../product/catalog";
+import { CollectionPage } from "../../product/page-types/collection";
 
 /**
  * Illegal: a status board inside the collection body, with page CSS, is not

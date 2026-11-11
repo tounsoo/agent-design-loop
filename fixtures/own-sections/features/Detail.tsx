@@ -1,5 +1,5 @@
-import { Button, Disclosure } from "../../../src/catalog";
-import { DetailPage } from "../../../src/page-types/detail";
+import { Button, Disclosure } from "../../product/catalog";
+import { DetailPage } from "../../product/page-types/detail";
 
 /** Legal: Attachments, the product's disclosed section, sits behind a disclosure. There is no Line items section. */
 export function Detail() {

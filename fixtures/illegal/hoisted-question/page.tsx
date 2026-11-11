@@ -1,5 +1,5 @@
-import { Field } from "../../../src/catalog";
-import { DetailPage } from "../../../src/page-types/detail";
+import { Field } from "../../product/catalog";
+import { DetailPage } from "../../product/page-types/detail";
 
 /**
  * Illegal: the fields are built in variables outside the shell, so a per-page

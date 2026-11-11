@@ -1,4 +1,4 @@
-import { DetailPage } from "../../../src/page-types/detail";
+import { DetailPage } from "../../product/page-types/detail";
 import { History } from "./history";
 import { LineItems } from "./line-items";
 

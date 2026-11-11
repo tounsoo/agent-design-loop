@@ -1,5 +1,5 @@
 import { Action, Ask, Reveal } from "../catalog";
-import { DetailPage } from "../../../src/page-types/detail";
+import { DetailPage } from "../../product/page-types/detail";
 
 /**
  * Legal under the stand-in adapter: one strong action, one quiet action, line

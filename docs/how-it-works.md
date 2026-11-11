@@ -219,7 +219,7 @@ What each script fails, in the words the code implements:
 - **Step budget.** Every task maps to one task graph in `harness.config.ts`, every mapped id is a task, and each graph exports that task's id as its `taskId`. For each task, the modeled path and the shipped path must exist, be at most `max_steps`, and be the same steps. `fixtures/illegal/over-budget` has a longer graph. `fixtures/illegal/over-budget-flow` has a 3-step graph and a reducer that needs 4. `fixtures/illegal/graph-flow-drift` has a 3-step graph and a reducer that needs 2. `fixtures/illegal/task-without-graph` maps a graph for only one of two tasks, and `fixtures/illegal/second-task-over-budget` puts the second of two tasks over budget. `fixtures/two-tasks` passes with both tasks measured.
 - **Slots.** Every `DetailPage` has exactly one `DetailPage.Primary`, and that slot has exactly one primary `Button.Root`. `fixtures/illegal/two-primaries` puts two buttons there.
 - **Disclosure.** A page is one rendered page-type shell in `src/features`, plus what renders on it: components its JSX uses (local, or imported from a relative path), its content layouts, the page-type shell module, and the chrome layouts. `scripts/lib/page-scope.ts` builds that scope. It follows JSX tags and calls to helper functions, and it undoes import aliases such as `Field as F`. A `Disclosure.Root` or `Field.Root` in `src/features` that no page reaches, such as JSX held in a variable outside the shell, fails both checks, because a per-page cap cannot count it. The checks also fail when no page is found. On each page, the number of `Disclosure.Root` elements is at most `MAX_DISCLOSURES_PER_PAGE`, and nesting, followed across components, is at most `MAX_DISCLOSURE_DEPTH`. `fixtures/illegal/disclosures-per-page` puts one disclosure in each of two component files on one page. The check also fails if the catalog stops exporting `Disclosure`.
-- **Priority.** The only primary button's text is the rank-1 action, Approve, and it is not inside a disclosure. The rank-2 action, Request changes, is one `variant="secondary"` button. Each entry in `disclosed_sections` is the text of a `Disclosure.Summary`. The sections come from that input, not from the script: `fixtures/own-sections` discloses "Attachments" and passes, and the same config run against Meridian's features, which disclose only Line items, fails. `fixtures/illegal/missing-disclosed-section` shows line items in the open.
+- **Priority.** The only primary button's text is the rank-1 action, Approve, and it is not inside a disclosure. The rank-2 action, Request changes, is one `variant="secondary"` button. Each entry in `disclosed_sections` is the text of a `Disclosure.Summary`. The sections come from that input, not from the script: `fixtures/own-sections` discloses "Attachments" and passes, and `fixtures/illegal/renamed-disclosed-section` runs the same inputs on the fixture product's pages, which disclose only Line items, and fails. `fixtures/illegal/missing-disclosed-section` shows line items in the open.
 - **One thing.** `allowed_page_types` decides which shells exist. The check does not keep a second list of page-type ids. The rules hold per page, not per product: a product may render a page type as often as it needs, from as many files, but no page renders another page inside it, in its own JSX or through a component it renders, including one imported under another name, and each allowed page type renders at least one page. `fixtures/two-collection-pages` passes with two collection pages in two files, and `fixtures/illegal/nested-page` renders a collection page inside a detail page. The nesting rule follows the same page scope as the caps, so a page held in a variable and rendered as `{others}` is not seen as nested. A collection page has no primary button, including inside a content layout that page uses. A question is a `Field.Root`, the catalog part that wraps every Todae input, select and textarea. On each page, in the same scope as the disclosure check, the questions outside a disclosure are at most `MAX_VISIBLE_QUESTIONS`. A field shown only on a branch still counts, because the check reads code, not runtime state. Two arms of one ternary both count, even if only one shows at a time. Menu-based filter facets are not `Field.Root`, so they are not questions. The detail page's one question is the request-changes reason. The collection page's one question is the data table's search field. The check fails if the catalog stops exporting `Field`, so the cap cannot go quiet. `fixtures/illegal/two-questions`, `fixtures/illegal/hoisted-question` and `fixtures/illegal/dead-question-part` prove it.
 - **State coverage.** Every string in `modeledStates` is a `case` in the views. `fixtures/illegal/missing-view` omits `invoice-approved`. Typecheck is a second gate for the same idea: `renderedStates` has to satisfy `ModeledState`.
 - **Target size.** Controls inside `[data-page]` are at least 24 CSS px on each side, or the WCAG 2.5.8 spacing exception applies. The script also checks that the Todae button token floor is at least 24. It needs Chrome. It opens every state in each flow's `modeledStates`: bare, or once per query string that flow's `previews` in `harness.config.ts` lists for it, such as `page=detail`. A state added later is opened without editing the script, and a `previews` entry for a state that is not modeled, or one that sets `state` itself, fails. It clicks a disclosure summary on the page when one is present. `--list` prints the previews without Chrome, which is how `fixtures/two-tasks` and `fixtures/illegal/stale-preview` test it.
@@ -246,7 +246,9 @@ flowchart TB
 
 The inventories to read, in order, are the product inputs, the UX rules, the catalog, layouts, content layouts, page types, the flow model, and `proposals/README.md`.
 
-`npm run check:fixtures` exits 0 only when every illegal fixture fails its check and prints the phrase that fixture is there to produce, and every legal case passes its check and prints its own phrase. The legal cases are the stand-in design system in `fixtures/fake-ds`, and small products of their own, run with `--config`, that show a rule reads its product's config and inputs. `npm run check` is the build gate, in this order: `typecheck`, `lint` (ESLint, then `lint:product-ui`, then `lint:slots`), `check:step-budget`, `check:disclosure`, `check:priority`, `check:one-thing`, `check:inventories`, `check:state-coverage`, `check:target-size`, and `test`.
+`npm run check:fixtures` runs the harness's own tests. `fixtures/product/` is a small Todae product with its own `harness.config.ts`, and every check passes it. Every other folder directly under `fixtures/` or `fixtures/illegal/` is a case. Its `case.ts` names the config paths it replaces in the fixture product's config, and the checks to run on the result, each with the phrase it must print. `check:fixtures` runs each check the way a product runs it, as its npm script with `--config`, so a case differs from the fixture product only in what it names. It exits 0 only when every illegal case fails its checks with their phrases and every legal case passes its checks with theirs. A folder with no `case.ts` fails the run, so no fixture is left out. So does a case that names a path that does not exist, or whose phrase is part of one of its own paths, since a crash prints the path and could pass a case whose rule never ran. A fixture has no pull request base, so `check:inventories` compares it through `--base`: with the fixture product when its case gives a `base`, and with itself otherwise.
+
+`npm run check` is the build gate, in this order: `typecheck`, `lint` (ESLint, then `lint:product-ui`, then `lint:slots`), `check:step-budget`, `check:disclosure`, `check:priority`, `check:one-thing`, `check:inventories`, `check:state-coverage`, `check:target-size`, and `test`.
 
 CI runs that pair on every pull request and on every push to `main`. The workflow checks the repo out with full history, installs Node 22 and Chrome, runs `npm ci`, and sets `INVENTORY_BASE` to the pull request's base SHA, or to `github.event.before` on a push. The inventory check needs that SHA in the clone.
 
@@ -254,8 +256,8 @@ The fixtures the gate has to reject:
 
 | Fixture | What is wrong | Phrase the output must contain |
 | --- | --- | --- |
-| `two-primaries` | Two buttons in the detail primary slot | `primary slot` |
-| `over-budget` | A task graph with an approval-note step | `modeled path length 4 exceeds max_steps` |
+| `two-primaries` | Two buttons in the detail primary slot | `accepts exactly one primary button, found 2 primary` |
+| `over-budget` | A task graph and shipped flow with an approval-note step | `modeled path length 4 exceeds max_steps` |
 | `over-budget-flow` | A 3-step graph, and a reducer that needs Line items and a note before Approve | `shipped flow path length 4 exceeds max_steps` |
 | `graph-flow-drift` | A 3-step graph that requires Line items, and a reducer that lets Approve through without them | `does not match the modeled path` |
 | `task-without-graph` | Two tasks, and a task graph mapped for only one | `has no task graph` |
@@ -270,14 +272,30 @@ The fixtures the gate has to reject:
 | `dead-question-part` | A catalog without `Field` | `not exported by the catalog` |
 | `disclosures-per-page` | Two disclosures on one detail page, one per component file | `more than 1 per page` |
 | `missing-disclosed-section` | Line items in a table with no disclosure | `is not behind a disclosure` |
-| `renamed-disclosed-section` | A product that discloses Attachments, checked against Meridian's features | `"Attachments" is not behind a disclosure` |
-| `off-catalog` | A raw `<button>` | `off-catalog` |
+| `renamed-disclosed-section` | Inputs that disclose Attachments, on the fixture product's pages | `"Attachments" is not behind a disclosure` |
+| `off-catalog` | A raw `<button>` | `raw <button> is not a catalog control` |
 | `missing-view` | `invoice-approved` has no view case | `has no view` |
 | `undeclared-layout` | A `side-panel` directory beside `app-shell` | `undeclared layout` |
 | `inventory-expansion` | `allowed_layouts` gains `side-panel`, and no proposal | `without a proposal` |
 | `undeclared-content-layout` | A `board` directory beside `data-table` | `undeclared content layout` |
 | `content-layout-expansion` | `allowed_content_layouts` gains `board`, and no proposal | `without a proposal` |
 | `ad-hoc-content` | A status board and page CSS inside the collection body | `not a registered content layout` |
+| `fake-ds-two-primaries` | Two strong actions in the primary slot, under the stand-in adapter | `found 2 primary and 2 Action` |
+| `fake-ds-nested-reveal` | A disclosure inside a disclosure, under the stand-in adapter | `disclosure depth 2 exceeds 1` |
+| `fake-ds-over-caps` | Two disclosures, two open questions, and the strong action in a disclosure, under the stand-in adapter | `page has 2 disclosures`, `shows 2 questions outside a disclosure`, `a primary button is inside a disclosure` |
+| `fake-ds-collection-primary` | A strong action on a collection page, under the stand-in adapter | `puts a primary button on the collection page` |
+| `fake-ds-hoisted` | A disclosure and a question held outside any page, under the stand-in adapter | `Reveal.Root is not reached from any page`, `Ask is not reached from any page` |
+| `fake-ds-off-catalog` | `@fake/ds` imported outside its catalog | `off-catalog: import "@fake/ds" directly` |
+
+The cases the gate has to pass:
+
+| Case | What it shows | Checks |
+| --- | --- | --- |
+| `product` | The fixture product passes every check, so each case above fails for its own change | All nine rule checks; `check:target-size` with `--list` |
+| `fake-ds` | Pages in a stand-in design system with no Todae names. Every check here but the off-catalog lint fails them under the Todae adapter, so passing shows a check reads its names from the adapter | `lint:slots`, `check:priority`, `check:disclosure`, `check:one-thing`, `check:inventories`, `lint:product-ui` |
+| `two-tasks` | A notes inbox with two tasks: every mapped task is measured, and every modeled state is previewed | `check:step-budget`, `check:target-size` with `--list` |
+| `two-collection-pages` | Two collection pages in two files: a product may render a page type as often as it needs | `check:one-thing` |
+| `own-sections` | Inputs that disclose Attachments: the disclosed sections come from the input | `check:priority` |
 
 `check:fixtures` is how the repo knows those gates still fire. A green `check` on the product, with a green `check:fixtures`, means the product passed and the known-bad shapes still fail.
 

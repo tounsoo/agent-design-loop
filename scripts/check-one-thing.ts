@@ -26,19 +26,8 @@ import { canonicalTag, discoverShells, missingCatalogParts, openingOf, pagesIn, 
 const QUESTION_PARTS = adapter.questions;
 const { MAX_VISIBLE_QUESTIONS } = await loadRules();
 
-function flag(name: string, fallback: string): string {
-  const index = process.argv.indexOf(name);
-  if (index === -1) return fallback;
-  const value = process.argv[index + 1];
-  if (!value || value.startsWith("--")) {
-    console.error(`one thing: missing ${name} path`);
-    process.exit(1);
-  }
-  return value;
-}
-
-const featuresRoot = path.resolve(flag("--features", config.paths.features));
-const catalogFile = path.resolve(flag("--catalog", config.paths.catalog));
+const featuresRoot = path.resolve(config.paths.features);
+const catalogFile = path.resolve(config.paths.catalog);
 
 const violations: string[] = [];
 

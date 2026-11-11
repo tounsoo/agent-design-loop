@@ -1,5 +1,5 @@
-import { Button } from "../../../src/catalog";
-import { DetailPage } from "../../../src/page-types/detail";
+import { Button } from "../../product/catalog";
+import { DetailPage } from "../../product/page-types/detail";
 
 /** Illegal: two primary buttons in the detail primary slot. The slot check must fail. */
 export function TwoPrimaries() {

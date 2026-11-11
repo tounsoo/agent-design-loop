@@ -23,9 +23,6 @@ import { eventEdges, shortestPath, type TaskEdge } from "../src/flows/invoice-ap
  * shortestPath returns the first shortest path in edge order. If a graph or
  * reducer ever has two shortest paths, order its edges or userEvents so the
  * reviewed one comes first.
- *
- * `--graph <file>` measures one graph module against the task its taskId
- * export names, which is how the fixtures try a single broken graph.
  */
 
 type GraphModule = {
@@ -38,38 +35,20 @@ type GraphModule = {
   transition?: (state: unknown, event: { readonly type: string }) => unknown;
 };
 
-function flag(name: string): string | null {
-  const index = process.argv.indexOf(name);
-  if (index === -1) return null;
-  const value = process.argv[index + 1];
-  if (!value || value.startsWith("--")) {
-    console.error(`step budget: missing ${name} path`);
-    process.exit(1);
-  }
-  return value;
-}
-
 const { tasks } = await loadInputs();
-const graphFlag = flag("--graph");
 const violations: string[] = [];
 
 async function load(file: string): Promise<GraphModule> {
   return (await import(pathToFileURL(path.resolve(file)).href)) as GraphModule;
 }
 
-/** Task id → graph module path, from the config, or from the one --graph module. */
+/** Task id → graph module path, from the config. */
 const graphFiles = new Map<string, string>();
-if (graphFlag) {
-  const module = await load(graphFlag);
-  if (typeof module.taskId === "string") graphFiles.set(module.taskId, graphFlag);
-  else violations.push(`step budget: ${graphFlag} does not export a taskId.`);
-} else {
-  for (const flow of config.flows) {
-    for (const [taskId, file] of Object.entries(flow.tasks ?? {})) {
-      const earlier = graphFiles.get(taskId);
-      if (earlier) violations.push(`step budget: "${taskId}" has two task graphs in ${configName}: ${earlier}, ${file}.`);
-      else graphFiles.set(taskId, file);
-    }
+for (const flow of config.flows) {
+  for (const [taskId, file] of Object.entries(flow.tasks ?? {})) {
+    const earlier = graphFiles.get(taskId);
+    if (earlier) violations.push(`step budget: "${taskId}" has two task graphs in ${configName}: ${earlier}, ${file}.`);
+    else graphFiles.set(taskId, file);
   }
 }
 
@@ -82,7 +61,7 @@ for (const [taskId, file] of graphFiles) {
 for (const task of tasks) {
   const file = graphFiles.get(task.id);
   if (!file) {
-    if (!graphFlag) violations.push(`step budget: task "${task.id}" has no task graph. Map it to one under flows[].tasks in ${configName}.`);
+    violations.push(`step budget: task "${task.id}" has no task graph. Map it to one under flows[].tasks in ${configName}.`);
     continue;
   }
   if (!existsSync(path.resolve(file))) {
@@ -112,8 +91,7 @@ for (const task of tasks) {
 
   const { flowStart, userEvents, transition } = module;
   if (flowStart === undefined || !userEvents || typeof transition !== "function") {
-    // A single --graph fixture may model only the graph. A configured graph must ship its flow.
-    if (!graphFlag) violations.push(`step budget: ${file} does not export flowStart, userEvents and transition, so the shipped flow is not measured.`);
+    violations.push(`step budget: ${file} does not export flowStart, userEvents and transition, so the shipped flow is not measured.`);
     continue;
   }
   const reached = (state: unknown) =>

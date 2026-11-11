@@ -78,7 +78,7 @@ A `?state=` value the model does not name is ignored. The rest of the URL decide
 npm run check:fixtures && npm run check
 ```
 
-`check:fixtures` exits 0 only when the illegal fixtures fail their checks and the legal ones pass: the stand-in design system in `fixtures/fake-ds/`, and small products of their own (`fixtures/two-tasks/`, `fixtures/two-collection-pages/`, `fixtures/own-sections/`) that show a rule reads its product's config and inputs, not Meridian's. `check` is the build gate:
+`check:fixtures` runs the harness's own tests. `fixtures/product/` is a small product with its own `harness.config.ts` that every check passes. Each folder beside it, and each one under `fixtures/illegal/`, has a `case.ts` that changes some of that config's paths and names the checks to run, with the phrase each must print. The run exits 0 only when the illegal cases fail and the legal ones pass: the fixture product, the stand-in design system in `fixtures/fake-ds/`, and small products of their own (`fixtures/two-tasks/`, `fixtures/two-collection-pages/`, `fixtures/own-sections/`) that show a rule reads its product's config and inputs, not Meridian's. `check` is the build gate:
 
 | Command | What it fails |
 | --- | --- |
@@ -95,7 +95,7 @@ npm run check:fixtures && npm run check
 
 There is no LLM judge on CI.
 
-The scripts take a path flag as two arguments, `--config fixtures/two-tasks/harness.config.ts`. `--config=<file>` and `--adapter=<file>` are refused. Any other `--name=<value>`, such as `--features=<dir>`, is ignored, and the script reads its default path from `harness.config.ts`.
+A check reads its paths only from a config: `harness.config.ts`, or the one `--config <file>` names. Besides `--config`, `check:inventories` reads `--base <file>` and `check:target-size` reads `--list`. Any other flag, and any `--name=<value>` form, is refused, so a stale invocation cannot pass on the wrong product.
 
 ## Use it as a testing ground
 
@@ -124,9 +124,10 @@ src/inputs/product.ts                tasks, priority, disclosed sections, allowe
 src/rules/ux-rules.ts                check, input, and review question for each rule
 src/features/invoice-approval/       To approve, All invoices, Vendors, and the invoice
 src/harness/state-preview/           Meridian's state preview: ?state=, ?page=, ?branch=, ?route=, and ?invoice=
+fixtures/product/                    the fixture product: its own harness.config.ts, and every check passes it
 fixtures/illegal/                    known-bad shapes; check:fixtures proves each one still fails
 fixtures/fake-ds/                    a stand-in design system with no Todae names; the checks must pass it
-fixtures/two-tasks/ and others       small products of their own, run with --config; the checks must pass them
+fixtures/two-tasks/ and others       small products of their own; the checks must pass them
 proposals/                           escape hatch
 review/                              judgment the checks cannot make
 ```

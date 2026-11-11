@@ -12,8 +12,8 @@ import { config, defaultExportLiteral, isRecord, requireString, requireStrings }
  * The module that harness.config.ts names is plain literals, like the config:
  * check:inventories reads it at the pull request base with `git show`. A
  * change to it changes what every check counts, so it needs a proposal.
- * `--adapter <file>` points one run at another adapter, which is how the
- * fixtures prove that no design system name is left in the checks.
+ * The fixtures run the checks on a config that names a stand-in adapter,
+ * which proves that no design system name is left in the checks.
  */
 
 export type DesignSystemAdapter = {
@@ -110,18 +110,9 @@ export function parseAdapter(text: string, label: string): DesignSystemAdapter {
   };
 }
 
-function adapterFile(): string {
-  if (process.argv.some((arg) => arg.startsWith("--adapter="))) throw new Error("write --adapter <file>, not --adapter=<file>.");
-  const index = process.argv.indexOf("--adapter");
-  if (index === -1) return config.adapter;
-  const value = process.argv[index + 1];
-  if (!value || value.startsWith("--")) throw new Error("missing --adapter path.");
-  return value;
-}
-
 function loadAdapter(): DesignSystemAdapter {
   try {
-    const file = adapterFile();
+    const file = config.adapter;
     if (!existsSync(path.resolve(file))) throw new Error(`${file} is missing.`);
     return parseAdapter(readFileSync(path.resolve(file), "utf8"), file);
   } catch (error) {
@@ -130,7 +121,7 @@ function loadAdapter(): DesignSystemAdapter {
   }
 }
 
-/** The adapter for this run: the config's, or the one `--adapter` names. */
+/** The adapter the config names. */
 export const adapter: DesignSystemAdapter = loadAdapter();
 
 /** True when a variant value, as attributeValue reads it, makes the action primary. */
