@@ -9,6 +9,7 @@ Task: review a vendor invoice and approve it. Success state `invoice-approved`. 
 - Primary is Approve because the priority list ranks it 1. The detail primary slot has that one button.
 - Request changes is rank 2, a secondary button. Choosing it reveals a reason. An empty reason cannot reach `changes-requested`.
 - Line items sit behind one disclosure. Opening it is optional and not a step on the happy path.
+- Invoice progress is a `Steps` list from the catalog: Received, Approval, Payment. It holds no control, so it adds no step, question, disclosure or target. `Steps` joined the catalog by [proposal 0014](../../../proposals/0014-invoice-progress-steps.md), which only adds, so `check:inventories` let it graduate in the pull request that uses it.
 - Line items end in a Total row, the sum of the lines, so a reviewer can hold it against the Amount above. A test keeps each sample invoice's lines equal to its amount.
 - The happy path is 2 steps: open an invoice, Approve. The task graph and the shipped reducer agree on it, and the step-budget check fails if they drift apart. Every other route to `invoice-approved` must fit too, and today the longest is the same 2 steps. `max_steps` is 3.
 - Approve does not require opening Line items first. The product owner decided that on Nov 11, 2026, so a reviewer is never forced into an extra click. [Proposal 0003](../../../proposals/0003-two-step-approve.md) records it and corrects the step counts in proposal 0001.
@@ -21,6 +22,7 @@ Task: review a vendor invoice and approve it. Success state `invoice-approved`. 
 - Should `max_steps` drop from 3 to 2 now that the path is 2? A tighter budget would catch one added step sooner, and would leave no room for the note. That is a proposal, not a check.
 - Is the thing shown first actually what people need first? To approve shows invoice, vendor, status, amount, and due date, soonest due first. On the invoice, identity is a DataList, line items are disclosed, and Approve is the only primary. The priority list says that order. Research could still disagree.
 - Does research support this split: one collection to choose an invoice, one detail page to decide? All invoices and Vendors are the same collection shell, not new page types. Request changes is a branch on the detail page, not a third page.
+- Does invoice progress say what Approve hands off to, clearly enough? The list says Payment is next, with the due date, but not who pays or when the money leaves. The Status row in the facts now repeats what the list shows. Whether to drop that row is a design call, not a check.
 - What should happen when the lines do not add up to the amount? Nothing flags it today. Flagging a mismatch, or holding Approve on one, would be a new flow state, and that is a proposal.
 - Did we model the states that actually happen? The six states above are the ones this journey names. A partial payment or a duplicate invoice number is not modeled.
 - Should an important control aim for 44 CSS px instead of the 24 CSS px floor? The target-size check enforces the floor only.
