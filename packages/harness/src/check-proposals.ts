@@ -11,8 +11,8 @@ import { nameProblems, parseAll, sharedNameProblems, proposalsAtRev, proposalsIn
  * covers, and a Reason, a Preview and an Adoption with text under each. And
  * against the pull request base, read as check:inventories reads it, every
  * status moved only open → decided → adopted, one step per change, with
- * nothing an approved proposal covers widened. A new proposal cannot be adopted
- * with what it names in the change that adds it, and is named for the UTC day it
+ * nothing an approved proposal covers widened. A new proposal cannot adopt
+ * what it names in the change that adds it, and is named for the UTC day it
  * was written and a slug, so parallel changes cannot pick the same name.
  *
  * The folders read are `proposals/` and every product config's

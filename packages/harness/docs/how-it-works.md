@@ -187,7 +187,7 @@ The fixtures the gate has to reject, all under `packages/harness/fixtures/illega
 | `proposal-for-another-adapter-change` | The adapter makes `ghost` a primary variant, and the adopted proposal is about a Toast | `a decided proposal must list "adapter.action"` |
 | `namespace-second-primary` | A second primary written as `UI.Button.Root` through `import * as UI` | `page has 2 primary buttons` |
 | `proposal-for-another-change` | `allowed_layouts` gains `side-panel`, and the adopted proposal is about a Toast | `a decided proposal must list "side-panel" under changes` |
-| `proposal-names-path` | `allowed_layouts` gains `side-panel`, and the adopted proposal lists `layouts/side-panel/` | `a decided proposal must list "side-panel" under changes, and none adopted lists` |
+| `proposal-names-path` | `allowed_layouts` gains `side-panel`, and the adopted proposal lists `layouts/side-panel/` | `a decided proposal must list "side-panel" under changes, and no adopted proposal lists` |
 | `adopts-with-its-proposal` | `allowed_layouts` gains `side-panel`, with a proposal the change adds | `is added in this change` |
 | `adopts-open-request` | `allowed_layouts` gains `side-panel`, adopting a proposal that is open on the base | `is an open request on the base` |
 | `adoption-not-marked` | `allowed_layouts` gains `side-panel`, and the decided proposal that lists it stays decided | `Mark it "status: adopted" in this change` |
@@ -377,7 +377,7 @@ The checks on main pass, and the fixture script requires the known-bad shapes to
 
 That is a small number of runs. The agents that opened these pull requests were working in a repo that already tells them the theory, in `AGENTS.md` and in the task. A green check shows that these gates fire on the fixtures and on these branches. It does not show what an agent would do if nobody had told it the loop.
 
-Two earlier limits are closed by [proposal 0011](../../../proposals/0011-proposal-fields-and-graduation.md). A proposal used to pass on the words reason, preview and adoption and a name found anywhere in it; now it needs its fields and sections, and an exact name under `changes`. And a pull request could add a proposal and adopt it in the same change, as pull request 7 did with proposal 0002, the `Card` export and `status-board`, before it closed; now the proposal has to be decided on the base. A designer's approval is a reviewed pull request the check can see, so an adoption takes two pull requests, except an addition, which [proposal 0012](../../../proposals/0012-additions-in-one-pull-request.md) adopts in one:
+Two earlier limits are closed by [proposal 0011](../../../proposals/0011-proposal-fields-and-graduation.md). A proposal used to pass on the words reason, preview and graduation, as adoption was called then, and a name found anywhere in it; now it needs its fields and sections, and an exact name under `changes`. And a pull request could add a proposal and adopt it in the same change, as pull request 7 did with proposal 0002, the `Card` export and `status-board`, before it closed; now the proposal has to be decided on the base. A designer's approval is a reviewed pull request the check can see, so an adoption takes two pull requests, except an addition, which [proposal 0012](../../../proposals/0012-additions-in-one-pull-request.md) lets a single pull request adopt:
 
 ```mermaid
 flowchart LR

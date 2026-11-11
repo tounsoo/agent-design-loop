@@ -657,7 +657,7 @@ function reportMembership(changes: readonly Change[], proposals: ProposalsForCha
       .map((proposal) => proposal.file);
     const reasons = [...new Set(candidates)].map((file) => whyNot(file, change, proposals, refused));
     const missing = change.terms.filter((term) => !adopts.some((proposal) => lists(proposal, term)));
-    const none = reasons.length === 0 && adopts.length > 0 && missing.length > 0 ? `, and none adopted lists ${missing.map(termText).join(", ")}` : "";
+    const none = reasons.length === 0 && adopts.length > 0 && missing.length > 0 ? `, and no adopted proposal lists ${missing.map(termText).join(", ")}` : "";
     const orAdds = change.additions ? `, or a proposal this change adds must list ${change.terms.map(termText).join(", ")} under adds alone` : "";
     uncovered.push(
       `inventory: ${change.text} No adopted proposal covers it: a decided proposal must list ${change.terms.map(termText).join(", ")} under changes${none}${orAdds}.`,
