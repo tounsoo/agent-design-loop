@@ -110,6 +110,15 @@ describe("invoice approval views", () => {
     expect(screen.getByRole("button", { name: "Approve" })).toBeDisabled();
   });
 
+  it("approves in two steps, with Line items left closed", async () => {
+    const user = userEvent.setup();
+    renderApproval();
+    await user.click(screen.getByRole("link", { name: /Northwind Office Supply/ }));
+    expect(document.querySelector("details")?.open).toBe(false);
+    await user.click(screen.getByRole("button", { name: "Approve" }));
+    expect(screen.getByText("Invoice approved")).toBeInTheDocument();
+  });
+
   it("requires a reason before requesting changes", async () => {
     const user = userEvent.setup();
     renderApproval("?state=ready&page=detail");
