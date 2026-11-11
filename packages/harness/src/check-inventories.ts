@@ -485,30 +485,31 @@ function whyNot(file: string, proposals: ProposalsForChange): string {
 }
 
 /**
- * A membership change passes only when one proposal this change graduates
- * covers it: decided on the base, marked graduated here, and listing every
- * term of the change in its `changes`, as the base has them. A proposal for
- * one change does not let another through, and a proposal added in the same
- * change covers nothing.
+ * A membership change passes only when proposals this change graduates cover
+ * it: decided on the base, marked graduated here, and listing each term of the
+ * change in their `changes`, as the base has them. Two approved proposals may
+ * graduate together, each covering its own term. A proposal for one change
+ * does not let another through, and a proposal added in the same change
+ * covers nothing.
  */
 function reportMembership(changes: readonly Change[], proposals: ProposalsForChange): boolean {
   if (changes.length === 0) return true;
   const graduates = graduating(proposals.base, proposals.head);
   const uncovered: string[] = [];
   for (const change of changes) {
-    const covering = graduates.find((proposal) => change.terms.every((term) => lists(proposal, term)));
-    if (covering) {
-      console.log(`inventory: ${change.text} Graduates ${covering.file}.`);
+    const covering = change.terms.map((term) => graduates.find((proposal) => lists(proposal, term)));
+    if (covering.every((proposal) => proposal !== undefined)) {
+      console.log(`inventory: ${change.text} Graduates ${[...new Set(covering.map((proposal) => proposal.file))].join(", ")}.`);
       continue;
     }
     const candidates = [...proposals.base.values(), ...proposals.head.values()]
-      .filter((proposal) => change.terms.every((term) => lists(proposal, term)))
+      .filter((proposal) => change.terms.some((term) => lists(proposal, term)))
       .map((proposal) => proposal.file);
     const reasons = [...new Set(candidates)].map((file) => whyNot(file, proposals));
     const missing = change.terms.filter((term) => !graduates.some((proposal) => lists(proposal, term)));
     const none = reasons.length === 0 && graduates.length > 0 && missing.length > 0 ? `, and none graduating lists ${missing.map(termText).join(", ")}` : "";
     uncovered.push(
-      `inventory: ${change.text} No graduating proposal covers it: one decided proposal must list ${change.terms.map(termText).join(", ")} under changes${none}.`,
+      `inventory: ${change.text} No graduating proposal covers it: a decided proposal must list ${change.terms.map(termText).join(", ")} under changes${none}.`,
       ...reasons.map((reason) => `inventory:   ${reason}`),
     );
   }
@@ -601,11 +602,29 @@ type ProposalsForChange = {
  * `--base-proposals <dir>` and `--proposals <dir>` name the two sides, lined
  * up by file name: the fixtures test graduation that way.
  */
+/** The proposals folder the base's config named, or null when the base has no config there. */
+function baseProposalsDir(rev: string, file: string): string | null {
+  const text = tryGit(["show", `${rev}:${file}`]);
+  if (text === null) return null;
+  try {
+    return parseConfig(text, `${rev}:${file}`).paths.proposals;
+  } catch {
+    return null;
+  }
+}
+
 function proposalsForChange(root: Root): ProposalsForChange {
   if (root.kind === "git") {
-    const base = parseAll(proposalsAtRev(root.rev, config.paths.proposals));
-    const head = parseAll(proposalsInDir(config.paths.proposals));
-    return { base: base.proposals, head: head.proposals, key: (file) => file, problems: head.problems };
+    // A change that moves paths.proposals graduates from the folder the base config named, so read both.
+    const dirs = [...new Set([config.paths.proposals, baseProposalsDir(root.rev, root.config) ?? config.paths.proposals])];
+    const base = dirs.map((dir) => parseAll(proposalsAtRev(root.rev, dir)));
+    const head = dirs.map((dir) => parseAll(proposalsInDir(dir)));
+    return {
+      base: new Map(base.flatMap((parsed) => [...parsed.proposals])),
+      head: new Map(head.flatMap((parsed) => [...parsed.proposals])),
+      key: (file) => file,
+      problems: head.flatMap((parsed) => parsed.problems),
+    };
   }
   const read = (dir: string | null) => {
     if (dir === null) return parseAll(new Map());

@@ -10,6 +10,6 @@ export default {
   proposals: "packages/harness/fixtures/illegal/proposal-names-path/proposals",
   baseProposals: "packages/harness/fixtures/illegal/proposal-names-path/base-proposals",
   checks: [
-    { run: "check:inventories", fails: 'one decided proposal must list "side-panel" under changes, and none graduating lists' },
+    { run: "check:inventories", fails: 'a decided proposal must list "side-panel" under changes, and none graduating lists' },
   ],
 };

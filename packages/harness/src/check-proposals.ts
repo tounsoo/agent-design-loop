@@ -24,12 +24,16 @@ if (process.argv.length > 2) {
 }
 
 const harnessDir = path.relative(process.cwd(), path.dirname(path.dirname(fileURLToPath(import.meta.url)))).split(path.sep).join("/");
-const configs = execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard"], { encoding: "utf8" })
-  .split("\n")
+const files = execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard"], { encoding: "utf8" }).split("\n");
+// A folder named proposals is read before any config names it, so a proposal seeded there for a later paths.proposals move is checked when it lands.
+const seeded = files
+  .filter((file) => file.endsWith(".md") && path.posix.basename(path.posix.dirname(file)) === "proposals" && !file.startsWith(`${harnessDir}/`))
+  .map((file) => path.posix.dirname(file));
+const configs = files
   // A config deleted from the working tree but still in the index is no longer a product, as check:retirement reads it.
   .filter((file) => path.posix.basename(file) === "harness.config.ts" && !file.startsWith(`${harnessDir}/`) && existsSync(file));
 const dirs = [
-  ...new Set([DEFAULT_PROPOSALS, ...configs.map((file) => parseConfig(readFileSync(file, "utf8"), file).paths.proposals)].map((dir) => path.posix.normalize(dir).replace(/\/+$/, ""))),
+  ...new Set([DEFAULT_PROPOSALS, ...seeded, ...configs.map((file) => parseConfig(readFileSync(file, "utf8"), file).paths.proposals)].map((dir) => path.posix.normalize(dir).replace(/\/+$/, ""))),
 ].sort();
 
 let rev: string;

@@ -58,6 +58,15 @@ function frontMatter(lines: readonly string[]): { block: string[]; rest: string[
   return { block: lines.slice(1, end), rest: lines.slice(end + 1) };
 }
 
+/** A value is a bare word. Quotes and `#` comments would end up inside it and then match nothing, so they are refused. */
+function plain(value: string, problems: string[]): boolean {
+  if (/^["']|\s#/.test(value)) {
+    problems.push(`front matter value ${JSON.stringify(value)} has quotes or a comment. Write the bare name, as in "  - side-panel".`);
+    return false;
+  }
+  return true;
+}
+
 /** `key: value`, `key: []`, or `key:` followed by `  - item` lines. Nothing else is front matter. */
 function readFields(block: readonly string[], problems: string[]): Map<string, string | string[]> {
   const fields = new Map<string, string | string[]>();
@@ -67,7 +76,7 @@ function readFields(block: readonly string[], problems: string[]): Map<string, s
     const item = /^\s+-\s+(.+?)\s*$/.exec(raw);
     if (item?.[1]) {
       if (list === null) problems.push(`front matter line "${raw.trim()}" is a list item outside a list.`);
-      else list.push(item[1]);
+      else if (plain(item[1], problems)) list.push(item[1]);
       continue;
     }
     const field = /^([a-z-]+):[ \t]*(.*?)\s*$/.exec(raw);
@@ -87,20 +96,29 @@ function readFields(block: readonly string[], problems: string[]): Map<string, s
       fields.set(key, []);
     } else {
       list = null;
-      fields.set(key, value);
+      if (plain(value, problems)) fields.set(key, value);
+      else fields.set(key, "");
     }
   }
   return fields;
 }
 
 /** The body's `## ` sections that start with each required name, and whether each has text under it. */
-function sectionProblems(body: readonly string[]): string[] {
+function sectionProblems(lines: readonly string[]): string[] {
+  // A comment is not text a reader sees, and a heading inside one is not a section. Blank it, keeping its lines so indexes hold.
+  const body = lines
+    .join("\n")
+    .replace(/<!--[\s\S]*?(?:-->|$(?![\s\S]))/g, (comment) => comment.replace(/[^\n]/g, ""))
+    .split("\n");
   // A heading inside a code block is an example, not a section. A code block under a heading is that section's text.
   let fence: string | null = null;
   const headings: { index: number; level: number; text: string }[] = [];
   body.forEach((line, index) => {
-    const marker = /^ {0,3}(`{3,}|~{3,})/.exec(line)?.[1];
-    if (marker) fence = fence === null ? marker : marker.startsWith(fence) ? null : fence;
+    const match = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+    const marker = match?.[1];
+    // A fence opens with any info string, but closes only on a bare run of the same marker at least as long.
+    if (marker && fence === null) fence = marker;
+    else if (marker && fence !== null && marker.startsWith(fence) && (match[2] ?? "").trim() === "") fence = null;
     else if (fence === null) {
       const heading = /^(#{1,6})[ \t]+(.*)$/.exec(line);
       if (heading?.[1]) headings.push({ index, level: heading[1].length, text: heading[2] ?? "" });
@@ -115,8 +133,7 @@ function sectionProblems(body: readonly string[]): string[] {
       continue;
     }
     const end = headings.slice(position + 1).find((heading) => heading.level <= 2)?.index;
-    // A comment is not text a reader sees.
-    const content = body.slice(start.index + 1, end).join("\n").replace(/<!--[\s\S]*?(?:-->|$(?![\s\S]))/g, "");
+    const content = body.slice(start.index + 1, end).join("\n");
     if (content.trim() === "") problems.push(`"## ${name}" section is empty.`);
   }
   return problems;

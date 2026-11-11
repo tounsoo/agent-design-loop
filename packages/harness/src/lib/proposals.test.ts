@@ -62,6 +62,22 @@ describe("parseProposal", () => {
     expect(parseProposal("p.md", text("status: open\nchanges: []", body)).problems).toEqual(['has no "## Graduation" section.']);
   });
 
+  it("fails a quoted value or a comment, which would match nothing", () => {
+    const problems = parseProposal("p.md", text('status: decided\nchanges:\n  - "Tooltip"\n  - Card # the card')).problems.join("\n");
+    expect(problems).toContain('front matter value "\\"Tooltip\\"" has quotes or a comment');
+    expect(problems).toContain('front matter value "Card # the card" has quotes or a comment');
+  });
+
+  it("does not take a section heading inside an HTML comment", () => {
+    const body = "## Reason\n\nWhy.\n\n<!--\n## Preview\n\nTODO\n\n## Graduation\n\nTODO\n-->\n";
+    expect(parseProposal("p.md", text("status: open\nchanges: []", body)).problems).toEqual(['has no "## Preview" section.', 'has no "## Graduation" section.']);
+  });
+
+  it("keeps a code block open past a fence line with an info string", () => {
+    const body = "## Reason\n\nWhy.\n\n```\nexample\n```md\n## Preview\n\nInside.\n";
+    expect(parseProposal("p.md", text("status: open\nchanges: []", body)).problems).toContain('has no "## Preview" section.');
+  });
+
   it("fails an opts-out entry that does not name a rule and a product", () => {
     expect(parseProposal("p.md", text("status: graduated\nchanges: []\nopts-out:\n  - check:priority")).problems.join("\n")).toContain(
       'is not "<rule> for <product paths.source>"',

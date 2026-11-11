@@ -5,6 +5,6 @@ export default {
   proposals: "packages/harness/fixtures/illegal/proposal-for-another-adapter-change/proposals",
   baseProposals: "packages/harness/fixtures/illegal/proposal-for-another-adapter-change/base-proposals",
   checks: [
-    { run: "check:inventories", fails: 'one decided proposal must list "adapter.action"' },
+    { run: "check:inventories", fails: 'a decided proposal must list "adapter.action"' },
   ],
 };

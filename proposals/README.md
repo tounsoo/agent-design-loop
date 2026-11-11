@@ -46,14 +46,14 @@ Which files change on approval.
 - `retires`, optional, lists rules the proposal takes out of `check:rules`.
 - `opts-out`, optional, lists opt-outs as `<rule> for <product paths.source>`, as the next section shows.
 
-`npm run check:proposals` fails a proposal with a missing or unknown field, a field that is not a list, or a missing or empty `## Reason`, `## Preview` or `## Graduation`. A heading inside a fenced code block does not count. `CODEOWNERS` requests review for everything under `proposals/`.
+`npm run check:proposals` fails a proposal with a missing or unknown field, a field that is not a list, or a missing or empty `## Reason`, `## Preview` or `## Graduation`. A heading inside a fenced code block or an HTML comment does not count, and a list item or value is a bare name, with no quotes or `#` comment. The check reads `proposals/`, every folder a product config names in `paths.proposals`, and any other folder named `proposals`. `CODEOWNERS` requests review for everything under `proposals/`.
 
 ### From request to graduation
 
 A proposal moves one step at a time, each in its own pull request:
 
 1. **Open.** The agent adds the file as `status: open`. Merging it records the request and applies nothing. [Proposal 0001](0001-approval-note.md) is open. Open requests are not shipped behavior.
-2. **Decided.** A pull request a designer reviews moves it to `status: decided`. That is the approval. It may still edit the proposal. Once it merges, what the proposal covers is fixed.
+2. **Decided.** A pull request a designer reviews moves it to `status: decided`. That is the approval. It may still edit the proposal. A proposal may also start as `decided`, when the pull request that adds it is the one the designer approves. Once it merges, what the proposal covers is fixed, and its file keeps its name.
 3. **Graduated.** A later pull request makes the change and moves the proposal to `status: graduated`.
 
 `npm run check:inventories` passes an inventory change only when it graduates a proposal: one that is `decided` on the pull request base and `graduated` in the change, and that lists what changed under `changes` as the base has them. A proposal added in the same pull request covers nothing, an open request on the base covers nothing, and a graduating pull request cannot add a name the approval did not list. The check pins names, not values: whether `TARGET_MIN_PX` became the number the preview showed is the reviewer's to compare. `check:proposals` fails any other status move, such as `open` to `graduated` or `graduated` back to `decided`, any change to a decided proposal's `changes`, `retires` or `opts-out`, and a decided or graduated proposal that is renamed or deleted, because its file is the record of what was approved. A new proposal may start as `graduated` only when all three are empty, because then it gates nothing: it records a harness change that `CODEOWNERS` review covers, as [proposal 0003](0003-two-step-approve.md) and [proposal 0007](0007-check-gaps.md) through [proposal 0010](0010-proposal-fields-and-graduation.md) do.

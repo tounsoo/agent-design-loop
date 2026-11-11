@@ -31,7 +31,7 @@ A missing Chrome failed with one line about `CHROME_PATH`, which left a new cont
 
 ```
 inventory: set changed without a proposal. An inventory grows only by graduating a proposal a designer already approved.
-inventory: allowed_layouts changed from ["app-shell"] to ["app-shell","side-panel"]. No graduating proposal covers it: one decided proposal must list "side-panel" under changes.
+inventory: allowed_layouts changed from ["app-shell"] to ["app-shell","side-panel"]. No graduating proposal covers it: a decided proposal must list "side-panel" under changes.
 inventory:   proposals/0102-side-panel.md is added in this change. A proposal cannot graduate in the pull request that adds it: merge it as "status: decided" first.
 ```
 

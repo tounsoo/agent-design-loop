@@ -10,6 +10,6 @@ export default {
   proposals: "packages/harness/fixtures/illegal/proposal-for-another-change/proposals",
   baseProposals: "packages/harness/fixtures/illegal/proposal-for-another-change/base-proposals",
   checks: [
-    { run: "check:inventories", fails: 'one decided proposal must list "side-panel" under changes' },
+    { run: "check:inventories", fails: 'a decided proposal must list "side-panel" under changes' },
   ],
 };
