@@ -3,10 +3,10 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import ts from "typescript";
 import { parseAdapter, type DesignSystemAdapter } from "./lib/adapter";
+import { resolveBaseRev, tryGit } from "./lib/base";
 import { collectionCompositionViolations } from "./lib/collection-body";
 import { config, configName, memberOf, pageTypesBarrel, parseConfig, type HarnessConfig, type ParsedConfig } from "./lib/config";
 import { walk } from "./lib/jsx";
-import { resolveBaseRev, tryGit } from "./lib/base";
 import { byBaseName, graduating, parseAll, proposalsAtRev, proposalsInDir, type Proposal } from "./lib/proposals";
 import { collectionShellsOf, shellsOf } from "./lib/shells";
 
@@ -527,6 +527,11 @@ function reportMembership(changes: readonly Change[], proposals: ProposalsForCha
   return true;
 }
 
+function baseRev(): string {
+  const base = resolveBaseRev("inventory");
+  return "rev" in base ? base.rev : fail(base.problem);
+}
+
 /**
  * The base of a product moved to new file names: the base's harness config
  * whose inputs module the head's inputs were renamed from, so the move is
@@ -673,14 +678,6 @@ for (const id of importedMembers(sourceRoot, config.paths.contentLayouts)) {
 }
 for (const id of importedMembers(sourceRoot, config.paths.pageTypes)) {
   if (!head.pageTypes.includes(id)) violations.push(`undeclared page type "${id}" is not in the inventory.`);
-}
-
-function baseRev(): string {
-  try {
-    return resolveBaseRev();
-  } catch (error) {
-    return fail(`inventory: ${errorText(error)}`);
-  }
 }
 
 const baseRoot: Root = baseFlag ? { kind: "tree", config: readBaseConfig(baseFlag) } : gitBase(baseRev());

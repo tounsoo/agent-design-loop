@@ -36,13 +36,12 @@ const dirs = [
   ...new Set([DEFAULT_PROPOSALS, ...seeded, ...configs.map((file) => parseConfig(readFileSync(file, "utf8"), file).paths.proposals)].map((dir) => path.posix.normalize(dir).replace(/\/+$/, ""))),
 ].sort();
 
-let rev: string;
-try {
-  rev = resolveBaseRev();
-} catch (error) {
-  console.error(`proposals: ${error instanceof Error ? error.message : String(error)}`);
+const resolved = resolveBaseRev("proposals");
+if ("problem" in resolved) {
+  console.error(resolved.problem);
   process.exit(1);
 }
+const rev = resolved.rev;
 
 const problems: string[] = [];
 let count = 0;

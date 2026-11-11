@@ -76,13 +76,12 @@ if (invalid.length > 0) {
   process.exit(1);
 }
 
-let rev: string;
-try {
-  rev = resolveBaseRev();
-} catch (error) {
-  console.error(`retirement: ${error instanceof Error ? error.message : String(error)}`);
+const resolved = resolveBaseRev("retirement");
+if ("problem" in resolved) {
+  console.error(resolved.problem);
   process.exit(1);
 }
+const rev = resolved.rev;
 
 // A retirement belongs to no one product, so proposals/ is read even when every product keeps its proposals elsewhere, as check:proposals does.
 const proposalDirs = [

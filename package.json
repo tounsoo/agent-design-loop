@@ -30,6 +30,8 @@
     "check:retirement": "tsx packages/harness/src/check-retirement.ts",
     "check:proposals": "tsx packages/harness/src/check-proposals.ts",
     "check:loop": "tsx packages/harness/src/check-loop.ts",
+    "check:trace": "tsx packages/harness/src/check-trace.ts",
+    "loop:step": "tsx packages/harness/src/loop-step.ts",
     "test": "vitest run",
     "check:rules": "npm run lint:product-ui && npm run lint:slots && npm run check:step-budget && npm run check:disclosure && npm run check:priority && npm run check:one-thing && npm run check:inventories && npm run check:state-coverage && npm run check:target-size",
     "check:product": "tsx packages/harness/src/check-product.ts",

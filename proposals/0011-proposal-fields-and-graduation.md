@@ -2,7 +2,7 @@
 status: graduated
 changes: []
 ---
-# Proposal 0010: Proposals carry fields, and a graduation follows an approval
+# Proposal 0011: Proposals carry fields, and a graduation follows an approval
 
 Decided, and graduated with its own pull request. Ben asked to close three limits the harness listed as open: proposals were keyword-matched and could graduate in the pull request that added them, retiring a rule was not tied to a proposal, and the target-size check failed without a clear word when Chrome was missing. This records how those read now. No inventory changes, so it lists no changes and graduates at once.
 
@@ -13,7 +13,7 @@ Rule or input: how `check:inventories`, `check:opt-outs` and `check:retirement` 
 - **Retirement needs a proposal.** `check:retirement` compares `check:rules` with the base. A rule that leaves it fails unless a graduating proposal lists it under `retires`. A new opt-out fails unless it names a graduating proposal whose `opts-out` lists it for that product. `check:opt-outs` reads the same field and needs the proposal `graduated`.
 - **Chrome.** `npm run setup:chrome` installs the chrome-headless-shell build that the repository's `puppeteer-core` pins into `.cache/chrome`. CI runs the same script, cached, in place of downloading the latest stable Chrome on every run. `check:target-size` looks at `CHROME_PATH`, then that install, then a system Chrome. When none is there, it names each place it looked and the two fixes. A Chrome that does not start, and a port 4173 already in use, each get their own message.
 
-Proposals 0001 and 0003 to 0009 move to the fields: 0001 stays `open`, and the rest are `graduated`, because each landed with its change. Their `Status:` lines become plain prose. That edit, and a status moving one step on approval or graduation, are the only edits a merged proposal takes.
+Proposals 0001 and 0003 to 0010 move to the fields: 0001 stays `open`, and the rest are `graduated`, because each landed with its change. Their `Status:` lines become plain prose. That edit, and a status moving one step on approval or graduation, are the only edits a merged proposal takes.
 
 ## Reason
 
@@ -62,6 +62,6 @@ Fix it with one of: npm run setup:chrome, which downloads chrome-headless-shell 
   - `packages/harness/src/lib/proposals.ts` reads the fields and sections, and `lib/base.ts` resolves the pull request base for the three checks that compare with it.
   - `packages/harness/src/check-inventories.ts`, `check-opt-outs.ts`, `lib/opt-outs.ts`, `check-retirement.ts`, and the new `check-proposals.ts`.
   - `packages/harness/src/lib/chrome.ts`, `setup-chrome.ts` and `check-target-size.ts`, `.github/workflows/ci.yml`, `.gitignore`, and `package.json`, which adds `check:proposals` to `check` and adds `setup:chrome`.
-  - Proposals 0001 and 0003 to 0009, the proposal fixtures, and the docs.
+  - Proposals 0001 and 0003 to 0010, the proposal fixtures, and the docs.
 - An approved pattern still graduates as two pull requests: one a designer reviews to move the proposal to `decided`, then the change. That is slower than a decision landing with its change, which is the point: the check can only see an approval that is already on the base.
 - What the checks still cannot do: judge whether a reason is good or a preview is right, see that the person who approved a proposal was a designer when `main` has no branch protection, check that a graduating change set a value, such as `TARGET_MIN_PX`, to the number the preview showed, or gate a change to the harness's own code, such as a rule's script in `package.json` pointed at other code, which `CODEOWNERS` covers instead.
