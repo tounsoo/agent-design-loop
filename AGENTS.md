@@ -21,6 +21,8 @@ Loop: follow the graph in `packages/harness/design-loop.ts` from its `start` nod
 
 Checks: `npm run check:fixtures && npm run check`
 
+A pull request that adds or changes a check in `packages/harness/` also updates `CLAUDE.md` and the verify skill, `.claude/skills/verify/SKILL.md`, in the same pull request.
+
 If the work needs a catalog export, layout, content layout, page type, flow state, or rule input that is not in those inventories, open a proposal, `status: open`, that lists under `changes` exactly what the inventory gains or loses, as `proposals/README.md` describes. Do not invent the missing piece, and do not edit an inventory to sneak the change through. The change itself waits for a later pull request, after a designer has moved the proposal to `status: decided`; that pull request marks it `status: graduated`. The checks fail a proposal that graduates in the pull request that adds it.
 
 Every harness rule applies to every product. If one should not apply to a product, the proposal is an opt-out, and taking a rule out of the harness is a proposal that retires it, as `proposals/README.md` describes. Do not skip or weaken the check.

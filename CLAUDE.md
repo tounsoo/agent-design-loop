@@ -43,5 +43,6 @@ Prove every change with [`.claude/skills/verify/SKILL.md`](.claude/skills/verify
 - Follow the loop in `AGENTS.md`. Import UI only from the product's catalog, `products/meridian/catalog/index.ts` for Meridian. A missing catalog export, layout, content layout, page type, flow state or rule input is a proposal under `proposals/`, never an edit to an inventory. The inventory edit waits for a later pull request, once the proposal is decided on `main`.
 - Agents don't merge, delete branches, force-push or rebase without Ben's yes.
 - Push only once the build gate and an internal review are green. Draft pull requests are fine; mark one ready once its CI is green.
+- A pull request that adds or changes a check also updates `CLAUDE.md` and the verify skill in `.claude/skills/verify/SKILL.md` in the same pull request, so neither describes a check that no longer exists. Ben gave that standing yes on 2026-11-11.
 - Change `CLAUDE.md` and anything in `.claude/` only with Ben's yes. Leave Cursor's own config alone.
 - Where these docs and the code disagree, follow the code and say so in the pull request.
