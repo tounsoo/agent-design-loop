@@ -2,7 +2,7 @@
 
 Taken by `npm run screenshots` with `products/meridian/harness.config.ts`, at 1280 by 900 CSS px in headless Chrome, one per preview, for [proposal 2026-11-11-invoice-progress-steps](../../../../../proposals/2026-11-11-invoice-progress-steps.md). Tap or click an image to open the image file itself, full size, on any device: those click targets were changed by hand from what the script writes, to raw files pinned to the commit that added them, because a link to GitHub's file page opens it at gallery size on a phone. The list shows on the four invoice pages; the three queue pages show nothing else changed.
 
-Before is `origin/main (d6dcf1e)`. After is the change.
+Before is `origin/main (6771903)`. After is the change.
 
 | Preview | Before | After |
 | --- | --- | --- |

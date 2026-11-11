@@ -52,5 +52,6 @@ The happy path stays open an invoice, then Approve. The list is read-only and ch
 
 - `products/meridian/catalog/index.ts` exports `Steps` from `@tounsoo/todae`.
 - `products/meridian/features/invoice-approval/views.tsx` renders `Steps.Root variant="progress"` with three `Steps.Item`s on the detail page.
+- `products/meridian/features/invoice-approval/accessible-names.ts` declares what a screen reader hears from each stage in each state, which `check:accessible-names` compares in Chrome.
 - `products/meridian/features/invoice-approval/InvoiceApproval.test.tsx` checks the stage statuses before and after Approve and after a change request.
 - `products/meridian/review/approve-vendor-invoice.md` records what the checks cannot decide about the list.
