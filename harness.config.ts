@@ -15,7 +15,6 @@ export default {
     layouts: "src/layouts",
     contentLayouts: "src/content-layouts",
     pageTypes: "src/page-types",
-    flows: "src/flows",
     catalog: "src/catalog/index.ts",
     inputs: "src/inputs/product.ts",
     rules: "src/rules/ux-rules.ts",
@@ -26,6 +25,14 @@ export default {
     {
       states: "src/flows/invoice-approval/states.ts",
       views: "src/features/invoice-approval/views.tsx",
+      tasks: {
+        "approve-vendor-invoice": "src/flows/invoice-approval/graph.ts",
+      },
+      previews: {
+        ready: ["page=collection", "route=invoices", "route=vendors", "page=detail", "page=detail&branch=request"],
+        "invoice-approved": ["page=detail"],
+        "changes-requested": ["page=detail"],
+      },
     },
   ],
 } satisfies HarnessConfig;

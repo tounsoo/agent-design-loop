@@ -5,7 +5,7 @@ import { parseFile, walk } from "./lib/jsx";
 
 const statesArg = process.argv.indexOf("--states");
 const viewsArg = process.argv.indexOf("--views");
-const flows: readonly FlowConfig[] =
+const flows: readonly Pick<FlowConfig, "states" | "views">[] =
   statesArg === -1 && viewsArg === -1
     ? config.flows
     : [

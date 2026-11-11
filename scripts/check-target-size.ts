@@ -2,9 +2,23 @@ import { existsSync, readFileSync } from "node:fs";
 import { build, preview } from "vite";
 import puppeteer from "puppeteer-core";
 import { adapter } from "./lib/adapter";
-import { loadRules } from "./lib/config";
+import { config, loadRules } from "./lib/config";
+import { previewQueries } from "./lib/previews";
 
 const { TARGET_MIN_PX } = await loadRules();
+
+const { queries: states, problems } = await previewQueries(config.flows);
+if (problems.length > 0) {
+  for (const problem of problems) console.error(`target size: ${problem}`);
+  process.exit(1);
+}
+
+// `--list` prints the previews and stops before Chrome, so the fixtures can test the derivation.
+if (process.argv.includes("--list")) {
+  for (const state of states) console.log(`target size: preview ?${state}`);
+  console.log(`target size: ${states.length} previews from modeledStates.`);
+  process.exit(0);
+}
 
 type Box = {
   name: string;
@@ -37,18 +51,6 @@ const server = await preview({
 });
 
 const base = server.resolvedUrls?.local?.[0] ?? "http://127.0.0.1:4173/";
-const states = [
-  "loading",
-  "empty",
-  "error",
-  "ready&page=collection",
-  "ready&route=invoices",
-  "ready&route=vendors",
-  "ready&page=detail",
-  "ready&page=detail&branch=request",
-  "invoice-approved&page=detail",
-  "changes-requested&page=detail",
-];
 const failures: string[] = [];
 
 const browser = await puppeteer.launch({
@@ -62,12 +64,7 @@ try {
   await page.setViewport({ width: 1280, height: 900 });
   for (const state of states) {
     const url = new URL(base);
-    const [stateName, ...rest] = state.split("&");
-    url.searchParams.set("state", stateName ?? state);
-    for (const part of rest) {
-      const [key, value] = part.split("=");
-      if (key && value) url.searchParams.set(key, value);
-    }
+    url.search = state;
     await page.goto(url.href, { waitUntil: "networkidle0" });
     const summary = await page.$("[data-page] summary");
     if (summary) {
@@ -90,7 +87,7 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log(`target size: invoice controls meet ${TARGET_MIN_PX} CSS px (or the WCAG spacing exception).`);
+console.log(`target size: controls on ${states.length} previews meet ${TARGET_MIN_PX} CSS px (or the WCAG spacing exception).`);
 
 function assertButtonTokens(): void {
   const css = readFileSync(adapter.tokens.css, "utf8");

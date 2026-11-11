@@ -28,6 +28,8 @@ export type Page = {
   readonly file: string;
   readonly line: number;
   readonly shell: Shell;
+  /** The shell element itself. */
+  readonly node: ts.Node;
   readonly scopes: readonly Scope[];
 };
 
@@ -147,12 +149,13 @@ export function pagesIn(featuresRoot: string, shells: readonly Shell[], roots: P
     walk(source, (node) => {
       const opening = openingOf(node);
       if (!opening) return;
-      const shell = shellNames.get(jsxTagName(opening.tagName));
+      const shell = shellNames.get(canonicalTag(opening));
       if (!shell) return;
       pages.push({
         file: path.relative(process.cwd(), file),
         line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1,
         shell,
+        node,
         scopes: collectScopes(source, node, shell, roots),
       });
     });

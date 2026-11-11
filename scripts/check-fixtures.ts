@@ -3,6 +3,8 @@ import { spawnSync } from "node:child_process";
 const fakeAdapter = ["--adapter", "fixtures/fake-ds/adapter.ts"];
 const fakeFeatures = "fixtures/fake-ds/features";
 const fakeCatalog = "fixtures/fake-ds/catalog.ts";
+const twoTasks = ["--config", "fixtures/two-tasks/harness.config.ts"];
+const ownSections = ["--config", "fixtures/own-sections/harness.config.ts"];
 
 const cases = [
   {
@@ -27,8 +29,38 @@ const cases = [
   },
   {
     name: "task-without-graph",
-    args: ["scripts/check-step-budget.ts", "--flows", "fixtures/illegal/task-without-graph/flows"],
-    phrase: "has no task graph",
+    args: ["scripts/check-step-budget.ts", "--config", "fixtures/illegal/task-without-graph/harness.config.ts"],
+    phrase: 'task "archive-note" has no task graph',
+  },
+  {
+    name: "second-task-over-budget",
+    args: ["scripts/check-step-budget.ts", "--config", "fixtures/illegal/second-task-over-budget/harness.config.ts"],
+    phrase: "modeled path length 3 exceeds max_steps 2 for archive-note",
+  },
+  {
+    name: "graph-without-task-id",
+    args: ["scripts/check-step-budget.ts", "--config", "fixtures/illegal/graph-without-task-id/harness.config.ts"],
+    phrase: "does not export a taskId",
+  },
+  {
+    name: "stale-preview",
+    args: ["scripts/check-target-size.ts", "--list", "--config", "fixtures/illegal/stale-preview/harness.config.ts"],
+    phrase: 'previews names "confirming", which is not a modeled state',
+  },
+  {
+    name: "preview-sets-state",
+    args: ["scripts/check-target-size.ts", "--list", "--config", "fixtures/illegal/preview-sets-state/harness.config.ts"],
+    phrase: "sets state itself",
+  },
+  {
+    name: "nested-page",
+    args: ["scripts/check-one-thing.ts", "--features", "fixtures/illegal/nested-page"],
+    phrase: "DetailPage page renders a CollectionPage page inside it",
+  },
+  {
+    name: "aliased-nested-page",
+    args: ["scripts/check-one-thing.ts", "--features", "fixtures/illegal/aliased-nested-page"],
+    phrase: "CollectionPage page renders a DetailPage page inside it",
   },
   {
     name: "two-questions",
@@ -54,6 +86,12 @@ const cases = [
     name: "missing-disclosed-section",
     args: ["scripts/check-priority.ts", "--features", "fixtures/illegal/missing-disclosed-section"],
     phrase: "is not behind a disclosure",
+  },
+  {
+    // The own-sections product discloses "Attachments". Meridian's features disclose "Line items" only.
+    name: "renamed-disclosed-section",
+    args: ["scripts/check-priority.ts", ...ownSections, "--features", "src/features"],
+    phrase: '"Attachments" is not behind a disclosure',
   },
   {
     name: "off-catalog",
@@ -186,8 +224,10 @@ const cases = [
 /**
  * Legal cases must pass. fixtures/fake-ds is UI for a stand-in design system
  * that shares no name with Todae. Run with the same arguments but no
- * --adapter, every check below but the off-catalog lint fails it, so passing
- * here shows the check reads its names from the adapter.
+ * --adapter, every fake-ds check below but the off-catalog lint fails it, so
+ * passing here shows the check reads its names from the adapter. The other
+ * legal cases are small products of their own, which show that a rule reads
+ * its product's config and inputs rather than Meridian's.
  */
 const legalCases = [
   {
@@ -208,7 +248,27 @@ const legalCases = [
   {
     name: "fake-ds one thing",
     args: ["scripts/check-one-thing.ts", "--features", fakeFeatures, "--catalog", fakeCatalog, ...fakeAdapter],
-    phrase: "one shell per page type",
+    phrase: "one job per page",
+  },
+  {
+    name: "two-tasks step budget",
+    args: ["scripts/check-step-budget.ts", ...twoTasks],
+    phrase: "step budget: archive-note (max_steps 2)",
+  },
+  {
+    name: "two-tasks previews",
+    args: ["scripts/check-target-size.ts", "--list", ...twoTasks],
+    phrase: "target size: preview ?state=archived",
+  },
+  {
+    name: "two-collection-pages one thing",
+    args: ["scripts/check-one-thing.ts", "--features", "fixtures/two-collection-pages"],
+    phrase: "one job per page on 3 pages",
+  },
+  {
+    name: "own-sections priority",
+    args: ["scripts/check-priority.ts", ...ownSections],
+    phrase: 'disclosed: "Attachments"',
   },
   {
     name: "fake-ds collection body",
