@@ -28,5 +28,5 @@ Preconditions:
 
 ## Gotchas
 
-- `check:target-size` opens every state in `modeledStates`, plus the query strings `flows[].previews` in `harness.config.ts` lists for it, never bare once it has one. A new modeled state is opened without editing the script. A preview for a state that is not modeled, or one that sets `state` itself, fails.
+- `check:target-size` opens every state in `modeledStates`: bare, or once per query string that `flows[].previews` in `harness.config.ts` lists for it. A new modeled state is opened without editing the script. A preview for a state that is not modeled, or one that sets `state` itself, fails.
 - The Preview menu has no entry for `?route=invoices`, `?route=vendors` or `branch=request`. Type those URLs.
