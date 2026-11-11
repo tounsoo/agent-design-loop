@@ -212,7 +212,7 @@ flowchart LR
 
 The Todae names below, such as `Button.Root` and its `variant`, `Disclosure.Root`, `Disclosure.Summary` and `Field.Root`, are not in the scripts. Each script reads them from the design system adapter that `harness.config.ts` names, `adapters/todae.ts`. `fixtures/fake-ds/` is UI for a stand-in design system with other names, and `check:fixtures` requires the checks to pass it under its own adapter.
 
-The scripts read a button's variant only when it is a string, as in `variant="secondary"` or `variant={"secondary"}`. A button with no variant is primary, because the adapter says Todae's default is. A variant computed from an expression, such as `variant={tone}`, counts as neither primary nor secondary. So a computed variant on Approve or Request changes fails `check:priority`, and one in the detail primary slot fails `lint:slots`. On a collection page, `check:one-thing` does not count it as a primary, even if it renders as one.
+Write a button's variant as a plain string, as in `variant="secondary"`. A braced literal, `variant={"secondary"}`, is read as the variant too, but `check:priority` also reads it as part of the button's text, so "Request changes" becomes "secondary Request changes" and the check fails. A button with no variant is primary, because the adapter says Todae's default is. A variant computed from an expression, such as `variant={tone}`, counts as neither primary nor secondary. So a computed variant on Approve or Request changes fails `check:priority`, and one in the detail primary slot fails `lint:slots`. On a collection page, `check:one-thing` does not count it as a primary, even if it renders as one.
 
 What each script fails, in the words the code implements:
 
