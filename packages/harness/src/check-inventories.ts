@@ -216,7 +216,8 @@ function exportedBinding(source: ts.SourceFile, name: string): ExportedBinding {
       statement.name !== undefined &&
       ts.isIdentifier(statement.name) &&
       statement.name.text === name &&
-      hasExport(statement)
+      hasExport(statement) &&
+      !statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.DefaultKeyword)
     ) {
       // A function, class, enum, namespace or `export import` exports the name at runtime, but not as a list this check can read.
       direct = { initializer: null };
