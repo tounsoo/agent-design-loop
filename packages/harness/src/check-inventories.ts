@@ -3,6 +3,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import ts from "typescript";
 import { parseAdapter, type DesignSystemAdapter } from "./lib/adapter";
+import { resolveBaseRev, tryGit } from "./lib/base";
 import { collectionCompositionViolations } from "./lib/collection-body";
 import { config, configName, memberOf, pageTypesBarrel, parseConfig, type HarnessConfig, type ParsedConfig } from "./lib/config";
 import { walk } from "./lib/jsx";
@@ -555,34 +556,9 @@ function reportMembership(changes: readonly Change[], explained: ReadonlyMap<str
   return true;
 }
 
-function tryGit(args: string[]): string | null {
-  try {
-    return execFileSync("git", args, { encoding: "utf8" });
-  } catch {
-    return null;
-  }
-}
-
-function assertSafeRev(rev: string): void {
-  if (!/^[A-Za-z0-9._/^~-]+$/.test(rev) || rev.startsWith("-")) fail(`inventory: refusing base rev "${rev}".`);
-}
-
-function resolveBaseRev(): string {
-  const fromEnv = process.env.INVENTORY_BASE?.trim();
-  if (fromEnv && fromEnv !== "true" && fromEnv !== "false" && !/^0+$/.test(fromEnv)) {
-    assertSafeRev(fromEnv);
-    if (!tryGit(["rev-parse", "--verify", "--quiet", `${fromEnv}^{commit}`])) {
-      fail(`inventory: base rev ${fromEnv} is not in this clone. Fetch the pull request base.`);
-    }
-    return fromEnv;
-  }
-  const main = ["origin/main", "main"].find((rev) => tryGit(["rev-parse", "--verify", "--quiet", `${rev}^{commit}`]));
-  if (!main) fail("inventory: cannot find main. Fetch the pull request base.");
-  const head = tryGit(["rev-parse", "HEAD"])?.trim();
-  const mainSha = tryGit(["rev-parse", main])?.trim();
-  if (!head || !mainSha) fail("inventory: cannot resolve HEAD.");
-  if (head === mainSha) return mainSha;
-  return tryGit(["merge-base", "HEAD", main])?.trim() || fail("inventory: cannot resolve the pull request base.");
+function baseRev(): string {
+  const base = resolveBaseRev("inventory");
+  return "rev" in base ? base.rev : fail(base.problem);
 }
 
 /**
@@ -702,7 +678,7 @@ for (const id of importedMembers(sourceRoot, config.paths.pageTypes)) {
   if (!head.pageTypes.includes(id)) violations.push(`undeclared page type "${id}" is not in the inventory.`);
 }
 
-const baseRoot: Root = baseFlag ? { kind: "tree", config: readBaseConfig(baseFlag) } : gitBase(resolveBaseRev());
+const baseRoot: Root = baseFlag ? { kind: "tree", config: readBaseConfig(baseFlag) } : gitBase(baseRev());
 const compareConfig = baseRoot.kind === "git";
 const base = readInventory(baseRoot);
 if (base === null) {
