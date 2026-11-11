@@ -76,7 +76,17 @@ To look at a Meridian change, run `npm run build && npm run preview`. It is read
 
 In a Claude Duet thread there is no Chrome, and the Chrome downloads are blocked, so this step is `BLOCKED` there. Say so in the pull request, link the pull request's CI run (it installs Chrome and runs `check:target-size`), and name the URLs a reviewer should open.
 
+### 4. Loop trace (every change, before you push)
+
+```sh
+npm run check:trace
+```
+
+It is not in `npm run check`, because the build gate runs in the middle of the design loop, before the trace ends. CI runs it after `check:loop`. It reads the change against its base like `check:inventories`, so a missing base is `BLOCKED`. A change that touches a product's directory needs a loop trace under `traces/`, written step by step with `npm run loop:step -- traces/<change>.jsonl <node> [when]`. A change that touches no product passes with `trace: the change touches no product and adds no trace`. `traces/README.md` has the format, and [proposal 0010](../../../proposals/0010-loop-trace.md) says why a trace is a record, not proof.
+
 ### What each change needs
+
+Every row also runs step 4.
 
 | Change | Steps |
 | --- | --- |
@@ -96,7 +106,7 @@ None. The drive is the repository's own npm scripts and Vitest journeys; [featur
 
 ## Evidence
 
-Put the tested commit's full SHA in the pull request body, with each command and the line that gives its verdict: the `fixtures:` summary, each check's verdict line (such as `step budget: within budget.` or `inventory: membership matches <sha>.`), and the Vitest `Tests` count. For step 3, the `target size:` line. Proof standards:
+Put the tested commit's full SHA in the pull request body, with each command and the line that gives its verdict: the `fixtures:` summary, each check's verdict line (such as `step budget: within budget.` or `inventory: membership matches <sha>.`), and the Vitest `Tests` count. For step 3, the `target size:` line. For step 4, the `trace:` line. Proof standards:
 
 - Drive the real path: a check runs against the product as it is, and a journey goes through the rendered controls, never by calling a transition or setting state directly.
 - Check the end state: the flow state the journey lands on, the check's exit code and its message, not only that nothing threw.
