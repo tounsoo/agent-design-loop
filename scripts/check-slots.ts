@@ -3,7 +3,15 @@ import ts from "typescript";
 import { adapter, isPrimaryVariant } from "./lib/adapter";
 import { config } from "./lib/config";
 import { attributeValue, elementText, jsxElements, jsxTagName, lineOf, listSourceFiles, parseFile, walk } from "./lib/jsx";
+import { discoverShells, primarySlots as primarySlotsOf } from "./lib/page-scope";
 
+/**
+ * A page type with a primary slot, named under shells.primarySlots in the
+ * harness config, holds its page's one primary action there. Every page of
+ * that type fills the slot with exactly one action control, and it is primary.
+ * Each page type with a primary slot renders at least one page, so the rule
+ * cannot pass over a type nobody renders.
+ */
 
 type ButtonHit = {
   line: number;
@@ -30,40 +38,45 @@ function buttonsIn(node: ts.Node, source: ts.SourceFile): ButtonHit[] {
 }
 
 const violations: string[] = [];
+const { shells, problems } = discoverShells();
+const { slots: primarySlots, problems: ruleProblems } = primarySlotsOf(shells);
+for (const problem of [...problems, ...ruleProblems]) violations.push(`primary slot: ${problem}`);
+
+const pagesPerShell = new Map<string, number>();
 let pages = 0;
 
 for (const file of listSourceFiles(path.resolve(config.paths.features))) {
   const source = parseFile(file);
   const relative = path.relative(process.cwd(), file);
-  const detailPages = jsxElements(source, "DetailPage");
-  walk(source, (node) => {
-    if (ts.isJsxSelfClosingElement(node) && jsxTagName(node.tagName) === "DetailPage") {
-      violations.push(`${relative}:${lineOf(source, node)}: primary slot is missing on DetailPage.`);
-    }
-  });
-  for (const page of detailPages) {
-    pages += 1;
-    const slots = jsxElements(page, "DetailPage.Primary");
-    if (slots.length !== 1) {
-      violations.push(
-        `${relative}:${lineOf(source, page)}: primary slot accepts exactly one DetailPage.Primary, found ${slots.length}.`,
-      );
-      continue;
-    }
-    const slot = slots[0];
-    if (!slot) continue;
-    const buttons = buttonsIn(slot, source);
-    const primaryButtons = buttons.filter((button) => isPrimaryVariant(button.variant));
-    if (buttons.length !== 1 || primaryButtons.length !== 1) {
-      violations.push(
-        `${relative}:${lineOf(source, slot)}: primary slot accepts exactly one primary button, found ${primaryButtons.length} primary and ${buttons.length} ${adapter.action.tag}.`,
-      );
+  for (const { shell, tag } of primarySlots) {
+    walk(source, (node) => {
+      if (ts.isJsxSelfClosingElement(node) && jsxTagName(node.tagName) === shell.name) {
+        violations.push(`${relative}:${lineOf(source, node)}: primary slot is missing on ${shell.name}.`);
+      }
+    });
+    for (const page of jsxElements(source, shell.name)) {
+      pages += 1;
+      pagesPerShell.set(shell.name, (pagesPerShell.get(shell.name) ?? 0) + 1);
+      const slots = jsxElements(page, tag);
+      if (slots.length !== 1) {
+        violations.push(`${relative}:${lineOf(source, page)}: primary slot accepts exactly one ${tag}, found ${slots.length}.`);
+        continue;
+      }
+      const slot = slots[0];
+      if (!slot) continue;
+      const buttons = buttonsIn(slot, source);
+      const primaryButtons = buttons.filter((button) => isPrimaryVariant(button.variant));
+      if (buttons.length !== 1 || primaryButtons.length !== 1) {
+        violations.push(
+          `${relative}:${lineOf(source, slot)}: primary slot accepts exactly one primary button, found ${primaryButtons.length} primary and ${buttons.length} ${adapter.action.tag}.`,
+        );
+      }
     }
   }
 }
 
-if (pages < 1) {
-  violations.push(`primary slot: ${config.paths.features} does not render a DetailPage.`);
+for (const { shell } of primarySlots) {
+  if (!pagesPerShell.has(shell.name)) violations.push(`primary slot: ${config.paths.features} does not render a ${shell.name}.`);
 }
 
 if (violations.length > 0) {
@@ -71,4 +84,5 @@ if (violations.length > 0) {
   process.exit(1);
 }
 
-console.log(`primary slot: exactly one primary button on ${pages} detail page(s).`);
+const pageTypes = [...new Set(primarySlots.map(({ shell }) => shell.pageType))].join(", ");
+console.log(`primary slot: exactly one primary button on ${pages} ${pageTypes} page(s).`);

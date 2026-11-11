@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { config, configName, loadInputs } from "./lib/config";
-import { eventEdges, shortestPath, type TaskEdge } from "../src/flows/invoice-approval/shortest-path";
+import { eventEdges, shortestPath, type TaskEdge } from "./lib/shortest-path";
 
 /**
  * Every task in the product inputs' tasks has one task graph module, named for

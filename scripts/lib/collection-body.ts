@@ -4,8 +4,11 @@ import ts from "typescript";
 import { adapter } from "./adapter";
 import { config, memberOf, styleOwnerDirs } from "./config";
 import { jsxTagName, listSourceFiles, parseFile, walk } from "./jsx";
+import type { CollectionShell } from "./shells";
 
 /**
+ * A collection is a page type the config names under shells.collections. Its
+ * shell's chrome slots, like a heading, hold no body; every other slot does.
  * A collection's ready body has to be a registered content layout. Loading,
  * empty, and error may stay in the page shell: their markup is only the
  * catalog's status pieces, the adapter's statusParts. Anything else in the collection — a board, a
@@ -13,8 +16,6 @@ import { jsxTagName, listSourceFiles, parseFile, walk } from "./jsx";
  */
 
 const STATE_ROOTS = new Set(adapter.statusParts);
-
-const CHROME_SLOTS = new Set(["CollectionPage.Heading", "CollectionPage.Description"]);
 
 type Binding = { specifier: string; imported: string };
 
@@ -25,6 +26,8 @@ type Scan = {
   allowed: readonly string[];
   violations: string[];
   seen: Set<string>;
+  /** The collection shell whose page is being read. */
+  page: CollectionShell | null;
 };
 
 function tagRoot(tag: string): string {
@@ -270,9 +273,9 @@ function visitElement(
   const opening = openingOf(node);
   if (!opening) return;
   const tag = jsxTagName(opening.tagName);
-  if (mode === "page") {
-    if (CHROME_SLOTS.has(tag)) return;
-    if (tag.startsWith("CollectionPage.")) {
+  if (mode === "page" && scan.page) {
+    if (scan.page.chrome.has(tag)) return;
+    if (tag.startsWith(`${scan.page.shell.name}.`)) {
       for (const child of jsxChildNodes(node)) visitNode(child, "body", file, source, bindings, scan);
       return;
     }
@@ -343,16 +346,22 @@ export function collectionCompositionViolations(
   featuresDir: string,
   allowed: readonly string[],
   stylesPath: string,
+  collections: readonly CollectionShell[],
 ): string[] {
   if (!existsSync(featuresDir)) return [`content layout features directory ${featuresDir} is missing.`];
   const files = listSourceFiles(featuresDir).filter((file) => file.endsWith(".tsx"));
-  const scan: Scan = { root: featuresDir, allowed, violations: [], seen: new Set() };
+  const scan: Scan = { root: featuresDir, allowed, violations: [], seen: new Set(), page: null };
+  const byName = new Map(collections.map((collection) => [collection.shell.name, collection]));
   for (const file of files) {
     const source = parseFile(file);
     const bindings = importBindings(source);
     walk(source, (node) => {
-      if (!ts.isJsxElement(node) || jsxTagName(node.openingElement.tagName) !== "CollectionPage") return;
+      if (!ts.isJsxElement(node)) return;
+      const collection = byName.get(jsxTagName(node.openingElement.tagName));
+      if (!collection) return;
+      scan.page = collection;
       for (const child of node.children) visitNode(child, "page", file, source, bindings, scan);
+      scan.page = null;
     });
   }
   return [...scan.violations, ...pageCssViolations(files, stylesPath)];

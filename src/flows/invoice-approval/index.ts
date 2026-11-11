@@ -21,5 +21,5 @@ export {
 } from "./location";
 export type { AppLocation, CollectionRoute } from "./location";
 export { flowStart, isTaskSuccess, taskEdges, taskHappyPath, taskId, taskStart, userEvents } from "./graph";
-export { eventEdges, shortestPath } from "./shortest-path";
-export type { TaskEdge } from "./shortest-path";
+export { eventEdges, shortestPath } from "../../../scripts/lib/shortest-path";
+export type { TaskEdge } from "../../../scripts/lib/shortest-path";

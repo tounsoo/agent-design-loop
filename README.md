@@ -95,6 +95,14 @@ npm run check:fixtures && npm run check
 
 There is no LLM judge on CI.
 
+A second product, Nook, a room booking app under `products/nook/`, has its own `harness.config.ts` and passes the same checks. CI runs it as its own job:
+
+```sh
+npm run check:product -- --config products/nook/harness.config.ts
+```
+
+`check:product` runs every check in `check` against that config, in the same order, and stops at the first failure. `npm run dev:nook` starts the app.
+
 A check reads its paths only from a config: `harness.config.ts`, or the one `--config <file>` names. Besides `--config`, `check:inventories` reads `--base <file>` and `check:target-size` reads `--list`. Any other flag, and any `--name=<value>` form, is refused, so a stale invocation cannot pass on the wrong product.
 
 ## Use it as a testing ground
@@ -128,6 +136,7 @@ fixtures/product/                    the fixture product: its own harness.config
 fixtures/illegal/                    known-bad shapes; check:fixtures proves each one still fails
 fixtures/fake-ds/                    a stand-in design system with no Todae names; the checks must pass it
 fixtures/two-tasks/ and others       small products of their own; the checks must pass them
+products/nook/                       a second product, room booking, with its own config; CI runs it as its own job
 proposals/                           escape hatch
 review/                              judgment the checks cannot make
 ```

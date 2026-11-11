@@ -26,3 +26,26 @@ jobs:
       - run: npm run check:fixtures && npm run check
         env:
           INVENTORY_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+
+  # Nook, the second product, runs every rule check on its own config.
+  # Typecheck, ESLint and the Vitest suite cover it in the check job.
+  nook:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install Chrome
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget
+          wget -q -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+          sudo apt-get install -y /tmp/chrome.deb
+      - run: npm ci
+      - run: npm run check:product -- --config products/nook/harness.config.ts
+        env:
+          INVENTORY_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}

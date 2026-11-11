@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
+    "dev:nook": "vite --config vite.config.ts products/nook",
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
@@ -23,7 +24,8 @@
     "check:target-size": "tsx scripts/check-target-size.ts",
     "test": "vitest run",
     "check": "npm run typecheck && npm run lint && npm run check:step-budget && npm run check:disclosure && npm run check:priority && npm run check:one-thing && npm run check:inventories && npm run check:state-coverage && npm run check:target-size && npm run test",
-    "check:fixtures": "tsx scripts/check-fixtures.ts"
+    "check:fixtures": "tsx scripts/check-fixtures.ts",
+    "check:product": "tsx scripts/check-product.ts"
   },
   "dependencies": {
     "@tounsoo/todae": "0.10.1",

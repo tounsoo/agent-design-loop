@@ -32,6 +32,28 @@ export type FlowConfig = {
   readonly previews?: { readonly [state: string]: readonly string[] };
 };
 
+/**
+ * What a page type's shell slots mean to the checks, by allowed_page_types id.
+ * The shell itself is whatever the page type's module exports, so the checks
+ * hold no shell or slot names of their own.
+ */
+export type ShellRules = {
+  /**
+   * Page type → the slot on its shell that holds the page's one primary
+   * action: `{ detail: "Primary" }` means `<DetailPage.Primary>`. lint:slots
+   * requires every page of the type to fill it with exactly one primary action,
+   * and each type named here to render at least one page.
+   */
+  readonly primarySlots: { readonly [pageType: string]: string };
+  /**
+   * Page type → its shell's chrome slots, for page types that are collections.
+   * Every other slot is body. A collection's ready body must be a registered
+   * content layout (check:inventories), and a collection page holds no primary
+   * action (check:one-thing). A product with no collection names none.
+   */
+  readonly collections: { readonly [pageType: string]: readonly string[] };
+};
+
 export type HarnessConfig = {
   /** The design system adapter module: the names the checks look for. See scripts/lib/adapter.ts. */
   readonly adapter: string;
@@ -56,7 +78,10 @@ export type HarnessConfig = {
     readonly styles: string;
     /** Other product UI the off-catalog lint reads: entry files and preview code. */
     readonly app: readonly string[];
+    /** The directory with the product's index.html, which check:target-size builds and serves with Vite. */
+    readonly web: string;
   };
+  readonly shells: ShellRules;
   readonly flows: readonly FlowConfig[];
 };
 
@@ -156,13 +181,32 @@ export function defaultExportLiteral(text: string, label: string, where: string)
   return literal(exported.expression, where);
 }
 
-/** A config as parsed. adapter is null in a config written before the adapter existed. */
-export type ParsedConfig = Omit<HarnessConfig, "adapter"> & { readonly adapter: string | null };
+/**
+ * A config as parsed. A field is null in a config written before it existed:
+ * adapter before the adapter, paths.web and shells before the second product.
+ * check:inventories reads such a config at the pull request base.
+ */
+export type ParsedConfig = Omit<HarnessConfig, "adapter" | "paths" | "shells"> & {
+  readonly adapter: string | null;
+  readonly paths: Omit<HarnessConfig["paths"], "web"> & { readonly web: string | null };
+  readonly shells: ShellRules | null;
+};
+
+function parseShells(value: unknown, where: string): ShellRules | null {
+  if (value === undefined) return null;
+  if (!isRecord(value)) throw new Error(`${where} must be an object.`);
+  const unknown = Object.keys(value).filter((key) => key !== "primarySlots" && key !== "collections");
+  if (unknown.length > 0) throw new Error(`${where} has unknown keys: ${unknown.join(", ")}.`);
+  // Both are required, so a product says it has no collection rather than leaving it out.
+  if (!isRecord(value.primarySlots)) throw new Error(`${where}.primarySlots must be an object.`);
+  if (!isRecord(value.collections)) throw new Error(`${where}.collections must be an object.`);
+  return { primarySlots: stringRecord(value, "primarySlots", where), collections: stringListRecord(value, "collections", where) };
+}
 
 /** Parses harness.config.ts source text. Throws when it is not plain literals or misses a field. */
 export function parseConfig(text: string, label = CONFIG_FILE): ParsedConfig {
   const value = defaultExportLiteral(text, label, "config");
-  if (!isRecord(value) || !isRecord(value.paths)) throw new Error(`${label} must export { adapter, paths, flows }.`);
+  if (!isRecord(value) || !isRecord(value.paths)) throw new Error(`${label} must export { adapter, paths, shells, flows }.`);
   const paths = value.paths;
   if (!Array.isArray(value.flows) || value.flows.length === 0) throw new Error("config.flows must list at least one flow.");
   return {
@@ -178,7 +222,9 @@ export function parseConfig(text: string, label = CONFIG_FILE): ParsedConfig {
       rules: requireString(paths, "rules", "config.paths"),
       styles: requireString(paths, "styles", "config.paths"),
       app: requireStrings(paths, "app", "config.paths"),
+      web: paths.web === undefined ? null : requireString(paths, "web", "config.paths"),
     },
+    shells: parseShells(value.shells, "config.shells"),
     flows: value.flows.map((flow, index) => {
       const where = `config.flows[${index}]`;
       if (!isRecord(flow)) throw new Error(`${where} must be an object.`);
@@ -236,8 +282,11 @@ function loadConfig(): { name: string; config: HarnessConfig } {
       throw new Error(name === CONFIG_FILE ? `${CONFIG_FILE} is missing. Run the checks from the repository root.` : `${name} is missing.`);
     }
     const parsed = parseConfig(readFileSync(file, "utf8"), name);
-    if (parsed.adapter === null) throw new Error("config.adapter must name the design system adapter module.");
-    return { name, config: { ...parsed, adapter: parsed.adapter } };
+    const { adapter, paths, shells } = parsed;
+    if (adapter === null) throw new Error("config.adapter must name the design system adapter module.");
+    if (paths.web === null) throw new Error("config.paths.web must name the directory with the product's index.html.");
+    if (shells === null) throw new Error("config.shells must give primarySlots and collections.");
+    return { name, config: { ...parsed, adapter, paths: { ...paths, web: paths.web }, shells } };
   } catch (error) {
     console.error(`harness config: ${error instanceof Error ? error.message : String(error)}`);
     process.exit(1);

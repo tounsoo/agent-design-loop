@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
 import { build, preview } from "vite";
 import puppeteer from "puppeteer-core";
 import { adapter } from "./lib/adapter";
@@ -45,8 +46,16 @@ if (!chrome) {
 
 assertButtonTokens();
 
-await build();
+// The product's own index.html, built with the repository's Vite config.
+const web = path.resolve(config.paths.web);
+if (!existsSync(path.join(web, "index.html"))) {
+  console.error(`target size: ${config.paths.web} has no index.html to build (paths.web).`);
+  process.exit(1);
+}
+const viteConfig = { root: web, configFile: path.resolve("vite.config.ts") };
+await build(viteConfig);
 const server = await preview({
+  ...viteConfig,
   preview: { host: "127.0.0.1", port: 4173, strictPort: true },
 });
 

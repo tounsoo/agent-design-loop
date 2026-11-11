@@ -16,8 +16,8 @@ import { defaultExportLiteral, isRecord, parseConfig, requireString, requireStri
  * case.ts is plain literals:
  *
  *   export default {
- *     config: { adapter?, paths?: { <key>: path }, flows? },
- *     base?: { adapter?, paths?, flows? },
+ *     config: { adapter?, paths?: { <key>: path }, shells?, flows? },
+ *     base?: { adapter?, paths?, shells?, flows? },
  *     checks: [{ run: "check:one-thing", args?: ["--list"], fails | passes: "<phrase>" }],
  *   };
  *
@@ -32,7 +32,7 @@ const FIXTURES = "fixtures";
 const PRODUCT_CONFIG = "fixtures/product/harness.config.ts";
 const CONTAINERS = new Set([FIXTURES, `${FIXTURES}/illegal`]);
 
-type Overrides = { adapter?: string; paths?: Record<string, string | string[]>; flows?: unknown[] };
+type Overrides = { adapter?: string; paths?: Record<string, string | string[]>; shells?: unknown; flows?: unknown[] };
 type Check = { run: string; args: string[]; expect: "fails" | "passes"; phrase: string };
 type Case = { dir: string; config: Overrides; base: Overrides | null; checks: Check[] };
 
@@ -49,7 +49,7 @@ function scriptFiles(): Map<string, string> {
 function overrides(value: unknown, where: string, product: ParsedConfig): Overrides {
   if (value === undefined) return {};
   if (!isRecord(value)) throw new Error(`${where} must be an object.`);
-  const unknown = Object.keys(value).filter((key) => !["adapter", "paths", "flows"].includes(key));
+  const unknown = Object.keys(value).filter((key) => !["adapter", "paths", "shells", "flows"].includes(key));
   if (unknown.length > 0) throw new Error(`${where} has unknown keys: ${unknown.join(", ")}.`);
   const result: Overrides = {};
   if (value.adapter !== undefined) result.adapter = requireString(value, "adapter", where);
@@ -62,6 +62,8 @@ function overrides(value: unknown, where: string, product: ParsedConfig): Overri
     }
     result.paths = paths;
   }
+  // shells replaces the product's rules whole, and writeConfig parses the result.
+  if (value.shells !== undefined) result.shells = value.shells;
   if (value.flows !== undefined) {
     if (!Array.isArray(value.flows)) throw new Error(`${where}.flows must be an array.`);
     result.flows = value.flows;
@@ -142,6 +144,7 @@ function writeConfig(product: ParsedConfig, change: Overrides, file: string): st
   const merged = {
     adapter: change.adapter ?? product.adapter,
     paths: { ...product.paths, ...change.paths },
+    shells: change.shells ?? product.shells,
     flows: change.flows ?? product.flows,
   };
   const text = `export default ${JSON.stringify(merged, null, 2)};\n`;

@@ -6,6 +6,7 @@ import { parseAdapter, type DesignSystemAdapter } from "./lib/adapter";
 import { collectionCompositionViolations } from "./lib/collection-body";
 import { config, configName, memberOf, pageTypesBarrel, parseConfig, type HarnessConfig, type ParsedConfig } from "./lib/config";
 import { walk } from "./lib/jsx";
+import { collectionShellsOf, shellsOf } from "./lib/shells";
 
 /**
  * Inventories are data: catalog exports, chrome layout ids, content layout
@@ -28,6 +29,11 @@ import { walk } from "./lib/jsx";
  * that records the config. The design system adapter the config names is an
  * inventory as well, compared field by field. A base whose config names no
  * adapter records it once.
+ *
+ * A product the base does not have at all, with neither its config nor its
+ * inputs, is new: the pull request that adds it records its inventories,
+ * like a list the base does not export. Its config is code-owned like the
+ * root one.
  *
  * `--base <config>` compares with a product in the working tree instead of
  * the pull request base. The fixtures have no history of their own, so this
@@ -239,8 +245,19 @@ function catalogExports(source: ts.SourceFile): string[] {
   return sortedUnique(names);
 }
 
-function readInventory(root: Root): Inventory {
+function existsAt(rev: string, file: string): boolean {
+  try {
+    execFileSync("git", ["cat-file", "-e", `${rev}:${file}`], { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** The root's inventory, or null when the root is a revision without this product: no config and no inputs. */
+function readInventory(root: Root): Inventory | null {
   const own = configAt(root);
+  if (own === null && root.kind === "git" && !existsAt(root.rev, config.paths.inputs)) return null;
   const { paths, flows } = own ?? config;
   const product = parseSource(paths.inputs, readText(root, paths.inputs));
   const rules = parseSource(paths.rules, readText(root, paths.rules));
@@ -303,6 +320,7 @@ function membershipChanges(base: Inventory, head: Inventory, compareConfig: bool
       for (const key of keys) {
         compare(`${configName} paths.${key}`, base.config.paths[key as keyof HarnessConfig["paths"]], head.config.paths[key as keyof HarnessConfig["paths"]]);
       }
+      compare(`${configName} shells`, base.config.shells, head.config.shells);
       compare(`${configName} flows`, base.config.flows, head.config.flows);
       if (base.config.adapter !== null) compare(`${configName} adapter`, base.config.adapter, head.config.adapter);
     }
@@ -512,14 +530,21 @@ const baseFlag = flag("--base");
 const headRoot: Root = { kind: "tree", config };
 
 const head = readInventory(headRoot);
+if (!head) fail(`inventory: cannot read ${configName}.`);
 if (!head.layouts) fail(`inventory: allowed_layouts is missing from ${config.paths.inputs}.`);
 if (!head.contentLayouts) fail(`inventory: allowed_content_layouts is missing from ${config.paths.inputs}.`);
+
+const collectionTypes = Object.keys(config.shells.collections);
+const collectionShells = shellsOf(collectionTypes.filter((pageType) => head.pageTypes.includes(pageType)), config.paths.pageTypes);
+const { collections, problems: collectionProblems } = collectionShellsOf(config.shells, collectionShells.shells, head.pageTypes);
 
 const violations = [
   ...directoryDrift("layout", config.paths.layouts, head.layouts),
   ...directoryDrift("content layout", config.paths.contentLayouts, head.contentLayouts),
   ...directoryDrift("page type", config.paths.pageTypes, head.pageTypes),
-  ...collectionCompositionViolations(path.resolve(config.paths.features), head.contentLayouts, path.resolve(config.paths.styles)),
+  ...collectionShells.problems,
+  ...collectionProblems,
+  ...collectionCompositionViolations(path.resolve(config.paths.features), head.contentLayouts, path.resolve(config.paths.styles), collections),
 ];
 
 const declaredPages = sortedUnique(stringArray(exportedInitializer(parseSource(pageTypesBarrel, readText(headRoot, pageTypesBarrel)), "pageTypes"), "pageTypes"));
@@ -545,6 +570,17 @@ for (const id of importedMembers(sourceRoot, config.paths.pageTypes)) {
 const baseRoot: Root = baseFlag ? { kind: "tree", config: readBaseConfig(baseFlag) } : { kind: "git", rev: resolveBaseRev() };
 const compareConfig = baseRoot.kind === "git";
 const base = readInventory(baseRoot);
+if (base === null) {
+  if (violations.length > 0) {
+    for (const violation of violations) console.error(`inventory: ${violation}`);
+    process.exit(1);
+  }
+  const rev = baseRoot.kind === "git" ? baseRoot.rev.slice(0, 7) : baseFlag;
+  console.log(`inventory: base ${rev} has no ${configName} or ${config.paths.inputs}; recorded a new product's inventories.`);
+  console.log("inventory: collection bodies use a registered content layout.");
+  console.log(`inventory: ${summary(head)}`);
+  process.exit(0);
+}
 const changes = membershipChanges(base, head, compareConfig);
 // A working-tree base shares the head's proposals, so it can add none.
 const explained = baseRoot.kind === "git" ? explainingProposals(proposalNamesAtRev(baseRoot.rev), proposalsOnDisk(process.cwd())) : [];

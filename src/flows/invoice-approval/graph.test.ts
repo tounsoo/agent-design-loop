@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { tasks } from "../../inputs/product";
 import { flowStart, taskHappyPath, taskId, transition, userEvents } from "./graph";
-import { eventEdges, shortestPath, type TaskEdge } from "./shortest-path";
+import { eventEdges, shortestPath, type TaskEdge } from "../../../scripts/lib/shortest-path";
 
 describe("approve-vendor-invoice happy path", () => {
   it("is two steps, inside the budget", () => {
