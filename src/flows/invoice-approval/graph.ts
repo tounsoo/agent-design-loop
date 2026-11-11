@@ -23,7 +23,8 @@ export const taskStart: TaskNode = {
  * There is no approval-note step.
  *
  * This is the reviewed path the budget is set for. check:step-budget measures
- * it and the shipped transition reducer, and fails when their lengths differ.
+ * it and the shipped transition reducer, and fails when they are not the same
+ * steps. Step names are the FlowEvent types they stand for.
  */
 export const taskEdges: readonly TaskEdge<TaskNode>[] = [
   {

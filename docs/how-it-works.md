@@ -168,7 +168,7 @@ The budget check measures two paths for every task in `tasks`. Each task needs o
 - **Modeled path.** The shortest path through the task graph in `src/flows/invoice-approval/graph.ts`. This is the reviewed path the budget is set for. Request changes is not an edge. Opening Line items is optional, so it is not an edge either. There is no approval-note step.
 - **Shipped path.** The shortest path through the real `transition` reducer, from `flowStart` (the loaded To approve queue) over `userEvents` (the events a person can cause) to `success_state`. Today it is `open-invoice → approve`, 2 steps.
 
-Both must fit `max_steps`, and their lengths must match. A reducer that grows a step fails the build even if nobody updates the graph. A reducer that drops a step, or a graph that keeps one the reducer never needed, fails too.
+Both must fit `max_steps`, and they must be the same steps. Graph step names are the event types they stand for. A reducer that grows a step fails the build even if nobody updates the graph. A reducer that drops or swaps a step, or a graph that keeps one the reducer never needed, fails too.
 
 ```mermaid
 flowchart LR
@@ -212,7 +212,7 @@ flowchart LR
 
 What each script fails, in the words the code implements:
 
-- **Step budget.** Every task has exactly one task graph, and every graph's `taskId` is a task. For each task, the modeled path and the shipped path must exist, be at most `max_steps`, and have the same length. `fixtures/illegal/over-budget` has a longer graph. `fixtures/illegal/over-budget-flow` has a 3-step graph and a reducer that needs 4. `fixtures/illegal/graph-flow-drift` has a 3-step graph and a reducer that needs 2. `fixtures/illegal/task-without-graph` has no graph for `approve-vendor-invoice`.
+- **Step budget.** Every task has exactly one task graph, and every graph's `taskId` is a task. For each task, the modeled path and the shipped path must exist, be at most `max_steps`, and be the same steps. `fixtures/illegal/over-budget` has a longer graph. `fixtures/illegal/over-budget-flow` has a 3-step graph and a reducer that needs 4. `fixtures/illegal/graph-flow-drift` has a 3-step graph and a reducer that needs 2. `fixtures/illegal/task-without-graph` has no graph for `approve-vendor-invoice`.
 - **Slots.** Every `DetailPage` has exactly one `DetailPage.Primary`, and that slot has exactly one primary `Button.Root`. `fixtures/illegal/two-primaries` puts two buttons there.
 - **Disclosure.** A page is one rendered page-type shell in `src/features`, plus what renders on it: components its JSX uses (local, or imported from a relative path), its content layouts, the page-type shell module, and the chrome layouts. `scripts/lib/page-scope.ts` builds that scope. It follows JSX tags and calls to helper functions, and it undoes import aliases such as `Field as F`. A `Disclosure.Root` or `Field.Root` in `src/features` that no page reaches, such as JSX held in a variable outside the shell, fails both checks, because a per-page cap cannot count it. The checks also fail when no page is found. On each page, the number of `Disclosure.Root` elements is at most `MAX_DISCLOSURES_PER_PAGE`, and nesting, followed across components, is at most `MAX_DISCLOSURE_DEPTH`. `fixtures/illegal/disclosures-per-page` puts one disclosure in each of two component files on one page. The check also fails if the catalog stops exporting `Disclosure`.
 - **Priority.** The only primary button's text is the rank-1 action, Approve, and it is not inside a disclosure. The rank-2 action, Request changes, is one `variant="secondary"` button. Each entry in `disclosed_sections` is the text of a `Disclosure.Summary`. `fixtures/illegal/missing-disclosed-section` shows line items in the open.
@@ -253,7 +253,7 @@ The fixtures the gate has to reject:
 | `two-primaries` | Two buttons in the detail primary slot | `primary slot` |
 | `over-budget` | A task graph with an approval-note step | `modeled path length 4 exceeds max_steps` |
 | `over-budget-flow` | A 3-step graph, and a reducer that needs Line items and a note before Approve | `shipped flow path length 4 exceeds max_steps` |
-| `graph-flow-drift` | A 3-step graph that requires Line items, and a reducer that lets Approve through without them | `does not match the modeled path length` |
+| `graph-flow-drift` | A 3-step graph that requires Line items, and a reducer that lets Approve through without them | `does not match the modeled path` |
 | `task-without-graph` | The only graph models a task that is not in `tasks` | `has no task graph` |
 | `two-questions` | A note field and a reason field outside a disclosure on one detail page | `questions outside a disclosure` |
 | `hoisted-question` | Two fields built in variables outside the shell | `is not reached from any page` |

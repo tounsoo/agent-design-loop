@@ -53,7 +53,7 @@ On an invoice (`?invoice=inv-1842`):
 
 Search, filters, sort, and paging are available on collections. They are not steps on the happy path.
 
-The happy path is two steps: open an invoice, Approve. That lands on `invoice-approved`. Opening Line items is optional and not counted. `max_steps` stays 3. There is no approval note and no confirm step. `check:step-budget` measures the task graph and the shipped reducer, and fails when either is over budget or their lengths differ.
+The happy path is two steps: open an invoice, Approve. That lands on `invoice-approved`. Opening Line items is optional and not counted. `max_steps` stays 3. There is no approval note and no confirm step. `check:step-budget` measures the task graph and the shipped reducer, and fails when either is over budget or the two paths are not the same steps.
 
 The shell stays up in every modeled state. Loading, empty, and error render inside `main`. A **Preview** menu in the header is a developer aid for opening those states without clicking through. The default URL does not depend on it.
 
@@ -82,7 +82,7 @@ npm run check:fixtures && npm run check
 | --- | --- |
 | `npm run typecheck` | A modeled state with no exhaustive view, and ordinary type errors |
 | `npm run lint` | ESLint, plus off-catalog UI and the detail primary-slot contract |
-| `npm run check:step-budget` | A task path longer than that task's `max_steps`, or a task graph and shipped reducer whose path lengths differ |
+| `npm run check:step-budget` | A task path longer than that task's `max_steps`, or a task graph and shipped reducer whose paths differ |
 | `npm run check:disclosure` | Disclosure depth or count above the cap |
 | `npm run check:priority` | A primary action that is not Approve, or Request changes shown as primary |
 | `npm run check:one-thing` | More than one shell for a page type, or a primary on a collection page. Page-type membership is `allowed_page_types`, which this check reads |

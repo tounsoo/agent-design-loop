@@ -15,8 +15,12 @@ import { eventEdges, shortestPath, type TaskEdge } from "../src/flows/invoice-ap
  *
  * The graph is the path the budget is set for. The reducer is what ships. Both
  * must fit, so a reducer that grows a step cannot hide behind a stale graph.
- * Their lengths must also match, so a reducer that drops a reviewed step, or a
- * graph that keeps a step the reducer never needed, fails too.
+ * The two paths must also be the same steps, so a reducer that drops or swaps
+ * a reviewed step, or a graph that keeps a step the reducer never needed,
+ * fails too. Graph step names are the event types they stand for.
+ * shortestPath returns the first shortest path in edge order. If a graph or
+ * reducer ever has two shortest paths, order its edges or userEvents so the
+ * reviewed one comes first.
  */
 
 type GraphModule = {
@@ -115,9 +119,9 @@ for (const task of tasks) {
   if (shipped.length > task.max_steps) {
     violations.push(`step budget: shipped flow path length ${shipped.length} exceeds max_steps ${task.max_steps} for ${task.id}.`);
   }
-  if (modeled && shipped.length !== modeled.length) {
+  if (modeled && shipped.join(" → ") !== modeled.join(" → ")) {
     violations.push(
-      `step budget: shipped flow path length ${shipped.length} does not match the modeled path length ${modeled.length} for ${task.id}. Update the task graph or the reducer so they agree.`,
+      `step budget: shipped flow path ${shipped.join(" → ")} does not match the modeled path ${modeled.join(" → ")} for ${task.id}. Update the task graph or the reducer so they agree.`,
     );
   }
 }

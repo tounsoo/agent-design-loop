@@ -19,7 +19,7 @@ const cases = [
   {
     name: "graph-flow-drift",
     args: ["scripts/check-step-budget.ts", "--graph", "fixtures/illegal/graph-flow-drift/graph.ts"],
-    phrase: "does not match the modeled path length",
+    phrase: "does not match the modeled path",
   },
   {
     name: "task-without-graph",

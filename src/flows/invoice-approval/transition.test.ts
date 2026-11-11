@@ -12,10 +12,16 @@ describe("invoice approval flow", () => {
     expect(assertNoNote).toBe(true);
   });
 
-  it("approves in three changes", () => {
+  it("approves in two changes", () => {
     let state = initialFlowState(preview);
     expect(state).toEqual({ status: "ready", screen: "collection" });
     state = transition(state, { type: "open-invoice", invoiceId: "inv-1842" });
+    state = transition(state, { type: "approve" });
+    expect(state).toEqual({ status: "invoice-approved", invoiceId: "inv-1842" });
+  });
+
+  it("still approves after the optional Line items open", () => {
+    let state = transition(initialFlowState(preview), { type: "open-invoice", invoiceId: "inv-1842" });
     state = transition(state, { type: "open-line-items" });
     state = transition(state, { type: "approve" });
     expect(state).toEqual({ status: "invoice-approved", invoiceId: "inv-1842" });
