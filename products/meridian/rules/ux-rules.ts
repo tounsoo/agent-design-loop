@@ -33,6 +33,12 @@ export const uxRules = [
     input: "No product exception is recorded. WCAG 2.5.8 spacing may pass an undersized control.",
     reviewQuestion: "Should an important control aim for the stricter 44 CSS px enhanced size?",
   },
+  {
+    id: "announced-states",
+    structuralCheck: "npm run check:accessible-names -- --config products/meridian/harness.config.ts",
+    input: "products/meridian/features/invoice-approval/accessible-names.ts#accessibleNames",
+    reviewQuestion: "Is what each state announces the right thing to say, and does every change of state reach a screen reader?",
+  },
 ] as const;
 
 /** Line items are the one disclosure. Nothing nests under them. */

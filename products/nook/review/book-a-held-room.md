@@ -15,3 +15,4 @@ The hold-room task is "Pick a free room and hold it while you decide". Until thi
 - Whether book-room's budget of 3 is right now that hold then book uses all of it. A longer route to booked, such as one that needs another step between hold and book, would fail the check.
 - Whether a hold should expire on screen after 15 minutes. Nook has no clock, so the held state never ends by itself.
 - Whether the alert's "Book it to keep it." is the right copy for the hold.
+- Whether the load error should be an alert. A screen reader hears "Room held" and "Room booked" as they arrive, because each is a status message `accessible-names.ts` declares, but the error is plain text.
