@@ -12,6 +12,6 @@ The hold-room task is "Pick a free room and hold it while you decide". Until thi
 ## What the checks cannot decide
 
 - Whether booking a held room should keep the length chosen before the hold or ask again. The length field stays locked on a held room, so the booking takes the length chosen before the hold. A designer may want the length editable before booking.
-- Whether book-room's budget of 3 is right now that hold then book uses all of it. One more step on that route would fail the check.
+- Whether book-room's budget of 3 is right now that hold then book uses all of it. A longer route to booked, such as one that needs another step between hold and book, would fail the check.
 - Whether a hold should expire on screen after 15 minutes. Nook has no clock, so the held state never ends by itself.
 - Whether the alert's "Book it to keep it." is the right copy for the hold.
