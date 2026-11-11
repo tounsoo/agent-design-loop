@@ -244,9 +244,10 @@ The agent records its walk in a trace, one JSON line per node, in a file under `
 - the change touches a product's directory, the folder of any `harness.config.ts` outside the harness package, and adds or edits no trace
 - a trace the change adds or edits does not start at the graph's `start`, names a node the graph does not have, or steps between two nodes no edge connects
 - a router, eval or human step has no `when`, or one its node has no edge for, or the next step is not where that `when` leads. Other steps take no `when`
-- the step after a node with no edge out, which ends a run, is not a new run at `start`
+- the step after a node with no edge out, which ends a run, is not a new run at `start`. After a checkpoint with an edge out, which pauses the run, a new run may start too
+- a file the change adds under `traces/` is not a `.jsonl` trace, other than the folder's README
 - the trace stops anywhere but a checkpoint
-- the last change to state an eval node reads has no passing eval node after it
+- the trace stops at a node that ends a run, and the last change to state an eval node reads has no passing eval node after it. A run paused at a checkpoint with an edge out, the proposal's pull request, may stop with its work unchecked, because it waits on approval
 
 The trace shows that the agent recorded a walk the graph allows. It does not prove the agent did what each line says: the agent writes its own trace, and nothing executes the graph. A false `checks pass` line does not let unchecked work merge, because CI runs the gate on every pull request anyway. The trace is for the reviewer, who can see whether the run went through a proposal, failed the gate first, or waited on a person, and hold the diff against that.
 

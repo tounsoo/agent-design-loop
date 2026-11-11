@@ -23,7 +23,7 @@ const KEYS = new Set(["node", "when", "at"]);
 export function parseTrace(text: string): { steps: (TraceStep & { line: number })[] } | { problems: string[] } {
   const steps: (TraceStep & { line: number })[] = [];
   const problems: string[] = [];
-  text.split(/\r?\n/).forEach((raw, index) => {
+  text.replace(/^\uFEFF/, "").split(/\r?\n/).forEach((raw, index) => {
     const line = index + 1;
     if (raw.trim() === "") return;
     let value: unknown;
@@ -63,8 +63,11 @@ const hasOutcomes = (node: LoopNode): boolean => node.kind === "router" || node.
  * What is wrong with a walk of the graph. An empty list means the walk is one
  * the graph allows. With `partial`, the walk may stop anywhere, which is how
  * `loop:step` checks a trace still being written. Otherwise it must stop at a
- * checkpoint, and every change to state an eval node reads must be followed by
- * a passing eval node that reads it.
+ * checkpoint. When that checkpoint ends the run, every change to state an eval
+ * node reads must be followed by a passing eval node that reads it, the rule
+ * check:loop holds the graph's ends to. A checkpoint with an edge out, such as
+ * the proposal's pull request, pauses the run, so its work may still be unchecked.
+ * The step after any checkpoint may start a new run.
  */
 export function walkProblems(graph: LoopGraph, steps: readonly (TraceStep & { line: number })[], options: { partial?: boolean } = {}): string[] {
   const problems: string[] = [];
@@ -92,7 +95,10 @@ export function walkProblems(graph: LoopGraph, steps: readonly (TraceStep & { li
       if (node.id !== graph.start) problems.push(`line ${step.line} starts at ${node.id}. A run starts at ${graph.start}.`);
       return;
     }
-    if (!nodes.has(previous.node)) return;
+    const before = nodes.get(previous.node);
+    if (!before) return;
+    // A checkpoint saves the run's work, so the next step may start a new run there. After an end it must.
+    if (before.kind === "checkpoint" && node.id === graph.start) return;
     if (isEnd(previous.node)) {
       if (node.id !== graph.start) problems.push(`line ${step.line} follows ${previous.node}, which ends the run, so a new run starts at ${graph.start}, not ${node.id}.`);
       return;
@@ -112,6 +118,7 @@ export function walkProblems(graph: LoopGraph, steps: readonly (TraceStep & { li
     problems.push(`the trace ends at ${last.node} on line ${last.line}, which is not a checkpoint, so the run's work is not saved for review.`);
   }
 
+  if (!last || !isEnd(last.node)) return problems;
   // Every state an eval node reads, written after the last eval node that reads it passed, is unchecked work.
   const checked = new Set(graph.nodes.flatMap((node) => (node.kind === "eval" ? (node.reads ?? []) : [])));
   const unchecked = new Map<string, TraceStep & { line: number }>();
@@ -136,15 +143,20 @@ export function traceProblems(graph: LoopGraph, text: string, options: { partial
 /** A change's files, as `git diff --name-status` gives them, plus untracked files as added. */
 export type ChangedFile = { readonly status: string; readonly path: string };
 
-/** The trace files a change adds or edits. A deleted trace is not one. */
-export function changedTraces(files: readonly ChangedFile[]): string[] {
-  return files
-    .filter((file) => !file.status.startsWith("D") && file.path.startsWith(`${TRACE_DIR}/`) && file.path.endsWith(".jsonl"))
-    .map((file) => file.path)
-    .sort();
+/**
+ * The files a change adds or edits under traces/: the traces, ending in
+ * `.jsonl`, and anything else but the folder's README, which the check fails
+ * so a misnamed trace is not skipped. A deleted file is neither.
+ */
+export function changedTraces(files: readonly ChangedFile[]): { traces: string[]; misnamed: string[] } {
+  const added = files.filter((file) => !file.status.startsWith("D") && file.path.startsWith(`${TRACE_DIR}/`)).map((file) => file.path);
+  return {
+    traces: added.filter((file) => file.endsWith(".jsonl")).sort(),
+    misnamed: added.filter((file) => !file.endsWith(".jsonl") && file !== `${TRACE_DIR}/README.md`).sort(),
+  };
 }
 
-/** The product directories a change touches, given each product's directory. */
+/** The product directories a change touches, given each product's directory. A product at the root holds every file. */
 export function touchedProducts(files: readonly ChangedFile[], productDirs: readonly string[]): string[] {
-  return productDirs.filter((dir) => files.some((file) => file.path.startsWith(`${dir}/`))).sort();
+  return productDirs.filter((dir) => files.some((file) => dir === "." || file.path.startsWith(`${dir}/`))).sort();
 }

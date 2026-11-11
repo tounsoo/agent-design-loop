@@ -115,15 +115,31 @@ describe("traceProblems", () => {
     );
   });
 
-  it("fails a trace whose last change to checked state has no passing eval node after it", () => {
-    // A graph where a checkpoint can follow a failing eval node, as the design loop's proposal checkpoint can.
-    const parked: LoopGraph = {
-      ...graph,
-      nodes: [...graph.nodes, { id: "park", kind: "checkpoint", label: "Park the work" }],
-      edges: graph.edges.map((edge) => (edge.from === "ask" && edge.when === "declined" ? { ...edge, to: "park" } : edge)).concat({ from: "park", to: "ask" }),
-    };
-    const unchecked = lines({ node: "build" }, { node: "checks", when: "fail" }, { node: "fork", when: "outside" }, { node: "ask", when: "declined" }, { node: "park" });
-    expect(traceProblems(parked, unchecked)).toEqual(["line 1: build writes ui, and no eval node that reads ui passes after it, so the run ends with unchecked work."]);
+  it("fails a trace whose run ends on a change to checked state no passing eval node follows", () => {
+    // check:loop refuses such a graph, so this one is built to let a run give up after a failing check.
+    const givesUp: LoopGraph = { ...graph, edges: [...graph.edges, { from: "fork", to: "done", when: "give up" }] };
+    const unchecked = lines({ node: "build" }, { node: "checks", when: "fail" }, { node: "fork", when: "give up" }, { node: "done" });
+    expect(traceProblems(givesUp, unchecked)).toEqual(["line 1: build writes ui, and no eval node that reads ui passes after it, so the run ends with unchecked work."]);
+  });
+
+  it("passes a run paused at a checkpoint with an edge out, though its work is unchecked, and a new run after it", () => {
+    // The design loop's proposal checkpoint: the gate failed, the fix is outside the inventories, so the run waits on approval.
+    const paused = lines(
+      { node: "read" },
+      { node: "route", when: "fits" },
+      { node: "build" },
+      { node: "checks", when: "fail" },
+      { node: "triage", when: "outside" },
+      { node: "propose" },
+      { node: "proposal-pull-request" },
+    );
+    expect(traceProblems(designLoop, paused)).toEqual([]);
+    const next = lines({ node: "read" }, { node: "route", when: "fits" }, { node: "build" }, { node: "checks", when: "pass" }, { node: "note" }, { node: "pull-request" });
+    expect(traceProblems(designLoop, `${paused}${next}`)).toEqual([]);
+  });
+
+  it("reads a trace that starts with a byte order mark", () => {
+    expect(traceProblems(graph, `\uFEFF${pass}`)).toEqual([]);
   });
 
   it("passes a partial walk, which loop:step checks as it appends", () => {
@@ -145,11 +161,12 @@ describe("changedTraces and touchedProducts", () => {
     { status: "M", path: "products/meridian/features/board.tsx" },
   ];
 
-  it("reads the trace files a change adds or edits, and not one it deletes", () => {
-    expect(changedTraces(files)).toEqual(["traces/meridian-board.jsonl"]);
+  it("reads the trace files a change adds or edits, not one it deletes, and names any other file it adds there", () => {
+    expect(changedTraces([...files, { status: "A", path: "traces/README.md" }])).toEqual({ traces: ["traces/meridian-board.jsonl"], misnamed: ["traces/notes.md"] });
   });
 
-  it("reads the product directories a change touches", () => {
+  it("reads the product directories a change touches, and a product at the root holds every file", () => {
     expect(touchedProducts(files, ["products/meridian", "products/nook", "products/mer"])).toEqual(["products/meridian"]);
+    expect(touchedProducts([{ status: "M", path: "README.md" }], ["."])).toEqual(["."]);
   });
 });

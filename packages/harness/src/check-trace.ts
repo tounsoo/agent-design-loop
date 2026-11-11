@@ -30,40 +30,49 @@ if ("problem" in base) {
 }
 
 function changedFiles(rev: string): ChangedFile[] {
-  const diff = tryGit(["diff", "--name-status", "-M", rev, "--"]);
-  const untracked = tryGit(["ls-files", "--others", "--exclude-standard"]);
+  // -z keeps a path with spaces or non-ASCII letters as it is. Without it git quotes the path, and a quoted path matches no folder.
+  const diff = tryGit(["diff", "-z", "--name-status", "-M", rev, "--"]);
+  const untracked = tryGit(["ls-files", "-z", "--others", "--exclude-standard"]);
   if (diff === null || untracked === null) {
     console.error(`trace: cannot diff the working tree against ${rev}.`);
     process.exit(1);
   }
   const files: ChangedFile[] = [];
-  for (const line of diff.split("\n").filter(Boolean)) {
-    const [status = "", ...paths] = line.split("\t");
-    // A rename or copy changes both paths: the old one goes, the new one comes.
-    if (paths.length === 2 && paths[0] && paths[1]) {
-      if (status.startsWith("R")) files.push({ status: "D", path: paths[0] });
-      files.push({ status: "A", path: paths[1] });
-    } else if (paths[0]) files.push({ status, path: paths[0] });
+  const fields = diff.split("\0");
+  for (let index = 0; index < fields.length; ) {
+    const status = fields[index++] ?? "";
+    if (status === "") continue;
+    // A rename or copy names two paths: the old one goes, the new one comes.
+    if (status.startsWith("R") || status.startsWith("C")) {
+      const from = fields[index++] ?? "";
+      const to = fields[index++] ?? "";
+      if (status.startsWith("R")) files.push({ status: "D", path: from });
+      files.push({ status: "A", path: to });
+    } else files.push({ status, path: fields[index++] ?? "" });
   }
-  for (const file of untracked.split("\n").filter(Boolean)) files.push({ status: "A", path: file });
+  for (const file of untracked.split("\0").filter(Boolean)) files.push({ status: "A", path: file });
   return files;
 }
 
 /** Each product's directory: the folder of every harness.config.ts git knows of outside the harness package, at the head or the base. */
 function productDirs(rev: string): string[] {
-  const head = tryGit(["ls-files", "--cached", "--others", "--exclude-standard"]) ?? "";
-  const atBase = tryGit(["ls-tree", "-r", "--name-only", rev]) ?? "";
-  const configs = `${head}\n${atBase}`
-    .split("\n")
+  const head = tryGit(["ls-files", "-z", "--cached", "--others", "--exclude-standard"]) ?? "";
+  const atBase = tryGit(["ls-tree", "-z", "-r", "--name-only", rev]) ?? "";
+  const configs = `${head}\0${atBase}`
+    .split("\0")
     .filter((file) => path.posix.basename(file) === "harness.config.ts" && !file.startsWith(`${harnessDir}/`));
-  return [...new Set(configs.map((file) => path.posix.dirname(file)))].filter((dir) => dir !== ".").sort();
+  return [...new Set(configs.map((file) => path.posix.dirname(file)))].sort();
 }
 
 const files = changedFiles(base.rev);
-const traces = changedTraces(files);
+const { traces, misnamed } = changedTraces(files);
 const products = touchedProducts(files, productDirs(base.rev));
 
 let failed = false;
+if (misnamed.length > 0) {
+  failed = true;
+  console.error(`trace: ${misnamed.join(", ")} ${misnamed.length === 1 ? "is" : "are"} under ${TRACE_DIR}/ but not a .jsonl trace, so check:trace would not read ${misnamed.length === 1 ? "it" : "them"}. Name a trace <change>.jsonl.`);
+}
 for (const trace of traces) {
   const problems = traceProblems(designLoop, existsSync(trace) ? readFileSync(trace, "utf8") : "");
   if (problems.length === 0) continue;

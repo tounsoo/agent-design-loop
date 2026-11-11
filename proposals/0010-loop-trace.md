@@ -13,9 +13,10 @@ With a trace, the agent appends one line per node as it walks the graph. `check:
 - the change touches a product's directory, the folder of any `harness.config.ts` outside the harness package, and adds or edits no trace under `traces/`
 - a trace it adds or edits does not start at the graph's `start`, names a node the graph does not have, or steps between two nodes no edge connects
 - a router, eval or human step has no `when`, or one its node has no edge for, or the next step is not where that `when` leads
-- after a node with no edge out, which ends a run, the next step is not a new run at `start`
+- after a node with no edge out, which ends a run, the next step is not a new run at `start`. After a checkpoint with an edge out, which pauses the run, a new run may start too
+- a file the change adds under `traces/` is not a `.jsonl` trace, other than the folder's README
 - the trace stops anywhere but a checkpoint
-- the last change to state an eval node reads has no passing eval node after it, so the run would end on work the build gate never passed
+- the trace stops at a node that ends a run, and the last change to state an eval node reads has no passing eval node after it, so the run would end on work the build gate never passed. This is the rule `check:loop` holds the graph's ends to. A run paused at the proposal's checkpoint may stop with its work unchecked, because the gate failed and the fix waits on approval
 
 A trace is the agent's own record. It shows that the agent recorded a walk the graph allows, not that the agent did the work each line names: an agent can write `{"node": "checks", "when": "pass"}` without running the gate. CI still runs the gate on every pull request, so a false `pass` does not get unchecked UI merged. What the trace adds is a record a reviewer can hold the diff against: whether the run went through a proposal, whether the gate failed first, whether a person approved. A runtime that executes the graph would make the record a proof, at the cost of a dependency, and it would read the same graph file.
 
