@@ -24,3 +24,8 @@ Vendors is a directory of cards with an **Add a vendor** form behind the page's 
 - The summary and the field each show a problem after a failed submit, and the confirmation and the new card both name the vendor. The proposal says why both stay. Whether that reads as repetition is a design call.
 - Should a card link to its last invoice? The table that came before had no link, and this change keeps it that way. A link under the form also fails `check:target-size`, which measures one frame after it opens a disclosure, while the disclosure's open transition still has the form laid over the cards.
 - Added vendors last until the page reloads, because there is no backend. Whether a vendor should need a second person's approval before invoices can be paid to it is a product question this demo does not model.
+
+## Screenshots and the trace
+
+- [Screenshots](screenshots/vendor-directory/README.md) show every preview before and after, at 1280 by 900. Vendors and Vendor added are new; the other previews should match.
+- The internal review found two bugs after the build gate first passed: a vendor added on Empty was dropped, and a search hid the vendor just added. A second look found ids that could repeat and Empty's cards joining invoices. The fixes came after the trace's last `checks` step, and the gate passed again on them. The design loop has no node for a review between the gate and the screenshots, so the trace shows one passing `checks` for those gate runs.
