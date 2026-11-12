@@ -7,7 +7,8 @@ export const meta = {
     "A page type in `allowed_page_types` that renders no page.",
     "A primary button on a collection page, including inside a content layout that page uses.",
     "More questions outside a disclosure on one page than `MAX_VISIBLE_QUESTIONS`. A question is the adapter's question part, Todae's `Field.Root`.",
-    "A chrome slot in `shells.collections` that the collection's shell does not define, a collection whose pages fill no slot outside its chrome, and an allowed page type named in neither or both of `shells.primarySlots` and `shells.collections`.",
+    "A chrome slot in `shells.collections` that the collection's shell does not define, or that it names for a shell not defined as `Object.assign(Root, { ... })`; a page type there that is not in `allowed_page_types`; and an allowed page type named in neither or both of `shells.primarySlots` and `shells.collections`.",
+    "A page type in `allowed_page_types` with no shell module under `paths.pageTypes`, or whose module exports no shell.",
     "A catalog that stops exporting the question part, so the cap cannot go quiet.",
   ],
   details: [

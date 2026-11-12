@@ -6,6 +6,7 @@ export const meta = {
     "An illegal case whose check passes, or fails without the phrase its `case.ts` expects; a legal case whose check fails, or passes without its phrase.",
     "A case folder with no `case.ts`, a `case.ts` that names a path that does not exist or a script that is not one harness check, or an expected phrase that is part of a path the case names, since a crash prints the path.",
     "A case name given on the command line that is no case folder.",
+    "A `case.ts` with an unknown key, no checks, a check that gives both or neither of `fails` and `passes`, `args` that set `--config`, `--base`, `--proposals` or `--base-proposals`, or proposals with no base to compare with.",
   ],
   details: [
     "`packages/harness/fixtures/product/` is a small product with its own `harness.config.ts` that every check passes. Every other folder directly under `fixtures/` or `fixtures/illegal/` is a case whose `case.ts`, plain literals, changes some of that config's paths and names the checks to run on the result, each as its npm script with `--config`, with the phrase each must print. A case that sets `base` may also give `proposals` and `baseProposals`, folders `check:inventories` reads as the change's proposals and the base's, matched by file name. The stand-in design system in `fixtures/fake-ds/` shows a check reads its names from the adapter, and small products of their own show a rule reads its product's config and inputs.",

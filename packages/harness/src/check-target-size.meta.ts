@@ -6,7 +6,8 @@ export const meta = {
   fails: [
     "A control under 24 CSS px on a side that misses the WCAG 2.5.8 spacing exception, anywhere in the document: the page and the chrome around it, with each closed disclosure opened on its own.",
     "A button token floor under 24: the font size plus twice the vertical padding of the design system the adapter names.",
-    "A `previews` entry for a state that is not modeled, or one that sets `state` itself.",
+    "A `previews` entry for a state that is not modeled, or one that sets `state` itself, and a flow whose states file does not export `modeledStates` as a list of strings.",
+    "A `paths.web` outside the repository or with no `index.html`, and a built app that cannot be served on port 4173, as when another check holds it.",
     "No Chrome found.",
   ],
   details: [

@@ -8,6 +8,7 @@ export const meta = {
     "A doc missing a block's `<!-- docs:gen <block> start -->` or `end` marker, or holding either twice.",
     "An npm script that runs a harness file with no `<file>.meta.ts` beside it, or a meta no script runs.",
     "A meta that is not a tool and lists nothing it fails, or a rule check whose meta says it is a tool.",
+    "A `.meta.ts` that does not export `meta`, a script that imports a relative file that is not there, and a `case.ts` that is not plain literals.",
     "A meta that names a fixture case `illegal/<name>` or an `npm run <script>` that does not exist, and a fixture case that runs a script that is not a harness script.",
   ],
   details: [

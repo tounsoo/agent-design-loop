@@ -3,7 +3,8 @@ import type { CheckMeta } from "./lib/check-meta";
 export const meta = {
   summary: "Every route that finishes a task, not only the shortest, fits that task's `max_steps`, in the task graph and in the shipped reducer.",
   fails: [
-    "A task in the inputs' `tasks` with no task graph mapped under `flows[].tasks`, a mapped id that is not a task, or a graph whose `taskId` is not the id it is mapped under.",
+    "A task in the inputs' `tasks` with no task graph mapped under `flows[].tasks`, a mapped id that is not a task, a task mapped to two graphs, a graph file that is missing, or a graph whose `taskId` is not the id it is mapped under.",
+    "A graph module that does not export `flowStart`, `userEvents` and `transition`, so the shipped flow cannot be measured, or that exports a `flowStatus` that is not a function.",
     "A modeled path (the task graph's shortest) or shipped path (the flow's `transition` reducer's shortest, from `flowStart` over `userEvents` to the task's `success_state`) that is missing or longer than `max_steps`.",
     "A modeled path and shipped path that are not the same steps.",
     "Any longer route to the same success over `max_steps`, in the graph or the reducer.",

@@ -49,8 +49,8 @@ A rule check: `check:rules` runs it, and `check:product` runs it on each product
 It fails:
 
 - A design system import anywhere but the catalog, an import from one of the foreign component kits the check lists, or a relative import that reaches outside the product's own directories, such as into another product.
-- A raw `button`, `input`, `select`, `textarea` or `a` element in product UI, or a `style` attribute outside the catalog.
-- An import in any form: re-exports (`export ... from`), `import()`, `require()` (also as `globalThis.require` or `(0, require)`), `import x = require()` and Vite's `import.meta.glob` all count.
+- A raw `button`, `input`, `select`, `textarea` or `a` element anywhere in product UI, the catalog included, or a `style` attribute outside the catalog.
+- Any of those imports in any form: re-exports (`export ... from`), `import()`, `require()` (also as `globalThis.require` or `(0, require)`), `import x = require()` and Vite's `import.meta.glob` all count.
 - A dynamic load whose specifier is not a string literal, because it cannot be checked, and `require` held under another name.
 
 It reads the product's UI roots from the config: `paths.features`, `paths.pageTypes`, `paths.layouts`, `paths.contentLayouts`, `paths.app` and the catalog's own folder. The adapter's own packages are not foreign. A loader made with `createRequire` is not read. A product cannot opt out of this rule.
@@ -75,9 +75,10 @@ A rule check: `check:rules` runs it, and `check:product` runs it on each product
 
 It fails:
 
-- A page type named in `shells.primarySlots` whose slot does not hold exactly one action control, or holds one that is not primary.
+- A page whose primary slot is missing, as when the shell is self-closed (`<Shell />`), or that renders the slot more than once; a slot that does not hold exactly one action control, or holds one that is not primary.
 - A slot name the page type's shell does not define as `Object.assign(Root, { ... })`, in its module or a module it re-exports from, so a misspelled slot fails instead of matching nothing.
 - A page type named there that renders no page, or that is not in `allowed_page_types`, and a config that names no page type, so the rule cannot go quiet.
+- A page type in `allowed_page_types` with no shell module under `paths.pageTypes`, or whose module exports no shell.
 
 The check does not name `DetailPage`: `shells.primarySlots` maps a page type to its slot, Meridian's `{ detail: "Primary" }`, and the shell's name comes from that page type's module. A second primary outside the slot is `check:priority`'s to catch.
 
@@ -106,7 +107,8 @@ A rule check: `check:rules` runs it, and `check:product` runs it on each product
 
 It fails:
 
-- A task in the inputs' `tasks` with no task graph mapped under `flows[].tasks`, a mapped id that is not a task, or a graph whose `taskId` is not the id it is mapped under.
+- A task in the inputs' `tasks` with no task graph mapped under `flows[].tasks`, a mapped id that is not a task, a task mapped to two graphs, a graph file that is missing, or a graph whose `taskId` is not the id it is mapped under.
+- A graph module that does not export `flowStart`, `userEvents` and `transition`, so the shipped flow cannot be measured, or that exports a `flowStatus` that is not a function.
 - A modeled path (the task graph's shortest) or shipped path (the flow's `transition` reducer's shortest, from `flowStart` over `userEvents` to the task's `success_state`) that is missing or longer than `max_steps`.
 - A modeled path and shipped path that are not the same steps.
 - Any longer route to the same success over `max_steps`, in the graph or the reducer.
@@ -210,7 +212,8 @@ It fails:
 - A page type in `allowed_page_types` that renders no page.
 - A primary button on a collection page, including inside a content layout that page uses.
 - More questions outside a disclosure on one page than `MAX_VISIBLE_QUESTIONS`. A question is the adapter's question part, Todae's `Field.Root`.
-- A chrome slot in `shells.collections` that the collection's shell does not define, a collection whose pages fill no slot outside its chrome, and an allowed page type named in neither or both of `shells.primarySlots` and `shells.collections`.
+- A chrome slot in `shells.collections` that the collection's shell does not define, or that it names for a shell not defined as `Object.assign(Root, { ... })`; a page type there that is not in `allowed_page_types`; and an allowed page type named in neither or both of `shells.primarySlots` and `shells.collections`.
+- A page type in `allowed_page_types` with no shell module under `paths.pageTypes`, or whose module exports no shell.
 - A catalog that stops exporting the question part, so the cap cannot go quiet.
 
 `allowed_page_types` decides which shells exist, and this check reads that inventory rather than a second list. The rules hold per page, not per product: a product may render a page type as often as it needs, from as many files. Which page types are collections, and which of their slots are chrome rather than body, comes from `shells.collections`, Meridian's `{ collection: ["Heading", "Description"] }`.
@@ -252,7 +255,8 @@ It fails:
 
 - A chrome layout, content layout or page type outside its allowlist, a directory under `paths.layouts`, `paths.contentLayouts` or `paths.pageTypes` with no list entry, or a list entry with no directory, and any other file directly in those directories besides `index.ts`.
 - An import of a layout, content layout or page type under `paths.source` that is not on its list, a `pageTypes` export that does not match `allowed_page_types`, and a page-type barrel that re-exports an id not on it.
-- A collection's ready body that is not one registered content layout, or that the feature passes ad-hoc children into.
+- A collection's ready body that is not one registered content layout, or that the feature passes ad-hoc children into, and a collection whose pages fill no slot outside its chrome, so no body is checked.
+- The `shells.collections` problems `check:one-thing` names, and a collection page type with no shell module or no shell, since the body check reads the same shells.
 - Page CSS for a class the feature uses that no content layout, chrome layout or page type uses.
 - A membership change against the base that no adopted proposal covers. A proposal covers a change when it is `status: decided` on the base, `status: adopted` in the change, and its `changes` on the base list, exactly, what changed: the member added or removed, the constant, the config field or its new value, each changed string in `flows`, `adapter.<field>` for an adapter field, the new adapter path, or the product's directory.
 - A proposal the change adds, used to cover anything but additions. A change that only adds members to the catalog exports, `allowed_layouts`, `allowed_content_layouts` or the flow states passes with a proposal the change adds as `status: adopted` that lists them under `adds` and nothing else. It covers nothing when it is on the base, when a base proposal already lists one of its `adds` under `adds`, or when one of its `adds` is a name the change removes or changes otherwise.
@@ -314,6 +318,7 @@ A rule check: `check:rules` runs it, and `check:product` runs it on each product
 It fails:
 
 - A string in a flow's `modeledStates` that is not a `case` label in that flow's `views` module.
+- A flow's states file that does not export `modeledStates`, or exports an empty list.
 
 It matches strings, so it does not see whether the case renders anything distinct. Typecheck is a second gate for the same idea: `renderedStates` has to satisfy `ModeledState`.
 
@@ -336,7 +341,8 @@ It fails:
 
 - A control under 24 CSS px on a side that misses the WCAG 2.5.8 spacing exception, anywhere in the document: the page and the chrome around it, with each closed disclosure opened on its own.
 - A button token floor under 24: the font size plus twice the vertical padding of the design system the adapter names.
-- A `previews` entry for a state that is not modeled, or one that sets `state` itself.
+- A `previews` entry for a state that is not modeled, or one that sets `state` itself, and a flow whose states file does not export `modeledStates` as a list of strings.
+- A `paths.web` outside the repository or with no `index.html`, and a built app that cannot be served on port 4173, as when another check holds it.
 - No Chrome found.
 
 It builds the directory in `paths.web`, serves it with `vite preview` on port 4173, and opens every state in each flow's `modeledStates` at 1280 by 900: bare, or once per query string that flow's `previews` in the config lists for it, such as `page=detail`. A state added later is opened without editing the script. A state that renders no `[data-page]` element is measured too. It clicks a disclosure summary on the page when one is present and measures, then opens every other closed disclosure in the document, such as a menu in the chrome, one at a time, measures what it shows, and closes it again.
@@ -371,13 +377,15 @@ It fails:
 - A missing file, a preview the file declares nothing for, or a key that is not a preview, with or without Chrome.
 - A press that changes what a screen reader could read while no live region says anything new, focus stays put and the control's own expanded, checked, pressed or selected state stays the same.
 - A press after which focus is on the page body, whatever was said.
+- An action the check cannot focus, one that moves focus elsewhere when focused, and a preview that does not render the same actions on every load, so an action cannot be pressed on its own.
+- An `accessible-names.ts` that does not load, a malformed `knownGaps` entry, and a `previews` entry that cannot be listed.
 - A `knownGaps` entry whose press no longer has its problem on a preview it names, so the list only shrinks.
 
 It builds and serves the app as `check:target-size` does and opens the same previews. On each it reads the whole document's accessibility tree, the one a screen reader reads, through the DevTools protocol: each node's role, its accessible name, the text its subtree reads with `aria-hidden` runs left out, and `aria-current`, disabled, expanded, checked, pressed and selected. Chrome's tree does not carry `aria-current`, so it reads that from the element. Roles are Chrome's names, such as `image` and `DisclosureTriangle`. A node's text is its runs joined by a space, so write it the way a failure message prints it. Frames inside the page are not read.
 
 Beside each flow's `views` module, `accessible-names.ts` exports `accessibleNames` (`satisfies AccessibleNames`): each preview mapped to what a screen reader should hear there. Declare what changes between states, not the whole tree. It reads each preview as it loads, so it does not open disclosures or wait for a live region to fill, and a state that should announce itself and renders no live region at all passes. [Proposal 2026-11-11-accessible-names-per-state](../../../proposals/2026-11-11-accessible-names-per-state.md) records the rule.
 
-Then it presses every action. On each preview, from a fresh load with the origin's storage cleared, it focuses each enabled button, link, disclosure summary, menu item, tab, checkbox, radio or switch, checks that focus stayed on it, presses Enter, or Space for a checkbox, radio, switch, or checkbox or radio menu item, and reads the page 150 ms later, past the 100 ms Todae's announcer waits before it writes (inside an open Todae modal it writes later, which the check does not wait for). A new name on the focused control is not enough, and neither is a status region added with its words already in it, since screen readers do not reliably read either. A press that loads another document is skipped and not counted, and a dialog a press opens is dismissed. Pressing costs about a third of a second a press.
+Then it presses every action. On each preview, from a fresh load with the origin's storage cleared, it focuses each enabled button, link, disclosure summary, menu item, tab, checkbox, radio or switch, checks that focus stayed on it, presses Enter, or Space for a checkbox, radio, switch, or checkbox or radio menu item, and reads the page 150 ms later, past the 100 ms Todae's announcer waits before it writes (inside an open Todae modal it writes later, which the check does not wait for). A new name on the focused control is not enough, and neither is a status region added with its words already in it, since screen readers do not reliably read either. A press that loads another document is skipped and not counted, and a dialog a press opens is dismissed.
 
 Problems a product has not fixed yet go in the same file's `knownGaps` (`satisfies KnownGaps`), as `{ presses: ['button "Try again"'], problem: "focus lost", previews: ["state=error"], why }`. Leaving `previews` out covers every preview, later ones included. A listed problem passes, and the check's last line counts them. [Proposal 2026-11-12-press-every-action](../../../proposals/2026-11-12-press-every-action.md) records the pass and what it cannot see.
 
@@ -494,6 +502,7 @@ It fails:
 - A doc missing a block's `<!-- docs:gen <block> start -->` or `end` marker, or holding either twice.
 - An npm script that runs a harness file with no `<file>.meta.ts` beside it, or a meta no script runs.
 - A meta that is not a tool and lists nothing it fails, or a rule check whose meta says it is a tool.
+- A `.meta.ts` that does not export `meta`, a script that imports a relative file that is not there, and a `case.ts` that is not plain literals.
 - A meta that names a fixture case `illegal/<name>` or an `npm run <script>` that does not exist, and a fixture case that runs a script that is not a harness script.
 
 Each harness script's meta, `packages/harness/src/<file>.meta.ts`, typed `satisfies CheckMeta`, gives the words: a summary, the flags it reads, what it fails, and how it works. Everything else is read from the code: script names and the build gate from `package.json`, rule checks from `check:rules`, `--config` from whether the script loads `lib/config.ts`, the base from whether it calls `resolveBaseRev`, Chrome from whether it loads `puppeteer-core`, and fixture cases from each `case.ts` and its doc comment. For a script that loads `lib/config.ts`, the config loader accepts only the flags its meta lists, so a documented flag is a read one.
@@ -511,6 +520,7 @@ It fails:
 - An illegal case whose check passes, or fails without the phrase its `case.ts` expects; a legal case whose check fails, or passes without its phrase.
 - A case folder with no `case.ts`, a `case.ts` that names a path that does not exist or a script that is not one harness check, or an expected phrase that is part of a path the case names, since a crash prints the path.
 - A case name given on the command line that is no case folder.
+- A `case.ts` with an unknown key, no checks, a check that gives both or neither of `fails` and `passes`, `args` that set `--config`, `--base`, `--proposals` or `--base-proposals`, or proposals with no base to compare with.
 
 `packages/harness/fixtures/product/` is a small product with its own `harness.config.ts` that every check passes. Every other folder directly under `fixtures/` or `fixtures/illegal/` is a case whose `case.ts`, plain literals, changes some of that config's paths and names the checks to run on the result, each as its npm script with `--config`, with the phrase each must print. A case that sets `base` may also give `proposals` and `baseProposals`, folders `check:inventories` reads as the change's proposals and the base's, matched by file name. The stand-in design system in `fixtures/fake-ds/` shows a check reads its names from the adapter, and small products of their own show a rule reads its product's config and inputs.
 
@@ -524,6 +534,7 @@ A product check: it reads one product's config, and is not one of `check:rules`.
 
 It fails:
 
+- No `--config <file>`, or any other argument beside it.
 - The first check that fails on that product. It stops there.
 
 It reads the rule checks from `check:rules` in `package.json`, in its order, so the two cannot drift, and says which rules it skips. Typecheck, ESLint and the Vitest suite read the whole repository, so `npm run check` runs them once and this once per product.
@@ -540,6 +551,7 @@ It fails:
 - A trace the change adds or edits that does not start at the graph's `start`, steps between nodes no edge connects, gives a router, eval or human step no `when` or one its edges lack, or stops anywhere but a checkpoint.
 - A trace that ends its run with a change to checked state that no passing eval node follows. A run paused at a checkpoint with an edge out may stop unchecked.
 - A file under `traces/` that is not a `.jsonl` trace or the folder's README.
+- A trace line that is not a JSON object, has a key other than `node`, `when` and `at`, has a value that is not a string, has no `node`, or names a node the design loop does not have.
 
 It is not in `npm run check`, because the eval node runs the gate in the middle of the walk, before the trace ends at a checkpoint. CI runs it after the build gate, and an agent runs it before pushing. `npm run loop:step` writes a trace step by step. A trace is the agent's own record, so passing shows the record is a walk the graph allows, not that the work was done: [proposal 0010](../../../proposals/0010-loop-trace.md). Only traces the change adds or edits are read.
 
