@@ -1,4 +1,4 @@
-import type { AccessibleNames } from "@agent-design-loop/harness";
+import type { AccessibleNames, KnownGaps } from "@agent-design-loop/harness";
 
 /**
  * What a screen reader hears on each preview of the invoice-approval flow.
@@ -71,3 +71,72 @@ export const accessibleNames = {
     { role: "heading", name: "Ridgeway Janitorial" },
   ],
 } satisfies AccessibleNames;
+
+/**
+ * Presses that change the page without telling a screen reader, found when
+ * check:accessible-names began pressing every action. Each waits for a fix in
+ * its own pull request, and the check fails an entry once its press is fixed
+ * on a preview it names, so this list only shrinks.
+ */
+export const knownGaps = [
+  {
+    presses: ['link "To approve"'],
+    problem: "silent",
+    previews: ["state=loading", "state=empty", "state=error"],
+    why: "These previews already show the To approve title, so going to To approve swaps in the queue and the shell's announcer, which speaks only when the title changes, says nothing. Announce every navigation, or move focus to the page heading.",
+  },
+  {
+    presses: ['link "Vendors"'],
+    problem: "silent",
+    previews: ["state=vendor-added"],
+    why: "This preview already shows the Vendors title, so going to Vendors resets the list and the shell's announcer, which speaks only when the title changes, says nothing. Announce every navigation, or move focus to the page heading.",
+  },
+  {
+    presses: [
+      'link "INV-1842 , Northwind Office Supply"',
+      'link "INV-1855 , Fieldnote Print"',
+      'link "INV-1907 , Helios Freight"',
+      'link "INV-1914 , Brightline Paper Co"',
+      'link "INV-1760 , Lumen Cloud Services"',
+    ],
+    problem: "focus lost",
+    previews: ["state=ready&page=collection"],
+    why: "Opening an invoice from the queue replaces the table, and the link with it, with the invoice page, so focus falls to the page body. Move focus to the invoice page's heading.",
+  },
+  {
+    presses: [
+      'link "INV-1694 , Helios Freight"',
+      'link "INV-1711 , Northwind Office Supply"',
+      'link "INV-1770 , Harbor & Pine Catering"',
+      'link "INV-1802 , Kite Analytics"',
+      'link "INV-1744 , Lumen Cloud Services"',
+    ],
+    problem: "focus lost",
+    previews: ["state=ready&route=invoices"],
+    why: "Opening an invoice from All invoices replaces the table, and the link with it, with the invoice page, so focus falls to the page body. Move focus to the invoice page's heading.",
+  },
+  {
+    presses: ['link "To approve"'],
+    problem: "focus lost",
+    previews: ["state=ready&page=detail", "state=ready&page=detail&branch=request", "state=invoice-approved&page=detail", "state=changes-requested&page=detail"],
+    why: "On an invoice page, going to To approve replaces the invoice with the queue, and the link pressed goes with it, so focus falls to the page body. Move focus to the queue's heading.",
+  },
+  {
+    presses: ['button "Request changes"'],
+    problem: "silent",
+    previews: ["state=ready&page=detail", "state=ready&page=detail&branch=request"],
+    why: "Request changes opens the reason field below and leaves focus on the button. Move focus to the field.",
+  },
+  {
+    presses: ['button "Approve"'],
+    problem: "focus lost",
+    previews: ["state=ready&page=detail", "state=ready&page=detail&branch=request"],
+    why: "Approve turns itself off, and Chrome drops focus to the page body; the status region does say the invoice was approved. Move focus to that status, or to the next action.",
+  },
+  {
+    presses: ['button "Try again"'],
+    problem: "focus lost",
+    previews: ["state=error"],
+    why: "Try again replaces the error, and the button with it, with the loading state, so focus falls to the page body. Move focus to the loading state's heading, or keep a focusable element in the button's place.",
+  },
+] satisfies KnownGaps;
