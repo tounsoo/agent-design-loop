@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,7 +9,7 @@ import { tryGit } from "./lib/base";
 import { findChrome } from "./lib/chrome";
 import { config, configName } from "./lib/config";
 import { previewQueries } from "./lib/previews";
-import { galleryMarkdown, pullRequestMarkdown, screenshotName } from "./lib/screenshots";
+import { galleryMarkdown, pinGallery, pullRequestMarkdown, rawFolderUrl, screenshotName } from "./lib/screenshots";
 
 /**
  * Captures the screenshots a pull request shows: one PNG per preview the
@@ -19,13 +19,21 @@ import { galleryMarkdown, pullRequestMarkdown, screenshotName } from "./lib/scre
  * captures them at that commit, so the folder holds `before/` and `after/`.
  *
  * The folder gets a README.md that shows every image, each wrapped in a link
- * to the full-size file, so it is the gallery a reviewer opens from the pull
- * request. The script prints the lines to paste into the pull request body
- * once the folder is committed.
+ * to its file, so it is the gallery a reviewer opens from the pull request.
+ * Once the folder is committed, `--pin <dir>` points each link at the raw PNG
+ * at that commit, so a click opens the image itself, and prints the line to
+ * paste into the pull request body.
  */
 
 const SCRIPT = fileURLToPath(import.meta.url);
 const VIEWPORT = { width: 1280, height: 900 };
+
+const pinDir = flag("--pin");
+if (pinDir) {
+  if (["--out", "--state", "--base"].some((name) => process.argv.includes(name))) fail("--pin takes only --config: it points a committed gallery's links at their raw files and captures nothing.");
+  pin(pinDir);
+  process.exit(0);
+}
 
 const out = flag("--out");
 if (!out) fail("give the folder to write to: --out <dir>, such as products/meridian/review/screenshots/<change>.");
@@ -75,9 +83,49 @@ console.log(`screenshots: replaced ${relative} with ${shots.before.length + shot
 if (relative.startsWith("..") || path.isAbsolute(relative)) {
   console.log("screenshots: the folder is outside the repository, so there is no gallery to link from a pull request.");
 } else {
-  console.log("screenshots: commit the folder and push, then put this line in the pull request body, with the pushed commit's full sha:");
+  console.log("screenshots: commit the folder, then point each image's link at its raw file at that commit, so a click opens it full size on a phone too:");
   console.log("");
-  console.log(pullRequestMarkdown({ repository: repositoryUrl(), commit: "<sha>", folder: relative, ...shots }));
+  console.log(`npm run screenshots -- --config ${configName} --pin ${relative}`);
+}
+
+/**
+ * Points each image's link in a committed gallery at its raw PNG at HEAD, and
+ * prints the pull request body's line. It refuses a folder with anything but
+ * its README.md uncommitted, so every link names a PNG that commit holds.
+ */
+function pin(dir: string): void {
+  const folder = path.resolve(dir);
+  const readme = path.join(folder, "README.md");
+  if (!existsSync(readme) || !readFileSync(readme, "utf8").startsWith("# Screenshots\n")) {
+    fail(`${dir} has no gallery README.md. Run npm run screenshots with --out ${dir} first.`);
+  }
+  const top = tryGit(["rev-parse", "--show-toplevel"])?.trim();
+  const commit = tryGit(["rev-parse", "HEAD"])?.trim();
+  if (!top || !commit) fail("--pin needs a git checkout with at least one commit.");
+  // Real paths on both sides, so a folder named through a symlink is still inside the repository.
+  const relative = path.relative(realpathSync(top), realpathSync(folder)).split(path.sep).join("/");
+  if (relative === "" || relative.startsWith("..") || path.isAbsolute(relative)) fail(`${dir} is outside the repository, so no commit holds its images.`);
+  // -z gives each path unquoted, so a folder with a space or an accent still matches its README.md.
+  const status = tryGit(["status", "--porcelain", "-z", "--untracked-files=all", "--", folder]);
+  if (status === null) fail(`git status failed on ${relative}.`);
+  const uncommitted = status
+    .split("\0")
+    .filter((entry) => entry !== "")
+    .map((entry) => entry.slice(3))
+    .filter((file) => file !== `${relative}/README.md`);
+  if (uncommitted.length > 0) fail(`commit ${relative} first. These differ from HEAD:\n${uncommitted.map((file) => `  ${file}`).join("\n")}`);
+  const repository = githubRepository();
+  if (!repository) fail("the origin remote is not a GitHub repository, so there is no raw address to link.");
+  const { markdown, files } = pinGallery(readFileSync(readme, "utf8"), rawFolderUrl({ ...repository, commit, folder: relative }));
+  if (files.length === 0) fail(`${relative}/README.md has no linked images to pin.`);
+  const missing = files.filter((file) => tryGit(["cat-file", "-e", `${commit}:${relative}/${file}`]) === null);
+  if (missing.length > 0) fail(`HEAD has no ${missing.join(", ")} in ${relative}. Retake the screenshots and commit them.`);
+  writeFileSync(readme, markdown);
+  const shots = { before: pngs(path.join(folder, "before")), after: existsSync(path.join(folder, "before")) ? pngs(path.join(folder, "after")) : pngs(folder) };
+  console.log(`screenshots: pointed ${files.length} image links in ${relative}/README.md at their raw files at ${commit.slice(0, 7)}.`);
+  console.log("screenshots: commit README.md and push, then put this line in the pull request body, with the pushed commit's full sha:");
+  console.log("");
+  console.log(pullRequestMarkdown({ repository: `https://github.com/${repository.owner}/${repository.repo}`, commit: "<sha>", folder: relative, ...shots }));
 }
 
 /** Builds the product in the working directory, serves it, and saves one full-page PNG per preview. */
@@ -195,11 +243,11 @@ function pngs(dir: string): string[] {
   return existsSync(dir) ? readdirSync(dir).filter((file) => file.endsWith(".png")).sort() : [];
 }
 
-/** The repository's GitHub address from the origin remote, for links pinned to a commit. */
-function repositoryUrl(): string {
+/** The repository's owner and name on GitHub, from the origin remote, or null when origin is not on GitHub. */
+function githubRepository(): { owner: string; repo: string } | null {
   const remote = tryGit(["remote", "get-url", "origin"])?.trim() ?? "";
   const match = /github\.com[:/]([\w.-]+)\/([\w.-]+?)(?:\.git)?$/.exec(remote);
-  return match ? `https://github.com/${match[1]}/${match[2]}` : "https://github.com/<owner>/<repo>";
+  return match?.[1] && match[2] ? { owner: match[1], repo: match[2] } : null;
 }
 
 function flag(name: string): string | undefined {
