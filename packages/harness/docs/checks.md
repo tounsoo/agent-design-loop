@@ -18,7 +18,7 @@ npm run check:fixtures && npm run check
 
 | Script | Kind | Flags | Base | Chrome | Fixture cases |
 | --- | --- | --- | --- | --- | --- |
-| [`lint:product-ui`](#lintproduct-ui) | Rule | `--config <file>` (required) |  |  | 6 illegal, 3 legal |
+| [`lint:product-ui`](#lintproduct-ui) | Rule | `--config <file>` (required) |  |  | 7 illegal, 3 legal |
 | [`lint:slots`](#lintslots) | Rule | `--config <file>` (required) |  |  | 9 illegal, 5 legal |
 | [`check:step-budget`](#checkstep-budget) | Rule | `--config <file>` (required) |  |  | 9 illegal, 4 legal |
 | [`check:disclosure`](#checkdisclosure) | Rule | `--config <file>` (required) |  |  | 4 illegal, 3 legal |
@@ -52,8 +52,8 @@ A rule check: `check:rules` runs it, and `check:product` runs it on each product
 
 It fails:
 
-- A design system import anywhere but the catalog, an import from one of the foreign component kits the check lists, or a relative import that reaches outside the product's own directories, such as into another product.
-- A raw `button`, `input`, `select`, `textarea` or `a` element anywhere in product UI, the catalog included, or a `style` attribute outside the catalog.
+- A design system import anywhere except the catalog file (`paths.catalog`), where a file beside it in the catalog's folder counts as product UI, an import from one of the foreign component kits the check lists, or a relative import that reaches outside the product's own directories, such as into another product.
+- A raw `button`, `input`, `select`, `textarea` or `a` element anywhere in product UI, the catalog included, or a `style` attribute outside the catalog file.
 - Any of those imports in any form: re-exports (`export ... from`), `import()`, `require()` (also as `globalThis.require` or `(0, require)`), `import x = require()` and Vite's `import.meta.glob` all count.
 - A dynamic load whose specifier is not a string literal, because it cannot be checked, and `require` held under another name.
 
@@ -64,6 +64,7 @@ Fixture cases, under `packages/harness/fixtures/`, that run it:
 - `catalog-loads`: Legal: re-exports and dynamic imports of the product's own catalog pass the off-catalog lint. It passes with "off-catalog: clean".
 - `fake-ds`: Legal under the stand-in adapter, which shares no name with Todae. Run on the Todae adapter, every check here but the off-catalog lint fails these pages, so passing shows a check reads its names from the adapter. It passes with "off-catalog: clean".
 - `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes, and npm run new:product starts a product from a copy that passes. It passes with "off-catalog: clean".
+- `illegal/catalog-side-door`: Illegal: a file beside the catalog, in the catalog's folder, re-exports a design system part the catalog leaves out, and a page imports it from there, past the catalog and its inventory. Only the catalog file imports the design system. It fails with "extra.ts:2: off-catalog: import "@tounsoo/todae" directly".
 - `illegal/dynamic-design-system-import`: Illegal: `import()` of the design system outside the catalog, and an `import()` the lint cannot read. It fails with "off-catalog: import "@tounsoo/todae" directly" and fails with "with a computed specifier cannot be checked".
 - `illegal/fake-ds-off-catalog`: Illegal under the stand-in adapter: its package imported outside the catalog. It fails with "off-catalog: import "@fake/ds" directly".
 - `illegal/indirect-require`: Illegal: `globalThis.require(...)`, `(0, require)(...)` and `require` held under another name load the design system outside the catalog. It fails with "off-catalog: import "@tounsoo/todae" directly", fails with "off-catalog: import "@tounsoo/todae/styles.css" directly" and fails with "require is held under another name".
