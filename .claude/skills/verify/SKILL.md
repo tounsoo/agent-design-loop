@@ -65,6 +65,8 @@ Every rule check needs `--config`. There is no config at the repository root.
 
 ### 2. Fixture and inventory proof (a change to a check, a rule, a rule input or an inventory)
 
+First check the rule is one the harness takes, as [Add a check](../../../packages/harness/README.md#add-a-check) says. It is a pattern that holds on every page, never a number set per page or per page type, and a rule that sets one is a `FAIL`. It covers only what construction can't: where a type, a shell prop, a slot or a narrower catalog export can make the illegal state impossible to write, that comes first. A gap a product change exposes in a check is fixed in its own pull request, not in the product's.
+
 A check that passes the real app proves nothing until it can also fail. When a change adds or tightens a check, add a case folder under `packages/harness/fixtures/illegal/` in the same pull request, with a `case.ts` that names the paths it changes and the phrase the check prints. Then show both sides in the pull request: the check passing on the app (step 1) and `check:fixtures` printing `<case> <check> failed as required`. A fixture that starts passing is a `FAIL`, never a fixture to delete.
 
 When a change loosens a check, or makes it read a product's config or inputs instead of Meridian's, add a legal case too: a folder under `packages/harness/fixtures/` with a `case.ts` that expects the check to pass, which the old check failed and the new one passes. Show `check:fixtures` printing `<case> <check> passed as required`. A legal case that starts failing is a `FAIL` too.
