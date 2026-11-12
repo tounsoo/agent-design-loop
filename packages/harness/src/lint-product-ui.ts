@@ -11,11 +11,16 @@ const foreignPackages = ["@mui/", "antd", "@chakra-ui/", "react-bootstrap", "@ra
 type Violation = { file: string; line: number; message: string };
 const violations: Violation[] = [];
 
-/** The catalog directory as a path segment. Files under it may import the design system directly. */
-const catalogSegment = `/${path.dirname(config.paths.catalog).split(path.sep).join("/")}/`;
+/**
+ * The catalog is one file, `paths.catalog`. Only it may import the design
+ * system directly. A file beside it in the catalog's folder is product UI like
+ * any other: it could otherwise re-export a part the catalog leaves out, and a
+ * page could import it from there, past the catalog and its inventory.
+ */
+const catalogFile = path.resolve(config.paths.catalog);
 
 function isCatalogFile(file: string): boolean {
-  return file.split(path.sep).join("/").includes(catalogSegment);
+  return path.resolve(file) === catalogFile;
 }
 
 /**
@@ -105,7 +110,7 @@ function checkSpecifier(file: string, source: ts.SourceFile, node: ts.Node, spec
     violations.push({
       file,
       line,
-      message: `off-catalog: import "${spec}" directly. Product UI must import from ${path.dirname(config.paths.catalog)}.`,
+      message: `off-catalog: import "${spec}" directly. Product UI must import from ${config.paths.catalog}.`,
     });
   }
   if (leavesProduct(file, spec)) {
