@@ -55,7 +55,7 @@ Which files change on approval.
 ```
 
 - `status` is `open`, `decided` or `adopted`.
-- `changes` lists each inventory name the proposal changes, each matched exactly: the member added or removed, the constant, the config field or its new value, each changed string in `flows`, `adapter.<field>`, the new adapter path, or a new product's directory. A name matches only as listed, so `layouts/side-panel/` does not name `side-panel`. A proposal that changes no inventory writes `changes: []`.
+- `changes` lists each inventory name the proposal changes, each matched exactly: the member added or removed, the constant, the config field or its new value, each changed string in `flows` (a preview as `preview:<state>?<query>` or by its query alone, a bare one as `preview:<state>`; a state's first query drops its bare preview, so it is not an addition), `adapter.<field>`, the new adapter path, or a new product's directory. A name matches only as listed, so `layouts/side-panel/` does not name `side-panel`. A proposal that changes no inventory writes `changes: []`.
 - `retires`, optional, lists rules the proposal takes out of `check:rules`.
 - `opts-out`, optional, lists opt-outs as `<rule> for <product paths.source>`, as the next section shows.
 - `adds`, optional, lists what a proposal adds in one pull request, as [One pull request for what adds or tightens](#one-pull-request-for-what-adds-or-tightens) shows.

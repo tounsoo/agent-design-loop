@@ -185,21 +185,23 @@ function flowsRest(config: ParsedConfig): unknown {
  * paths, flows and shells are not compared then. A new page type still reads
  * both configs' shells to tell whether it brings only its own entry.
  */
+const json = (value: unknown) => JSON.stringify(value);
+const changedText = (label: string, before: unknown, after: unknown) => `${label} changed from ${json(before)} to ${json(after)}.`;
+
 export function membershipChanges(base: Inventory, head: Inventory, compareConfig: boolean, configName: string): Change[] {
   const changes: Change[] = [];
-  const json = (value: unknown) => JSON.stringify(value);
   const push = (change: Change) => changes.push(change);
-  const changedText = (label: string, before: unknown, after: unknown) => `${label} changed from ${json(before)} to ${json(after)}.`;
 
   // The four lists: an addition when every member the base had is still there.
   const addable = (label: (typeof ADDABLE_LISTS)[number], before: readonly string[], after: readonly string[], others: readonly (readonly string[] | null)[]) => {
-    if (json(before) === json(after)) return;
+    // A reorder keeps every member, so it is not a membership change.
     const terms = differingMembers(before, after);
+    if (terms.length === 0) return;
+    const added = after.filter((member) => !before.includes(member));
     if (before.every((member) => after.includes(member))) {
-      const added = after.filter((member) => !before.includes(member));
       const elsewhere = added.filter((member) => others.some((list) => list?.includes(member)));
       push({ text: changedText(label, before, after), terms, kind: "adds", names: added, ...(elsewhere.length > 0 ? { elsewhere } : {}) });
-    } else push({ text: changedText(label, before, after), terms, names: terms, notAddition: `${label} also loses a member the base had` });
+    } else push({ text: changedText(label, before, after), terms, names: added, notAddition: `${label} also loses a member the base had` });
   };
   // A missing list on the base is the bootstrap that records it.
   if (base.layouts !== null) addable("allowed_layouts", base.layouts, head.layouts ?? [], [base.contentLayouts, base.catalogExports, base.flowStates]);
@@ -208,7 +210,7 @@ export function membershipChanges(base: Inventory, head: Inventory, compareConfi
   addable("flow states", base.flowStates, head.flowStates, [base.layouts, base.contentLayouts, base.catalogExports]);
 
   // Page types: an addition when each new one brings its own new shells entry and nothing else in shells changes.
-  if (json(base.pageTypes) !== json(head.pageTypes)) {
+  if (differingMembers(base.pageTypes, head.pageTypes).length > 0) {
     const terms = differingMembers(base.pageTypes, head.pageTypes);
     const added = head.pageTypes.filter((member) => !base.pageTypes.includes(member));
     const names = added.map((id) => `page-type:${id}`);
@@ -261,7 +263,7 @@ export function membershipChanges(base: Inventory, head: Inventory, compareConfi
   cap("MAX_VISIBLE_QUESTIONS", base.visibleQuestions, head.visibleQuestions, head.visibleQuestions < base.visibleQuestions);
   cap("TARGET_MIN_PX", base.targetMinPx, head.targetMinPx, head.targetMinPx > base.targetMinPx);
   const sectionChange =
-    base.disclosedSections !== null && json(base.disclosedSections) !== json(head.disclosedSections ?? [])
+    base.disclosedSections !== null && differingMembers(base.disclosedSections, head.disclosedSections ?? []).length > 0
       ? { before: base.disclosedSections, after: head.disclosedSections ?? [] }
       : null;
   const loosened: Loosening[] = tightenable.filter((item) => !item.stricter).map((item) => ({ name: item.name, how: item.how }));
@@ -320,8 +322,6 @@ export function membershipChanges(base: Inventory, head: Inventory, compareConfi
 }
 
 function configChanges(base: Inventory, head: Inventory, before: ParsedConfig, after: ParsedConfig, configName: string, push: (change: Change) => void): void {
-  const json = (value: unknown) => JSON.stringify(value);
-  const changedText = (label: string, left: unknown, right: unknown) => `${label} changed from ${json(left)} to ${json(right)}.`;
   for (const key of sortedUnique([...Object.keys(before.paths), ...Object.keys(after.paths)])) {
     const left = before.paths[key as keyof HarnessConfig["paths"]];
     const right = after.paths[key as keyof HarnessConfig["paths"]];
@@ -375,7 +375,8 @@ function configChanges(base: Inventory, head: Inventory, before: ParsedConfig, a
   const afterPairs = previewPairs(head.previews, common);
   if (json([...beforePairs].sort()) !== json([...afterPairs].sort())) {
     const text = changedText(`${configName} flows previews`, beforePairs, afterPairs);
-    const differing = differingMembers(beforePairs, afterPairs).map((pair) => `preview:${pair}`);
+    // Each pair may be listed as preview:<state>?<query>, or by its query alone, as flows strings were before.
+    const differing = differingMembers(beforePairs, afterPairs).map((pair): Term => (pair.includes("?") ? [`preview:${pair}`, pair.slice(pair.indexOf("?") + 1)] : `preview:${pair}`));
     const added = afterPairs.filter((pair) => !beforePairs.includes(pair)).map((pair) => `preview:${pair}`);
     const kept = beforePairs.every((pair) => afterPairs.includes(pair));
     push(kept ? { text, terms: ["flows", ...differing], kind: "adds", names: added } : { text, terms: ["flows", ...differing], names: added, notAddition: "the change also drops a preview the base had" });

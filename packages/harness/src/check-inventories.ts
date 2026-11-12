@@ -467,7 +467,8 @@ const termNames = (terms: readonly Term[]): string[] => terms.flatMap((term) => 
  * time against its own base.
  */
 function onePullRequestProposals(changes: readonly Change[], proposals: ProposalsForChange): { usable: Proposal[]; refused: Map<string, string> } {
-  const other = new Set(changes.filter((change) => !change.kind).flatMap((change) => termNames(change.terms)));
+  // A change that is not an addition still names what it adds; those names get the notAddition reason below.
+  const other = new Set(changes.filter((change) => !change.kind).flatMap((change) => termNames(change.terms).filter((name) => !change.names.includes(name))));
   const notAdded = new Map(changes.filter((change) => !change.kind && change.notAddition).flatMap((change) => change.names.map((name) => [name, change.notAddition ?? ""] as const)));
   const loosened = new Map(changes.flatMap((change) => change.loosens ?? []).map((item) => [item.name, item.how]));
   const elsewhere = new Set(changes.flatMap((change) => change.elsewhere ?? []));
@@ -504,11 +505,14 @@ function whyNot(file: string, change: Change, proposals: ProposalsForChange, ref
   const key = proposals.key(file);
   const before = proposals.base.get(key);
   const after = proposals.head.get(key);
-  const named = (proposal: Proposal) =>
-    [...change.names, ...(change.loosens ?? []).map((item) => item.name)].some((name) => proposal.adds.includes(name) || proposal.tightens.includes(name));
+  const listedFrom = (names: readonly string[]) => (proposal: Proposal) => names.some((name) => proposal.adds.includes(name) || proposal.tightens.includes(name));
+  const loosened = (change.loosens ?? []).map((item) => item.name);
+  // A proposal names this change when its adds or tightens list a name the change adds, a term it touches, or an input it loosens.
+  const namesWhatItAdds = listedFrom([...change.names, ...loosened]);
+  const named = listedFrom([...change.names, ...termNames(change.terms), ...loosened]);
   // A page type, a task or a preview goes under adds by its prefixed name, so a bare name there names nothing this change adds.
   const bare = change.kind && after ? termNames(change.terms).filter((term) => oneListed(after, change.kind ?? "adds").includes(term) && !change.names.includes(term)) : [];
-  if (after && bare.length > 0 && !named(after) && before === undefined) {
+  if (after && bare.length > 0 && !namesWhatItAdds(after) && before === undefined) {
     return `${file} lists ${quoted(bare)} under ${change.kind}, but this change ${change.kind === "adds" ? "adds" : "tightens"} ${quoted(change.names)}: list ${change.names.length > 1 ? "those names" : "that name"} under ${change.kind}.`;
   }
   if (after && named(after)) {
@@ -571,7 +575,7 @@ function reportMembership(changes: readonly Change[], proposals: ProposalsForCha
         (proposal) =>
           change.terms.some((term) => lists(proposal, term)) ||
           (change.kind !== undefined && termNames(change.terms).some((term) => oneListed(proposal, change.kind ?? "adds").includes(term) && !change.names.includes(term))) ||
-          [...change.names, ...(change.loosens ?? []).map((item) => item.name)].some((name) => proposal.adds.includes(name) || proposal.tightens.includes(name)),
+          [...change.names, ...termNames(change.terms), ...(change.loosens ?? []).map((item) => item.name)].some((name) => proposal.adds.includes(name) || proposal.tightens.includes(name)),
       )
       .map((proposal) => proposal.file);
     const reasons = [...new Set(candidates)].map((file) => whyNot(file, change, proposals, refused));

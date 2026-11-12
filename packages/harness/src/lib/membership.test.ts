@@ -145,7 +145,18 @@ describe("membershipChanges", () => {
     const head = config({ previews: { ready: ["page=collection"], approved: ["page=detail"] } });
     const change = one(compare({ config: head }), "flows previews");
     expect(change.kind).toBeUndefined();
-    expect(change.terms).toEqual(["flows", "preview:approved", "preview:approved?page=detail", "preview:ready?page=detail"]);
+    expect(change.terms).toEqual(["flows", "preview:approved", ["preview:approved?page=detail", "page=detail"], ["preview:ready?page=detail", "page=detail"]]);
+  });
+
+  it("does not make a state's first query an addition, since it drops the bare preview", () => {
+    const head = config({ previews: { ready: ["page=collection", "page=detail"], approved: ["page=detail"] } });
+    const change = one(compare({ config: head }), "flows previews");
+    expect(change).toMatchObject({ names: ["preview:approved?page=detail"], notAddition: "the change also drops a preview the base had" });
+    expect(change.kind).toBeUndefined();
+  });
+
+  it("finds nothing when a list or a page-type list is only reordered", () => {
+    expect(compare({ layouts: ["app-shell"], catalogExports: ["Heading", "Button"], pageTypes: ["detail", "collection"], flowStates: ["ready", "approved"] })).toEqual([]);
   });
 
   it("makes a lower cap and a raised target size tightenings", () => {
