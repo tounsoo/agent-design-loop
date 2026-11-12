@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { auditPreview, declarationsFile, flattenAxTree, parseDeclarations, type AxNode, type CdpAxNode, type DomElement } from "./accessible-names";
+import { auditScenario, declarationsFile, flattenAxTree, parseDeclarations, type AxNode, type CdpAxNode, type DomElement } from "./accessible-names";
 
 const FILE = "flows/accessible-names.ts";
 
@@ -81,7 +81,7 @@ describe("flattenAxTree", () => {
   });
 });
 
-describe("auditPreview", () => {
+describe("auditScenario", () => {
   const approved = [
     node("listitem", { text: "Done: Approval" }),
     node("listitem", { text: "In progress: Payment due Nov 18", current: "step" }),
@@ -89,84 +89,84 @@ describe("auditPreview", () => {
   ];
 
   it("fails a declared announcement the page does not make, and says what it makes instead", () => {
-    const problems = auditPreview(approved, [{ role: "listitem", text: "Next: Payment due Nov 18", current: "step" }], FILE);
+    const problems = auditScenario(approved, [{ role: "listitem", text: "Next: Payment due Nov 18", current: "step" }], FILE);
     expect(problems).toEqual([
       `${FILE} expects listitem reading "Next: Payment due Nov 18" (aria-current="step"), and a screen reader does not hear it. Its listitem nodes are "Done: Approval", "In progress: Payment due Nov 18" (aria-current="step").`,
     ]);
   });
 
   it("fails an aria-current node the declarations leave out", () => {
-    expect(auditPreview(approved, [{ role: "button", name: "Approve", disabled: true }], FILE)).toEqual([
+    expect(auditScenario(approved, [{ role: "button", name: "Approve", disabled: true }], FILE)).toEqual([
       `listitem reading "In progress: Payment due Nov 18" (aria-current="step") changes with the state, and ${FILE} does not declare it.`,
     ]);
   });
 
   it("passes when the declarations match, states included", () => {
-    expect(auditPreview(approved, [{ role: "listitem", text: "In progress: Payment due Nov 18", current: "step" }], FILE)).toEqual([]);
+    expect(auditScenario(approved, [{ role: "listitem", text: "In progress: Payment due Nov 18", current: "step" }], FILE)).toEqual([]);
   });
 
   it("compares a declared state, so an enabled button does not pass for a disabled one", () => {
-    expect(auditPreview(approved, [{ role: "button", name: "Approve", disabled: false }, { role: "listitem", text: "In progress: Payment due Nov 18", current: "step" }], FILE)).toHaveLength(1);
+    expect(auditScenario(approved, [{ role: "button", name: "Approve", disabled: false }, { role: "listitem", text: "In progress: Payment due Nov 18", current: "step" }], FILE)).toHaveLength(1);
   });
 
   it("fails a control with no name, whatever is declared", () => {
-    const problems = auditPreview([node("button", { html: '<button class="more">' })], [], FILE);
+    const problems = auditScenario([node("button", { html: '<button class="more">' })], [], FILE);
     expect(problems).toEqual([expect.stringContaining('button <button class="more"> has no accessible name, so a screen reader announces only "button".')]);
   });
 
   it("fails an aria-current node whose declaration leaves current out, so where the reader is cannot move unseen", () => {
-    expect(auditPreview(approved, [{ role: "listitem", text: "In progress: Payment due Nov 18" }], FILE)).toEqual([
+    expect(auditScenario(approved, [{ role: "listitem", text: "In progress: Payment due Nov 18" }], FILE)).toEqual([
       `listitem reading "In progress: Payment due Nov 18" (aria-current="step") changes with the state, and ${FILE} does not declare it with current: "step".`,
     ]);
   });
 
   it("reads declared text the way it reads the page, closing runs included", () => {
-    expect(auditPreview([node("status", { text: "Harbor is yours for 1 hour." })], [{ role: "status", text: "Harbor is yours for 1 hour ." }], FILE)).toEqual([]);
+    expect(auditScenario([node("status", { text: "Harbor is yours for 1 hour." })], [{ role: "status", text: "Harbor is yours for 1 hour ." }], FILE)).toEqual([]);
   });
 
   it("names an undeclared progress bar with nothing to read by its element", () => {
-    expect(auditPreview([node("progressbar", { html: '<div class="loader">' })], [], FILE)).toEqual([
+    expect(auditScenario([node("progressbar", { html: '<div class="loader">' })], [], FILE)).toEqual([
       `progressbar <div class="loader">, with no name or text, changes with the state, and ${FILE} does not declare it.`,
     ]);
   });
 
   it("still reports undeclared nodes a failed declaration does not list", () => {
     const steps = [node("listitem", { text: "Done: Received" }), node("listitem", { text: "Next: Pay", current: "step" })];
-    const problems = auditPreview(steps, [{ role: "listitem", text: "Done: Approval" }], FILE);
+    const problems = auditScenario(steps, [{ role: "listitem", text: "Done: Approval" }], FILE);
     expect(problems).toHaveLength(1);
     const many = [...Array.from({ length: 6 }, (_, index) => node("listitem", { text: `Item ${index}` })), node("listitem", { text: "Next: Pay", current: "step" })];
-    expect(auditPreview(many, [{ role: "listitem", text: "Done: Approval" }], FILE)).toHaveLength(2);
+    expect(auditScenario(many, [{ role: "listitem", text: "Done: Approval" }], FILE)).toHaveLength(2);
   });
 
   it("asks for a live region only when it has something to say", () => {
-    expect(auditPreview([node("status")], [], FILE)).toEqual([]);
-    expect(auditPreview([node("status", { text: "Invoice approved" })], [], FILE)).toHaveLength(1);
+    expect(auditScenario([node("status")], [], FILE)).toEqual([]);
+    expect(auditScenario([node("status", { text: "Invoice approved" })], [], FILE)).toHaveLength(1);
   });
 });
 
 describe("parseDeclarations", () => {
-  const previews = ["state=ready", "state=invoice-approved"];
+  const scenarios = ["ready", "invoice-approved"];
 
-  it("accepts a declaration for every preview", () => {
-    const value = { "state=ready": [{ role: "button", name: "Approve" }], "state=invoice-approved": [{ role: "status", text: "Approved" }] };
-    expect(parseDeclarations(value, FILE, previews).problems).toEqual([]);
+  it("accepts a declaration for every scenario", () => {
+    const value = { "ready": [{ role: "button", name: "Approve" }], "invoice-approved": [{ role: "status", text: "Approved" }] };
+    expect(parseDeclarations(value, FILE, scenarios).problems).toEqual([]);
   });
 
-  it("fails a preview with nothing declared and a key that is not a preview", () => {
-    const { problems } = parseDeclarations({ "state=ready": [{ role: "button", name: "Approve" }], "state=done": [] }, FILE, previews);
+  it("fails a scenario with nothing declared and a key that is not a scenario", () => {
+    const { problems } = parseDeclarations({ "ready": [{ role: "button", name: "Approve" }], "done": [] }, FILE, scenarios);
     expect(problems).toHaveLength(2);
-    expect(problems[0]).toContain('"state=done" is not a preview of this flow');
-    expect(problems[1]).toContain('declares nothing for "state=invoice-approved"');
+    expect(problems[0]).toContain('"done" is not a scenario of this flow');
+    expect(problems[1]).toContain('declares nothing for "invoice-approved"');
   });
 
   it("fails an empty value, which would match anything with nothing to say, and an empty current", () => {
-    const { problems } = parseDeclarations({ "state=ready": [{ role: "status", text: "  " }], "state=invoice-approved": [{ role: "listitem", text: "Next", current: "" }] }, FILE, previews);
+    const { problems } = parseDeclarations({ "ready": [{ role: "status", text: "  " }], "invoice-approved": [{ role: "listitem", text: "Next", current: "" }] }, FILE, scenarios);
     expect(problems).toEqual([expect.stringContaining('[0] text is empty'), expect.stringContaining('current "" is the same as no aria-current')]);
   });
 
   it("fails an announcement with nothing to compare, or a key it does not read", () => {
-    const { problems } = parseDeclarations({ "state=ready": [{ role: "button" }], "state=invoice-approved": [{ role: "button", name: "Approve", aria: "x" }] }, FILE, previews);
-    expect(problems).toEqual([`${FILE} "state=ready"[0] needs a name or a text to compare.`, expect.stringContaining('[0] has unknown keys: aria.')]);
+    const { problems } = parseDeclarations({ "ready": [{ role: "button" }], "invoice-approved": [{ role: "button", name: "Approve", aria: "x" }] }, FILE, scenarios);
+    expect(problems).toEqual([`${FILE} "ready"[0] needs a name or a text to compare.`, expect.stringContaining('[0] has unknown keys: aria.')]);
   });
 });
 

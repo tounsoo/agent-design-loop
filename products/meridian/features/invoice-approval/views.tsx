@@ -16,6 +16,7 @@ import {
   Stack,
   Steps,
   Table,
+  submitOff,
   Text,
   VisuallyHidden,
 } from "../../catalog";
@@ -88,7 +89,7 @@ type ListState = Exclude<FlowState, { invoiceId: string }>;
 function LoadingBody({ label }: { label: string }) {
   return (
     <>
-      <VisuallyHidden.Root>{label}</VisuallyHidden.Root>
+      <VisuallyHidden.Root role="status">{label}</VisuallyHidden.Root>
       <Stack.Root aria-hidden="true" gap="normal">
         <Loader.Root aria-label={label} />
         <Skeleton.Root>
@@ -118,7 +119,7 @@ function EmptyBody({ route }: { route: InvoiceRoute }) {
 function ErrorBody({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <Stack.Root align="start" gap="normal">
-      <Alert.Root role="none" tone="critical">
+      <Alert.Root role="alert" tone="critical">
         <Alert.Title>{message}</Alert.Title>
       </Alert.Root>
       <Button.Root type="button" variant="secondary" onClick={onRetry}>
@@ -515,12 +516,12 @@ export function InvoiceApprovalView({
         ) : null}
       </DetailPage.Body>
       <DetailPage.Secondary>
-        <Button.Root disabled={!canAct} type="button" variant="secondary" onClick={actions.requestChanges}>
+        <Button.Root {...submitOff(!canAct)} type="button" variant="secondary" onClick={actions.requestChanges}>
           Request changes
         </Button.Root>
       </DetailPage.Secondary>
       <DetailPage.Primary>
-        <Button.Root disabled={!canAct} type="button" onClick={actions.approve}>
+        <Button.Root {...submitOff(!canAct)} type="button" onClick={actions.approve}>
           Approve
         </Button.Root>
       </DetailPage.Primary>

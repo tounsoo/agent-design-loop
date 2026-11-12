@@ -11,6 +11,10 @@ import { PUPPETEER_REVISIONS } from "puppeteer-core/internal/revisions.js";
  * `/usr/bin` paths, works too.
  */
 
+/** Where Chrome is found, for the check reference. findChrome below is the code it describes. */
+export const CHROME_DOC =
+  "They find Chrome at `CHROME_PATH`, then the chrome-headless-shell build that `puppeteer-core` pins, which `npm run setup:chrome` installs into `.cache/chrome` (CI runs the same script), then the usual `/usr/bin` paths. A `CHROME_PATH` that names no file fails on its own. With no Chrome, the check fails, naming each place it looked and both fixes.";
+
 /** The folder `npm run setup:chrome` installs into, from the repository root. */
 export const CHROME_CACHE = ".cache/chrome";
 

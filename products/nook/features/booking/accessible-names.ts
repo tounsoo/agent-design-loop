@@ -1,10 +1,10 @@
 import type { AccessibleNames, KnownGaps } from "@agent-design-loop/harness";
 
 /**
- * What a screen reader hears on each preview of the booking flow.
+ * What a screen reader hears on each scenario of the booking flow.
  * check:accessible-names opens each one in Chrome and compares. Declare what
  * changes between states: what a live region or progress bar says, and which
- * actions are on offer or turned off. The top bar is on every preview: which
+ * actions are on offer or turned off. The top bar is on every scenario: which
  * place is current, and whether both are turned off.
  */
 
@@ -17,50 +17,57 @@ function topBar(current: "Rooms" | "Waitlist", locked: boolean) {
   ] as const;
 }
 
-export const accessibleNames = {
-  "state=loading": [...topBar("Rooms", true), rooms, { role: "progressbar", name: "Loading free rooms" }],
-  "state=no-rooms": [...topBar("Rooms", false), rooms, { role: "heading", name: "No rooms are free" }, { role: "button", name: "See the waitlist" }],
-  "state=error": [...topBar("Rooms", true), rooms, { role: "button", name: "Try again" }],
-  "state=choosing&page=rooms": [...topBar("Rooms", false), rooms, { role: "button", name: "Choose Harbor" }, { role: "button", name: "Choose Lantern" }, { role: "button", name: "Choose Quarry" }],
-  "state=choosing&page=booking": [
+/** The booking page for one room: its name heads the page, and every control on it is on offer. */
+function booking(room: string) {
+  return [
     ...topBar("Rooms", false),
-    { role: "heading", name: "Harbor" },
+    { role: "heading", name: room },
     { role: "combobox", name: "How long?", disabled: false },
     { role: "button", name: "Hold room", disabled: false },
     { role: "button", name: "Book room", disabled: false },
-  ],
-  "state=booked": [
+  ] as const;
+}
+
+export const accessibleNames = {
+  loading: [...topBar("Rooms", true), rooms, { role: "progressbar", name: "Loading free rooms" }],
+  "no-rooms": [...topBar("Rooms", false), rooms, { role: "heading", name: "No rooms are free" }, { role: "button", name: "See the waitlist" }],
+  error: [...topBar("Rooms", true), rooms, { role: "button", name: "Try again" }],
+  rooms: [...topBar("Rooms", false), rooms, { role: "button", name: "Choose Harbor" }, { role: "button", name: "Choose Lantern" }, { role: "button", name: "Choose Quarry" }],
+  "booking-harbor": booking("Harbor"),
+  "booking-lantern": booking("Lantern"),
+  "booking-quarry": booking("Quarry"),
+  booked: [
     ...topBar("Rooms", true),
     { role: "status", text: "Room booked Harbor is yours for 1 hour." },
     { role: "button", name: "Book room", disabled: true },
     { role: "button", name: "All rooms", disabled: true },
   ],
-  "state=held": [
+  held: [
     ...topBar("Rooms", true),
     { role: "status", text: "Room held Harbor is held for you for 15 minutes. Book it to keep it." },
     { role: "button", name: "Hold room", disabled: true },
     { role: "button", name: "Book room", disabled: false },
   ],
-  "state=expired": [
+  expired: [
     ...topBar("Rooms", false),
     { role: "status", text: "Hold ended Harbor is no longer held for you. Book it now, or pick another room." },
     { role: "button", name: "Hold room", disabled: true },
     { role: "button", name: "Book room", disabled: false },
     { role: "button", name: "All rooms", disabled: false },
   ],
-  "state=waitlist": [
+  waitlist: [
     ...topBar("Waitlist", false),
     { role: "heading", name: "Waitlist" },
     { role: "button", name: "Join waitlist for Cedar" },
     { role: "button", name: "Join waitlist for Birch" },
   ],
-  "state=waiting": [
+  waiting: [
     ...topBar("Waitlist", false),
     { role: "status", text: "You're on the waitlist for Cedar. If a room frees up, it shows here." },
     { role: "button", name: "Leave waitlist for Cedar" },
     { role: "button", name: "Join waitlist for Birch" },
   ],
-  "state=freed": [
+  freed: [
     ...topBar("Waitlist", false),
     { role: "status", text: "Cedar is free now. Choose it to book it. You're still on the waitlist for Birch." },
     { role: "button", name: "Choose Cedar" },
@@ -69,64 +76,18 @@ export const accessibleNames = {
 } satisfies AccessibleNames;
 
 /**
- * Presses that change the page without telling a screen reader, found when
- * check:accessible-names began pressing every action. Each waits for a fix in
- * its own pull request, and the check fails an entry once its press is fixed,
- * so this list only shrinks.
+ * Presses that change the page without telling a screen reader. The top bar
+ * moves focus to the new page's title on every page change, and submits keep
+ * focus (`submitOff`), so what is left changes one page in place. Each entry
+ * names where its fix is tracked, and the check fails an entry once its press
+ * is fixed, so this list only shrinks.
  */
 export const knownGaps = [
   {
-    presses: ['button "Waitlist"'],
-    problem: "silent",
-    previews: ["state=no-rooms", "state=choosing&page=rooms", "state=choosing&page=booking", "state=expired"],
-    why: "The top bar's Waitlist swaps the page for the waitlist and keeps focus on the button, where only its current mark moves. Move focus to the new page's title, or say the page in a status region.",
-  },
-  {
-    presses: ['button "Rooms"'],
-    problem: "silent",
-    previews: ["state=choosing&page=booking", "state=expired", "state=waitlist", "state=waiting", "state=freed"],
-    why: "The top bar's Rooms swaps the page for the rooms list and keeps focus on the button, where only its current mark moves. Move focus to the new page's title, or say the page in a status region.",
-  },
-  {
-    presses: ['button "See the waitlist"'],
-    problem: "focus lost",
-    previews: ["state=no-rooms"],
-    why: "See the waitlist replaces the no-rooms page, and the button with it, with the waitlist, so focus falls to the page body. Move focus to the waitlist's title.",
-  },
-  {
-    presses: ['button "Choose Cedar"'],
-    problem: "focus lost",
-    previews: ["state=freed"],
-    why: "Choosing a freed room replaces the waitlist with its booking page, and nothing moves focus to the new page. Move focus to the new page's title.",
-  },
-  {
-    presses: ['button "Choose Harbor"', 'button "Choose Lantern"', 'button "Choose Quarry"'],
-    problem: "focus lost",
-    previews: ["state=choosing&page=rooms"],
-    why: "Choosing a room replaces the rooms page with its booking page, and nothing moves focus to the new page. Move focus to the new page's title.",
-  },
-  {
-    presses: ['button "All rooms"'],
-    problem: "focus lost",
-    previews: ["state=choosing&page=booking", "state=expired"],
-    why: "All rooms replaces the booking page with the rooms page, and nothing moves focus to the new page. Move focus to the new page's title.",
-  },
-  {
-    presses: ['button "Hold room"'],
-    problem: "focus lost",
-    previews: ["state=choosing&page=booking"],
-    why: "The button turns itself off, and Chrome drops focus to the page body; the status region does say what happened. Move focus to that status, or to the next action.",
-  },
-  {
-    presses: ['button "Book room"'],
-    problem: "focus lost",
-    previews: ["state=choosing&page=booking", "state=held", "state=expired"],
-    why: "The button turns itself off, and Chrome drops focus to the page body; the status region does say what happened. Move focus to that status, or to the next action.",
-  },
-  {
     presses: ['button "Try again"'],
     problem: "focus lost",
-    previews: ["state=error"],
+    scenarios: ["error"],
     why: "Try again replaces the error, and the button with it, with the loader, so focus falls to the page body. Move focus to the loader, or keep a focusable element in the button's place.",
+    fixIn: "https://github.com/tounsoo/agent-design-loop/issues/50",
   },
 ] satisfies KnownGaps;

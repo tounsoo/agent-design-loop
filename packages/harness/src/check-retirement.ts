@@ -1,21 +1,18 @@
-import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { resolveBaseRev, tryGit } from "./lib/base";
 import { optOutProblems, retirementCandidates, RETIREMENT_MIN_PRODUCTS, unadoptedOptOuts, unretiredRemovals, type OptOutProduct } from "./lib/opt-outs";
 import { DEFAULT_PROPOSALS, parseConfig } from "./lib/parse-config";
 import { adopting, parseAll, proposalsAtRev, proposalsInDir, type Proposal } from "./lib/proposals";
+import { productConfigs } from "./lib/products";
 import { ruleChecks } from "./lib/scripts";
 
 /**
  * Reads every product's harness config in the repository and fails when a
  * rule is opted out of by a majority of products, and by at least two. A rule
  * most products turn off is not a shared rule: retire it with a proposal that
- * takes it out of `check:rules`, or withdraw an opt-out. A product is any
- * `harness.config.ts` git knows of, tracked or new, outside the harness
- * package, whose fixtures are not products. A tracked config deleted from the
- * working tree is no longer a product.
+ * takes it out of `check:rules`, or withdraw an opt-out. The products are the
+ * registry's, lib/products.ts.
  *
  * It also checks every product's opt-outs the way check:opt-outs does, so a
  * product that no `check:<name>` script runs cannot carry an opt-out with no
@@ -31,16 +28,6 @@ import { ruleChecks } from "./lib/scripts";
 if (process.argv.length > 2) {
   console.error("check:retirement takes no arguments. It reads every product's harness.config.ts.");
   process.exit(1);
-}
-
-const harnessDir = path.relative(process.cwd(), path.dirname(path.dirname(fileURLToPath(import.meta.url)))).split(path.sep).join("/");
-
-function productConfigs(): string[] {
-  const output = execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard"], { encoding: "utf8" });
-  const files = output
-    .split("\n")
-    .filter((file) => path.posix.basename(file) === "harness.config.ts" && !file.startsWith(`${harnessDir}/`) && existsSync(file));
-  return [...new Set(files)].sort();
 }
 
 const files = productConfigs();

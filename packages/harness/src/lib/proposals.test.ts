@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EDGE_STATES, addingInThisChange, adopting, nameProblems, parseAll, sharedNameProblems, parseProposal, transitionProblems, type Proposal } from "./proposals";
+import { EDGE_STATES, addingInThisChange, adopting, missingScenarioProblems, nameProblems, parseAll, sharedNameProblems, parseProposal, transitionProblems, type Proposal } from "./proposals";
 
 const BODY = "# Proposal 0102: Add a side panel\n\n## Reason\n\nA frame beside the page.\n\n## Preview\n\n```\n[page | panel]\n```\n\n## Adoption, after approval\n\n- inputs\n";
 
@@ -7,10 +7,10 @@ function text(front: string, body = BODY): string {
   return `---\n${front}\n---\n${body}`;
 }
 
-const LISTED: Proposal["states"] = [{ name: "Pending", text: "The panel shows the record.", outOfScope: false }];
+const LISTED: Proposal["states"] = [{ name: "Pending", text: "The panel shows the record.", outOfScope: false, scenarios: [] }];
 
 function proposal(file: string, status: Proposal["status"], changes: string[] = [], retires: string[] = [], states: Proposal["states"] = LISTED): Proposal {
-  return { file, status, changes, retires, optsOut: [], adds: [], states };
+  return { file, status, changes, retires, optsOut: [], adds: [], tightens: [], states };
 }
 
 describe("parseProposal", () => {
@@ -27,6 +27,7 @@ describe("parseProposal", () => {
       retires: ["check:disclosure"],
       optsOut: [{ rule: "check:priority", source: "products/nook" }],
       adds: [],
+      tightens: [],
       states: null,
     });
   });
@@ -427,5 +428,46 @@ describe("sharedNameProblems", () => {
     expect(sharedNameProblems([], ["proposals/2026-11-12-steps.md", "products/nook/proposals/2026-11-12-hold.md"])).toEqual([]);
     const both = ["proposals/0001-a.md", "products/nook/proposals/0001-a.md"];
     expect(sharedNameProblems(both, both)).toEqual([]);
+  });
+});
+
+describe("## States names a scenario", () => {
+  const edge = (name: string, scenarios: string[], outOfScope = false): NonNullable<Proposal["states"]>[number] => ({ name, text: `${name} text.`, outOfScope, scenarios });
+  const withEdges = (file: string, status: Proposal["status"], states: NonNullable<Proposal["states"]>) => proposal(file, status, ["side-panel"], [], states);
+
+  it("reads each scenario a state names", () => {
+    const parsed = parseProposal("p.md", withStates(STATES.replace("has no history yet.", "has no history yet, as scenario `panel-empty` shows.")));
+    expect("proposal" in parsed && parsed.proposal?.states?.find((state) => state.name === "Empty")?.scenarios).toEqual(["panel-empty"]);
+  });
+
+  it("reads a list of scenarios, and only lowercase slugs, so a placeholder names none", () => {
+    const read = (empty: string) => {
+      const parsed = parseProposal("p.md", withStates(STATES.replace("has no history yet.", empty)));
+      return "proposal" in parsed ? parsed.proposal?.states?.find((state) => state.name === "Empty")?.scenarios : undefined;
+    };
+    expect(read("has no history yet, scenarios `panel-empty`, `panel-new` and `panel-cleared`.")).toEqual(["panel-empty", "panel-new", "panel-cleared"]);
+    expect(read("has no history yet, scenario `<id>`.")).toEqual([]);
+    expect(read("has no history yet, scenario `Panel_Empty`.")).toEqual([]);
+  });
+
+  it("fails a new proposal whose edge case names no scenario, and passes one out of scope or ordinary", () => {
+    const states = [edge("Pending", []), edge("Empty", []), edge("Loading", [], true), edge("Long content", ["panel-long"])];
+    const problems = transitionProblems(new Map(), new Map([["n.md", withEdges("n.md", "open", states)]]));
+    expect(problems).toEqual([expect.stringContaining('n.md is new and its "## States" item "Empty" names no scenario')]);
+  });
+
+  it("keeps a proposal already on the base as it is", () => {
+    const states = [edge("Pending", []), edge("Empty", [])];
+    const problems = transitionProblems(new Map([["a.md", withEdges("a.md", "decided", states)]]), new Map([["a.md", withEdges("a.md", "adopted", states)]]));
+    expect(problems).toEqual([]);
+  });
+
+  it("fails an adopted proposal that names a scenario no product has, and not an open or decided one", () => {
+    const states = [edge("Pending", []), edge("Empty", ["panel-empty"]), edge("Long content", ["panel-long"])];
+    const head = new Map([
+      ["adopted.md", withEdges("adopted.md", "adopted", states)],
+      ["decided.md", withEdges("decided.md", "decided", states)],
+    ]);
+    expect(missingScenarioProblems(head, new Set(["panel-long"]))).toEqual([expect.stringContaining('adopted.md is adopted and its "## States" item "Empty" names scenario `panel-empty`')]);
   });
 });

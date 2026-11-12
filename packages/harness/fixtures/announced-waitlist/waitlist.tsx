@@ -1,6 +1,8 @@
 import { Alert, Button, Stack } from "@tounsoo/todae";
 import { useReducer } from "react";
 import { createRoot } from "react-dom/client";
+import { readScenario } from "../../src/lib/scenario-read";
+import { scenarios } from "./scenarios";
 
 /**
  * Nook's Waitlist page from pull request 42, cut down to its rows and its
@@ -22,7 +24,7 @@ const spoken = (names: readonly string[]) => names.join(" and ");
 type State = { readonly waitingFor: readonly string[]; readonly freed: string | null; readonly left: string | null };
 type Event = { readonly type: "join" | "leave"; readonly roomId: string };
 
-const previews: Record<string, State> = {
+const initialStates: Record<string, State> = {
   waitlist: { waitingFor: [], freed: null, left: null },
   waiting: { waitingFor: ["cedar"], freed: null, left: null },
   freed: { waitingFor: ["birch"], freed: "cedar", left: null },
@@ -122,6 +124,6 @@ function Waitlist({ initial, version }: { initial: State; version: Version }) {
 export function render(version: Version) {
   const root = document.getElementById("root");
   if (!root) throw new Error("Missing #root");
-  const preview = new URLSearchParams(window.location.search).get("state") ?? "waitlist";
-  createRoot(root).render(<Waitlist initial={previews[preview] ?? previews.waitlist!} version={version} />);
+  const state = readScenario(window.location.search, scenarios)?.state ?? "waitlist";
+  createRoot(root).render(<Waitlist initial={initialStates[state] ?? initialStates.waitlist!} version={version} />);
 }

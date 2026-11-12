@@ -3,8 +3,9 @@ import type { LoopGraph } from "./src/lib/loop";
 /**
  * The design loop every agent follows, as a graph. Start at `start`, do what
  * each node's label says, and take the edge whose `when` matches the outcome.
- * An eval node runs its scripts. A human node stops the run until its gate's
- * review approves or declines. `npm run check:loop` validates this file and
+ * An eval node runs its scripts. A human node stops the run until the owner
+ * of its gate merges the pull request it waits on, which approves it, or
+ * declines it. `npm run check:loop` validates this file and
  * keeps the diagram in docs/how-it-works.md in step with it.
  */
 const designLoop = {
@@ -14,7 +15,7 @@ const designLoop = {
     { id: "rules", what: "The harness rules, which check:rules in package.json runs on every product, and each product's opt-outs." },
     { id: "proposals", what: "proposals/, the requests and decisions that change an inventory or a rule." },
     { id: "ui", what: "The product's UI under its paths.source." },
-    { id: "review", what: "The product's review/ folder: the notes on the judgment the checks leave open, and each change's screenshots with their gallery." },
+    { id: "review", what: "The product's review/ folder: the notes on the judgment the checks leave open, and each change's screenshots with their gallery and critique." },
   ],
   nodes: [
     { id: "read", kind: "llm", label: "Read the inventories in the order AGENTS.md lists", reads: ["inventories", "rules", "proposals"] },
@@ -23,11 +24,12 @@ const designLoop = {
     { id: "checks", kind: "eval", label: "Run the build gate", run: ["check:fixtures", "check"], reads: ["inventories", "rules", "ui"] },
     { id: "triage", kind: "router", label: "Can the fix stay inside the inventories?" },
     { id: "propose", kind: "llm", label: "Write a proposal with a reason, every state, a preview and an adoption", writes: ["proposals"] },
-    { id: "scope", kind: "router", label: "Does the proposal only add catalog exports, layouts, content layouts or flow states?", reads: ["proposals"] },
+    { id: "scope", kind: "router", label: "Does the proposal only add to an inventory or tighten a rule input?", reads: ["proposals"] },
     { id: "proposal-pull-request", kind: "checkpoint", label: "Open a pull request with the proposal", reads: ["proposals"] },
-    { id: "approval", kind: "human", label: "A designer reviews the proposal's pull request", approver: "designer", gate: "/proposals/", reads: ["proposals"] },
+    { id: "approval", kind: "human", label: "The code owner merges the proposal's pull request", approver: "code owner", gate: "/proposals/", reads: ["proposals"] },
     { id: "adopt", kind: "llm", label: "Adopt it into the inventory data or a harness rule", reads: ["proposals"], writes: ["inventories", "rules"] },
     { id: "screenshots", kind: "llm", label: "Capture each state the change touches, with a gallery the pull request links", reads: ["ui"], writes: ["review"] },
+    { id: "critique", kind: "router", label: "Does a second model, not the builder, find a problem in the screenshots to fix before review?", reads: ["review"], writes: ["review"] },
     { id: "note", kind: "llm", label: "Write the leftover judgment in the review notes", writes: ["review"] },
     { id: "pull-request", kind: "checkpoint", label: "Open the pull request for review", reads: ["ui", "review"] },
   ],
@@ -47,7 +49,9 @@ const designLoop = {
     { from: "approval", to: "adopt", when: "approved" },
     { from: "approval", to: "build", when: "declined" },
     { from: "adopt", to: "build" },
-    { from: "screenshots", to: "note" },
+    { from: "screenshots", to: "critique" },
+    { from: "critique", to: "build", when: "revise" },
+    { from: "critique", to: "note", when: "pass" },
     { from: "note", to: "pull-request" },
   ],
 } as const satisfies LoopGraph;

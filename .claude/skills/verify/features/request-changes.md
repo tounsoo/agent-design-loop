@@ -11,13 +11,13 @@ On an invoice, Request changes is the secondary action. Choosing it reveals a re
 ## How to get to it (user POV)
 
 - Open an invoice and choose `Request changes`.
-- Open `?state=ready&page=detail&branch=request` directly. The Preview menu has no entry for it.
+- Open `?scenario=invoice-requesting-changes` from the Preview menu.
 
 ## Driving it with Vitest and a browser
 
 Preconditions:
 
-- The baseline preconditions hold, and Meridian is on an invoice (`?state=ready&page=detail`).
+- The baseline preconditions hold, and Meridian is on an invoice (`?scenario=invoice-detail`).
 
 - **Reveal.** Choose `Request changes`. The textbox `What should change?` appears.
 - **Required.** Choose `Request changes` again with the box empty. The error `Enter what the vendor should change.` shows.

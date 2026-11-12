@@ -58,7 +58,7 @@ function detailReady(invoiceId: string): Extract<FlowState, { status: "ready"; s
 
 /**
  * URL and preview override decide the screen. Ledger status decides what an
- * opened invoice shows, unless `?state=` forces a modeled view.
+ * opened invoice shows, unless a `?scenario=` forces a modeled view.
  */
 export function flowFromLocation(location: AppLocation, ledger: readonly Invoice[]): FlowState {
   const { preview, invoiceId } = location;

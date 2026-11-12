@@ -16,22 +16,28 @@ import path from "node:path";
  *     - check:disclosure for products/nook
  *   ---
  *
- * or, for a proposal that only adds members to an inventory:
+ * or, for a proposal that only adds to an inventory or tightens a rule
+ * input:
  *
  *   ---
  *   status: adopted
  *   changes: []
  *   adds:
  *     - side-panel
+ *     - page-type:board
+ *   tightens:
+ *     - max_steps:approve-vendor-invoice
  *   ---
  *
  * `status` is `open` (a request), `decided` (approved, not yet applied) or
  * `adopted` (applied). `changes` lists, exactly, each inventory name the
  * proposal changes: a member, a constant, a config field, a new product's
  * directory. `retires` lists rules it takes out of `check:rules`. `opts-out`
- * lists `<rule> for <product paths.source>`. `adds` lists members the
- * proposal adds to an inventory list in the pull request that adds the
- * proposal. `status` and `changes` are required; an empty list is written
+ * lists `<rule> for <product paths.source>`. `adds` lists what the
+ * proposal adds to an inventory in the pull request that adds the proposal,
+ * and `tightens` the rule inputs it makes stricter there; check:inventories
+ * says which names each takes. `status` and `changes` are required; an
+ * empty list is written
  * `[]`. The body needs a `## Reason`, a
  * `## Preview` and a `## Adoption` section, each with text under it.
  *
@@ -42,17 +48,22 @@ import path from "node:path";
  * proposal whose change shows on no screen writes the one item
  * `- None: <why>`. check:proposals requires the section from a proposal the
  * change adds and from one it moves to `decided`, so proposals approved
- * before the section existed keep their text.
+ * before the section existed keep their text. In a proposal the change adds,
+ * each edge case that is not out of scope names the scenario that renders it,
+ * as ``scenario `<id>` ``, and while a proposal is `adopted` every scenario it
+ * names exists in a product's scenarios.ts (proposal 2026-11-12-scenarios).
  *
  * A change the checks gate, an inventory change, a new opt-out or a retired
  * rule, adopts a proposal: the proposal must already be `decided` on the
  * pull request base, and the pull request marks it `adopted`. What it
  * covers is read from the base, so the adopting pull request cannot widen
  * it. A proposal added in the same pull request covers nothing, with one
- * exception: a proposal that only adds. It lists the new members under `adds`
- * and nothing under `changes`, `retires` or `opts-out`, starts as
- * `adopted`, and covers those members in the pull request that adds it,
- * and only there. check:inventories decides what counts as an addition.
+ * exception: a proposal that only adds or tightens. It lists what it adds
+ * under `adds` and what it tightens under `tightens`, nothing under
+ * `changes`, `retires` or `opts-out`, starts as `adopted`, and covers those
+ * in the pull request that adds it, and only there. check:inventories
+ * decides what counts as an addition or a tightening (proposal
+ * 2026-11-12-right-size-governance).
  */
 
 export const STATUSES = ["open", "decided", "adopted"] as const;
@@ -62,7 +73,27 @@ export type ProposalStatus = (typeof STATUSES)[number];
 export const EDGE_STATES = ["Empty", "Loading", "Error", "Long content", "Permissions", "Over time"] as const;
 const NO_STATES = "None";
 
-export type ProposalState = { readonly name: string; readonly text: string; readonly outOfScope: boolean };
+export type ProposalState = {
+  readonly name: string;
+  readonly text: string;
+  readonly outOfScope: boolean;
+  /** The scenarios the item names, as ``scenario `<id>` `` in its text. */
+  readonly scenarios: readonly string[];
+};
+
+/**
+ * How a `## States` item names the scenarios that render it: ``scenario `booking-lantern` ``,
+ * or ``scenarios `booking-lantern` and `booking-quarry` ``. Only a lowercase slug counts, so a
+ * placeholder such as ``scenario `<id>` `` names nothing.
+ */
+const SLUG = "[a-z0-9]+(?:-[a-z0-9]+)*";
+const SCENARIO_MENTION = new RegExp(`\\b[Ss]cenarios? (\`${SLUG}\`(?:(?:,\\s*|,?\\s+(?:and|or)\\s+)\`${SLUG}\`)*)`, "g");
+const SCENARIO_ID = new RegExp(`\`(${SLUG})\``, "g");
+
+/** Every scenario id a `## States` item's text names. */
+function scenarioMentions(text: string): string[] {
+  return [...text.matchAll(SCENARIO_MENTION)].flatMap((mention) => [...(mention[1] ?? "").matchAll(SCENARIO_ID)].map((id) => id[1] ?? ""));
+}
 
 export type OptOutEntry = { readonly rule: string; readonly source: string };
 
@@ -72,15 +103,17 @@ export type Proposal = {
   readonly changes: readonly string[];
   readonly retires: readonly string[];
   readonly optsOut: readonly OptOutEntry[];
-  /** Members added to an inventory list in the pull request that adds this proposal. Never with anything else. */
+  /** What the pull request that adds this proposal adds to an inventory. Only beside `tightens`. */
   readonly adds: readonly string[];
+  /** Rule inputs the pull request that adds this proposal makes stricter. Only beside `adds`. */
+  readonly tightens: readonly string[];
   /** The `## States` items, or null when the proposal has no such section. */
   readonly states: readonly ProposalState[] | null;
 };
 
 export type ParsedProposal = { readonly proposal: Proposal | null; readonly problems: readonly string[] };
 
-const LIST_KEYS = ["changes", "retires", "opts-out", "adds"] as const;
+const LIST_KEYS = ["changes", "retires", "opts-out", "adds", "tightens"] as const;
 const KEYS = ["status", ...LIST_KEYS] as const;
 const REQUIRED_KEYS = ["status", "changes"] as const;
 export const SECTIONS = ["Reason", "Preview", "Adoption"] as const;
@@ -231,7 +264,7 @@ function readStates(content: string): { states: ProposalState[]; problems: strin
     else if (outOfScope && text.replace(/^out of scope\b[\s:,.;\-\u2013\u2014]*/i, "") === "") {
       problems.push(`"## States" item "${name}" is out of scope with no reason. Write "Out of scope, <why>".`);
     }
-    states.push({ name, text, outOfScope });
+    states.push({ name, text, outOfScope, scenarios: scenarioMentions(text) });
   }
   if (states.length === 0) {
     problems.push(`"## States" lists no states. Write one "- <state>: <what the screen shows>" item for each, the edge cases ${EDGE_STATES.join(", ")} included.`);
@@ -302,16 +335,19 @@ export function parseProposal(file: string, text: string, options: ParseOptions 
     else problems.push(`opts-out entry "${entry}" is not "<rule> for <product paths.source>".`);
   }
   const adds = lists.get("adds") ?? [];
-  if (adds.length > 0) {
-    // A proposal that only adds is the one that may skip the approval pull request, so it may carry nothing that one would gate.
+  const tightens = lists.get("tightens") ?? [];
+  const oneFields = (["adds", "tightens"] as const).filter((key) => (lists.get(key) ?? []).length > 0);
+  if (oneFields.length > 0) {
+    // A proposal that only adds or tightens is the one that may skip the approval pull request, so it may carry nothing that one would gate.
     const mixed = (["changes", "retires", "opts-out"] as const).filter((key) => (lists.get(key) ?? []).length > 0);
+    const listed = oneFields.join(" and ");
     if (mixed.length > 0) {
       problems.push(
-        `lists adds alongside ${mixed.join(", ")}. A proposal that adds in one pull request lists nothing else: put the rest in its own proposal, decided before it is adopted.`,
+        `lists ${listed} alongside ${mixed.join(", ")}. A proposal that adds or tightens in one pull request lists nothing else: put the rest in its own proposal, decided before it is adopted.`,
       );
     }
     if (fields.has("status") && status !== "adopted" && renamed === undefined) {
-      problems.push(`lists adds, so its status is adopted: it is adopted in the pull request that adds it. A request that waits for approval lists its members under changes.`);
+      problems.push(`lists ${listed}, so its status is adopted: it is adopted in the pull request that adds it. A request that waits for approval lists what it changes under changes.`);
     }
   }
   const sections = sectionProblems(split.rest, options.base === true);
@@ -325,6 +361,7 @@ export function parseProposal(file: string, text: string, options: ParseOptions 
       retires: lists.get("retires") ?? [],
       optsOut,
       adds,
+      tightens,
       states: sections.states,
     },
     problems,
@@ -482,14 +519,14 @@ export function adopting(base: ReadonlyMap<string, Proposal>, head: ReadonlyMap<
 }
 
 /**
- * The proposals that only add and that this change adds: not on the base,
- * adopted in the head, with members under `adds`. A proposal that only
- * adds covers its members in the pull request that adds it, never later, so
- * one already on the base covers nothing.
+ * The proposals that only add or tighten and that this change adds: not on
+ * the base, adopted in the head, with names under `adds` or `tightens`. Such
+ * a proposal covers its names in the pull request that adds it, never later,
+ * so one already on the base covers nothing.
  */
 export function addingInThisChange(base: ReadonlyMap<string, Proposal>, head: ReadonlyMap<string, Proposal>): Proposal[] {
   return [...head]
-    .filter(([key, proposal]) => !base.has(key) && proposal.status === "adopted" && proposal.adds.length > 0)
+    .filter(([key, proposal]) => !base.has(key) && proposal.status === "adopted" && (proposal.adds.length > 0 || proposal.tightens.length > 0))
     .map(([, proposal]) => proposal)
     .sort((left, right) => left.file.localeCompare(right.file));
 }
@@ -502,8 +539,8 @@ const sameList = (left: readonly string[], right: readonly string[]) => JSON.str
  * moving it from `decided` to `adopted`, each in its own pull request. Once
  * decided, what a proposal covers does not change. A new proposal may be
  * `adopted` at once only when it covers nothing the checks gate, as a
- * change to the harness's own code does, or when it only adds, which
- * check:inventories holds to additions. A proposal that changes or adds
+ * change to the harness's own code does, or when it only adds or tightens,
+ * which check:inventories holds to additions and tightenings. A proposal that changes or adds
  * members needs a `## States` section when it is new or moves to `decided`.
  * `legacy` names base files that exist but have no fields, which are not
  * compared.
@@ -531,13 +568,22 @@ export function transitionProblems(
         `${after.file} ${before === undefined ? "is new" : "moves open → decided"} and ${after.changes.length > 0 ? `changes ${after.changes.join(", ")}` : `adds ${after.adds.join(", ")}`}, but has no "## States" section. List every state the change shows before it is built, the edge cases ${EDGE_STATES.join(", ")} included, or "- None: <why>" when it shows on no screen.`,
       );
     }
+    // A new proposal names the scenario each edge case it shows renders in, so the case is built and checked, not only described.
+    if (before === undefined && after.states !== null && !after.states.some((state) => sameName(state.name, NO_STATES))) {
+      for (const state of after.states) {
+        if (!EDGE_STATES.some((edge) => sameName(edge, state.name)) || state.outOfScope || state.scenarios.length > 0) continue;
+        problems.push(
+          `${after.file} is new and its "## States" item "${state.name}" names no scenario. Name the scenario that renders it, as scenario \`<id>\` in its text, or write "Out of scope, <why>".`,
+        );
+      }
+    }
     // A base file with no fields predates them, so there is no status to move from. It cannot cover a change either: adopting() reads the base.
     if (legacy.has(key)) continue;
     const gated = after.changes.length > 0 || after.retires.length > 0 || after.optsOut.length > 0;
     if (before === undefined) {
       if (after.status === "adopted" && gated) {
         problems.push(
-          `${after.file} is new and already adopted. A proposal cannot be adopted in the pull request that adds it: merge it as "status: decided" first, then adopt it in a later pull request. Only a proposal that lists nothing but adds may.`,
+          `${after.file} is new and already adopted. A proposal cannot be adopted in the pull request that adds it: merge it as "status: decided" first, then adopt it in a later pull request. Only a proposal that lists nothing but adds or tightens may.`,
         );
       }
       continue;
@@ -556,11 +602,32 @@ export function transitionProblems(
       problems.push(`${after.file} is ${before.status} on the base with a "## States" section, so it keeps one: the states are part of what was approved.`);
     }
     if (before.status !== "open") {
-      const changed: string[] = (["changes", "retires", "adds"] as const).filter((field) => !sameList(before[field], after[field]));
+      const changed: string[] = (["changes", "retires", "adds", "tightens"] as const).filter((field) => !sameList(before[field], after[field]));
       const optsOut = (entries: readonly OptOutEntry[]) => entries.map((entry) => `${entry.rule} for ${entry.source}`);
       if (!sameList(optsOut(before.optsOut), optsOut(after.optsOut))) changed.push("opts-out");
       if (changed.length > 0) {
         problems.push(`${after.file} is ${before.status} on the base, so its ${changed.join(", ")} cannot change: that is what was approved.`);
+      }
+    }
+  }
+  return problems;
+}
+
+/**
+ * The scenarios an adopted proposal's `## States` names that no product has.
+ * `ids` is every scenario id in every product's scenarios.ts. A proposal
+ * that is decided may name scenarios it will add; once adopted, they exist.
+ */
+export function missingScenarioProblems(head: ReadonlyMap<string, Proposal>, ids: ReadonlySet<string>): string[] {
+  const problems: string[] = [];
+  for (const proposal of [...head.values()].sort((left, right) => left.file.localeCompare(right.file))) {
+    if (proposal.status !== "adopted" || proposal.states === null) continue;
+    for (const state of proposal.states) {
+      for (const id of state.scenarios) {
+        if (ids.has(id)) continue;
+        problems.push(
+          `${proposal.file} is adopted and its "## States" item "${state.name}" names scenario \`${id}\`, which no product's scenarios.ts has. Add it back, or rename the scenario in the proposal's text only if it was renamed.`,
+        );
       }
     }
   }

@@ -5,8 +5,9 @@ import ts from "typescript";
 import { parseAdapter, type DesignSystemAdapter } from "./lib/adapter";
 import { resolveBaseRev, tryGit } from "./lib/base";
 import { collectionCompositionViolations } from "./lib/collection-body";
-import { config, configName, memberOf, pageTypesBarrel, parseConfig, type HarnessConfig, type ParsedConfig } from "./lib/config";
+import { config, configName, memberOf, pageTypesBarrel, parseConfig, type ParsedConfig } from "./lib/config";
 import { walk } from "./lib/jsx";
+import { ADDABLE_LISTS, membershipChanges, type Change, type Inventory, type Term } from "./lib/membership";
 import { addingInThisChange, byBaseName, adopting, parseAll, proposalsAtRev, proposalsInDir, type Proposal } from "./lib/proposals";
 import { collectionShellsOf, shellsOf } from "./lib/shells";
 
@@ -26,15 +27,16 @@ import { collectionShellsOf, shellsOf } from "./lib/shells";
  * out disclosed_sections only while the base has none or an empty one, since
  * dropping members the base has is a change. The other arrays,
  * allowed_page_types, tasks, priority and the flows' modeledStates, must exist
- * on the base and in the change, or the check fails. A list the base already
- * has may not change that way. Its membership changes only by adopting a
- * proposal: one that is decided on the base, that this change marks adopted,
- * and whose `changes` list what changed. A change that only adds members to
- * the catalog exports, allowed_layouts, allowed_content_layouts or the flow
- * states may instead adopt a proposal this change adds, already adopted, that
- * lists those members under `adds`: proposal 0012. A new page type never
- * does, because it also needs a shells entry: proposal
- * 2026-11-12-page-types-take-two-pull-requests.
+ * on the base and in the change, or the check fails.
+ *
+ * lib/membership.ts compares the two sides item by item and sorts each
+ * difference (proposal 2026-11-12-right-size-governance). A change that only
+ * adds or only tightens may adopt a proposal this change adds, already
+ * adopted, that lists it under `adds` or `tightens`; the pull request that
+ * adds it is its only approval, and the code owner merges it. Everything
+ * else, a removal, a rename or a loosening, adopts a proposal decided on the
+ * base, marked adopted here, whose `changes` list what changed: the decision
+ * lands on main first.
  *
  * allowed_layouts is the app frame. allowed_content_layouts are the
  * compositions that fill a page type's body. A collection ready body has to
@@ -61,30 +63,10 @@ import { collectionShellsOf, shellsOf } from "./lib/shells";
  * `--base <config>` compares with a product in the working tree instead of
  * the pull request base. The fixtures have no history of their own, so this
  * is how they test membership. Two configs in one tree differ in their paths
- * by necessity, so the config itself is not compared then.
+ * by necessity, so the config itself is not compared then, though a new
+ * page type still reads both configs' shells to tell whether it brings only
+ * its own entry.
  */
-
-type StepBudget = { id: string; max_steps: number };
-type PriorityItem = { action: string; rank: number; level: string };
-
-type Inventory = {
-  layouts: string[] | null;
-  contentLayouts: string[] | null;
-  pageTypes: string[];
-  catalogExports: string[];
-  flowStates: string[];
-  maxSteps: StepBudget[];
-  priority: PriorityItem[];
-  disclosedSections: string[] | null;
-  disclosureDepth: number;
-  disclosuresPerPage: number;
-  visibleQuestions: number;
-  targetMinPx: number;
-  /** The root's own harness config, or null when the root has none. */
-  config: ParsedConfig | null;
-  /** The adapter the root's config names, or null when it names none. */
-  adapter: DesignSystemAdapter | null;
-};
 
 /** The working tree, read with a config, or a revision, read with its config at `config`: configName, or the path a moved product had. */
 type Root = { kind: "tree"; config: ParsedConfig } | { kind: "git"; rev: string; config: string };
@@ -336,9 +318,10 @@ function readInventory(root: Root): Inventory | null {
   const product = parseSource(paths.inputs, readText(root, paths.inputs));
   const rules = parseSource(paths.rules, readText(root, paths.rules));
   const catalog = parseSource(paths.catalog, readText(root, paths.catalog));
-  const flowStates = flows.flatMap((flow) =>
+  const statesByFlow = flows.map((flow) =>
     stringArray(exportedInitializer(parseSource(flow.states, readText(root, flow.states)), "modeledStates"), "modeledStates"),
   );
+  const flowStates = statesByFlow.flat();
   const tasks = objectRecords(exportedInitializer(product, "tasks"), "tasks");
   const priority = objectRecords(exportedInitializer(product, "priority"), "priority");
   return {
@@ -347,8 +330,12 @@ function readInventory(root: Root): Inventory | null {
     pageTypes: sortedUnique(stringArray(exportedInitializer(product, "allowed_page_types"), "allowed_page_types")),
     catalogExports: catalogExports(catalog),
     flowStates: sortedUnique(flowStates),
-    maxSteps: tasks
-      .map((task) => ({ id: requiredString(task, "id", "tasks"), max_steps: requiredNumber(task, "max_steps", "tasks") }))
+    tasks: tasks
+      .map((task) => ({
+        id: requiredString(task, "id", "tasks"),
+        success_state: requiredString(task, "success_state", "tasks"),
+        max_steps: requiredNumber(task, "max_steps", "tasks"),
+      }))
       .sort((left, right) => left.id.localeCompare(right.id)),
     priority: priority
       .map((item) => ({
@@ -365,113 +352,6 @@ function readInventory(root: Root): Inventory | null {
     config: own,
     adapter: adapterAt(root, own),
   };
-}
-
-/**
- * One membership change, and the terms a proposal must name to cover it: the
- * members added or removed, the task or action whose rule input changed, the
- * cap or config field. A term that lists alternatives is named when any one
- * of them is: a config path is named by its field, `paths.catalog`, or by its
- * new value. A proposal about something else does not cover it.
- *
- * `additions` is set only on a change to one of the lists that may grow in
- * one pull request, when every member in it was added and none removed. Its
- * terms are then exactly those members.
- */
-type Term = string | readonly string[];
-type Change = { readonly text: string; readonly terms: readonly Term[]; readonly additions?: true; readonly note?: string; readonly pageTypesAdded?: readonly string[] };
-
-/**
- * The inventory lists a proposal that only adds may grow in the pull request
- * that adds it. Every other change waits for a decided proposal.
- * allowed_page_types is not one: a new page type also needs an entry under
- * `shells` in the product's config, which is not an addition, so it always
- * takes two pull requests (proposal 2026-11-12-page-types-take-two-pull-requests).
- */
-const ADDABLE_LISTS = ["catalog exports", "allowed_layouts", "allowed_content_layouts", "flow states"] as const;
-const PAGE_TYPE_NOTE = ` A page type is never added in one pull request: it also needs an entry under shells in ${configName}, so one proposal decided on the base lists the page type and the shells rule it joins, shells.primarySlots or shells.collections, under changes, and a later pull request adds the page type.`;
-const addableText = `${ADDABLE_LISTS.slice(0, -1).join(", ")} or ${ADDABLE_LISTS.at(-1)}`;
-
-function differingMembers(before: readonly string[], after: readonly string[]): string[] {
-  return sortedUnique([...before.filter((item) => !after.includes(item)), ...after.filter((item) => !before.includes(item))]);
-}
-
-function differingKeys<T>(before: readonly T[], after: readonly T[], key: (item: T) => string): string[] {
-  const text = (items: readonly T[]) => new Map(items.map((item) => [key(item), JSON.stringify(item)]));
-  const left = text(before);
-  const right = text(after);
-  return sortedUnique([...left.keys(), ...right.keys()].filter((name) => left.get(name) !== right.get(name)));
-}
-
-function membershipChanges(base: Inventory, head: Inventory, compareConfig: boolean): Change[] {
-  const changes: Change[] = [];
-  const compare = (label: string, before: unknown, after: unknown, terms: readonly Term[]) => {
-    const left = JSON.stringify(before);
-    const right = JSON.stringify(after);
-    if (left !== right) changes.push({ text: `${label} changed from ${left} to ${right}.`, terms });
-  };
-  const list = (label: string, before: readonly string[], after: readonly string[]) => {
-    const count = changes.length;
-    compare(label, before, after, differingMembers(before, after));
-    const change = changes[count];
-    // A renamed or reordered member is not an addition: only a list whose every difference is a new member qualifies.
-    if (!change) return;
-    if ((ADDABLE_LISTS as readonly string[]).includes(label) && before.every((member) => after.includes(member))) changes[count] = { ...change, additions: true };
-    // A new page type is never an addition: say so, so the agent does not reach for adds.
-    else if (label === "allowed_page_types" && after.some((member) => !before.includes(member))) {
-      changes[count] = { ...change, note: PAGE_TYPE_NOTE, pageTypesAdded: after.filter((member) => !before.includes(member)) };
-    }
-  };
-  // A missing list on the base is the bootstrap that records it.
-  if (base.layouts !== null) list("allowed_layouts", base.layouts, head.layouts ?? []);
-  if (base.contentLayouts !== null) list("allowed_content_layouts", base.contentLayouts, head.contentLayouts ?? []);
-  list("allowed_page_types", base.pageTypes, head.pageTypes);
-  list("catalog exports", base.catalogExports, head.catalogExports);
-  list("flow states", base.flowStates, head.flowStates);
-  compare("max_steps", base.maxSteps, head.maxSteps, ["max_steps", ...differingKeys(base.maxSteps, head.maxSteps, (task) => task.id)]);
-  compare("priority", base.priority, head.priority, ["priority", ...differingKeys(base.priority, head.priority, (item) => item.action)]);
-  if (base.disclosedSections !== null) list("disclosed_sections", base.disclosedSections, head.disclosedSections ?? []);
-  compare("MAX_DISCLOSURE_DEPTH", base.disclosureDepth, head.disclosureDepth, ["MAX_DISCLOSURE_DEPTH"]);
-  compare("MAX_DISCLOSURES_PER_PAGE", base.disclosuresPerPage, head.disclosuresPerPage, ["MAX_DISCLOSURES_PER_PAGE"]);
-  compare("MAX_VISIBLE_QUESTIONS", base.visibleQuestions, head.visibleQuestions, ["MAX_VISIBLE_QUESTIONS"]);
-  compare("TARGET_MIN_PX", base.targetMinPx, head.targetMinPx, ["TARGET_MIN_PX"]);
-  // The base has the product's inputs but no config at this path: a renamed config would otherwise skip every comparison below.
-  if (compareConfig && base.config === null && head.config !== null) {
-    changes.push({ text: `${configName} is new: the base has no config at that path to compare.`, terms: [configName] });
-  }
-  if (compareConfig && base.config !== null) {
-    if (head.config === null) changes.push({ text: `${configName} was removed.`, terms: [configName] });
-    else {
-      const keys = sortedUnique([...Object.keys(base.config.paths), ...Object.keys(head.config.paths)]);
-      for (const key of keys) {
-        const after = head.config.paths[key as keyof HarnessConfig["paths"]];
-        const values = after === null || after === undefined ? [] : typeof after === "string" ? [after] : [];
-        compare(`${configName} paths.${key}`, base.config.paths[key as keyof HarnessConfig["paths"]], after, [[`paths.${key}`, ...values]]);
-      }
-      const shellFields = (["primarySlots", "collections"] as const).filter(
-        (field) => JSON.stringify(base.config?.shells?.[field]) !== JSON.stringify(head.config?.shells?.[field]),
-      );
-      compare(`${configName} shells`, base.config.shells, head.config.shells, shellFields.map((field) => `shells.${field}`));
-      const flowStrings = (flows: unknown) => new Set(stringLeaves(flows));
-      const baseFlows = flowStrings(base.config.flows);
-      const headFlows = flowStrings(head.config.flows);
-      const flowTerms = sortedUnique([...headFlows].filter((value) => !baseFlows.has(value)).concat([...baseFlows].filter((value) => !headFlows.has(value))));
-      compare(`${configName} flows`, base.config.flows, head.config.flows, ["flows", ...flowTerms]);
-      if (base.config.adapter !== null) {
-        compare(`${configName} adapter`, base.config.adapter, head.config.adapter, [head.config.adapter ?? "adapter"]);
-      }
-    }
-  }
-  if (base.adapter !== null) {
-    if (head.adapter === null) changes.push({ text: "the design system adapter was removed.", terms: ["adapter"] });
-    else {
-      const keys = sortedUnique([...Object.keys(base.adapter), ...Object.keys(head.adapter)]);
-      for (const key of keys) {
-        compare(`adapter ${key}`, base.adapter[key as keyof DesignSystemAdapter], head.adapter[key as keyof DesignSystemAdapter], [`adapter.${key}`]);
-      }
-    }
-  }
-  return changes;
 }
 
 function childDirectories(dir: string): string[] {
@@ -549,19 +429,11 @@ function barrelMembers(file: string): string[] {
   return sortedUnique(ids);
 }
 
-/** Every string inside a value, keys of records included, as in a flow's module paths, task ids and preview queries. */
-function stringLeaves(value: unknown): string[] {
-  if (typeof value === "string") return [value];
-  if (Array.isArray(value)) return value.flatMap(stringLeaves);
-  if (typeof value === "object" && value !== null) {
-    return Object.entries(value).flatMap(([key, inner]) => [key, ...stringLeaves(inner)]);
-  }
-  return [];
-}
-
 function termText(term: Term): string {
   return typeof term === "string" ? `"${term}"` : term.map((option) => `"${option}"`).join(" or ");
 }
+
+const quoted = (names: readonly string[]) => names.map((name) => `"${name}"`).join(", ");
 
 /** True when the proposal's `changes` list the term, or one of its alternatives, exactly. */
 function lists(proposal: Proposal, term: Term): boolean {
@@ -569,40 +441,46 @@ function lists(proposal: Proposal, term: Term): boolean {
   return options.some((option) => proposal.changes.includes(option));
 }
 
-/** True when the proposal's `adds` list the term, or one of its alternatives. Only a change that is all additions reads these. */
-function adds(proposal: Proposal, term: Term): boolean {
-  const options = typeof term === "string" ? [term] : term;
-  return options.some((option) => proposal.adds.includes(option));
-}
+/** The names a proposal lists under the field a one-pull-request change is covered by. */
+const oneListed = (proposal: Proposal, kind: "adds" | "tightens"): readonly string[] => (kind === "adds" ? proposal.adds : proposal.tightens);
 
 /** Every name a change's terms give, alternatives included. */
 const termNames = (terms: readonly Term[]): string[] => terms.flatMap((term) => (typeof term === "string" ? [term] : [...term]));
 
 /**
- * The proposals this change adds that only add, split by whether they may
- * cover anything here. One that lists, under `adds`, a name this change
- * removes or changes in any other way is not a proposal that only adds, so
- * it covers nothing in this product, not even the members it does add. Nor
- * does one that lists a name a proposal on the base already lists under
- * `adds`: that is a base proposal under a new file name, or a member that
- * was added before and comes back, and either goes through a decided
- * proposal.
+ * The proposals this change adds that only add or tighten, split by whether
+ * they may cover anything here. One that lists, under `adds`, a name this
+ * change removes or changes in any other way is not such a proposal, so it
+ * covers nothing in this product, not even what it does add. Nor does one
+ * that lists under `tightens` an input this change loosens. Nor does one
+ * that lists under `adds` a name a proposal on the base already lists under
+ * `adds` for the same list: that is a base proposal under a new file name, or
+ * a member that was added before and comes back, and either goes through a
+ * decided proposal. A bare name a base proposal added counts for the list
+ * that holds it on the base; one that no list holds any more counts for every
+ * list. `tightens` has no such rule: an input can be tightened again, each
+ * time against its own base.
  */
-function addingProposals(changes: readonly Change[], proposals: ProposalsForChange): { usable: Proposal[]; refused: Map<string, string> } {
-  const other = new Set(changes.filter((change) => !change.additions).flatMap((change) => termNames(change.terms)));
-  const newPageTypes = new Set(changes.flatMap((change) => change.pageTypesAdded ?? []));
+function onePullRequestProposals(changes: readonly Change[], proposals: ProposalsForChange): { usable: Proposal[]; refused: Map<string, string> } {
+  // A change that is not an addition still names what it adds; those names get the notAddition reason below.
+  const other = new Set(changes.filter((change) => !change.kind).flatMap((change) => termNames(change.terms).filter((name) => !change.names.includes(name))));
+  const notAdded = new Map(changes.filter((change) => !change.kind && change.notAddition).flatMap((change) => change.names.map((name) => [name, change.notAddition ?? ""] as const)));
+  const loosened = new Map(changes.flatMap((change) => change.loosens ?? []).map((item) => [item.name, item.how]));
+  const elsewhere = new Set(changes.flatMap((change) => change.elsewhere ?? []));
   const addedBefore = new Map([...proposals.base.values()].flatMap((proposal) => proposal.adds.map((name) => [name, proposal.file] as const)));
-  const quoted = (names: readonly string[]) => names.map((name) => `"${name}"`).join(", ");
   const usable: Proposal[] = [];
   const refused = new Map<string, string>();
   for (const proposal of addingInThisChange(proposals.base, proposals.head)) {
-    const pageTypes = proposal.adds.filter((name) => newPageTypes.has(name));
-    const changed = proposal.adds.filter((name) => other.has(name) && !newPageTypes.has(name));
-    const again = proposal.adds.filter((name) => addedBefore.has(name));
-    if (pageTypes.length > 0) {
-      refused.set(proposal.file, `lists ${quoted(pageTypes)} under adds, but a new page type is never an addition, because it also needs an entry under shells, so it covers nothing.`);
-    } else if (changed.length > 0) {
-      refused.set(proposal.file, `lists ${quoted(changed)} under adds, which this change removes or changes rather than adds, so it covers nothing. adds covers only members added to ${addableText}.`);
+    const changed = proposal.adds.filter((name) => other.has(name));
+    const partial = proposal.adds.filter((name) => notAdded.has(name) && !other.has(name));
+    const loose = proposal.tightens.filter((name) => loosened.has(name));
+    const again = proposal.adds.filter((name) => addedBefore.has(name) && !elsewhere.has(name));
+    if (changed.length > 0) {
+      refused.set(proposal.file, `lists ${quoted(changed)} under adds, which this change removes or changes rather than adds, so it covers nothing. adds covers only what a change adds: ${ADDS_TEXT}.`);
+    } else if (partial.length > 0) {
+      refused.set(proposal.file, `lists ${quoted(partial)} under adds, but ${[...new Set(partial.map((name) => notAdded.get(name)))].join("; ")}, so this change does more than add and the proposal covers nothing.`);
+    } else if (loose.length > 0) {
+      refused.set(proposal.file, `lists ${quoted(loose)} under tightens, but ${loose.map((name) => loosened.get(name)).join(", ")} loosens it, so it covers nothing.`);
     } else if (again.length > 0) {
       const files = [...new Set(again.map((name) => addedBefore.get(name)))].join(", ");
       refused.set(
@@ -614,77 +492,100 @@ function addingProposals(changes: readonly Change[], proposals: ProposalsForChan
   return { usable, refused };
 }
 
-/** Why a proposal that lists every term of a change still does not cover it. */
+const ADDS_TEXT = `members of ${ADDABLE_LISTS.slice(0, -1).join(", ")} or ${ADDABLE_LISTS.at(-1)}, page-type:<id> with its own shells entry and task:<id>`;
+const ONE_PULL_REQUEST = "only adds or tightens, so it is adopted in the pull request that adds it, which the code owner merges";
+
+/** Why a proposal that lists a change's terms or names still does not cover it. */
 function whyNot(file: string, change: Change, proposals: ProposalsForChange, refused: ReadonlyMap<string, string>): string {
   const key = proposals.key(file);
   const before = proposals.base.get(key);
   const after = proposals.head.get(key);
-  const lists = addableText;
-  if (after && after.adds.length > 0 && change.terms.some((term) => adds(after, term))) {
+  const listedFrom = (names: readonly string[]) => (proposal: Proposal) => names.some((name) => proposal.adds.includes(name) || proposal.tightens.includes(name));
+  const loosened = (change.loosens ?? []).map((item) => item.name);
+  // A proposal names this change when its adds or tightens list a name the change adds, a term it touches, or an input it loosens.
+  const namesWhatItAdds = listedFrom([...change.names, ...loosened]);
+  const named = listedFrom([...change.names, ...termNames(change.terms), ...loosened]);
+  // A page type or a task goes under adds by its prefixed name, so a bare name there names nothing this change adds.
+  const bare = change.kind && after ? termNames(change.terms).filter((term) => oneListed(after, change.kind ?? "adds").includes(term) && !change.names.includes(term)) : [];
+  if (after && bare.length > 0 && !namesWhatItAdds(after) && before === undefined) {
+    return `${file} lists ${quoted(bare)} under ${change.kind}, but this change ${change.kind === "adds" ? "adds" : "tightens"} ${quoted(change.names)}: list ${change.names.length > 1 ? "those names" : "that name"} under ${change.kind}.`;
+  }
+  if (after && named(after)) {
     if (before !== undefined && before.status !== "adopted") {
-      return `${file} is ${before.status} on the base, so it cannot become a proposal that only adds. A proposal that only adds is new in the pull request that makes the addition; this one adopts only what it listed under changes when it was decided.`;
+      return `${file} is ${before.status} on the base, so it cannot become a proposal that only adds or tightens. Such a proposal is new in the pull request that makes the change; this one adopts only what it listed under changes when it was decided.`;
     }
-    if (before !== undefined) return `${file} added its members in an earlier pull request. A proposal that only adds covers them in the pull request that adds it, once.`;
+    if (before !== undefined) return `${file} covered its change in an earlier pull request. A proposal that only adds or tightens covers it in the pull request that adds it, once.`;
     const reason = refused.get(file);
     if (reason) return `${file} ${reason}`;
-    if (!change.additions) {
-      return `${file} lists it under adds, but this change does more than add members to ${lists}: ${change.text} A removal, a rename or any other change needs a proposal decided on the base.`;
+    if (change.notTightening) return `${file} lists it under tightens, but ${change.notTightening}. Each input needs a proposal decided on the base.`;
+    if (!change.kind) {
+      return `${file} lists it under adds or tightens, but this change does more than add or tighten: ${change.text}${change.note ?? ""} A removal, a rename, a loosening or any other change needs a proposal decided on the base.`;
     }
-    return `${file} does not list every new member of this change under adds.`;
+    const missing = change.names.filter((name) => !oneListed(after, change.kind ?? "adds").includes(name));
+    return `${file} does not list ${quoted(missing)} under ${change.kind}.`;
   }
   if (before === undefined) {
-    return `${file} is added in this change. A proposal cannot be adopted in the pull request that adds it: merge it as "status: decided" first. Only a proposal that adds members to ${lists}, and lists them under adds alone, is adopted in the pull request that adds it.`;
+    return `${file} is added in this change. A proposal cannot be adopted in the pull request that adds it: merge it as "status: decided" first. Only a proposal that lists nothing but adds or tightens is adopted in the pull request that adds it.`;
   }
-  if (before.status === "open") return `${file} is an open request on the base. A designer approves it (status: decided) in its own pull request before it is adopted.`;
+  if (before.status === "open") return `${file} is an open request on the base. It is decided (status: decided) in its own pull request, which the code owner merges, before it is adopted.`;
   if (before.status === "adopted") return `${file} was adopted before. A proposal is adopted once.`;
   if (after?.status !== "adopted") return `${file} is decided on the base. Mark it "status: adopted" in this change.`;
   return `${file} does not cover it.`;
 }
 
 /**
- * A membership change passes only when proposals this change adopts cover
- * it: decided on the base, marked adopted here, and listing each term of the
- * change in their `changes`, as the base has them. Two approved proposals may
+ * A membership change passes when proposals this change adopts cover it:
+ * decided on the base, marked adopted here, and listing each term of the
+ * change in their `changes`, as the base has them. Two decided proposals may
  * be adopted together, each covering its own term. A proposal for one change
  * does not let another through, and a proposal added in the same change
- * covers nothing, unless it only adds: then it covers the members it lists
- * under `adds` of a change that is all additions.
+ * covers nothing, unless it only adds or tightens: then it covers a change
+ * that is an addition or a tightening when it lists every one of its names
+ * under that field.
  */
 function reportMembership(changes: readonly Change[], proposals: ProposalsForChange): boolean {
   if (changes.length === 0) return true;
   const adopts = adopting(proposals.base, proposals.head);
-  const { usable, refused } = addingProposals(changes, proposals);
+  const { usable, refused } = onePullRequestProposals(changes, proposals);
   const uncovered: string[] = [];
   const used = new Set<string>();
   for (const change of changes) {
-    const covering = change.terms.map(
-      (term) => adopts.find((proposal) => lists(proposal, term)) ?? (change.additions ? usable.find((proposal) => adds(proposal, term)) : undefined),
-    );
-    if (covering.every((proposal) => proposal !== undefined)) {
-      const files = [...new Set(covering.map((proposal) => proposal.file))];
+    const decided = change.terms.map((term) => adopts.find((proposal) => lists(proposal, term)));
+    if (decided.every((proposal) => proposal !== undefined)) {
+      const files = [...new Set(decided.map((proposal) => proposal.file))];
       for (const file of files) used.add(file);
-      const named = files.map((file) =>
-        usable.some((proposal) => proposal.file === file) ? `${file} (only adds, so it is adopted in the pull request that adds it, which a designer reviews)` : file,
-      );
-      console.log(`inventory: ${change.text} Adopts ${named.join(", ")}.`);
+      console.log(`inventory: ${change.text} Adopts ${files.join(", ")}.`);
+      continue;
+    }
+    const kind = change.kind;
+    const one = kind ? change.names.map((name) => usable.find((proposal) => oneListed(proposal, kind).includes(name))) : [];
+    if (kind && change.names.length > 0 && one.every((proposal) => proposal !== undefined)) {
+      const files = [...new Set(one.map((proposal) => proposal.file))];
+      for (const file of files) used.add(file);
+      console.log(`inventory: ${change.text} Adopts ${files.map((file) => `${file} (${ONE_PULL_REQUEST})`).join(", ")}.`);
       continue;
     }
     const candidates = [...proposals.base.values(), ...proposals.head.values()]
-      .filter((proposal) => change.terms.some((term) => lists(proposal, term) || adds(proposal, term)))
+      .filter(
+        (proposal) =>
+          change.terms.some((term) => lists(proposal, term)) ||
+          (change.kind !== undefined && termNames(change.terms).some((term) => oneListed(proposal, change.kind ?? "adds").includes(term) && !change.names.includes(term))) ||
+          [...change.names, ...termNames(change.terms), ...(change.loosens ?? []).map((item) => item.name)].some((name) => proposal.adds.includes(name) || proposal.tightens.includes(name)),
+      )
       .map((proposal) => proposal.file);
     const reasons = [...new Set(candidates)].map((file) => whyNot(file, change, proposals, refused));
     const missing = change.terms.filter((term) => !adopts.some((proposal) => lists(proposal, term)));
     const none = reasons.length === 0 && adopts.length > 0 && missing.length > 0 ? `, and no adopted proposal lists ${missing.map(termText).join(", ")}` : "";
-    const orAdds = change.additions ? `, or a proposal this change adds must list ${change.terms.map(termText).join(", ")} under adds alone` : "";
+    const orOne = kind && change.names.length > 0 ? `, or a proposal this change adds must list ${quoted(change.names)} under ${kind}, with nothing under changes, retires or opts-out` : "";
     uncovered.push(
-      `inventory: ${change.text} No adopted proposal covers it: a decided proposal must list ${change.terms.map(termText).join(", ")} under changes${none}${orAdds}.${change.note ?? ""}`,
+      `inventory: ${change.text} No adopted proposal covers it: a decided proposal must list ${change.terms.map(termText).join(", ")} under changes${none}${orOne}.${change.note ?? ""}`,
       ...reasons.map((reason) => `inventory:   ${reason}`),
     );
   }
   if (uncovered.length > 0) {
     console.error(
       adopts.length === 0 && usable.length === 0
-        ? "inventory: set changed without a proposal. An inventory grows only by adopting a proposal a designer already approved."
+        ? "inventory: set changed without a proposal. An inventory changes only by adopting a proposal decided on the base, or one this change adds that only adds or tightens."
         : `inventory: set changed without a proposal that covers it. Adopting: ${[...adopts, ...usable].map((proposal) => proposal.file).join(", ")}.`,
     );
     for (const line of uncovered) console.error(line);
@@ -749,7 +650,7 @@ function introducedLists(base: Inventory, head: Inventory): string[] {
 }
 
 function summary(inventory: Inventory): string {
-  const budgets = inventory.maxSteps.map((task) => `${task.id}=${task.max_steps}`).join(", ");
+  const budgets = inventory.tasks.map((task) => `${task.id}=${task.max_steps}`).join(", ");
   const actions = inventory.priority.map((item) => item.action).join(", ");
   return `layouts ${JSON.stringify(inventory.layouts)}; content layouts ${JSON.stringify(inventory.contentLayouts)}; page types ${JSON.stringify(inventory.pageTypes)}; catalog ${inventory.catalogExports.length} exports; flow states ${JSON.stringify(inventory.flowStates)}; max_steps ${budgets}; priority ${actions}; disclosed sections ${JSON.stringify(inventory.disclosedSections)}; disclosure depth ${inventory.disclosureDepth}, per page ${inventory.disclosuresPerPage}; visible questions ${inventory.visibleQuestions}; target ${inventory.targetMinPx}px.`;
 }
@@ -859,7 +760,7 @@ if (base === null) {
   const rev = baseRoot.kind === "git" ? baseRoot.rev.slice(0, 7) : baseFlag;
   // A new product is a whole inventory added at once, and so is an existing one moved to new file names, so it needs an adopted proposal like any other membership change.
   const added: Change[] = [
-    { text: `base ${rev} has no ${configName} or ${config.paths.inputs}, so this is a new product.`, terms: [path.posix.dirname(configName.split(path.sep).join("/"))] },
+    { text: `base ${rev} has no ${configName} or ${config.paths.inputs}, so this is a new product.`, terms: [path.posix.dirname(configName.split(path.sep).join("/"))], names: [] },
   ];
   if (!reportMembership(added, proposalsForChange(baseRoot))) process.exit(1);
   console.log(`inventory: recorded a new product's inventories.`);
@@ -867,7 +768,7 @@ if (base === null) {
   console.log(`inventory: ${summary(head)}`);
   process.exit(0);
 }
-const changes = membershipChanges(base, head, compareConfig);
+const changes = membershipChanges(base, head, compareConfig, configName);
 const matched = reportMembership(changes, proposalsForChange(baseRoot));
 
 if (violations.length > 0 || !matched) {

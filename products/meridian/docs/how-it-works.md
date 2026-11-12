@@ -99,7 +99,7 @@ Seven names are modeled, in `modeledStates`:
 
 `loading`, `empty`, `error`, `ready`, `invoice-approved`, `changes-requested`, `vendor-added`.
 
-`ready` covers both screens. Opening an invoice stays in `ready` and sets `screen` to `detail`. The shell stays up in every modeled state. Loading, empty, and error render inside `main`. `vendor-added` is the vendor list after an add, and it belongs to Vendors: `routeOfState` in `location.ts` gives it that route, so `?state=vendor-added` opens Vendors whatever `?route=` says. A `?state=` value that is not one of those seven names is ignored. An unknown `?route=` falls through to To approve. The **Preview** menu in the header is a developer aid for opening the modeled states. The default URL does not depend on it.
+`ready` covers both screens. Opening an invoice stays in `ready` and sets `screen` to `detail`. The shell stays up in every modeled state. Loading, empty, and error render inside `main`. `vendor-added` is the vendor list after an add, and it belongs to Vendors: `routeOfState` in `location.ts` gives it that route, so `?scenario=vendor-added` opens Vendors whatever `?route=` says. A `?scenario=` id that `flows/invoice-approval/scenarios.ts` does not have is ignored. An unknown `?route=` falls through to To approve. The **Preview** menu in the header is a developer aid for opening each scenario. The default URL does not depend on it.
 
 ```mermaid
 flowchart TB

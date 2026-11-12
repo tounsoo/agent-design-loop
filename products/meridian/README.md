@@ -26,7 +26,7 @@ npm run dev
 
 Open the URL Vite prints. The default screen is the Meridian workspace on **To approve**: a full-height shell, sidebar navigation, and a searchable invoice table. Opening an invoice is a link in the table, not a primary button. Approve is not on the queue.
 
-`npm run build` and `npm run preview` build and serve Meridian. `npm run check:meridian` runs every rule check on Meridian's config.
+`npm run build` and `npm run preview` build and serve Meridian. `npm run check:product -- --config products/meridian/harness.config.ts` runs every rule check on Meridian's config, and `npm run check:products` runs them on every product.
 
 ## Navigation
 
@@ -52,25 +52,18 @@ The happy path is two steps: open an invoice, Approve. That lands on `invoice-ap
 
 [Proposal 0001](../../proposals/0001-approval-note.md) asks to require an approval note before Approve and raise the budget to 4. It is not applied. [Proposal 0003](../../proposals/0003-two-step-approve.md) corrects its counts: the shipped path is 2 steps, so the note would make 3, inside the current budget.
 
-## Previews
+## Scenarios
 
-The shell stays up in every modeled state. Loading, empty, and error render inside `main`. A **Preview** menu in the header is a developer aid for opening those states without clicking through. It links to Loading, Empty, Error, Queue (`/`), Detail, Invoice approved, Changes requested, and Vendor added. The default URL does not depend on it.
+The shell stays up in every modeled state. Loading, empty, and error render inside `main`. Each case the checks and the screenshots open is a scenario in [`flows/invoice-approval/scenarios.ts`](flows/invoice-approval/scenarios.ts): a modeled state, with the page, route or branch that shows it, opened at `?scenario=<id>`. A **Preview** menu in the header is a developer aid that links to `Live` and to each scenario. The default URL does not depend on it.
 
-These are the preview URLs `check:target-size` and `check:accessible-names` open. The menu has no entry for the All invoices and Vendors routes or for the request-changes branch, so type those URLs.
+- `?scenario=loading`, `?scenario=empty`, `?scenario=error`
+- `?scenario=queue`: To approve, `ready`
+- `?scenario=invoices` and `?scenario=vendors`: All invoices and Vendors, `ready`
+- `?scenario=invoice-detail` and `?scenario=invoice-requesting-changes`: the invoice, `ready`, with the request-changes branch open in the second
+- `?scenario=invoice-approved` and `?scenario=changes-requested`: the invoice after each decision
+- `?scenario=vendor-added`, which opens Vendors, because that state belongs to that route
 
-- `?state=loading`
-- `?state=empty`
-- `?state=error`
-- `?state=ready&page=collection`
-- `?state=ready&route=invoices`
-- `?state=ready&route=vendors`
-- `?state=ready&page=detail`
-- `?state=ready&page=detail&branch=request`
-- `?state=invoice-approved&page=detail`
-- `?state=changes-requested&page=detail`
-- `?state=vendor-added`, which opens Vendors, because that state belongs to that route
-
-A `?state=` value the model does not name is ignored. The rest of the URL decides the page, which is To approve when nothing else is set.
+An id the file does not have is ignored. The rest of the URL decides the page, which is To approve when nothing else is set: `?route=invoices`, `?route=vendors` and `?invoice=<id>` still open the live app there. A new case, such as a long vendor name, is a new scenario in that file, with no proposal.
 
 ## Where the constraints live
 
@@ -88,7 +81,7 @@ flows/invoice-approval/       loading, empty, error, ready, invoice-approved, ch
 inputs/product.ts             tasks, priority, disclosed sections, allowed layouts, content layouts, page types
 rules/ux-rules.ts             check, input, and review question for each rule
 features/invoice-approval/    To approve, All invoices, Vendors, and the invoice
-preview/                      Meridian's state preview: ?state=, ?page=, ?branch=, ?route=, and ?invoice=
+preview/                      reads ?scenario= into a first render, ?route= and ?invoice=, and the Preview menu
 review/                       judgment the checks cannot make
 App.tsx, main.tsx, index.html the app entry, which check:target-size builds
 ```

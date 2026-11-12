@@ -1,14 +1,11 @@
+import { scenarioSearch } from "@agent-design-loop/harness/scenarios";
 import { Menu } from "../catalog";
+import { scenarios } from "../flows/invoice-approval/scenarios";
 
+/** The live app, then every scenario the checks open, named from its id: `invoice-detail` is "Invoice detail". */
 const links: readonly { href: string; label: string }[] = [
-  { href: "?state=loading", label: "Loading" },
-  { href: "?state=empty", label: "Empty" },
-  { href: "?state=error", label: "Error" },
-  { href: "/", label: "Queue" },
-  { href: "?state=ready&page=detail", label: "Detail" },
-  { href: "?state=invoice-approved&page=detail", label: "Invoice approved" },
-  { href: "?state=changes-requested&page=detail", label: "Changes requested" },
-  { href: "?state=vendor-added", label: "Vendor added" },
+  { href: "/", label: "Live" },
+  ...Object.keys(scenarios).map((id) => ({ href: scenarioSearch(id), label: `${id.charAt(0).toUpperCase()}${id.slice(1).replace(/-/g, " ")}` })),
 ];
 
 /** Discreet developer aid. The product nav is the app shell, not this menu. */
@@ -16,9 +13,9 @@ export function StatePreviewMenu({ onNavigate }: { onNavigate: (href: string) =>
   return (
     <Menu.Root>
       <Menu.Trigger variant="ghost">Preview</Menu.Trigger>
-      <Menu.Content aria-label="Modeled states">
+      <Menu.Content aria-label="Scenarios">
         {links.map((link) => (
-          <Menu.Item key={link.label} onSelect={() => onNavigate(link.href)}>
+          <Menu.Item key={link.href} onSelect={() => onNavigate(link.href)}>
             {link.label}
           </Menu.Item>
         ))}

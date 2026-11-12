@@ -11,9 +11,6 @@ export default {
         tasks: {
           "send-reminder": "packages/harness/fixtures/two-tasks/flows/send-reminder.ts",
         },
-        previews: {
-          reminded: ["page=detail"],
-        },
       },
     ],
   },

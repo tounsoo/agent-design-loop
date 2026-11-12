@@ -32,11 +32,11 @@ npm ci
 npm run check:fixtures && npm run check
 ```
 
-`check:fixtures` runs the harness's own tests. `check` runs typecheck, ESLint, and the Vitest suite, then every rule check on Meridian and on Nook, then `check:retirement`, which flags a rule most products opt out of, and `check:loop`, which validates the design loop graph. CI also runs `check:trace`, which fails a change to a product that carries no record of the agent walking that graph, or a record the graph does not allow. The [harness README](packages/harness/README.md) says what each check fails. `npm run dev` starts Meridian, and `npm run dev:nook` starts Nook.
+`check:fixtures` runs the harness's own tests. `check` runs typecheck, ESLint, and the Vitest suite, then every rule check on Meridian and on Nook, then the repository checks. CI also runs `check:trace`, which fails a change to a product that carries no record of the agent walking the design loop graph, or a record the graph does not allow. [The check reference](packages/harness/docs/checks.md), written from the code, lists them in order and says what each one fails. `npm run dev` starts Meridian, and `npm run dev:nook` starts Nook.
 
 ## Read more
 
 - [How this design loop works](packages/harness/docs/how-it-works.md): the control ladder, the checks, and when a proposal is required.
 - [How Meridian works](products/meridian/docs/how-it-works.md): the layers on a Meridian screen, its flow, and a worked example.
 - [The harness README](packages/harness/README.md): the checks, `check:product`, and how a product plugs in.
-- [Meridian's README](products/meridian/README.md): running the app, its previews, and where its constraints live.
+- [Meridian's README](products/meridian/README.md): running the app, its scenarios, and where its constraints live.
