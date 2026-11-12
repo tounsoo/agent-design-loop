@@ -1,5 +1,6 @@
 import { shortestPath, type TaskEdge } from "@agent-design-loop/harness";
 import { sampleInvoices, type FlowEvent, type FlowState } from "./states";
+import { previewAddedVendorId } from "./vendors";
 
 /** The task in inputs/product.ts#tasks that this graph models. */
 export const taskId = "approve-vendor-invoice";
@@ -70,6 +71,7 @@ const userEventList = [
   { type: "submit-request" },
   { type: "approve" },
   { type: "retry" },
+  { type: "add-vendor", vendorId: previewAddedVendorId },
 ] as const satisfies readonly FlowEvent[];
 
 /** Every FlowEvent a person can cause must be listed, or the shipped path is not fully measured. */

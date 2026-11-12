@@ -29,7 +29,7 @@ Nothing here adds a primary button: Add vendor is secondary, and a collection pa
 
 ## States
 
-- **Browsing:** the search field, a count such as "8 vendors", the closed "Add a vendor" disclosure, and one card per vendor in name order, each with its remittance email, payment terms, open invoices and its latest invoice as a link.
+- **Browsing:** the search field, a count such as "8 vendors", the closed "Add a vendor" disclosure, and one card per vendor in name order, each with its remittance email, payment terms, open invoices, and its latest invoice with that invoice's due date.
 - **Adding:** the disclosure is open on an empty form, with Net 30 chosen.
 - **Invalid:** a failed submit moves focus to the form's summary, which lists each problem as a link to its field, and each field shows its own message under it. The messages are "Enter the vendor's name.", "Use 80 characters or fewer.", "Enter the email that gets remittance advice." and "Enter an email like ap@vendor.com.".
 - **Duplicate:** a name already on the list, whatever its spacing or case, reads "Northwind Office Supply is already a vendor.", in the list's spelling.

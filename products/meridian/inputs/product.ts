@@ -35,7 +35,7 @@ export const allowed_page_types = ["collection", "detail"] as const;
 export const allowed_layouts = ["app-shell"] as const;
 
 /** Compositions that fill a page type's body. */
-export const allowed_content_layouts = ["data-table"] as const;
+export const allowed_content_layouts = ["data-table", "directory"] as const;
 
 export type Task = (typeof tasks)[number];
 export type PriorityItem = (typeof priority)[number];

@@ -1,12 +1,16 @@
 import { useState } from "react";
 import {
+  addVendor,
   flowFromLocation,
   locationKey,
   sampleInvoices,
+  sampleVendors,
   transition,
+  withPreviewVendor,
   type AppLocation,
   type FlowState,
   type Invoice,
+  type Vendor,
 } from "../../flows/invoice-approval";
 import { InvoiceApprovalView, type Actions } from "./views";
 
@@ -18,6 +22,7 @@ export function InvoiceApproval({
   onNavigate: (href: string) => void;
 }) {
   const [ledger, setLedger] = useState<Invoice[]>(() => sampleInvoices.map((invoice) => ({ ...invoice })));
+  const [registry, setRegistry] = useState<readonly Vendor[]>(sampleVendors);
   const key = locationKey(location);
   const [seen, setSeen] = useState(key);
   const [overlay, setOverlay] = useState<FlowState | null>(null);
@@ -26,6 +31,7 @@ export function InvoiceApproval({
     setOverlay(null);
   }
   const flow = overlay ?? flowFromLocation(location, ledger);
+  const shownVendors = withPreviewVendor(registry, location.preview.state);
 
   const actions: Actions = {
     retry: () => setOverlay(transition(flow, { type: "retry" })),
@@ -59,12 +65,18 @@ export function InvoiceApproval({
       setLedger((rows) => rows.map((row) => (row.id === invoiceId ? { ...row, status: "approved" } : row)));
       setOverlay(transition(flow, { type: "approve" }));
     },
+    addVendor: (vendor) => {
+      const { registry: next, id } = addVendor(shownVendors, vendor);
+      setRegistry(next);
+      setOverlay(transition(flow, { type: "add-vendor", vendorId: id }));
+    },
   };
 
   return (
     <InvoiceApprovalView
       actions={actions}
       ledger={ledger}
+      registry={shownVendors}
       route={location.route}
       state={flow}
       onNavigate={onNavigate}

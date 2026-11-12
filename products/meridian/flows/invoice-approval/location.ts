@@ -1,11 +1,16 @@
 import type { Preview } from "./transition";
 import { initialFlowState } from "./transition";
-import type { FlowState, Invoice } from "./states";
+import type { FlowState, Invoice, ModeledState } from "./states";
 
 /** Routes inside the collection page. Not a third page type. */
 export const collectionRoutes = ["to-approve", "invoices", "vendors"] as const;
 
 export type CollectionRoute = (typeof collectionRoutes)[number];
+
+export type InvoiceRoute = Exclude<CollectionRoute, "vendors">;
+
+/** A state only one route shows carries that route, so its bare preview opens the right page. */
+export const routeOfState: Partial<Record<ModeledState, CollectionRoute>> = { "vendor-added": "vendors" };
 
 export type AppLocation = {
   readonly preview: Preview;
@@ -63,6 +68,7 @@ export function flowFromLocation(location: AppLocation, ledger: readonly Invoice
     preview.state === "error" ||
     preview.state === "invoice-approved" ||
     preview.state === "changes-requested" ||
+    preview.state === "vendor-added" ||
     (preview.state === "ready" && preview.page === "detail") ||
     (preview.state === "ready" && preview.page === "collection")
   ) {

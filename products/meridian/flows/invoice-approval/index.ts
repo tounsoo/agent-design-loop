@@ -20,7 +20,19 @@ export {
   locationKey,
   routeHref,
 } from "./location";
-export type { AppLocation, CollectionRoute } from "./location";
+export type { AppLocation, CollectionRoute, InvoiceRoute } from "./location";
 export { flowStart, isTaskSuccess, taskEdges, taskHappyPath, taskId, taskStart, userEvents } from "./graph";
 export { eventEdges, shortestPath } from "@agent-design-loop/harness";
 export type { TaskEdge } from "@agent-design-loop/harness";
+export {
+  addVendor,
+  checkVendorDraft,
+  emptyDraft,
+  paymentTerms,
+  sampleVendors,
+  searchVendors,
+  termsLabel,
+  vendorRows,
+  withPreviewVendor,
+} from "./vendors";
+export type { NewVendor, Vendor, VendorDraft, VendorId, VendorRow } from "./vendors";

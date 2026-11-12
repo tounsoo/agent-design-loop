@@ -28,6 +28,13 @@ function renderApproval(search = "") {
   return render(<Harness search={search} />);
 }
 
+function vendorCard(name: string): HTMLElement {
+  const heading = screen.getByRole("heading", { level: 2, name });
+  const card = heading.closest("[role='listitem']");
+  if (!(card instanceof HTMLElement)) throw new Error(`${name} has no card`);
+  return card;
+}
+
 function stageStatuses(): (string | null)[] {
   const progress = screen.getByRole("list", { name: "Invoice progress" });
   return within(progress)
@@ -85,12 +92,14 @@ describe("invoice approval views", () => {
     unmount();
 
     renderApproval("?route=vendors");
-    expect(screen.getByRole("heading", { name: "Vendors" })).toBeInTheDocument();
-    expect(document.querySelector("[data-content-layout='data-table']")).not.toBeNull();
-    expect(screen.getByRole("navigation", { name: "Vendor pages" })).toBeInTheDocument();
-    const kite = screen.getByRole("row", { name: /Kite Analytics/ });
-    expect(kite).toHaveTextContent("0");
-    expect(kite).toHaveTextContent("INV-1802");
+    expect(screen.getByRole("heading", { level: 1, name: "Vendors" })).toBeInTheDocument();
+    expect(document.querySelector("[data-content-layout='directory']")).not.toBeNull();
+    expect(document.querySelector("[data-content-layout='data-table']")).toBeNull();
+    expect(screen.getByText("8 vendors")).toBeInTheDocument();
+    const kite = vendorCard("Kite Analytics");
+    expect(kite).toHaveTextContent("Open invoices0");
+    expect(kite).toHaveTextContent("INV-1802 · Nov 12, 2026");
+    expect(kite).toHaveTextContent("finance@kiteanalytics.example");
     expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
   });
 
@@ -167,5 +176,73 @@ describe("invoice approval views", () => {
     expect(stageStatuses()).toEqual(["done", "error", "pending"]);
     const progress = screen.getByRole("list", { name: "Invoice progress" });
     expect(within(progress).getAllByRole("listitem")[1]).toHaveTextContent("Changes requested: Approval");
+  });
+
+  it("adds a vendor after refusing an empty form, a bad email and a name already listed", async () => {
+    const user = userEvent.setup();
+    renderApproval("?route=vendors");
+    await user.click(screen.getByText("Add a vendor"));
+    const name = screen.getByRole("textbox", { name: "Vendor name" });
+    const email = screen.getByRole("textbox", { name: "Remittance email" });
+    expect(screen.getByRole("combobox", { name: "Payment terms" })).toHaveValue("net-30");
+
+    await user.click(screen.getByRole("button", { name: "Add vendor" }));
+    expect(screen.getAllByText("Enter the vendor's name.").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Enter the email that gets remittance advice.").length).toBeGreaterThan(0);
+    expect(name).toHaveAttribute("aria-invalid", "true");
+
+    await user.type(name, "Ridgeway Janitorial");
+    await user.type(email, "ap@ridgeway");
+    await user.click(screen.getByRole("button", { name: "Add vendor" }));
+    expect(screen.getAllByText("Enter an email like ap@vendor.com.").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Enter the vendor's name.")).toBeNull();
+
+    await user.clear(name);
+    await user.type(name, "  northwind office SUPPLY");
+    await user.type(email, ".example");
+    await user.click(screen.getByRole("button", { name: "Add vendor" }));
+    expect(screen.getAllByText("Northwind Office Supply is already a vendor.").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("heading", { level: 2, name: "Ridgeway Janitorial" })).toBeNull();
+
+    await user.clear(name);
+    await user.type(name, "Ridgeway Janitorial");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Payment terms" }), "net-15");
+    await user.click(screen.getByRole("button", { name: "Add vendor" }));
+
+    expect(screen.getByRole("status")).toHaveTextContent("Added Ridgeway Janitorial.");
+    const card = vendorCard("Ridgeway Janitorial");
+    expect(card).toHaveTextContent("ap@ridgeway.example");
+    expect(card).toHaveTextContent("Net 15");
+    expect(card).toHaveTextContent("No invoices yet");
+    expect(screen.getByText("9 vendors")).toBeInTheDocument();
+    const cleared = screen.getByRole("textbox", { name: "Vendor name" });
+    expect(cleared).toHaveValue("");
+    expect(cleared).toHaveFocus();
+    expect(screen.queryByText("Enter the vendor's name.")).toBeNull();
+  });
+
+  it("offers to add a vendor the search does not find", async () => {
+    const user = userEvent.setup();
+    renderApproval("?route=vendors");
+    await user.type(screen.getByRole("searchbox", { name: "Search vendors" }), "Ridgeway");
+    expect(screen.getByRole("heading", { name: "No vendors found" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Add “Ridgeway”" }));
+    expect(screen.getByRole("textbox", { name: "Vendor name" })).toHaveValue("Ridgeway");
+    expect(screen.getByRole("textbox", { name: "Remittance email" })).toHaveFocus();
+  });
+
+  it("previews a vendor just added, on Vendors", () => {
+    renderApproval("?state=vendor-added");
+    expect(screen.getByRole("heading", { level: 1, name: "Vendors" })).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Added Ridgeway Janitorial.");
+    expect(vendorCard("Ridgeway Janitorial")).toHaveTextContent("No invoices yet");
+    expect(document.querySelector("details")?.open).toBe(true);
+  });
+
+  it("opens the form on an empty vendor list", () => {
+    renderApproval("?state=empty&route=vendors");
+    expect(screen.getByRole("heading", { name: "No vendors yet" })).toBeInTheDocument();
+    expect(document.querySelector("details")?.open).toBe(true);
+    expect(screen.getByText("0 vendors")).toBeInTheDocument();
   });
 });

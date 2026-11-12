@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { FlowEvent } from "./states";
 import { initialFlowState, transition } from "./transition";
+import { addVendor, previewAddedVendor, previewAddedVendorId, sampleVendors } from "./vendors";
 
 type AssertNoNote = "write-approval-note" extends FlowEvent["type"] ? never : true;
 const assertNoNote: AssertNoNote = true;
@@ -55,4 +56,27 @@ describe("invoice approval flow", () => {
     const loading = initialFlowState({ state: "loading", page: null, branch: false });
     expect(transition(loading, { type: "loaded", invoices: [] }).status).toBe("empty");
   });
+
+  it("moves the vendor list to vendor-added, and keeps it there for the next add", () => {
+    const list = initialFlowState(preview);
+    const added = transition(list, { type: "add-vendor", vendorId: previewAddedVendorId });
+    expect(added).toEqual({ status: "vendor-added", vendorId: previewAddedVendorId });
+    const { id } = addVendor(addVendor(sampleVendors, previewAddedVendor).registry, { ...previewAddedVendor, name: "Quarry Lane Movers" });
+    expect(transition(added, { type: "add-vendor", vendorId: id })).toEqual({ status: "vendor-added", vendorId: id });
+    expect(transition(added, { type: "open-invoice", invoiceId: "inv-1842" })).toMatchObject({ status: "ready", screen: "detail", invoiceId: "inv-1842" });
+    expect(transition(added, { type: "approve" })).toBe(added);
+  });
+
+  it("ignores an add on an opened invoice", () => {
+    const detail = initialFlowState({ state: "ready", page: "detail", branch: false });
+    expect(transition(detail, { type: "add-vendor", vendorId: previewAddedVendorId })).toBe(detail);
+  });
+
+  it("previews vendor-added with the preview's vendor", () => {
+    expect(initialFlowState({ state: "vendor-added", page: null, branch: false })).toEqual({
+      status: "vendor-added",
+      vendorId: previewAddedVendorId,
+    });
+  });
 });
+
