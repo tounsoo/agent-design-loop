@@ -2,7 +2,7 @@
 {"node":"route","when":"needs a new pattern","at":"2026-11-11T22:08:17.265Z"}
 {"node":"propose","at":"2026-11-11T22:08:35.959Z"}
 {"node":"scope","when":"only adds","at":"2026-11-11T22:08:36.201Z"}
-{"node":"graduate","at":"2026-11-11T22:08:36.477Z"}
+{"node":"adopt","at":"2026-11-11T22:08:36.477Z"}
 {"node":"build","at":"2026-11-11T22:08:57.214Z"}
 {"node":"checks","when":"pass","at":"2026-11-11T22:28:43.423Z"}
 {"node":"screenshots"}
@@ -50,3 +50,10 @@
 {"node":"screenshots","at":"2026-11-11T23:42:12.780Z"}
 {"node":"note","at":"2026-11-11T23:42:13.051Z"}
 {"node":"pull-request","at":"2026-11-11T23:42:13.324Z"}
+{"node":"read","at":"2026-11-11T23:55:16.685Z"}
+{"node":"route","when":"fits","at":"2026-11-11T23:55:16.959Z"}
+{"node":"build","at":"2026-11-11T23:55:17.230Z"}
+{"node":"checks","when":"pass","at":"2026-11-11T23:59:48.758Z"}
+{"node":"screenshots","at":"2026-11-11T23:59:58.379Z"}
+{"node":"note","at":"2026-11-11T23:59:58.656Z"}
+{"node":"pull-request","at":"2026-11-11T23:59:58.936Z"}

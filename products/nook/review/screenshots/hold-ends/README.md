@@ -2,7 +2,7 @@
 
 Taken by `npm run screenshots` with `products/nook/harness.config.ts`, at 1280 by 900 CSS px in headless Chrome, one per preview. Click an image to open it full size.
 
-Before is `origin/main (6771903)`. After is the change.
+Before is `origin/main (3b75a5f)`. After is the change.
 
 | Preview | Before | After |
 | --- | --- | --- |
