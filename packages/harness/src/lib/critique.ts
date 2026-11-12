@@ -43,7 +43,9 @@ export const PATTERNS: readonly Pattern[] = [
     name: "Hierarchy",
     asks: [
       "Is the page's title the strongest thing on it, and does the eye go next to what the page is for?",
+      // check:rendered-page reads heading tags, not sizes, so the weight each heading carries is judged only here.
       "Do section headings read as clearly below the title, or does the page look like several blocks of equal rank?",
+      "Does any text look like a heading for a part of the page without being one, or a heading look like body text?",
       "Does each element's weight (size, boldness, color, a filled background) match how much it matters to the page's job?",
     ],
   },

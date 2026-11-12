@@ -78,7 +78,7 @@ The Todae names below, such as `Button.Root` and its `variant`, `Disclosure.Root
 
 `check:inventories` is not one of the six UX rules. It is the membership gate in the next sections. `check:rules` runs it between `check:one-thing` and `check:state-coverage`.
 
-`check:rendered-page` is not one of them either. No product's rules name it: it is the harness's backstop on the page as Chrome paints it, after `check:accessible-names`, and its numbers are the harness's own. Section headings sit two steps below the title on the design system's type scale, the rank-1 action is in the first view at desktop and phone width, disclosures load closed unless the state opens them, text meets AA contrast in light and dark, and nothing scrolls sideways on a phone. Each is a pattern that holds on any page, never a number set per page. [Proposal 2026-11-12-rendered-page](../../../proposals/2026-11-12-rendered-page.md) records why.
+`check:rendered-page` is not one of them either. No product's rules name it: it is the harness's backstop on the page as Chrome paints it, after `check:accessible-names`, and its numbers are the harness's own. Each page has one h1 and its headings skip no level, the rank-1 action is in the first view at desktop and phone width, disclosures load closed unless the state opens them, text meets AA contrast in light and dark, and nothing scrolls sideways on a phone. Each is a pattern that holds on any page, never a number set per page. [Proposal 2026-11-12-rendered-page](../../../proposals/2026-11-12-rendered-page.md) records why, and [proposal 2026-11-12-heading-structure](../../../proposals/2026-11-12-heading-structure.md) why it reads heading tags, not sizes: sizes are the design system's and the product's theme's, and the critique judges visual weight.
 
 ## What an agent does on a task
 
@@ -246,7 +246,10 @@ The fixtures the gate has to reject, all under `packages/harness/fixtures/illega
 | `stale-press-gap` | A `knownGaps` entry for the silent leave, on the fixed page | `no longer has that problem. Take it off the list.` |
 | `untracked-press-gap` | A `knownGaps` entry for the silent leave with no `fixIn` | `needs fixIn: where its fix is tracked` |
 | `page-inside-disclosure` | The whole detail page, its Approve included, inside a disclosure | `a primary button is inside a disclosure` |
-| `section-heading-near-title` | A section heading of 24 px under a 30 px title, one step on Todae's scale | `section heading h2 "Vendor" is 24px, 1 type-scale step below the title` |
+| `skipped-heading-level` | An h3 straight after the h1 | `h3 "Vendor" skips a level` |
+| `two-h1s` | A section set as a second h1 | `is a second h1` |
+| `heading-before-the-title` | An h2 above the h1 | `comes before the title` |
+| `title-moved-off-the-page` | The only h1 moved off the page, so no title shows | `no visible title` |
 | `primary-below-the-fold` | Approve under a tall page, out of the first view at both widths | `at 390 by 844: "Approve" is at` |
 
 The cases the gate has to pass, directly under `packages/harness/fixtures/`:
@@ -275,7 +278,7 @@ The cases the gate has to pass, directly under `packages/harness/fixtures/`:
 | `announced-waitlist` | Nook's Waitlist rows fixed: joining keeps focus on the row's button, and a status region says what each press changed | `check:accessible-names`, with Chrome |
 | `listed-press-gap` | The halfway-fixed page, with its silent leave listed in `knownGaps` | `check:accessible-names`, with Chrome |
 | `announced-sort` | A list that reorders and says its new order through Todae's announcer, which writes 100 ms after the press | `check:accessible-names`, with Chrome |
-| `rendered-page-patterns` | Record names one step under the title inside a list, a disclosure the state opens and declares, a menu whose summary is hidden, a pinned action row under a long page, a turned-off button's faint text, and text over a gradient, skipped and counted | `check:rendered-page`, with Chrome |
+| `rendered-page-patterns` | Record names as h2 inside a list, a disclosure the state opens and declares, a menu whose summary is hidden, a pinned action row under a long page, a turned-off button's faint text, and text over a gradient, skipped and counted | `check:rendered-page`, with Chrome |
 
 `check:fixtures` is how the repo knows those gates still fire. A green `check` on the products, with a green `check:fixtures`, means the products passed and the known-bad shapes still fail.
 
