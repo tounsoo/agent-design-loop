@@ -17,16 +17,19 @@ function topBar(current: "Rooms" | "Waitlist", locked: boolean) {
   ] as const;
 }
 
-/** The booking page for one room: its name heads the page, and every control on it is on offer. */
-function booking(room: string) {
+/**
+ * The booking page for one room: its name heads the page, its later bookings
+ * and amenities are lists when it has any, and every control on it is on offer.
+ */
+function booking(room: string, later?: string, amenities?: string) {
   return [
     ...topBar("Rooms", false),
     { role: "heading", name: room },
     { role: "combobox", name: "How long?", disabled: false },
     { role: "heading", name: "Later today" },
-    { role: "list", text: "1:00 PM to 2:00 PM 3:30 PM to 4:30 PM" },
+    ...(later === undefined ? [] : [{ role: "list", text: later } as const]),
     { role: "heading", name: "Amenities" },
-    { role: "list", text: "Natural light Step-free access" },
+    ...(amenities === undefined ? [] : [{ role: "list", text: amenities } as const]),
     { role: "button", name: "Hold room", disabled: false },
     { role: "button", name: "Book room", disabled: false },
   ] as const;
@@ -37,8 +40,12 @@ export const accessibleNames = {
   "no-rooms": [...topBar("Rooms", false), rooms, { role: "heading", name: "No rooms are free" }, { role: "button", name: "See the waitlist" }],
   error: [...topBar("Rooms", true), rooms, { role: "button", name: "Try again" }],
   rooms: [...topBar("Rooms", false), rooms, { role: "button", name: "Choose Harbor" }, { role: "button", name: "Choose Lantern" }, { role: "button", name: "Choose Quarry" }],
-  "booking-harbor": booking("Harbor"),
-  "booking-lantern": booking("Lantern"),
+  "booking-harbor": booking("Harbor", "1:00 PM to 2:00 PM 3:30 PM to 4:30 PM", "Natural light Step-free access"),
+  "booking-lantern": booking(
+    "Lantern",
+    "12:30 PM to 1:30 PM 1:30 PM to 3:00 PM 3:00 PM to 4:00 PM 4:00 PM to 5:00 PM 5:00 PM to 6:00 PM",
+    "Step-free access Quiet floor Near the kitchen Blackout blinds Daylight and a view of the harbor",
+  ),
   "booking-quarry": booking("Quarry"),
   booked: [
     ...topBar("Rooms", true),
