@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
@@ -232,5 +232,50 @@ describe("Nook", () => {
     const pages = container.querySelectorAll("[data-page]");
     expect(pages).toHaveLength(1);
     expect(pages[0]).toHaveAttribute("data-state", state);
+  });
+  it("shows a room's later bookings, who waits for them and its amenities", () => {
+    window.history.replaceState(null, "", "/?state=choosing&page=booking");
+    render(<App />);
+    const later = screen.getByRole("heading", { name: "Later today" }).closest("section");
+    expect(later).not.toBeNull();
+    expect(within(later as HTMLElement).getAllByRole("listitem").map((item) => item.textContent)).toEqual(["1:00 PM to 2:00 PM", "3:30 PM to 4:30 PM"]);
+    expect(within(later as HTMLElement).getByText("2 people are waiting in case these times free up.")).toBeInTheDocument();
+    const amenities = screen.getByRole("heading", { name: "Amenities" }).closest("section");
+    expect(within(amenities as HTMLElement).getAllByRole("listitem").map((item) => item.textContent)).toEqual(["Natural light", "Step-free access"]);
+  });
+
+  it("says when a room has nothing booked later and no amenities", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(await screen.findByRole("button", { name: "Choose Quarry" }));
+    expect(screen.getByText("Free for the rest of the day.")).toBeInTheDocument();
+    expect(screen.getByText("No amenities listed.")).toBeInTheDocument();
+    expect(screen.queryByText(/in case these times free up/)).not.toBeInTheDocument();
+  });
+
+  it("lists every later booking of a busy room and says when no one waits for them", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(await screen.findByRole("button", { name: "Choose Lantern" }));
+    const later = screen.getByRole("heading", { name: "Later today" }).closest("section");
+    expect(within(later as HTMLElement).getAllByRole("listitem")).toHaveLength(5);
+    expect(screen.getByText("No one is waiting in case these times free up.")).toBeInTheDocument();
+  });
+
+  it("shows a freed room's own later bookings when it is chosen from the waitlist", async () => {
+    const user = userEvent.setup();
+    window.history.replaceState(null, "", "/?state=freed");
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Choose Cedar" }));
+    expect(screen.getByText("2:00 PM to 3:00 PM")).toBeInTheDocument();
+    expect(screen.getByText("1 person is waiting in case these times free up.")).toBeInTheDocument();
+    expect(screen.getByText("Natural light")).toBeInTheDocument();
+  });
+
+  it("keeps a room's later bookings and amenities once it is booked", () => {
+    window.history.replaceState(null, "", "/?state=booked");
+    render(<App />);
+    expect(screen.getByRole("heading", { name: "Later today" })).toBeInTheDocument();
+    expect(screen.getByText("Step-free access")).toBeInTheDocument();
   });
 });

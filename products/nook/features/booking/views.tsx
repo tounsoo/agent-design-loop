@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { Alert, Button, Disclosure, EmptyState, Field, Label, Loader, Stack, Text } from "../../catalog";
+import { Alert, Badge, Button, Disclosure, EmptyState, Field, Label, Loader, Stack, Text } from "../../catalog";
 import { RoomCards } from "../../content-layouts/room-cards";
 import { RoomRows, type RoomRow } from "../../content-layouts/room-rows";
 import {
@@ -179,6 +179,67 @@ function DurationField({ duration, disabled, onDuration }: { duration: Duration;
   );
 }
 
+/** How many people wait for a room's later bookings, as a sentence. */
+function waitlistLine(count: number): string {
+  if (count === 0) return "No one is waiting in case these times free up.";
+  return count === 1 ? "1 person is waiting in case these times free up." : `${count} people are waiting in case these times free up.`;
+}
+
+/** The room's bookings after the next hour and a half, and how many wait for them. Times only, since anyone can read this page. */
+function LaterToday({ room }: { room: Room }) {
+  return (
+    <Stack.Root as="section" gap="condensed">
+      <Text.Root as="h2" weight="bold">
+        Later today
+      </Text.Root>
+      {room.laterToday.length === 0 ? (
+        <Text.Root as="p" tone="muted">
+          Free for the rest of the day.
+        </Text.Root>
+      ) : (
+        <>
+          <Stack.Root as="ul" gap="none">
+            {room.laterToday.map((booking) => (
+              <li key={`${booking.start}-${booking.end}`}>
+                <Text.Root as="span">
+                  {booking.start} to {booking.end}
+                </Text.Root>
+              </li>
+            ))}
+          </Stack.Root>
+          <Text.Root as="p" tone="muted">
+            {waitlistLine(room.waitlistCount)}
+          </Text.Root>
+        </>
+      )}
+    </Stack.Root>
+  );
+}
+
+/** What the room offers beyond the floor, the seats and the equipment, which the page already says. */
+function Amenities({ room }: { room: Room }) {
+  return (
+    <Stack.Root as="section" gap="condensed">
+      <Text.Root as="h2" weight="bold">
+        Amenities
+      </Text.Root>
+      {room.amenities.length === 0 ? (
+        <Text.Root as="p" tone="muted">
+          No amenities listed.
+        </Text.Root>
+      ) : (
+        <Stack.Root as="ul" direction="row" gap="condensed" wrap>
+          {room.amenities.map((amenity) => (
+            <li key={amenity}>
+              <Badge.Root>{amenity}</Badge.Root>
+            </li>
+          ))}
+        </Stack.Root>
+      )}
+    </Stack.Root>
+  );
+}
+
 function RoomDetails({ room, open, onToggle }: { room: Room; open: boolean; onToggle: (open: boolean) => void }) {
   return (
     <Disclosure.Root
@@ -241,6 +302,8 @@ function Booking({ state, actions }: { state: BookingState; actions: Actions }) 
           ) : null}
         </Stack.Root>
         <DurationField disabled={!choosing} duration={state.duration} onDuration={actions.setDuration} />
+        <LaterToday room={room} />
+        <Amenities room={room} />
         <RoomDetails open={state.status === "choosing" && state.detailsOpen} room={room} onToggle={actions.setDetailsOpen} />
       </BookingPage.Body>
       <BookingPage.Alternate>

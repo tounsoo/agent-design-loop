@@ -18,24 +18,79 @@ export const durationLabel: Record<Duration, string> = {
   "90": "1 hour 30 minutes",
 };
 
+/** A time the room is booked later today, as a person reads it. Only the times: never who booked it or what for. */
+export type Booking = { readonly start: string; readonly end: string };
+
 export type Room = {
   readonly id: string;
   readonly name: string;
   readonly floor: string;
   readonly seats: number;
   readonly equipment: readonly string[];
+  /** What the room offers beyond its equipment, which Room details lists. */
+  readonly amenities: readonly string[];
+  /** Times the room is booked after the next hour and a half, earliest first. Fixed sample times: Nook has no clock. */
+  readonly laterToday: readonly Booking[];
+  /** People on the waitlist for those times. */
+  readonly waitlistCount: number;
 };
 
+/** Each room's later bookings, waitlist count and amenities come with it in Nook's one load. */
 export const sampleRooms: readonly Room[] = [
-  { id: "harbor", name: "Harbor", floor: "Floor 2", seats: 4, equipment: ["Screen", "Whiteboard"] },
-  { id: "lantern", name: "Lantern", floor: "Floor 2", seats: 8, equipment: ["Screen", "Video bar", "Whiteboard"] },
-  { id: "quarry", name: "Quarry", floor: "Floor 3", seats: 2, equipment: ["Phone"] },
+  {
+    id: "harbor",
+    name: "Harbor",
+    floor: "Floor 2",
+    seats: 4,
+    equipment: ["Screen", "Whiteboard"],
+    amenities: ["Natural light", "Step-free access"],
+    laterToday: [
+      { start: "1:00 PM", end: "2:00 PM" },
+      { start: "3:30 PM", end: "4:30 PM" },
+    ],
+    waitlistCount: 2,
+  },
+  {
+    id: "lantern",
+    name: "Lantern",
+    floor: "Floor 2",
+    seats: 8,
+    equipment: ["Screen", "Video bar", "Whiteboard"],
+    amenities: ["Step-free access", "Quiet floor", "Near the kitchen", "Blackout blinds", "Daylight and a view of the harbor"],
+    laterToday: [
+      { start: "12:30 PM", end: "1:30 PM" },
+      { start: "1:30 PM", end: "3:00 PM" },
+      { start: "3:00 PM", end: "4:00 PM" },
+      { start: "4:00 PM", end: "5:00 PM" },
+      { start: "5:00 PM", end: "6:00 PM" },
+    ],
+    waitlistCount: 0,
+  },
+  { id: "quarry", name: "Quarry", floor: "Floor 3", seats: 2, equipment: ["Phone"], amenities: [], laterToday: [], waitlistCount: 0 },
 ];
 
 /** Rooms booked for the next hour and a half, which a person can wait for. They come with the free rooms in Nook's one load. */
 export const fullRooms: readonly Room[] = [
-  { id: "cedar", name: "Cedar", floor: "Floor 1", seats: 6, equipment: ["Screen", "Whiteboard"] },
-  { id: "birch", name: "Birch", floor: "Floor 3", seats: 10, equipment: ["Screen", "Video bar"] },
+  {
+    id: "cedar",
+    name: "Cedar",
+    floor: "Floor 1",
+    seats: 6,
+    equipment: ["Screen", "Whiteboard"],
+    amenities: ["Natural light"],
+    laterToday: [{ start: "2:00 PM", end: "3:00 PM" }],
+    waitlistCount: 1,
+  },
+  {
+    id: "birch",
+    name: "Birch",
+    floor: "Floor 3",
+    seats: 10,
+    equipment: ["Screen", "Video bar"],
+    amenities: ["Step-free access", "Quiet floor"],
+    laterToday: [{ start: "4:00 PM", end: "5:00 PM" }],
+    waitlistCount: 3,
+  },
 ];
 
 export const loadErrorMessage = "Couldn't load free rooms.";
