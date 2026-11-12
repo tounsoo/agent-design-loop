@@ -1,8 +1,8 @@
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import designLoop from "../design-loop";
 import { config, configName, loadInputs } from "./lib/config";
-import { CRITIQUE_FILE, critiqueBrief, critiqueMarkdown, critiquePullRequestMarkdown, parseCritique, reviseRounds, verdict, type Shots } from "./lib/critique";
+import { CRITIQUE_FILE, critiqueBrief, critiqueMarkdown, critiquePullRequestMarkdown, critiqueTrace, galleryShots, parseCritique, verdict } from "./lib/critique";
 
 /**
  * The design loop's `critique` step, in two runs around a model the harness
@@ -29,6 +29,10 @@ if (findingsFile && !traceFile) fail("--findings needs --trace traces/<change>.j
 if (traceFile && !findingsFile) fail("--trace goes with --findings.");
 
 const folder = path.resolve(gallery);
+const screenshotsDir = path.resolve(config.paths.source, "review", "screenshots");
+if (path.dirname(folder) !== screenshotsDir) {
+  fail(`${gallery} is not a gallery of ${config.paths.source}. Its galleries are the folders in ${relative(screenshotsDir)}.`);
+}
 const readme = path.join(folder, "README.md");
 if (!existsSync(readme) || !readFileSync(readme, "utf8").startsWith("# Screenshots\n")) {
   fail(`${gallery} has no gallery README.md. Run npm run screenshots with --out ${gallery} first.`);
@@ -50,10 +54,12 @@ if (!findingsFile || !traceFile) fail("--findings needs --trace.");
 
 if (!existsSync(findingsFile)) fail(`${findingsFile} does not exist. Save the critic's answer there first.`);
 if (!existsSync(traceFile)) fail(`${traceFile} does not exist. Record the walk with npm run loop:step first.`);
+const walk = critiqueTrace(designLoop, readFileSync(traceFile, "utf8"));
+if ("problems" in walk) fail(`${traceFile} is not ready for a critique:\n${walk.problems.map((problem) => `- ${problem}`).join("\n")}`);
 const parsed = parseCritique(readFileSync(findingsFile, "utf8"), shots);
 if ("problems" in parsed) fail(`${findingsFile} is not a critique of ${gallery}:\n${parsed.problems.map((problem) => `- ${problem}`).join("\n")}`);
 const { critique } = parsed;
-const result = verdict(critique, reviseRounds(readFileSync(traceFile, "utf8"), designLoop.start));
+const result = verdict(critique, walk.rounds);
 writeFileSync(path.join(folder, CRITIQUE_FILE), critiqueMarkdown(critique, result));
 
 const revise = critique.findings.filter((finding) => finding.severity === "revise").length;
@@ -71,20 +77,6 @@ console.log("");
 console.log("critique: commit CRITIQUE.md with the gallery, and put this in the pull request description:");
 console.log("");
 console.log(critiquePullRequestMarkdown(critique, result));
-
-/** The gallery's PNGs, as the brief and the findings name them. */
-function galleryShots(dir: string): Shots {
-  const pngs = (sub: string): string[] => {
-    const at = path.join(dir, sub);
-    return existsSync(at) && statSync(at).isDirectory()
-      ? readdirSync(at)
-          .filter((file) => file.endsWith(".png"))
-          .sort()
-          .map((file) => (sub === "" ? file : `${sub}/${file}`))
-      : [];
-  };
-  return existsSync(path.join(dir, "before")) ? { before: pngs("before"), after: pngs("after") } : { before: [], after: pngs("") };
-}
 
 /** A path as the agent would type it: relative inside the working directory, absolute outside it. */
 function relative(file: string): string {

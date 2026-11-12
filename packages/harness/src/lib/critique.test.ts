@@ -1,5 +1,9 @@
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { CRITIQUE_HEADING, critiqueBrief, critiqueMarkdown, critiquePullRequestMarkdown, MAX_REVISE_ROUNDS, parseCritique, PATTERNS, reviseRounds, verdict, type Critique, type Finding } from "./critique";
+import designLoop from "../../design-loop";
+import { CRITIQUE_HEADING, critiqueBrief, critiqueMarkdown, critiquePullRequestMarkdown, critiqueTrace, galleryShots, MAX_REVISE_ROUNDS, parseCritique, PATTERNS, reviseRounds, verdict, type Critique, type Finding } from "./critique";
 
 const shots = { before: ["before/ready--page-detail.png"], after: ["after/ready--page-detail.png", "after/approved--page-detail.png"] };
 
@@ -38,6 +42,9 @@ describe("parseCritique", () => {
     const critique = { reviewer: "a model", findings: [finding()] };
     expect(parseCritique(answer(critique), shots)).toEqual({ critique });
     expect(parseCritique(`Here it is:\n\n\`\`\`json\n${JSON.stringify(critique, null, 2)}\n\`\`\`\n`, shots)).toEqual({ critique });
+ 
+    expect(parseCritique(`\uFEFF${answer(critique)}`, shots)).toEqual({ critique });
+    expect(parseCritique(`I looked at:\n\n\`\`\`text\nafter/ready--page-detail.png\n\`\`\`\n\n\`\`\`json\n${answer(critique)}\n\`\`\`\n`, shots)).toEqual({ critique });
   });
 
   it("reads a critique with no findings", () => {
@@ -78,10 +85,26 @@ describe("reviseRounds and verdict", () => {
   const trace = (...steps: string[]): string => `${steps.join("\n")}\n`;
 
   it("counts the run's critique steps that took revise, from its last start", () => {
-    const first = trace(step("read"), step("critique", "revise"), step("critique", "revise"), step("pull-request"));
+    const first = [{ node: "read" }, { node: "critique", when: "revise" }, { node: "critique", when: "revise" }, { node: "pull-request" }];
     expect(reviseRounds(first, "read")).toBe(2);
-    expect(reviseRounds(`${first}${trace(step("read"), step("critique", "revise"), step("critique", "pass"))}`, "read")).toBe(1);
-    expect(reviseRounds("not json\n", "read")).toBe(0);
+    expect(reviseRounds([...first, { node: "read" }, { node: "critique", when: "revise" }, { node: "critique", when: "pass" }], "read")).toBe(1);
+  });
+
+  // The walk from read to the screenshots, as the real graph has it.
+  const toScreenshots = [step("read"), step("route", "fits"), step("build"), step("checks", "pass"), step("screenshots")];
+  const again = [step("build"), step("checks", "pass"), step("screenshots")];
+
+  it("reads the rounds from a trace that stands at screenshots", () => {
+    expect(critiqueTrace(designLoop, trace(...toScreenshots))).toEqual({ rounds: 0 });
+    expect(critiqueTrace(designLoop, trace(...toScreenshots, step("critique", "revise"), ...again))).toEqual({ rounds: 1 });
+    expect(critiqueTrace(designLoop, trace(...toScreenshots, step("critique", "revise"), ...again, step("critique", "revise"), ...again))).toEqual({ rounds: 2 });
+  });
+
+  it("refuses a trace that does not parse, breaks the graph, or does not stand at screenshots", () => {
+    expect(critiqueTrace(designLoop, "not json\n")).toHaveProperty("problems");
+    expect(critiqueTrace(designLoop, trace(step("read"), step("screenshots")))).toHaveProperty("problems");
+    const recorded = critiqueTrace(designLoop, trace(...toScreenshots, step("critique", "revise")));
+    expect(recorded).toEqual({ problems: [expect.stringContaining("last step is critique")] });
   });
 
   it("revises while a finding calls for it and rounds are left, then passes and leaves it open", () => {
@@ -113,5 +136,24 @@ describe("critiqueMarkdown and critiquePullRequestMarkdown", () => {
   it("writes one line per finding for the pull request, and a line alone with none", () => {
     expect(critiquePullRequestMarkdown(critique, verdict(critique, 0)).split("\n")).toHaveLength(4);
     expect(critiquePullRequestMarkdown({ reviewer: "a model", findings: [] }, verdict({ reviewer: "a model", findings: [] }, 0))).toBe("**Critique** (round 1, by a model): pass, with no findings.");
+  });
+});
+
+describe("galleryShots", () => {
+  const png = (dir: string, ...files: string[]): void => {
+    mkdirSync(dir, { recursive: true });
+    for (const file of files) writeFileSync(path.join(dir, file), "");
+  };
+
+  it("reads before/ and after/ when the gallery has a base, and its own PNGs otherwise", () => {
+    const withBase = mkdtempSync(path.join(os.tmpdir(), "critique-"));
+    png(path.join(withBase, "before"), "b.png");
+    png(path.join(withBase, "after"), "b.png", "a.png");
+    writeFileSync(path.join(withBase, "README.md"), "# Screenshots\n");
+    expect(galleryShots(withBase)).toEqual({ before: ["before/b.png"], after: ["after/a.png", "after/b.png"] });
+
+    const flat = mkdtempSync(path.join(os.tmpdir(), "critique-"));
+    png(flat, "ready.png", "notes.txt");
+    expect(galleryShots(flat)).toEqual({ before: [], after: ["ready.png"] });
   });
 });

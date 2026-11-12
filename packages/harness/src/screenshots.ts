@@ -10,7 +10,7 @@ import { findChrome } from "./lib/chrome";
 import { config, configName } from "./lib/config";
 import { previewQueries } from "./lib/previews";
 import { APP_URL_ENV, APP_WEB_ENV, serveApp, sharedAppUrl, type ServedApp } from "./lib/served-app";
-import { galleryMarkdown, pinGallery, pullRequestMarkdown, rawFolderUrl, screenshotName } from "./lib/screenshots";
+import { galleryMarkdown, pinGallery, pullRequestMarkdown, rawFolderUrl, screenshotName, VIEWPORT } from "./lib/screenshots";
 
 /**
  * Captures the screenshots a pull request shows: one PNG per preview the
@@ -27,7 +27,6 @@ import { galleryMarkdown, pinGallery, pullRequestMarkdown, rawFolderUrl, screens
  */
 
 const SCRIPT = fileURLToPath(import.meta.url);
-const VIEWPORT = { width: 1280, height: 900 };
 
 const pinDir = flag("--pin");
 if (pinDir) {

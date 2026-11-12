@@ -1,4 +1,8 @@
-import { parseTrace } from "./trace";
+import { existsSync, readdirSync, statSync } from "node:fs";
+import path from "node:path";
+import type { LoopGraph } from "./loop";
+import { VIEWPORT } from "./screenshots";
+import { parseTrace, traceProblems, type TraceStep } from "./trace";
 
 /**
  * The design loop's critique step. Once the screenshots are taken, a second
@@ -124,7 +128,7 @@ export function critiqueBrief({ product, gallery, shots }: { readonly product: P
     "",
     "## The screenshots",
     "",
-    `Each is a full page at 1280 CSS px wide, one per preview, in \`${gallery}\`. A name is the preview's state, then any other part of its address. Open every one.`,
+    `Each is a full page at ${VIEWPORT.width} CSS px wide, one per preview, in \`${gallery}\`. The window was ${VIEWPORT.height} CSS px tall, so the top ${VIEWPORT.height} CSS px of each is what a person sees before scrolling: that is the first view. A name is the preview's state, then any other part of its address. Open every one.`,
     "",
     ...(shots.before.length > 0
       ? ["Judge the `after/` screenshots. The `before/` ones are the base, for comparison only: a problem already there counts only when the change makes it worse.", ""]
@@ -184,15 +188,17 @@ const text = (value: unknown): value is string => typeof value === "string" && v
 
 /**
  * The critic's answer, read and checked against the gallery. A JSON object,
- * alone or in one fenced json block. Every screenshot a finding names must be
+ * alone or in a fenced block: the first one marked json, or else the first. Every screenshot a finding names must be
  * one of the gallery's `after` shots, so a finding cannot point at a page the
  * change did not show.
  */
 export function parseCritique(input: string, shots: Shots): { critique: Critique } | { problems: string[] } {
-  const fenced = /```(?:json)?\s*\n([\s\S]*?)\n```/.exec(input);
+  const body = input.replace(/^\uFEFF/, "");
+  const blocks = [...body.matchAll(/^```([^\n`]*)\n([\s\S]*?)\n```/gm)];
+  const fenced = blocks.find((block) => (block[1] ?? "").trim() === "json") ?? blocks[0];
   let value: unknown;
   try {
-    value = JSON.parse(fenced?.[1] ?? input);
+    value = JSON.parse(fenced?.[2] ?? body);
   } catch {
     return { problems: ["the findings are not JSON. Give the critic's answer, one JSON object as the brief shows."] };
   }
@@ -232,19 +238,50 @@ export function parseCritique(input: string, shots: Shots): { critique: Critique
 }
 
 /**
- * How many times the critique has already sent the trace's current run back
- * to build: its `critique` steps that took `revise` since the run's last
- * start. A trace that does not parse counts none.
+ * How many times the critique has already sent the current run back to
+ * build: its `critique` steps that took `revise` since the run's last start.
+ * A proposal's pull request ends a run, so the change after it starts with
+ * fresh rounds.
  */
-export function reviseRounds(trace: string, start: string): number {
-  const parsed = parseTrace(trace);
-  if ("problems" in parsed) return 0;
+export function reviseRounds(steps: readonly TraceStep[], start: string): number {
   let rounds = 0;
-  for (const step of parsed.steps) {
+  for (const step of steps) {
     if (step.node === start) rounds = 0;
     else if (step.node === "critique" && step.when === "revise") rounds += 1;
   }
   return rounds;
+}
+
+/**
+ * The trace the critique is recorded in, read for its rounds. It has to be a
+ * walk the graph allows that stands at `screenshots`, the step before
+ * `critique`, so a broken trace cannot reset the rounds and a critique already
+ * recorded is not counted twice.
+ */
+export function critiqueTrace(graph: LoopGraph, trace: string): { rounds: number } | { problems: string[] } {
+  const parsed = parseTrace(trace);
+  if ("problems" in parsed) return { problems: parsed.problems };
+  const problems = traceProblems(graph, trace, { partial: true });
+  if (problems.length > 0) return { problems };
+  const last = parsed.steps.at(-1)?.node;
+  if (last !== "screenshots") {
+    return { problems: [`the trace's last step is ${last ?? "missing"}, and the critique comes right after screenshots. Record the critique once per round, after npm run loop:step records screenshots.`] };
+  }
+  return { rounds: reviseRounds(parsed.steps, graph.start) };
+}
+
+/** The gallery's PNGs, as the brief and the findings name them: `before/` and `after/` when the gallery has a base, the folder's own otherwise. */
+export function galleryShots(dir: string): Shots {
+  const pngs = (sub: string): string[] => {
+    const at = path.join(dir, sub);
+    return existsSync(at) && statSync(at).isDirectory()
+      ? readdirSync(at)
+          .filter((file) => file.endsWith(".png"))
+          .sort()
+          .map((file) => (sub === "" ? file : `${sub}/${file}`))
+      : [];
+  };
+  return existsSync(path.join(dir, "before")) ? { before: pngs("before"), after: pngs("after") } : { before: [], after: pngs("") };
 }
 
 export type Verdict = {

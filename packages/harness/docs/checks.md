@@ -603,10 +603,10 @@ A tool: the build gate does not run it. Run it as `npm run critique`, from the r
 
 Flags:
 
-- `--gallery <dir>`: The screenshots folder `npm run screenshots` wrote, `products/<name>/review/screenshots/<change>`.
+- `--gallery <dir>`: The screenshots folder `npm run screenshots` wrote, `products/<name>/review/screenshots/<change>`, in the `--config` product's own `review/screenshots`.
 - `--brief <file>`: Writes the critic's brief there. Keep it out of the repository, such as in a scratch folder.
 - `--findings <file>`: The critic's answer, one JSON object. It is checked against the gallery, written into it as `CRITIQUE.md`, and the edge to take is printed with the block for the pull request description.
-- `--trace <file>`: Goes with `--findings`: the change's trace, `traces/<change>.jsonl`, whose `critique` steps that took `revise` count the rounds so far.
+- `--trace <file>`: Goes with `--findings`: the change's trace, `traces/<change>.jsonl`. It must be a walk the graph allows whose last step is `screenshots`, and its `critique` steps that took `revise` count the rounds so far.
 
 The harness calls no model. Run `npm run critique -- --config <product config> --gallery <dir> --brief <file>` and give the brief it writes to a model other than the one that built the change, with the screenshots it names. The brief gives the product's tasks and ranked actions and a rubric of four patterns that hold on any page: hierarchy, the primary action, grouping and crowding. The critic judges relationships and weight, never counts. Each finding names its pattern, `revise` or `note`, the `after` screenshots it shows in, the problem and the fix.
 

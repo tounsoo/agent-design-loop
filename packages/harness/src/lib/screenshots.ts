@@ -5,6 +5,9 @@
  * GitHub renders beside them, and links that gallery from its description.
  */
 
+/** The window every screenshot is taken in. A screenshot is the full page, so only its top `height` CSS px show without scrolling. */
+export const VIEWPORT = { width: 1280, height: 900 } as const;
+
 /** A preview's query string as a file name: `state=ready&page=detail` is `ready--page-detail`. */
 export function screenshotName(query: string): string {
   const params = new URLSearchParams(query);
@@ -72,7 +75,7 @@ export function galleryMarkdown({ product, base, before, after }: Gallery): stri
   const lines = [
     "# Screenshots",
     "",
-    `Taken by \`npm run screenshots\` with \`${product}\`, at 1280 by 900 CSS px in headless Chrome, one per preview. ${UNPINNED_CLICK}`,
+    `Taken by \`npm run screenshots\` with \`${product}\`, at ${VIEWPORT.width} by ${VIEWPORT.height} CSS px in headless Chrome, one per preview. ${UNPINNED_CLICK}`,
     "",
   ];
   if (base === null) {
