@@ -23,7 +23,7 @@ const designLoop = {
     { id: "checks", kind: "eval", label: "Run the build gate", run: ["check:fixtures", "check"], reads: ["inventories", "rules", "ui"] },
     { id: "triage", kind: "router", label: "Can the fix stay inside the inventories?" },
     { id: "propose", kind: "llm", label: "Write a proposal with a reason, every state, a preview and an adoption", writes: ["proposals"] },
-    { id: "scope", kind: "router", label: "Does the proposal only add members to an inventory list?", reads: ["proposals"] },
+    { id: "scope", kind: "router", label: "Does the proposal only add catalog exports, layouts, content layouts or flow states?", reads: ["proposals"] },
     { id: "proposal-pull-request", kind: "checkpoint", label: "Open a pull request with the proposal", reads: ["proposals"] },
     { id: "approval", kind: "human", label: "A designer reviews the proposal's pull request", approver: "designer", gate: "/proposals/", reads: ["proposals"] },
     { id: "adopt", kind: "llm", label: "Adopt it into the inventory data or a harness rule", reads: ["proposals"], writes: ["inventories", "rules"] },
