@@ -36,9 +36,6 @@ export default {
         "book-room": "products/nook/flows/booking/book-room.ts",
         "hold-room": "products/nook/flows/booking/hold-room.ts",
       },
-      previews: {
-        choosing: ["page=rooms", "page=booking"],
-      },
     },
   ],
 } satisfies HarnessConfig;

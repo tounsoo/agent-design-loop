@@ -7,6 +7,10 @@ import { execFileSync } from "node:child_process";
  * Unset, it is the merge base with `origin/main`, or with a local `main`.
  */
 
+/** How the base is chosen, for the check reference. resolveBaseRev below is the code it describes. */
+export const BASE_DOC =
+  "The base is `INVENTORY_BASE` when it is set: CI sets it to the pull request base, or on a push to `main` to `github.event.before`, the tip of `main` before the push. A base missing from the clone fails the check. Unset, empty, `true`, `false` or all zeros, it is the merge base with `origin/main`, or with a local `main`. Without either, the check fails.";
+
 /** git's output, or null when git exits non-zero. */
 export function tryGit(args: string[]): string | null {
   try {

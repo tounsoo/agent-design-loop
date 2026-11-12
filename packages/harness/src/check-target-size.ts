@@ -1,21 +1,26 @@
 import { readFileSync } from "node:fs";
 import { adapter } from "./lib/adapter";
 import { config, loadRules } from "./lib/config";
-import { previewQueries } from "./lib/previews";
+import { resolveLength } from "./lib/tokens";
+import { loadScenarios } from "./lib/scenarios";
 import { withServedApp } from "./lib/served-app";
+import { viewNamed, type View } from "./lib/views";
 
 const { TARGET_MIN_PX } = await loadRules();
 
-const { queries: states, problems } = await previewQueries(config.flows);
+const { scenarios, problems } = await loadScenarios(config.flows);
 if (problems.length > 0) {
   for (const problem of problems) console.error(`target size: ${problem}`);
   process.exit(1);
 }
 
-// `--list` prints the previews and stops before Chrome, so the fixtures can test the derivation.
+/** A target's size does not change with the colour scheme, so it is measured at both widths in light. */
+const views: readonly View[] = [viewNamed("desktop-light"), viewNamed("phone-light")];
+
+// `--list` prints the scenarios and stops before Chrome, so the fixtures can test them without a build.
 if (process.argv.includes("--list")) {
-  for (const state of states) console.log(`target size: preview ?${state}`);
-  console.log(`target size: ${states.length} previews from modeledStates.`);
+  for (const scenario of scenarios) console.log(`target size: scenario ${scenario.id} (${scenario.state})`);
+  console.log(`target size: ${scenarios.length} scenarios cover ${new Set(scenarios.map((scenario) => scenario.state)).size} modeled states.`);
   process.exit(0);
 }
 
@@ -32,37 +37,40 @@ assertButtonTokens();
 
 const failures: string[] = [];
 
-await withServedApp("target size", async (page, base) => {
-  for (const state of states) {
-    const url = new URL(base);
-    url.search = state;
-    await page.goto(url.href, { waitUntil: "networkidle0" });
-    const nextFrame = () => page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve(undefined))));
-    const measure = async () => {
-      for (const problem of undersized(await page.evaluate(collectTargets))) {
-        const failure = `${state}: ${problem}`;
-        if (!failures.includes(failure)) failures.push(failure);
+await withServedApp("target size", config.paths.web, async (page, base) => {
+  for (const view of views) {
+    await page.setViewport({ width: view.width, height: view.height, isMobile: view.mobile, hasTouch: view.mobile });
+    for (const scenario of scenarios) {
+      const url = new URL(base);
+      url.search = scenario.search;
+      await page.goto(url.href, { waitUntil: "networkidle0" });
+      const nextFrame = () => page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve(undefined))));
+      const measure = async () => {
+        for (const problem of undersized(await page.evaluate(collectTargets))) {
+          const failure = `${scenario.id} at ${view.label}: ${problem}`;
+          if (!failures.includes(failure)) failures.push(failure);
+        }
+      };
+      const summary = await page.$("[data-page] summary");
+      if (summary) {
+        await summary.click();
+        await nextFrame();
       }
-    };
-    const summary = await page.$("[data-page] summary");
-    if (summary) {
-      await summary.click();
-      await nextFrame();
-    }
-    await measure();
-    // Every other closed disclosure in the document, the chrome's included, is
-    // opened on its own, measured, and closed again, so its controls are
-    // measured without one open menu covering another's.
-    for (const other of await page.$$("summary")) {
-      const closed = await other.evaluate(
-        (element) => element.parentElement instanceof HTMLDetailsElement && !element.parentElement.open && element.getClientRects().length > 0,
-      );
-      if (!closed) continue;
-      await other.click();
-      await nextFrame();
       await measure();
-      await other.click();
-      await nextFrame();
+      // Every other closed disclosure in the document, the chrome's included, is
+      // opened on its own, measured, and closed again, so its controls are
+      // measured without one open menu covering another's.
+      for (const other of await page.$$("summary")) {
+        const closed = await other.evaluate(
+          (element) => element.parentElement instanceof HTMLDetailsElement && !element.parentElement.open && element.getClientRects().length > 0,
+        );
+        if (!closed) continue;
+        await other.click();
+        await nextFrame();
+        await measure();
+        await other.click();
+        await nextFrame();
+      }
     }
   }
 });
@@ -72,12 +80,21 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log(`target size: controls on ${states.length} previews meet ${TARGET_MIN_PX} CSS px (or the WCAG spacing exception).`);
+console.log(
+  `target size: controls on ${scenarios.length} scenarios at ${views.map((view) => `${view.width} by ${view.height}`).join(" and ")}, in light, meet ${TARGET_MIN_PX} CSS px (or the WCAG spacing exception).`,
+);
 
 function assertButtonTokens(): void {
   const css = readFileSync(adapter.tokens.css, "utf8");
-  const paddingY = resolveLength(css, adapter.tokens.actionPaddingY);
-  const fontSize = resolveLength(css, adapter.tokens.actionFontSize);
+  const length = (name: string): number => {
+    try {
+      return resolveLength(css, name, adapter.tokens.privatePrefix);
+    } catch (error) {
+      throw new Error(`target size: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+  const paddingY = length(adapter.tokens.actionPaddingY);
+  const fontSize = length(adapter.tokens.actionFontSize);
   const floor = fontSize + paddingY * 2;
   if (floor < TARGET_MIN_PX) {
     console.error(
@@ -86,35 +103,6 @@ function assertButtonTokens(): void {
     process.exit(1);
   }
   console.log(`target size: button token floor ${floor}px.`);
-}
-
-function resolveLength(css: string, name: string, seen = new Set<string>()): number {
-  if (seen.has(name)) throw new Error(`target size: cycle at ${name}`);
-  seen.add(name);
-  const match = css.match(new RegExp(`${escapeRegExp(name)}\\s*:\\s*([^;]+);`));
-  if (!match?.[1]) throw new Error(`target size: missing ${name}`);
-  return lengthFrom(css, match[1].trim(), seen);
-}
-
-function lengthFrom(css: string, value: string, seen: Set<string>): number {
-  const fallback = value.match(/^var\(\s*(--[A-Za-z0-9_-]+)\s*,\s*([\s\S]+)\)$/);
-  if (fallback?.[1] && fallback[2]) {
-    const nested = fallback[1];
-    const defined = css.includes(`${nested}:`);
-    if (!defined || nested.startsWith(adapter.tokens.privatePrefix)) return lengthFrom(css, fallback[2].trim(), seen);
-    return resolveLength(css, nested, seen);
-  }
-  const variable = value.match(/^var\(\s*(--[A-Za-z0-9_-]+)\s*\)$/);
-  if (variable?.[1]) return resolveLength(css, variable[1], seen);
-  const px = value.match(/^(-?[\d.]+)px$/);
-  if (px?.[1]) return Number(px[1]);
-  const rem = value.match(/^(-?[\d.]+)rem$/);
-  if (rem?.[1]) return Number(rem[1]) * 16;
-  throw new Error(`target size: cannot resolve "${value}"`);
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /** Every control in the document: the page, and the chrome and anything else around it. */

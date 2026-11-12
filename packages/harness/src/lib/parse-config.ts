@@ -17,13 +17,6 @@ export type FlowConfig = {
    * when the module exports one.
    */
   readonly tasks?: { readonly [taskId: string]: string };
-  /**
-   * How check:target-size and check:accessible-names open a modeled state, as
-   * query strings added to
-   * `?state=<state>`. Every modeled state is opened: once bare when it has no
-   * entry here, once per query string when it has one.
-   */
-  readonly previews?: { readonly [state: string]: readonly string[] };
 };
 
 /**
@@ -48,6 +41,13 @@ export type ShellRules = {
    * slot named must be one the shell defines, as in primarySlots.
    */
   readonly collections: { readonly [pageType: string]: readonly string[] };
+  /**
+   * Page types whose pages are content: they show information, such as a
+   * help, overview or settings summary page. No page of a content page type
+   * holds a primary button, outside the shared chrome layouts (check:one-thing).
+   * Optional: a product with no content page type leaves it out.
+   */
+  readonly content?: readonly string[];
 };
 
 export type HarnessConfig = {
@@ -72,7 +72,7 @@ export type HarnessConfig = {
     readonly rules: string;
     /** Product stylesheet. */
     readonly styles: string;
-    /** Other product UI the off-catalog lint reads: entry files and preview code. */
+    /** Other product UI the off-catalog lint reads: entry files and the code that renders a scenario. */
     readonly app: readonly string[];
     /** The directory with the product's index.html, which check:target-size and check:accessible-names build and serve with Vite. */
     readonly web: string;
@@ -217,12 +217,13 @@ export const DEFAULT_PROPOSALS = "proposals";
 function parseShells(value: unknown, where: string): ShellRules | null {
   if (value === undefined) return null;
   if (!isRecord(value)) throw new Error(`${where} must be an object.`);
-  const unknown = Object.keys(value).filter((key) => key !== "primarySlots" && key !== "collections");
+  const unknown = Object.keys(value).filter((key) => key !== "primarySlots" && key !== "collections" && key !== "content");
   if (unknown.length > 0) throw new Error(`${where} has unknown keys: ${unknown.join(", ")}.`);
-  // Both are required, so a product says it has no collection rather than leaving it out.
+  // Both are required, so a product says it has no collection rather than leaving it out. content came later, so a config without it still reads.
   if (!isRecord(value.primarySlots)) throw new Error(`${where}.primarySlots must be an object.`);
   if (!isRecord(value.collections)) throw new Error(`${where}.collections must be an object.`);
-  return { primarySlots: stringRecord(value, "primarySlots", where), collections: stringListRecord(value, "collections", where) };
+  const rules = { primarySlots: stringRecord(value, "primarySlots", where), collections: stringListRecord(value, "collections", where) };
+  return value.content === undefined ? rules : { ...rules, content: requireStrings(value, "content", where) };
 }
 
 /** Parses a harness config's source text. Throws when it is not plain literals or misses a field. */
@@ -251,12 +252,13 @@ export function parseConfig(text: string, label: string): ParsedConfig {
     flows: value.flows.map((flow, index) => {
       const where = `config.flows[${index}]`;
       if (!isRecord(flow)) throw new Error(`${where} must be an object.`);
-      // tasks and previews are optional so a base written before them still parses.
+      // tasks is optional so a base written before it still parses. A base's
+      // previews, from before scenarios, are not read: scenarios.ts beside the
+      // states module lists what the checks open.
       return {
         states: requireString(flow, "states", where),
         views: requireString(flow, "views", where),
         tasks: stringRecord(flow, "tasks", where),
-        previews: stringListRecord(flow, "previews", where),
       };
     }),
     optOuts: stringRecord(value, "optOuts", "config"),

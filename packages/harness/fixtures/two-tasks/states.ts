@@ -1,6 +1,6 @@
 /**
- * The fixture product's modeled states. Its config gives "reminded" a preview
- * query and leaves "archived" out, so target size must still open archived.
+ * The fixture product's modeled states. Its scenarios.ts opens "reminded" on
+ * its detail page and every other state on its own.
  */
 export const modeledStates = ["loading", "ready", "reminded", "archived"] as const;
 

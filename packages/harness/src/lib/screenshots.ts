@@ -5,15 +5,19 @@
  * GitHub renders beside them, and links that gallery from its description.
  */
 
-/** A preview's query string as a file name: `state=ready&page=detail` is `ready--page-detail`. */
-export function screenshotName(query: string): string {
-  const params = new URLSearchParams(query);
-  const parts = [params.get("state") ?? "default"];
-  for (const [key, value] of params) {
-    if (key !== "state") parts.push(`${key}-${value}`);
-  }
-  return parts.map((part) => part.replace(/[^A-Za-z0-9_-]+/g, "-")).join("--");
+import { VIEWS } from "./views";
+
+/**
+ * A screenshot's file name, without `.png`: the scenario, then the view it
+ * was taken in, `booking-lantern--phone-dark`. A scenario id is a slug with
+ * single hyphens, so `--` only ever joins the two.
+ */
+export function screenshotName(scenario: string, view: string): string {
+  return `${scenario}--${view}`;
 }
+
+/** The views, as the gallery's header says them. */
+const VIEWS_TEXT = `${VIEWS.map((view) => `\`${view.name}\` (${view.label})`).join(", ")}`;
 
 /**
  * An image wrapped in a link to its own file. Until `--pin` points the link at
@@ -67,12 +71,12 @@ export type Gallery = {
   readonly after: readonly string[];
 };
 
-/** The gallery's README.md: one row or section per preview, each image linked to its own file until `--pin` runs. */
+/** The gallery's README.md: one row or section per screenshot, each image linked to its own file until `--pin` runs. */
 export function galleryMarkdown({ product, base, before, after }: Gallery): string {
   const lines = [
     "# Screenshots",
     "",
-    `Taken by \`npm run screenshots\` with \`${product}\`, at 1280 by 900 CSS px in headless Chrome, one per preview. ${UNPINNED_CLICK}`,
+    `Taken by \`npm run screenshots\` with \`${product}\` in headless Chrome, a full page per scenario in each view it was asked for: ${VIEWS_TEXT}, in CSS px. A name is the scenario, then the view. ${UNPINNED_CLICK}`,
     "",
   ];
   if (base === null) {
@@ -82,7 +86,7 @@ export function galleryMarkdown({ product, base, before, after }: Gallery): stri
     }
     return lines.join("\n");
   }
-  lines.push(`Before is \`${base}\`. After is the change.`, "", "| Preview | Before | After |", "| --- | --- | --- |");
+  lines.push(`Before is \`${base}\`. After is the change.`, "", "| Screenshot | Before | After |", "| --- | --- | --- |");
   for (const file of [...new Set([...before, ...after])].sort()) {
     const name = file.replace(/\.png$/, "");
     const cell = (side: "before" | "after", files: readonly string[]) => (files.includes(file) ? linkedImage(`${name}, ${side}`, `${side}/${file}`) : "none");
@@ -107,5 +111,5 @@ export function pullRequestMarkdown({
   readonly after: readonly string[];
 }): string {
   const count = new Set([...before, ...after]).size;
-  return `**Screenshots:** [${count} preview${count === 1 ? "" : "s"}${before.length > 0 ? ", before and after" : ""}](${repository}/blob/${commit}/${folder}/README.md)`;
+  return `**Screenshots:** [${count} screenshot${count === 1 ? "" : "s"}${before.length > 0 ? ", before and after" : ""}](${repository}/blob/${commit}/${folder}/README.md)`;
 }

@@ -12,6 +12,6 @@ export default {
     ],
   },
   checks: [
-    { run: "check:accessible-names", fails: 'knownGaps lists button "Leave waitlist for Birch" as "silent", and pressing it on ?state=freed no longer has that problem' },
+    { run: "check:accessible-names", fails: 'knownGaps lists button "Leave waitlist for Birch" as "silent", and pressing it on scenario freed no longer has that problem' },
   ],
 };

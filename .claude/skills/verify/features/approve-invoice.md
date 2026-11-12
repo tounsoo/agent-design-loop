@@ -12,7 +12,7 @@
 ## How to get to it (user POV)
 
 - Choose an invoice's link on To approve or All invoices, such as `Northwind Office Supply` (`?invoice=inv-1842`).
-- Open `?state=ready&page=detail` from the Preview menu.
+- Open `?scenario=invoice-detail` from the Preview menu.
 
 ## Driving it with Vitest, the rule checks and a browser
 

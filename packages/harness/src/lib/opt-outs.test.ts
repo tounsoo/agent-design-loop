@@ -64,7 +64,7 @@ describe("optOutProblems", () => {
 });
 
 function decided(file: string, retires: string[] = [], optsOut: { rule: string; source: string }[] = []): Proposal {
-  return { file, status: "decided", changes: [], retires, optsOut, adds: [], states: null };
+  return { file, status: "decided", changes: [], retires, optsOut, adds: [], tightens: [], states: null };
 }
 
 describe("unretiredRemovals", () => {

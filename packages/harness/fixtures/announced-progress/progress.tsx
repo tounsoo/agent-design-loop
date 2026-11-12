@@ -1,5 +1,7 @@
 import { Steps } from "@tounsoo/todae";
 import { createRoot } from "react-dom/client";
+import { readScenario } from "../../src/lib/scenario-read";
+import { scenarios } from "./scenarios";
 
 /**
  * Meridian's invoice progress list from pull request 32, built with Todae's
@@ -34,7 +36,7 @@ export function InvoiceProgress({ state, waitingLabel }: { state: string; waitin
 export function render(waitingLabel?: string) {
   const root = document.getElementById("root");
   if (!root) throw new Error("Missing #root");
-  const state = new URLSearchParams(window.location.search).get("state") ?? "ready";
+  const state = readScenario(window.location.search, scenarios)?.state ?? "ready";
   createRoot(root).render(
     <main>
       <h1>Northwind Office Supply</h1>

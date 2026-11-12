@@ -3,20 +3,25 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpath
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { build, preview } from "vite";
 import puppeteer from "puppeteer-core";
 import { tryGit } from "./lib/base";
+import { CRITIQUE_FILE, CRITIQUE_HEADING } from "./lib/critique";
 import { findChrome } from "./lib/chrome";
 import { config, configName } from "./lib/config";
-import { previewQueries } from "./lib/previews";
+import { loadScenarios, type LoadedScenario } from "./lib/scenarios";
+import { APP_URL_ENV, APP_WEB_ENV, serveApp, sharedAppUrl, type ServedApp } from "./lib/served-app";
 import { galleryMarkdown, pinGallery, pullRequestMarkdown, rawFolderUrl, screenshotName } from "./lib/screenshots";
+import { isViewName, VIEW_NAMES, VIEWS, type View } from "./lib/views";
 
 /**
- * Captures the screenshots a pull request shows: one PNG per preview the
- * product's harness.config.ts lists, the same previews check:target-size
- * opens, at 1280 by 900 in headless Chrome. `--state <name>` keeps the
- * previews of the states the change touches, and repeats. `--base <ref>` also
- * captures them at that commit, so the folder holds `before/` and `after/`.
+ * Captures the screenshots a pull request shows: a full-page PNG of every
+ * scenario the product's flows export, the ones the Chrome checks open, in
+ * each of four views: 1280 by 900 and 390 by 844, light and dark, in headless
+ * Chrome. `--state <name>` keeps the scenarios of the states the change
+ * touches, `--scenario <id>` keeps one scenario and `--view <view>` one view;
+ * each repeats. `--base <ref>` also captures them at that commit, so the
+ * folder holds `before/` and `after/`. A base from before scenarios has none
+ * to pair, so it takes no before shots.
  *
  * The folder gets a README.md that shows every image, each wrapped in a link
  * to its file, so it is the gallery a reviewer opens from the pull request.
@@ -26,27 +31,43 @@ import { galleryMarkdown, pinGallery, pullRequestMarkdown, rawFolderUrl, screens
  */
 
 const SCRIPT = fileURLToPath(import.meta.url);
-const VIEWPORT = { width: 1280, height: 900 };
 
 const pinDir = flag("--pin");
 if (pinDir) {
-  if (["--out", "--state", "--base"].some((name) => process.argv.includes(name))) fail("--pin takes only --config: it points a committed gallery's links at their raw files and captures nothing.");
+  if (["--out", "--state", "--scenario", "--view", "--base"].some((name) => process.argv.includes(name))) fail("--pin takes only --config: it points a committed gallery's links at their raw files and captures nothing.");
   pin(pinDir);
   process.exit(0);
 }
 
 const out = flag("--out");
 if (!out) fail("give the folder to write to: --out <dir>, such as products/meridian/review/screenshots/<change>.");
-const only = values("--state");
+const onlyStates = values("--state");
+const onlyScenarios = values("--scenario");
+const onlyViews = values("--view");
 const baseRef = flag("--base");
 
-const { queries, problems } = await previewQueries(config.flows);
+const badViews = onlyViews.filter((name) => !isViewName(name));
+if (badViews.length > 0) fail(`${badViews.join(", ")} ${badViews.length === 1 ? "is not a view" : "are not views"}. The views are ${VIEW_NAMES.join(", ")}.`);
+const views: readonly View[] = onlyViews.length === 0 ? VIEWS : VIEWS.filter((view) => onlyViews.includes(view.name));
+
+const { scenarios, problems } = await loadScenarios(config.flows);
 if (problems.length > 0) fail(problems.join("\n"));
-const unknown = only.filter((state) => !queries.some((query) => new URLSearchParams(query).get("state") === state));
-if (unknown.length > 0 && !process.env.SCREENSHOTS_BASE_RUN) {
-  fail(`${unknown.join(", ")} ${unknown.length === 1 ? "is not a modeled state" : "are not modeled states"} with a preview in ${configName}.`);
+// The base run keeps what it has: a state or scenario the change adds is not at the base.
+if (!process.env.SCREENSHOTS_BASE_RUN) {
+  const unknownStates = onlyStates.filter((state) => !scenarios.some((scenario) => scenario.state === state));
+  if (unknownStates.length > 0) {
+    fail(`${unknownStates.join(", ")} ${unknownStates.length === 1 ? "is not a modeled state" : "are not modeled states"} with a scenario in ${configName}'s flows.`);
+  }
+  const unknownIds = onlyScenarios.filter((id) => !scenarios.some((scenario) => scenario.id === id));
+  if (unknownIds.length > 0) fail(`${unknownIds.join(", ")} ${unknownIds.length === 1 ? "is not a scenario" : "are not scenarios"} in ${configName}'s flows.`);
 }
-const picked = only.length === 0 ? queries : queries.filter((query) => only.includes(new URLSearchParams(query).get("state") ?? ""));
+const picked = scenarios.filter(
+  (scenario) => (onlyStates.length === 0 || onlyStates.includes(scenario.state)) && (onlyScenarios.length === 0 || onlyScenarios.includes(scenario.id)),
+);
+
+if (picked.length === 0 && !process.env.SCREENSHOTS_BASE_RUN) {
+  fail(`No scenario in ${configName}'s flows is both of a --state and a --scenario given. Each filter keeps only what the other keeps too, so give a scenario of the state, or one filter.`);
+}
 
 const chrome = findChrome();
 if ("missing" in chrome) fail(chrome.missing);
@@ -64,17 +85,15 @@ assertGallery(outDir);
 mkdirSync(path.dirname(outDir), { recursive: true });
 const staging = mkdtempSync(path.join(path.dirname(outDir), `.${path.basename(outDir)}-`));
 process.on("exit", () => rmSync(staging, { recursive: true, force: true }));
-if (baseRef) {
-  captureAtBase(baseRef, path.join(staging, "before"), chrome.path);
-  await capture(picked, path.join(staging, "after"), chrome.path);
-} else {
-  await capture(picked, staging, chrome.path);
-}
+// false when the base predates scenarios: the gallery is then laid out as one with no base, so --pin and critique read it as one.
+const paired = baseRef !== undefined && captureAtBase(baseRef, path.join(staging, "before"), chrome.path);
+if (baseRef !== undefined && !paired) console.log(`screenshots: ${baseRef} predates scenarios, so its screenshots would pair with none here. The gallery has no before side.`);
+await capture(picked, paired ? path.join(staging, "after") : staging, chrome.path);
 const shots = {
-  before: baseRef ? pngs(path.join(staging, "before")) : [],
-  after: pngs(baseRef ? path.join(staging, "after") : staging),
+  before: paired ? pngs(path.join(staging, "before")) : [],
+  after: pngs(paired ? path.join(staging, "after") : staging),
 };
-writeFileSync(path.join(staging, "README.md"), galleryMarkdown({ product: configName, base: baseRef ? labelFor(baseRef) : null, ...shots }));
+writeFileSync(path.join(staging, "README.md"), galleryMarkdown({ product: configName, base: paired && baseRef !== undefined ? labelFor(baseRef) : null, ...shots }));
 rmSync(outDir, { recursive: true, force: true });
 renameSync(staging, outDir);
 
@@ -128,54 +147,54 @@ function pin(dir: string): void {
   console.log(pullRequestMarkdown({ repository: `https://github.com/${repository.owner}/${repository.repo}`, commit: "<sha>", folder: relative, ...shots }));
 }
 
-/** Builds the product in the working directory, serves it, and saves one full-page PNG per preview. */
-async function capture(previews: readonly string[], dir: string, executablePath: string): Promise<void> {
-  const web = path.resolve(config.paths.web);
-  if (!existsSync(path.join(web, "index.html"))) fail(`${config.paths.web} has no index.html to build (paths.web).`);
+/**
+ * Saves a full-page PNG of each scenario in each view, of the product in the
+ * working directory: the app check:product serves, when it serves this
+ * product, or one built and served here on a free port.
+ */
+async function capture(picked: readonly LoadedScenario[], dir: string, executablePath: string): Promise<void> {
   mkdirSync(dir, { recursive: true });
-  const viteConfig = {
-    root: web,
-    configFile: path.resolve("vite.config.ts"),
-    cacheDir: path.resolve("node_modules/.vite-screenshots"),
-    logLevel: "warn" as const,
-  };
-  await build(viteConfig);
-  let server: Awaited<ReturnType<typeof preview>>;
+  const shared = sharedAppUrl(config.paths.web);
+  let app: ServedApp;
   try {
-    server = await preview({ ...viteConfig, preview: { host: "127.0.0.1", port: 4173, strictPort: true } });
+    app = shared === null ? await serveApp(config.paths.web, { cacheDir: path.resolve("node_modules/.vite-screenshots") }) : { url: shared, close: async () => undefined };
   } catch (error) {
-    fail(`could not serve the built app on 127.0.0.1:4173: ${error instanceof Error ? error.message : String(error)}\nStop whatever holds port 4173, such as another npm run preview, and run it again.`);
+    fail(error instanceof Error ? error.message : String(error));
   }
-  const base = server.resolvedUrls?.local?.[0] ?? "http://127.0.0.1:4173/";
   const browser = await puppeteer.launch({ executablePath, headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] }).catch(async (error: unknown) => {
-    await server.close();
+    await app.close();
     fail(`${executablePath} did not start: ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
   });
   try {
     const page = await browser.newPage();
-    await page.setViewport(VIEWPORT);
-    for (const query of previews) {
-      const url = new URL(base);
-      url.search = query;
-      await page.goto(url.href, { waitUntil: "networkidle0" });
-      await page.evaluate(() => document.fonts.ready.then(() => undefined));
-      await page.screenshot({ path: path.join(dir, `${screenshotName(query)}.png`) as `${string}.png`, fullPage: true });
+    for (const view of views) {
+      await page.emulateMediaFeatures([{ name: "prefers-color-scheme", value: view.scheme }]);
+      await page.setViewport({ width: view.width, height: view.height, isMobile: view.mobile, hasTouch: view.mobile });
+      for (const scenario of picked) {
+        const url = new URL(app.url);
+        url.search = scenario.search;
+        await page.goto(url.href, { waitUntil: "networkidle0" });
+        await page.evaluate(() => document.fonts.ready.then(() => undefined));
+        await page.screenshot({ path: path.join(dir, `${screenshotName(scenario.id, view.name)}.png`) as `${string}.png`, fullPage: true });
+      }
     }
   } finally {
     await browser.close();
-    await server.close();
+    await app.close();
   }
 }
 
 /**
  * Runs this script, as it is in this checkout, on a temporary worktree at
- * `ref`, writing into `dir`. The base's config, flows and product code decide
- * what is built and which previews open. The worktree borrows this checkout's
+ * `ref`, writing into `dir`, with every filter this run was given. The
+ * base's config, flows, scenarios and product code decide what is built and
+ * which scenarios open. It returns false, and captures nothing, when the base
+ * predates scenarios. The worktree borrows this checkout's
  * installed packages, except the workspace packages, which point at the
  * worktree's own, so the base's harness and adapter code build the base's
  * screens.
  */
-function captureAtBase(ref: string, dir: string, executablePath: string): void {
+function captureAtBase(ref: string, dir: string, executablePath: string): boolean {
   if (!/^[A-Za-z0-9._/^~-]+$/.test(ref) || ref.startsWith("-") || !tryGit(["rev-parse", "--verify", "--quiet", `${ref}^{commit}`])) {
     fail(`--base ${ref} is not a commit in this clone. Fetch it first, such as git fetch origin main.`);
   }
@@ -196,21 +215,41 @@ function captureAtBase(ref: string, dir: string, executablePath: string): void {
     symlinkSync(path.join(modules, entry), path.join(worktree, "node_modules", entry));
   }
   if (!existsSync(path.join(worktree, "packages", "harness"))) fail(`${ref} has no packages/harness, so it predates the harness this script runs on.`);
+  if (!existsSync(path.join(worktree, "packages", "harness", "src", "lib", "scenarios.ts"))) {
+    removeWorktree();
+    process.off("exit", removeWorktree);
+    return false;
+  }
   mkdirSync(path.join(worktree, "node_modules", "@agent-design-loop"));
   for (const entry of readdirSync(path.join(modules, "@agent-design-loop"))) {
     if (existsSync(path.join(worktree, "packages", entry))) {
       symlinkSync(path.join(worktree, "packages", entry), path.join(worktree, "node_modules", "@agent-design-loop", entry));
     }
   }
-  const args = [SCRIPT, "--config", configName, "--out", dir, ...only.flatMap((state) => ["--state", state])];
+  const args = [
+    SCRIPT,
+    ...["--config", configName, "--out", dir],
+    ...onlyStates.flatMap((state) => ["--state", state]),
+    ...onlyScenarios.flatMap((id) => ["--scenario", id]),
+    ...onlyViews.flatMap((name) => ["--view", name]),
+  ];
   const run = spawnSync(path.resolve("node_modules/.bin/tsx"), args, {
     cwd: worktree,
     stdio: "inherit",
-    env: { ...process.env, CHROME_PATH: executablePath, SCREENSHOTS_BASE_RUN: "1" },
+    // The base builds its own app: the one check:product may serve here is this checkout's.
+    env: { ...withoutSharedApp(process.env), CHROME_PATH: executablePath, SCREENSHOTS_BASE_RUN: "1" },
   });
   if (run.status !== 0) fail(`capturing ${ref} failed. Its output is above.`);
   removeWorktree();
   process.off("exit", removeWorktree);
+  return true;
+}
+
+function withoutSharedApp(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const rest = { ...env };
+  delete rest[APP_URL_ENV];
+  delete rest[APP_WEB_ENV];
+  return rest;
 }
 
 /** The base as the gallery names it: the ref, with its short commit when the ref is a name. */
@@ -222,8 +261,9 @@ function labelFor(ref: string): string {
 
 /**
  * Fails unless `--out` is new or a folder this script wrote, which a retake
- * replaces so no stale shot is left. A folder that holds anything else, such
- * as a product's review notes, is refused, so a wrong `--out` deletes nothing.
+ * replaces so no stale shot is left, along with the CRITIQUE.md the critique
+ * step wrote of the old shots. A folder that holds anything else, such as a
+ * product's review notes, is refused, so a wrong `--out` deletes nothing.
  */
 function assertGallery(dir: string): void {
   if (!existsSync(dir)) return;
@@ -231,6 +271,7 @@ function assertGallery(dir: string): void {
     readdirSync(folder, { withFileTypes: true }).every((entry) => {
       if (entry.isFile() && entry.name.endsWith(".png")) return true;
       if (!nested && entry.isFile() && entry.name === "README.md") return readFileSync(path.join(folder, entry.name), "utf8").startsWith("# Screenshots\n");
+      if (!nested && entry.isFile() && entry.name === CRITIQUE_FILE) return readFileSync(path.join(folder, entry.name), "utf8").startsWith(`${CRITIQUE_HEADING}\n`);
       if (!nested && entry.isDirectory() && (entry.name === "before" || entry.name === "after")) return own(path.join(folder, entry.name), true);
       return false;
     });

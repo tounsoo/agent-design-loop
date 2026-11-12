@@ -10,7 +10,12 @@ import { Stack, Text } from "../../catalog";
  */
 
 export function Title({ children }: { children: ReactNode }) {
-  return <Text.Root as="h1">{children}</Text.Root>;
+  // The top bar moves focus here on a page change.
+  return (
+    <Text.Root as="h1" tabIndex={-1}>
+      {children}
+    </Text.Root>
+  );
 }
 
 export function Intro({ children }: { children: ReactNode }) {

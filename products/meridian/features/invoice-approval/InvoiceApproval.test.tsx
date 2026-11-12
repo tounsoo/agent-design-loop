@@ -54,17 +54,17 @@ describe("invoice approval views", () => {
   });
 
   it("renders loading, empty, and error", () => {
-    const { unmount } = renderApproval("?state=loading");
+    const { unmount } = renderApproval("?scenario=loading");
     expect(screen.getAllByText("Loading invoices").length).toBeGreaterThan(0);
     unmount();
 
-    renderApproval("?state=empty");
+    renderApproval("?scenario=empty");
     expect(screen.getByRole("heading", { name: "No invoices waiting" })).toBeInTheDocument();
     expect(document.querySelector("[data-content-layout='data-table']")).toBeNull();
   });
 
   it("shows the load error with a secondary retry", () => {
-    renderApproval("?state=error");
+    renderApproval("?scenario=error");
     expect(screen.getByText("Couldn't load invoices.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
@@ -123,11 +123,11 @@ describe("invoice approval views", () => {
 
     await user.click(screen.getByRole("button", { name: "Approve" }));
     expect(screen.getByText("Invoice approved")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Approve" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Approve" })).toHaveAttribute("aria-disabled", "true");
   });
 
   it("totals the line items under the table", () => {
-    renderApproval("?state=ready&page=detail");
+    renderApproval("?scenario=invoice-detail");
     const total = screen.getByRole("rowheader", { name: "Total" }).closest("tr");
     expect(total?.parentElement?.tagName).toBe("TFOOT");
     expect(total).toHaveTextContent("$4,280.00");
@@ -144,7 +144,7 @@ describe("invoice approval views", () => {
 
   it("requires a reason before requesting changes", async () => {
     const user = userEvent.setup();
-    renderApproval("?state=ready&page=detail");
+    renderApproval("?scenario=invoice-detail");
     await user.click(screen.getByRole("button", { name: "Request changes" }));
     const reason = screen.getByRole("textbox", { name: "What should change?" });
     await user.click(screen.getByRole("button", { name: "Request changes" }));
@@ -153,7 +153,7 @@ describe("invoice approval views", () => {
     await user.click(screen.getByRole("button", { name: "Request changes" }));
     expect(screen.getByRole("status")).toHaveTextContent("Changes requested");
     expect(screen.getByText("Quantity on toner does not match the packing slip.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Approve" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Approve" })).toHaveAttribute("aria-disabled", "true");
   });
   it("shows where the invoice is on its way to payment, before and after Approve", async () => {
     const user = userEvent.setup();
@@ -169,7 +169,7 @@ describe("invoice approval views", () => {
 
   it("marks the approval stage when changes are requested", async () => {
     const user = userEvent.setup();
-    renderApproval("?state=ready&page=detail");
+    renderApproval("?scenario=invoice-detail");
     await user.click(screen.getByRole("button", { name: "Request changes" }));
     await user.type(screen.getByRole("textbox", { name: "What should change?" }), "Seat count is off.");
     await user.click(screen.getByRole("button", { name: "Request changes" }));
@@ -249,7 +249,7 @@ describe("invoice approval views", () => {
   });
 
   it("previews a vendor just added, on Vendors", () => {
-    renderApproval("?state=vendor-added");
+    renderApproval("?scenario=vendor-added");
     expect(screen.getByRole("heading", { level: 1, name: "Vendors" })).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("Added Ridgeway Janitorial.");
     expect(vendorCard("Ridgeway Janitorial")).toHaveTextContent("No invoices yet");
@@ -257,7 +257,7 @@ describe("invoice approval views", () => {
   });
 
   it("opens the form on an empty vendor list", () => {
-    renderApproval("?state=empty&route=vendors");
+    renderApproval("?scenario=empty&route=vendors");
     expect(screen.getByRole("heading", { name: "No vendors yet" })).toBeInTheDocument();
     expect(document.querySelector("details")?.open).toBe(true);
     expect(screen.getByText("0 vendors")).toBeInTheDocument();
@@ -265,7 +265,7 @@ describe("invoice approval views", () => {
 
   it("adds the first vendor from an empty vendor list", async () => {
     const user = userEvent.setup();
-    renderApproval("?state=empty&route=vendors");
+    renderApproval("?scenario=empty&route=vendors");
     // A sample invoice names this vendor, but on Empty nothing has loaded.
     await user.type(screen.getByRole("textbox", { name: "Vendor name" }), "Northwind Office Supply");
     await user.type(screen.getByRole("textbox", { name: "Remittance email" }), "ap@northwind.example");
@@ -277,7 +277,7 @@ describe("invoice approval views", () => {
   });
 
   it("names vendors in the Vendors load error", () => {
-    renderApproval("?state=error&route=vendors");
+    renderApproval("?scenario=error&route=vendors");
     expect(screen.getByText("Couldn't load vendors.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
   });

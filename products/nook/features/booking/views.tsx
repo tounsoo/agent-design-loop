@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { Alert, Badge, Button, Disclosure, EmptyState, Field, Label, Loader, Stack, Text } from "../../catalog";
+import { Alert, Badge, Button, Disclosure, EmptyState, Field, Label, Loader, Stack, submitOff, Text } from "../../catalog";
 import { RoomCards } from "../../content-layouts/room-cards";
 import { RoomRows, type RoomRow } from "../../content-layouts/room-rows";
 import {
@@ -49,10 +49,30 @@ export function BookingView({ state, actions }: { state: FlowState; actions: Act
   const onWaitlist = state.status === "waitlist" || state.status === "waiting" || state.status === "freed";
   const locked = state.status === "loading" || state.status === "error" || state.status === "held" || state.status === "booked";
   return (
-    <TopBar current={onWaitlist ? "waitlist" : "rooms"} locked={locked} onNavigate={actions.navigate}>
+    <TopBar current={onWaitlist ? "waitlist" : "rooms"} locked={locked} page={pageOf(state)} onNavigate={actions.navigate}>
       <StateView actions={actions} state={state} />
     </TopBar>
   );
+}
+
+/** The page a state shows: the rooms list, the waitlist, or one room's booking page. */
+function pageOf(state: FlowState): string {
+  switch (state.status) {
+    case "loading":
+    case "no-rooms":
+    case "error":
+      return "rooms";
+    case "choosing":
+      return state.page === "rooms" ? "rooms" : `room:${state.roomId}`;
+    case "booked":
+    case "held":
+    case "expired":
+      return `room:${state.roomId}`;
+    case "waitlist":
+    case "waiting":
+    case "freed":
+      return "waitlist";
+  }
 }
 
 /** One view per modeled state. check:state-coverage reads the cases. */
@@ -307,12 +327,12 @@ function Booking({ state, actions }: { state: BookingState; actions: Actions }) 
         <RoomDetails open={state.status === "choosing" && state.detailsOpen} room={room} onToggle={actions.setDetailsOpen} />
       </BookingPage.Body>
       <BookingPage.Alternate>
-        <Button.Root disabled={!choosing} type="button" variant="secondary" onClick={actions.hold}>
+        <Button.Root {...submitOff(!choosing)} type="button" variant="secondary" onClick={actions.hold}>
           Hold room
         </Button.Root>
       </BookingPage.Alternate>
       <BookingPage.Action>
-        <Button.Root disabled={!canBook} type="button" onClick={actions.book}>
+        <Button.Root {...submitOff(!canBook)} type="button" onClick={actions.book}>
           Book room
         </Button.Root>
       </BookingPage.Action>
