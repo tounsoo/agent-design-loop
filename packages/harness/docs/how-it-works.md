@@ -104,7 +104,7 @@ flowchart TB
   n_checks[["eval: Run the build gate"]]
   n_triage{"router: Can the fix stay inside the inventories?"}
   n_propose["llm: Write a proposal with a reason, every state, a preview and an adoption"]
-  n_scope{"router: Does the proposal only add members to an inventory list?"}
+  n_scope{"router: Does the proposal only add catalog exports, layouts, content layouts or flow states?"}
   n_proposal_pull_request[("checkpoint: Open a pull request with the proposal")]
   n_approval(["human: A designer reviews the proposal's pull request"])
   n_adopt["llm: Adopt it into the inventory data or a harness rule"]
@@ -308,7 +308,7 @@ flowchart TB
   record["Merging it records the request. It does not apply the change."]
   person["A designer approves it: a reviewed pull request moves it to status: decided."]
   adopt["A later pull request makes the change and moves it to status: adopted. check:inventories reads the base's decided proposal."]
-  adds["Only adds members to an inventory list: one pull request adds the proposal, status: adopted, with the members under adds, and the change. A designer reviews it."]
+  adds["Only adds catalog exports, layouts, content layouts or flow states: one pull request adds the proposal, status: adopted, with the members under adds, and the change. A designer reviews it."]
   next["The next design round is constrained by that larger inventory."]
   gap --> file --> record --> person --> adopt --> next
   gap --> adds --> next
@@ -318,7 +318,7 @@ flowchart TB
 
 Proposal 0001 is the example on main of a request that has been recorded and not applied. It asks for an approval note and `max_steps` 4. Proposal 0003 corrects its step counts rather than editing it. Until an adopting change lands, the budget stays 3 and the note stays out of the UI.
 
-A proposal that changes no inventory, such as a change to the harness's own code, lists `changes: []` and may start as `adopted`, because it gates nothing. Proposals 0003, 0007 through 0013, 2026-11-11-dated-proposal-names and 2026-11-11-proposals-list-every-state are those.
+A proposal that changes no inventory, such as a change to the harness's own code, lists `changes: []` and may start as `adopted`, because it gates nothing. Proposals 0003, 0007 through 0013, 2026-11-11-accessible-names-per-state, 2026-11-11-adopt-not-graduate, 2026-11-11-dated-proposal-names, 2026-11-11-proposals-list-every-state, 2026-11-11-screenshot-gallery and 2026-11-12-page-types-take-two-pull-requests are those.
 
 An addition can skip the approval pull request. A change that only adds members to the catalog exports, `allowed_layouts`, `allowed_content_layouts` or the flow states adopts a proposal the same pull request adds, `status: adopted`, that lists those members under `adds` and nothing else. The design loop's `scope` router sends such a proposal straight to `adopt`. Everything else, removals, renames, rule inputs, config, opt-outs and retirements, keeps two pull requests. So does a new page type, which is never an addition because it also needs an entry under `shells` in the product's config ([proposal 2026-11-12-page-types-take-two-pull-requests](../../../proposals/2026-11-12-page-types-take-two-pull-requests.md)). [Proposal 0012](../../../proposals/0012-additions-in-one-pull-request.md) records it. Proposals 0004 to 0006 changed inventories and landed with their changes, before the fields existed; [proposal 0011](../../../proposals/0011-proposal-fields-and-graduation.md) gave them `status: adopted`.
 
