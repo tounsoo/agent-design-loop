@@ -13,6 +13,6 @@ The hold-room task is "Pick a free room and hold it while you decide". Until thi
 
 - Whether booking a held room should keep the length chosen before the hold or ask again. The length field stays locked on a held room, so the booking takes the length chosen before the hold. A designer may want the length editable before booking.
 - Whether book-room's budget of 3 is right now that hold then book uses all of it. A longer route to booked, such as one that needs another step between hold and book, would fail the check.
-- Whether a hold should expire on screen after 15 minutes. Nook has no clock, so the held state never ends by itself.
+- Whether a hold should expire on screen after 15 minutes. It now does: [a hold that ends](hold-ends.md) has the note.
 - Whether the alert's "Book it to keep it." is the right copy for the hold.
 - Whether the load error should be an alert. A screen reader hears "Room held" and "Room booked" as they arrive, because each is a status message `accessible-names.ts` declares, but the error is plain text.

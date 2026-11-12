@@ -9,8 +9,8 @@ const firstRoom = sampleRooms[0];
 if (!firstRoom) throw new Error("Nook needs a sample room to measure the shipped flow.");
 
 /**
- * Events a person can cause on the screens. loaded and failed come from the
- * system, not from the person, so they are not steps.
+ * Events a person can cause on the screens. loaded, failed and hold-ended
+ * come from the system, not from the person, so they are not steps.
  */
 const userEventList = [
   { type: "choose-room", roomId: firstRoom.id },
@@ -24,7 +24,7 @@ const userEventList = [
 ] as const satisfies readonly FlowEvent[];
 
 /** Every FlowEvent a person can cause must be listed, or the shipped path is not fully measured. */
-type SystemEventType = "loaded" | "failed";
+type SystemEventType = "loaded" | "failed" | "hold-ended";
 type MissingUserEvent = Exclude<FlowEvent["type"], SystemEventType | (typeof userEventList)[number]["type"]>;
 type UserEventsCovered = MissingUserEvent extends never ? true : never;
 export const userEventsCovered: UserEventsCovered = true;

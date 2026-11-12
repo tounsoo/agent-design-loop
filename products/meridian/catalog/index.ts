@@ -22,6 +22,7 @@ export {
   Skeleton,
   Splitter,
   Stack,
+  Steps,
   Table,
   Text,
   ThemeProvider,

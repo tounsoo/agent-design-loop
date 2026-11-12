@@ -2,6 +2,7 @@ import { useId } from "react";
 import { Alert, Button, Disclosure, EmptyState, Field, Label, Loader, Stack, Text } from "../../catalog";
 import { RoomCards } from "../../content-layouts/room-cards";
 import {
+  HOLD_MINUTES,
   durationLabel,
   durations,
   isDuration,
@@ -26,7 +27,7 @@ export type Actions = {
 };
 
 /** States this module renders. A missing member is a type error. */
-export const renderedStates = ["loading", "no-rooms", "error", "choosing", "booked", "held"] as const satisfies readonly ModeledState[];
+export const renderedStates = ["loading", "no-rooms", "error", "choosing", "booked", "held", "expired"] as const satisfies readonly ModeledState[];
 
 type MissingView = Exclude<ModeledState, (typeof renderedStates)[number]>;
 type ViewsCovered = MissingView extends never ? true : never;
@@ -46,6 +47,7 @@ export function BookingView({ state, actions }: { state: FlowState; actions: Act
       return state.page === "rooms" ? <Rooms actions={actions} state={state} /> : <Booking actions={actions} state={state} />;
     case "booked":
     case "held":
+    case "expired":
       return <Booking actions={actions} state={state} />;
   }
 }
@@ -124,10 +126,11 @@ function Booking({ state, actions }: { state: BookingState; actions: Actions }) 
   const room = roomById(state.roomId) ?? sampleRooms[0];
   if (!room) throw new Error("Nook has no rooms to book.");
   const choosing = state.status === "choosing";
+  const canBook = choosing || state.status === "held" || state.status === "expired";
   return (
     <BookingPage state={state.status}>
       <BookingPage.Back>
-        <Button.Root type="button" variant="ghost" onClick={actions.back} disabled={!choosing}>
+        <Button.Root type="button" variant="ghost" onClick={actions.back} disabled={!choosing && state.status !== "expired"}>
           All rooms
         </Button.Root>
       </BookingPage.Back>
@@ -148,7 +151,15 @@ function Booking({ state, actions }: { state: BookingState; actions: Actions }) 
           {state.status === "held" ? (
             <Alert.Root role="none" tone="info">
               <Alert.Title>Room held</Alert.Title>
-              <Alert.Description>{room.name} is held for you for 15 minutes. Book it to keep it.</Alert.Description>
+              <Alert.Description>
+                {room.name} is held for you for {HOLD_MINUTES} minutes. Book it to keep it.
+              </Alert.Description>
+            </Alert.Root>
+          ) : null}
+          {state.status === "expired" ? (
+            <Alert.Root role="none" tone="warning">
+              <Alert.Title>Hold ended</Alert.Title>
+              <Alert.Description>{room.name} is no longer held for you. Book it now, or pick another room.</Alert.Description>
             </Alert.Root>
           ) : null}
         </Stack.Root>
@@ -161,7 +172,7 @@ function Booking({ state, actions }: { state: BookingState; actions: Actions }) 
         </Button.Root>
       </BookingPage.Alternate>
       <BookingPage.Action>
-        <Button.Root disabled={!choosing && state.status !== "held"} type="button" onClick={actions.book}>
+        <Button.Root disabled={!canBook} type="button" onClick={actions.book}>
           Book room
         </Button.Root>
       </BookingPage.Action>
