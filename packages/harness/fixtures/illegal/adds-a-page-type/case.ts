@@ -14,5 +14,6 @@ export default {
   proposals: "packages/harness/fixtures/illegal/adds-a-page-type/proposals",
   checks: [
     { run: "check:inventories", fails: "A page type is never added in one pull request" },
+    { run: "check:inventories", fails: "a new page type is never an addition, because it also needs an entry under shells" },
   ],
 };

@@ -30,10 +30,11 @@ import { collectionShellsOf, shellsOf } from "./lib/shells";
  * has may not change that way. Its membership changes only by adopting a
  * proposal: one that is decided on the base, that this change marks adopted,
  * and whose `changes` list what changed. A change that only adds members to
- * the catalog exports, allowed_layouts, allowed_content_layouts,
- * allowed_page_types or the flow states may instead adopt a proposal this
- * change adds, already adopted, that lists those members under `adds`:
- * proposal 0012.
+ * the catalog exports, allowed_layouts, allowed_content_layouts or the flow
+ * states may instead adopt a proposal this change adds, already adopted, that
+ * lists those members under `adds`: proposal 0012. A new page type never
+ * does, because it also needs a shells entry: proposal
+ * 2026-11-12-page-types-take-two-pull-requests.
  *
  * allowed_layouts is the app frame. allowed_content_layouts are the
  * compositions that fill a page type's body. A collection ready body has to
@@ -378,7 +379,7 @@ function readInventory(root: Root): Inventory | null {
  * terms are then exactly those members.
  */
 type Term = string | readonly string[];
-type Change = { readonly text: string; readonly terms: readonly Term[]; readonly additions?: true; readonly note?: string };
+type Change = { readonly text: string; readonly terms: readonly Term[]; readonly additions?: true; readonly note?: string; readonly pageTypesAdded?: readonly string[] };
 
 /**
  * The inventory lists a proposal that only adds may grow in the pull request
@@ -388,7 +389,7 @@ type Change = { readonly text: string; readonly terms: readonly Term[]; readonly
  * takes two pull requests (proposal 2026-11-12-page-types-take-two-pull-requests).
  */
 const ADDABLE_LISTS = ["catalog exports", "allowed_layouts", "allowed_content_layouts", "flow states"] as const;
-const PAGE_TYPE_NOTE = ` A page type is never added in one pull request: it also needs an entry under shells in ${configName}, so one proposal decided on the base lists the page type and the shells rule it joins, shells.primarySlots or shells.collections, under changes.`;
+const PAGE_TYPE_NOTE = ` A page type is never added in one pull request: it also needs an entry under shells in ${configName}, so one proposal decided on the base lists the page type and the shells rule it joins, shells.primarySlots or shells.collections, under changes, and a later pull request adds the page type.`;
 const addableText = `${ADDABLE_LISTS.slice(0, -1).join(", ")} or ${ADDABLE_LISTS.at(-1)}`;
 
 function differingMembers(before: readonly string[], after: readonly string[]): string[] {
@@ -414,8 +415,12 @@ function membershipChanges(base: Inventory, head: Inventory, compareConfig: bool
     compare(label, before, after, differingMembers(before, after));
     const change = changes[count];
     // A renamed or reordered member is not an addition: only a list whose every difference is a new member qualifies.
-    if (change && (ADDABLE_LISTS as readonly string[]).includes(label) && before.every((member) => after.includes(member))) changes[count] = { ...change, additions: true };
-    if (change && label === "allowed_page_types" && after.some((member) => !before.includes(member))) changes[count] = { ...changes[count]!, note: PAGE_TYPE_NOTE };
+    if (!change) return;
+    if ((ADDABLE_LISTS as readonly string[]).includes(label) && before.every((member) => after.includes(member))) changes[count] = { ...change, additions: true };
+    // A new page type is never an addition: say so, so the agent does not reach for adds.
+    else if (label === "allowed_page_types" && after.some((member) => !before.includes(member))) {
+      changes[count] = { ...change, note: PAGE_TYPE_NOTE, pageTypesAdded: after.filter((member) => !before.includes(member)) };
+    }
   };
   // A missing list on the base is the bootstrap that records it.
   if (base.layouts !== null) list("allowed_layouts", base.layouts, head.layouts ?? []);
@@ -585,14 +590,18 @@ const termNames = (terms: readonly Term[]): string[] => terms.flatMap((term) => 
  */
 function addingProposals(changes: readonly Change[], proposals: ProposalsForChange): { usable: Proposal[]; refused: Map<string, string> } {
   const other = new Set(changes.filter((change) => !change.additions).flatMap((change) => termNames(change.terms)));
+  const newPageTypes = new Set(changes.flatMap((change) => change.pageTypesAdded ?? []));
   const addedBefore = new Map([...proposals.base.values()].flatMap((proposal) => proposal.adds.map((name) => [name, proposal.file] as const)));
   const quoted = (names: readonly string[]) => names.map((name) => `"${name}"`).join(", ");
   const usable: Proposal[] = [];
   const refused = new Map<string, string>();
   for (const proposal of addingInThisChange(proposals.base, proposals.head)) {
-    const changed = proposal.adds.filter((name) => other.has(name));
+    const pageTypes = proposal.adds.filter((name) => newPageTypes.has(name));
+    const changed = proposal.adds.filter((name) => other.has(name) && !newPageTypes.has(name));
     const again = proposal.adds.filter((name) => addedBefore.has(name));
-    if (changed.length > 0) {
+    if (pageTypes.length > 0) {
+      refused.set(proposal.file, `lists ${quoted(pageTypes)} under adds, but a new page type is never an addition, because it also needs an entry under shells, so it covers nothing.`);
+    } else if (changed.length > 0) {
       refused.set(proposal.file, `lists ${quoted(changed)} under adds, which this change removes or changes rather than adds, so it covers nothing. adds covers only members added to ${addableText}.`);
     } else if (again.length > 0) {
       const files = [...new Set(again.map((name) => addedBefore.get(name)))].join(", ");
