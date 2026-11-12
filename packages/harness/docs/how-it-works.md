@@ -229,6 +229,7 @@ The fixtures the gate has to reject, all under `packages/harness/fixtures/illega
 | `waitlist-row-loses-focus` | Nook's pull request 42 before its fix: joining a waitlist swaps the row's button, and focus falls to the page | `removes it from the page, and focus falls to the page body` |
 | `silent-waitlist-leave` | The same page halfway fixed: leaving a waitlist while the room is free changes the row and says nothing | `changes the page, and a screen reader hears nothing` |
 | `stale-press-gap` | A `knownGaps` entry for the silent leave, on the fixed page | `no longer has that problem. Take it off the list.` |
+| `untracked-press-gap` | A `knownGaps` entry for the silent leave with no `fixIn` | `needs fixIn: where its fix is tracked` |
 | `page-inside-disclosure` | The whole detail page, its Approve included, inside a disclosure | `a primary button is inside a disclosure` |
 
 The cases the gate has to pass, directly under `packages/harness/fixtures/`:
