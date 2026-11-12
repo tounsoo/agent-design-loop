@@ -32,7 +32,7 @@ npm ci
 npm run check:fixtures && npm run check
 ```
 
-`check:fixtures` runs the harness's own tests. `check` runs typecheck, ESLint, and the Vitest suite, then every rule check on Meridian and on Nook, then `check:retirement`, which flags a rule most products opt out of, and `check:loop`, which validates the design loop graph. CI also runs `check:trace`, which fails a change to a product that carries no record of the agent walking that graph, or a record the graph does not allow. The [harness README](packages/harness/README.md) says what each check fails. `npm run dev` starts Meridian, and `npm run dev:nook` starts Nook.
+`check:fixtures` runs the harness's own tests. `check` runs typecheck, ESLint, and the Vitest suite, then every rule check on Meridian and on Nook, then the repository checks. CI also runs `check:trace`, which fails a change to a product that carries no record of the agent walking the design loop graph, or a record the graph does not allow. [The check reference](packages/harness/docs/checks.md), written from the code, lists them in order and says what each one fails. `npm run dev` starts Meridian, and `npm run dev:nook` starts Nook.
 
 ## Read more
 

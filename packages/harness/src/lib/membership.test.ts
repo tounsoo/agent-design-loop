@@ -83,6 +83,18 @@ describe("membershipChanges", () => {
     });
   });
 
+  it("makes a page type named under shells.content an addition, and does not count a reordered content list", () => {
+    const base = { config: config({ shells: { primarySlots: { detail: "Primary" }, collections: { collection: ["Heading", "Description"] }, content: ["help"] } }), pageTypes: ["collection", "detail", "help"] };
+    const head = {
+      config: config({ shells: { primarySlots: { detail: "Primary" }, collections: { collection: ["Heading", "Description"] }, content: ["policy", "help"] } }),
+      pageTypes: ["collection", "detail", "help", "policy"],
+    };
+    const shells = one(compare(head, base), "shells adds policy");
+    expect(shells).toMatchObject({ kind: "adds", names: ["page-type:policy"], terms: ["shells.content"] });
+    expect(shells.text).toContain("policy joins shells.content");
+    expect(one(compare(head, base), "allowed_page_types")).toMatchObject({ kind: "adds", names: ["page-type:policy"] });
+  });
+
   it("names a primary slot when the new page type joins shells.primarySlots", () => {
     const shells = { primarySlots: { detail: "Primary", wizard: "Action" }, collections: { collection: ["Heading", "Description"] } };
     const changes = compare({ pageTypes: ["collection", "detail", "wizard"], config: config({ shells }) });
