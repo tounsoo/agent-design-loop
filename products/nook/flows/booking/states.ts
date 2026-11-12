@@ -1,5 +1,5 @@
 /** The states Nook models. Every one has a view, and check:target-size opens each one. */
-export const modeledStates = ["loading", "no-rooms", "error", "choosing", "booked", "held"] as const;
+export const modeledStates = ["loading", "no-rooms", "error", "choosing", "booked", "held", "expired"] as const;
 
 export type ModeledState = (typeof modeledStates)[number];
 
@@ -31,6 +31,9 @@ export const sampleRooms: readonly Room[] = [
 
 export const loadErrorMessage = "Couldn't load free rooms.";
 
+/** How long a hold lasts before it ends by itself. */
+export const HOLD_MINUTES = 15;
+
 export function roomById(id: string): Room | undefined {
   return sampleRooms.find((room) => room.id === id);
 }
@@ -48,12 +51,14 @@ export type FlowState =
       readonly detailsOpen: boolean;
     }
   | { readonly status: "booked"; readonly roomId: string; readonly duration: Duration }
-  | { readonly status: "held"; readonly roomId: string; readonly duration: Duration };
+  | { readonly status: "held"; readonly roomId: string; readonly duration: Duration }
+  | { readonly status: "expired"; readonly roomId: string; readonly duration: Duration };
 
 export type FlowEvent =
   | { readonly type: "loaded"; readonly rooms: readonly Room[] }
   | { readonly type: "failed"; readonly message: string }
   | { readonly type: "retry" }
+  | { readonly type: "hold-ended" }
   | { readonly type: "choose-room"; readonly roomId: string }
   | { readonly type: "back" }
   | { readonly type: "set-duration"; readonly duration: Duration }

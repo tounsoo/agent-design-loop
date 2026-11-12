@@ -25,5 +25,7 @@ export function readPreview(search: string): FlowState | null {
       return { status: "booked", roomId, duration: "60" };
     case "held":
       return { status: "held", roomId, duration: "60" };
+    case "expired":
+      return { status: "expired", roomId, duration: "60" };
   }
 }

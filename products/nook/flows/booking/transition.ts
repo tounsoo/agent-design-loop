@@ -13,18 +13,20 @@ export function transition(state: FlowState, event: FlowEvent): FlowState {
       if (state.status !== "choosing" || state.page !== "rooms" || !roomById(event.roomId)) return state;
       return { status: "choosing", page: "booking", roomId: event.roomId, duration: "60", detailsOpen: false };
     case "back":
-      return state.status === "choosing" && state.page === "booking" ? { status: "choosing", page: "rooms" } : state;
+      return (state.status === "choosing" && state.page === "booking") || state.status === "expired" ? { status: "choosing", page: "rooms" } : state;
     case "set-duration":
       return state.status === "choosing" && state.page === "booking" ? { ...state, duration: event.duration } : state;
     case "open-details":
     case "close-details":
       return state.status === "choosing" && state.page === "booking" ? { ...state, detailsOpen: event.type === "open-details" } : state;
     case "book":
-      // A held room can still be booked: the hold is how a person decides.
-      return (state.status === "choosing" && state.page === "booking") || state.status === "held"
+      // A held room can still be booked: the hold is how a person decides. So can one whose hold just ended.
+      return (state.status === "choosing" && state.page === "booking") || state.status === "held" || state.status === "expired"
         ? { status: "booked", roomId: state.roomId, duration: state.duration }
         : state;
     case "hold":
       return state.status === "choosing" && state.page === "booking" ? { status: "held", roomId: state.roomId, duration: state.duration } : state;
+    case "hold-ended":
+      return state.status === "held" ? { status: "expired", roomId: state.roomId, duration: state.duration } : state;
   }
 }
