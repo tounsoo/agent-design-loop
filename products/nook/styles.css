@@ -1,7 +1,7 @@
 /*
  * Layer order is declared before Todae's sheet so Nook's frame does not
  * override component paint. Component styling stays in the catalog. Only
- * the layout, the page types and the room cards own classes here.
+ * the layout, the page types and the content layouts own classes here.
  */
 @layer app, todae;
 
@@ -17,6 +17,15 @@
     border-block-end: 1px solid var(--todae-color-border, #d9d9de);
   }
 
+  /* The current place, marked for sight as aria-current marks it for a screen reader. */
+  .top-bar-place {
+    display: inline-flex;
+  }
+
+  .top-bar-place:has([aria-current="page"]) {
+    box-shadow: inset 0 -2px 0 currentColor;
+  }
+
   .top-bar-main {
     padding: 2rem 1.5rem;
     max-inline-size: 48rem;
@@ -27,5 +36,28 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
     gap: 1rem;
+  }
+
+  .room-rows {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-block-start: 1px solid var(--todae-color-border, #d9d9de);
+  }
+
+  .room-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+    padding-block: 0.75rem;
+    border-block-end: 1px solid var(--todae-color-border, #d9d9de);
+  }
+
+  .room-row-facts {
+    flex: 1 1 12rem;
+    min-inline-size: 0;
+    overflow-wrap: anywhere;
   }
 }

@@ -39,4 +39,4 @@ export const allowed_page_types = ["booking", "rooms"] as const;
 export const allowed_layouts = ["top-bar"] as const;
 
 /** Compositions that fill a page type's body. */
-export const allowed_content_layouts = ["room-cards"] as const;
+export const allowed_content_layouts = ["room-cards", "room-rows"] as const;

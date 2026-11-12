@@ -1,9 +1,12 @@
 /** The states Nook models. Every one has a view, and check:target-size opens each one. */
-export const modeledStates = ["loading", "no-rooms", "error", "choosing", "booked", "held", "expired"] as const;
+export const modeledStates = ["loading", "no-rooms", "error", "choosing", "booked", "held", "expired", "waitlist", "waiting", "freed"] as const;
 
 export type ModeledState = (typeof modeledStates)[number];
 
 export type Page = "rooms" | "booking";
+
+/** The two places the top bar goes. */
+export type Place = "rooms" | "waitlist";
 
 export const durations = ["30", "60", "90"] as const;
 
@@ -29,16 +32,33 @@ export const sampleRooms: readonly Room[] = [
   { id: "quarry", name: "Quarry", floor: "Floor 3", seats: 2, equipment: ["Phone"] },
 ];
 
+/** Rooms booked for the next hour and a half, which a person can wait for. They come with the free rooms in Nook's one load. */
+export const fullRooms: readonly Room[] = [
+  { id: "cedar", name: "Cedar", floor: "Floor 1", seats: 6, equipment: ["Screen", "Whiteboard"] },
+  { id: "birch", name: "Birch", floor: "Floor 3", seats: 10, equipment: ["Screen", "Video bar"] },
+];
+
 export const loadErrorMessage = "Couldn't load free rooms.";
 
 /** How long a hold lasts before it ends by itself. */
 export const HOLD_MINUTES = 15;
 
+/** How long, on the Waitlist page, until the first room a person waits for frees up. A demo stands in for someone cancelling. */
+export const FREE_UP_SECONDS = 30;
+
 export function roomById(id: string): Room | undefined {
-  return sampleRooms.find((room) => room.id === id);
+  return sampleRooms.find((room) => room.id === id) ?? fullRooms.find((room) => room.id === id);
 }
 
-export type FlowState =
+export function isFreeRoom(id: string): boolean {
+  return sampleRooms.some((room) => room.id === id);
+}
+
+export function isFullRoom(id: string): boolean {
+  return fullRooms.some((room) => room.id === id);
+}
+
+type Screen =
   | { readonly status: "loading" }
   | { readonly status: "no-rooms" }
   | { readonly status: "error"; readonly message: string }
@@ -52,13 +72,27 @@ export type FlowState =
     }
   | { readonly status: "booked"; readonly roomId: string; readonly duration: Duration }
   | { readonly status: "held"; readonly roomId: string; readonly duration: Duration }
-  | { readonly status: "expired"; readonly roomId: string; readonly duration: Duration };
+  | { readonly status: "expired"; readonly roomId: string; readonly duration: Duration }
+  /** The Waitlist page with no room joined. `left` is the room just left, if any. `roomsFree` says which Rooms page to go back to. */
+  | { readonly status: "waitlist"; readonly roomsFree: boolean; readonly left: string | null }
+  /** The Waitlist page while the person waits for at least one room. */
+  | { readonly status: "waiting"; readonly roomsFree: boolean }
+  /** The Waitlist page after `roomId`, which the person waited for, freed up. */
+  | { readonly status: "freed"; readonly roomsFree: boolean; readonly roomId: string };
+
+/** Every state carries the full rooms the person waits for, so leaving the Waitlist page keeps their place. */
+export type FlowState = Screen & { readonly waitingFor: readonly string[] };
 
 export type FlowEvent =
   | { readonly type: "loaded"; readonly rooms: readonly Room[] }
   | { readonly type: "failed"; readonly message: string }
   | { readonly type: "retry" }
   | { readonly type: "hold-ended" }
+  | { readonly type: "room-freed"; readonly roomId: string }
+  | { readonly type: "open-waitlist" }
+  | { readonly type: "open-rooms" }
+  | { readonly type: "join-waitlist"; readonly roomId: string }
+  | { readonly type: "leave-waitlist"; readonly roomId: string }
   | { readonly type: "choose-room"; readonly roomId: string }
   | { readonly type: "back" }
   | { readonly type: "set-duration"; readonly duration: Duration }
