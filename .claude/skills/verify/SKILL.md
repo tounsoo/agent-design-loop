@@ -13,7 +13,7 @@ Run every command from the repository root with Node 22, after `npm ci`.
 
 - `PASS`: every step the change needs ran on the tested commit and passed.
 - `FAIL`: a step ran and failed. Fix the cause and run again.
-- `BLOCKED`: a step could not run, so nothing proves the change either way. No Chrome, the wrong Node major, no base for `check:inventories` and uncommitted changes are all `BLOCKED`.
+- `BLOCKED`: a step could not run, so nothing proves the change either way. No Chrome, the wrong Node major, no base for a check that compares with one and uncommitted changes are all `BLOCKED`.
 
 `BLOCKED` is not a pass. Report each blocked step as unverified in the pull request, with its reason. Never write `PASS` for a run with a blocked step the change needed.
 

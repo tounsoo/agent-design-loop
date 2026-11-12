@@ -5,7 +5,7 @@ export const meta = {
   flags: [{ name: "--list", what: "Prints the previews it would open, without building or Chrome." }],
   fails: [
     "A control under 24 CSS px on a side that misses the WCAG 2.5.8 spacing exception, anywhere in the document: the page and the chrome around it, with each closed disclosure opened on its own.",
-    "A Todae button token floor under 24.",
+    "A button token floor under 24: the font size plus twice the vertical padding of the design system the adapter names.",
     "A `previews` entry for a state that is not modeled, or one that sets `state` itself.",
     "No Chrome found.",
   ],

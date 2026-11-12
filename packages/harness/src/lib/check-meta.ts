@@ -8,9 +8,11 @@
  * Only what the code cannot show is written here. The script's name comes
  * from package.json; whether it is a rule check from `check:rules`; whether
  * it needs `--config`, compares with the base or opens Chrome from what its
- * file imports and calls; its fixture cases from each case.ts. A meta's
- * `flags` are what lib/config.ts accepts besides `--config`, so a flag cannot
- * be documented without being read, or read without being documented.
+ * file imports and calls; its fixture cases from each case.ts. For a script that loads
+ * lib/config.ts, a meta's `flags` are what it accepts besides `--config`, so
+ * a flag cannot be documented without being read, or read without being
+ * documented. A script that parses its own arguments keeps them in step by
+ * hand, and one that parses `--config` itself lists it here.
  */
 
 export type CheckFlag = {

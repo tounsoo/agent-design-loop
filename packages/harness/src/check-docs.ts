@@ -44,7 +44,7 @@ if ("problems" in built) {
 
 const docs: Record<string, string> = { [REFERENCE]: renderReference(built.model) };
 for (const [file, blocks] of Object.entries(renderBlocks(built.model))) {
-  const applied = apply(readFileSync(file, "utf8"), blocks);
+  const applied = apply(readFileSync(file, "utf8").replace(/\r\n/g, "\n"), blocks);
   if ("problem" in applied) {
     console.error(`docs: ${file} ${applied.problem}`);
     process.exit(1);
@@ -54,7 +54,7 @@ for (const [file, blocks] of Object.entries(renderBlocks(built.model))) {
 
 const stale = Object.entries(docs).filter(([file, text]) => {
   try {
-    return readFileSync(file, "utf8") !== text;
+    return readFileSync(file, "utf8").replace(/\r\n/g, "\n") !== text;
   } catch {
     return true;
   }

@@ -41,13 +41,13 @@ The harness's own scripts, written by `npm run docs:gen`:
 | [`npm run check:state-coverage`](docs/checks.md#checkstate-coverage) | Rule | Every modeled flow state has a view. |
 | [`npm run check:target-size`](docs/checks.md#checktarget-size) | Rule | Every control on every preview is at least 24 CSS px, or meets the WCAG 2.5.8 spacing exception, measured in headless Chrome. |
 | [`npm run check:accessible-names`](docs/checks.md#checkaccessible-names) | Rule | On every preview, what a screen reader hears matches the flow's `accessible-names.ts`, and every press either announces what changed or moves focus. |
-| [`npm run check:opt-outs`](docs/checks.md#checkopt-outs) | Repository | Every opt-out in a product's config stands on an adopted proposal that names the rule and the product. |
+| [`npm run check:opt-outs`](docs/checks.md#checkopt-outs) | Product | Every opt-out in a product's config stands on an adopted proposal that names the rule and the product. |
 | [`npm run check:proposals`](docs/checks.md#checkproposals) | Repository | Every proposal has its fields and sections, a new one has a dated name, and each status moves one step at a time from the base. |
 | [`npm run check:retirement`](docs/checks.md#checkretirement) | Repository | A rule most products opt out of is flagged for retirement, and a rule leaves `check:rules`, or a product opts out, only by adopting a proposal. |
 | [`npm run check:loop`](docs/checks.md#checkloop) | Repository | The design loop graph in `packages/harness/design-loop.ts` is one an agent can follow, and the diagram in `how-it-works.md` is the one it draws. |
 | [`npm run check:docs`](docs/checks.md#checkdocs) | Repository | The check reference and the docs that copy it are the ones the code writes: `npm run docs:gen` rewrites them. |
 | [`npm run check:fixtures`](docs/checks.md#checkfixtures) | Repository | The harness's own tests: every illegal fixture case fails with its expected message, and every legal case passes with its. |
-| [`npm run check:product`](docs/checks.md#checkproduct) | Repository | Runs `check:opt-outs`, then every rule check in `check:rules`, on one product, skipping a rule the product opts out of. |
+| [`npm run check:product`](docs/checks.md#checkproduct) | Product | Runs `check:opt-outs`, then every rule check in `check:rules`, on one product, skipping a rule the product opts out of. |
 | [`npm run check:trace`](docs/checks.md#checktrace) | Repository | A change that touches a product carries a loop trace, and every trace it adds or edits is a walk the design loop graph allows. |
 | [`npm run loop:step`](docs/checks.md#loopstep) | Tool | Appends one step to a change's loop trace, and refuses a step the design loop graph does not allow. |
 | [`npm run screenshots`](docs/checks.md#screenshots) | Tool | The design loop's `screenshots` step: captures each preview before and after a change into a gallery the pull request links. |

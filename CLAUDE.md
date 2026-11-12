@@ -41,13 +41,13 @@ Every harness script, in one line each. [The check reference](packages/harness/d
 - [`check:state-coverage`](packages/harness/docs/checks.md#checkstate-coverage), rule, needs `--config`: Every modeled flow state has a view.
 - [`check:target-size`](packages/harness/docs/checks.md#checktarget-size), rule, needs `--config`: Every control on every preview is at least 24 CSS px, or meets the WCAG 2.5.8 spacing exception, measured in headless Chrome.
 - [`check:accessible-names`](packages/harness/docs/checks.md#checkaccessible-names), rule, needs `--config`: On every preview, what a screen reader hears matches the flow's `accessible-names.ts`, and every press either announces what changed or moves focus.
-- [`check:opt-outs`](packages/harness/docs/checks.md#checkopt-outs), repository, needs `--config`: Every opt-out in a product's config stands on an adopted proposal that names the rule and the product.
+- [`check:opt-outs`](packages/harness/docs/checks.md#checkopt-outs), product, needs `--config`: Every opt-out in a product's config stands on an adopted proposal that names the rule and the product.
 - [`check:proposals`](packages/harness/docs/checks.md#checkproposals), repository: Every proposal has its fields and sections, a new one has a dated name, and each status moves one step at a time from the base.
 - [`check:retirement`](packages/harness/docs/checks.md#checkretirement), repository: A rule most products opt out of is flagged for retirement, and a rule leaves `check:rules`, or a product opts out, only by adopting a proposal.
 - [`check:loop`](packages/harness/docs/checks.md#checkloop), repository: The design loop graph in `packages/harness/design-loop.ts` is one an agent can follow, and the diagram in `how-it-works.md` is the one it draws.
 - [`check:docs`](packages/harness/docs/checks.md#checkdocs), repository: The check reference and the docs that copy it are the ones the code writes: `npm run docs:gen` rewrites them.
 - [`check:fixtures`](packages/harness/docs/checks.md#checkfixtures), repository: The harness's own tests: every illegal fixture case fails with its expected message, and every legal case passes with its.
-- [`check:product`](packages/harness/docs/checks.md#checkproduct), repository: Runs `check:opt-outs`, then every rule check in `check:rules`, on one product, skipping a rule the product opts out of.
+- [`check:product`](packages/harness/docs/checks.md#checkproduct), product, needs `--config`: Runs `check:opt-outs`, then every rule check in `check:rules`, on one product, skipping a rule the product opts out of.
 - [`check:trace`](packages/harness/docs/checks.md#checktrace), repository: A change that touches a product carries a loop trace, and every trace it adds or edits is a walk the design loop graph allows.
 - [`loop:step`](packages/harness/docs/checks.md#loopstep), tool: Appends one step to a change's loop trace, and refuses a step the design loop graph does not allow.
 - [`screenshots`](packages/harness/docs/checks.md#screenshots), tool, needs `--config`: The design loop's `screenshots` step: captures each preview before and after a change into a gallery the pull request links.

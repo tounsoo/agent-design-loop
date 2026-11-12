@@ -28,13 +28,13 @@ npm run check:fixtures && npm run check
 | [`check:state-coverage`](#checkstate-coverage) | Rule | `--config <file>` (required) |  |  | 1 illegal, 1 legal |
 | [`check:target-size`](#checktarget-size) | Rule | `--config <file>` (required) and `--list` |  | Yes | 4 illegal, 3 legal |
 | [`check:accessible-names`](#checkaccessible-names) | Rule | `--config <file>` (required) and `--list` |  | Yes | 9 illegal, 5 legal |
-| [`check:opt-outs`](#checkopt-outs) | Repository | `--config <file>` (required) |  |  | 6 illegal, 2 legal |
+| [`check:opt-outs`](#checkopt-outs) | Product | `--config <file>` (required) |  |  | 6 illegal, 2 legal |
 | [`check:proposals`](#checkproposals) | Repository | none | Yes |  |  |
 | [`check:retirement`](#checkretirement) | Repository | none | Yes |  |  |
 | [`check:loop`](#checkloop) | Repository | `--write` |  |  |  |
 | [`check:docs`](#checkdocs) | Repository | `--write` |  |  |  |
 | [`check:fixtures`](#checkfixtures) | Repository | none |  |  |  |
-| [`check:product`](#checkproduct) | Repository | `--config <file>` |  |  |  |
+| [`check:product`](#checkproduct) | Product | `--config <file>` (required) |  |  |  |
 | [`check:trace`](#checktrace) | Repository | none | Yes |  |  |
 | [`loop:step`](#loopstep) | Tool | none |  |  |  |
 | [`screenshots`](#screenshots) | Tool | `--config <file>` (required), `--out <dir>`, `--state <state>`, `--base <ref>` and `--pin <dir>` |  | Yes |  |
@@ -335,7 +335,7 @@ Flags:
 It fails:
 
 - A control under 24 CSS px on a side that misses the WCAG 2.5.8 spacing exception, anywhere in the document: the page and the chrome around it, with each closed disclosure opened on its own.
-- A Todae button token floor under 24.
+- A button token floor under 24: the font size plus twice the vertical padding of the design system the adapter names.
 - A `previews` entry for a state that is not modeled, or one that sets `state` itself.
 - No Chrome found.
 
@@ -402,7 +402,7 @@ Fixture cases, under `packages/harness/fixtures/`, that run it:
 
 Every opt-out in a product's config stands on an adopted proposal that names the rule and the product.
 
-A repository check: it reads the repository, not one product. Run it as `npm run check:opt-outs`, from the repository root, defined in `packages/harness/src/check-opt-outs.ts`. It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it.
+A product check: it reads one product's config, and is not one of `check:rules`. Run it as `npm run check:opt-outs`, from the repository root, defined in `packages/harness/src/check-opt-outs.ts`. It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it.
 
 It fails:
 
@@ -520,11 +520,7 @@ Name cases to run only those: `npm run check:fixtures -- illegal/two-primaries`.
 
 Runs `check:opt-outs`, then every rule check in `check:rules`, on one product, skipping a rule the product opts out of.
 
-A repository check: it reads the repository, not one product. Run it as `npm run check:product`, from the repository root, defined in `packages/harness/src/check-product.ts`.
-
-Flags:
-
-- `--config <file>`: Required, and the only flag: the product's `harness.config.ts`, passed to every check it runs.
+A product check: it reads one product's config, and is not one of `check:rules`. Run it as `npm run check:product`, from the repository root, defined in `packages/harness/src/check-product.ts`. It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it.
 
 It fails:
 
@@ -545,7 +541,7 @@ It fails:
 - A trace that ends its run with a change to checked state that no passing eval node follows. A run paused at a checkpoint with an edge out may stop unchecked.
 - A file under `traces/` that is not a `.jsonl` trace or the folder's README.
 
-It is not in `npm run check`, because the eval node runs the gate in the middle of the walk, before the trace ends at a checkpoint. CI runs it after `check:loop`, and an agent runs it before pushing. `npm run loop:step` writes a trace step by step. A trace is the agent's own record, so passing shows the record is a walk the graph allows, not that the work was done: [proposal 0010](../../../proposals/0010-loop-trace.md). Only traces the change adds or edits are read.
+It is not in `npm run check`, because the eval node runs the gate in the middle of the walk, before the trace ends at a checkpoint. CI runs it after the build gate, and an agent runs it before pushing. `npm run loop:step` writes a trace step by step. A trace is the agent's own record, so passing shows the record is a walk the graph allows, not that the work was done: [proposal 0010](../../../proposals/0010-loop-trace.md). Only traces the change adds or edits are read.
 
 ## `loop:step`
 

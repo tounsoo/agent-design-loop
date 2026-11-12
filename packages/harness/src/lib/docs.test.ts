@@ -56,6 +56,25 @@ describe("facts", () => {
   });
 });
 
+describe("reached", () => {
+  it("follows .js specifiers, index files and re-exports", () => {
+    const files: Record<string, string> = {
+      "main.ts": 'import { a } from "./lib/a.js";\nexport { b } from "./lib/b";\n',
+      "lib/a.ts": "export const a = 1;\n",
+      "lib/b/index.ts": 'import puppeteer from "puppeteer-core";\n',
+    };
+    const readFiles: Sources = (file) => {
+      const text = files[file];
+      if (text === undefined) throw new Error(`no ${file}`);
+      return text;
+    };
+    expect(facts("main.ts", readFiles).chrome).toBe(true);
+  });
+  it("names an import it cannot find", () => {
+    expect(() => facts("main.ts", (file) => (file === "main.ts" ? 'import { x } from "./gone";\n' : (() => { throw new Error("no"); })()))).toThrow("main.ts imports ./gone");
+  });
+});
+
 describe("gateSteps", () => {
   it("lists the steps in order and names the config a product step passes", () => {
     expect(gateSteps(scripts)).toEqual([
@@ -112,6 +131,14 @@ describe("buildModel", () => {
   });
 });
 
+describe("kinds", () => {
+  it("calls a script whose meta takes --config a product check that needs it", () => {
+    const built = buildModel({ scripts, files, metas: new Map([...metas, ["check-c.ts", meta("C.", { flags: [{ name: "--config", value: "<file>", what: "The config." }] })]]), read, cases });
+    if ("problems" in built) throw new Error(built.problems.join("\n"));
+    expect(renderReference(built.model)).toContain("| [`check:c`](#checkc) | Product | `--config <file>` (required) |");
+  });
+});
+
 describe("renderers", () => {
   it("writes the reference with the gate, the facts and the fixture cases", () => {
     const text = renderReference(model());
@@ -126,8 +153,16 @@ describe("renderers", () => {
       ["```sh", "npm run lint", "for config in products/one/harness.config.ts; do", "  for check in check:opt-outs check:a; do", '    npm run "$check" -- --config "$config" || break 2', "  done", "done", "npm run check:c", "```"].join("\n"),
     );
   });
+  it("keeps the gate's order when product steps are not together", () => {
+    const split = { ...scripts, check: "npm run check:one && npm run lint && npm run check:one" };
+    const built = buildModel({ scripts: split, files, metas, read, cases });
+    if ("problems" in built) throw new Error(built.problems.join("\n"));
+    const lines = renderNoChrome(built.model).split("\n");
+    expect(lines.filter((line) => line.startsWith("for config"))).toHaveLength(2);
+    expect(lines.indexOf("npm run lint")).toBeGreaterThan(lines.indexOf("for config in products/one/harness.config.ts; do"));
+  });
   it("counts only the Chrome cases that open a page", () => {
-    expect(renderBlockers(model())).toContain("and the fixture case that opens a page: `illegal/bad-b`.");
+    expect(renderBlockers(model())).toContain("and so are the fixture case that opens a page: `illegal/bad-b`.");
   });
 });
 

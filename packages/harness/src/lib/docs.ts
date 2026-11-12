@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { CheckMeta } from "./check-meta";
@@ -69,11 +69,22 @@ export type Sources = (file: string) => string;
  */
 export function reached(file: string, read: Sources): Set<string> {
   const seen = new Set<string>();
+  const readable = (name: string): boolean => {
+    try {
+      read(name);
+      return true;
+    } catch {
+      return false;
+    }
+  };
   const visit = (current: string): void => {
     if (seen.has(current)) return;
     seen.add(current);
-    for (const match of read(current).matchAll(/^import (?!type )[^;]*?from "(\.{1,2}\/[^"]+)";/gms)) {
-      const target = path.posix.normalize(path.posix.join(path.posix.dirname(current), `${match[1]}.ts`));
+    for (const match of read(current).matchAll(/^(?:import|export) (?!type )[^;]*?from "(\.{1,2}\/[^"]+)";/gms)) {
+      const base = path.posix.normalize(path.posix.join(path.posix.dirname(current), match[1] ?? ""));
+      const stem = base.replace(/\.(?:js|ts|tsx)$/, "");
+      const target = [`${stem}.ts`, `${stem}.tsx`, `${stem}/index.ts`, `${stem}/index.tsx`].find(readable);
+      if (!target) throw new Error(`${current} imports ${match[1]}, which is not a .ts or .tsx file under the harness src folder.`);
       visit(target);
     }
   };
@@ -120,7 +131,8 @@ export function readCases(fixtures: string): FixtureCase[] {
   for (const container of ["", "illegal"]) {
     const dir = path.join(fixtures, container);
     for (const entry of readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
-      if (!entry.isDirectory() || (container === "" && entry.name === "illegal")) continue;
+      const isDir = entry.isDirectory() || (entry.isSymbolicLink() && statSync(path.join(dir, entry.name)).isDirectory());
+      if (!isDir || (container === "" && entry.name === "illegal")) continue;
       const file = path.join(dir, entry.name, "case.ts");
       if (!existsSync(file)) continue;
       const text = readFileSync(file, "utf8");
@@ -177,7 +189,16 @@ export function buildModel(input: {
       problems.push(`npm run ${name} runs ${file}, which has no ${file.replace(/\.ts$/, ".meta.ts")} beside it.`);
       continue;
     }
-    scripts.push({ name, file, meta, rule: rules.includes(name), ...facts(file, input.read) });
+    let found: Pick<Script, "config" | "base" | "chrome">;
+    try {
+      found = facts(file, input.read);
+    } catch (error) {
+      problems.push(`npm run ${name}: ${error instanceof Error ? error.message : String(error)}`);
+      continue;
+    }
+    // A script that parses `--config` itself, as check:product does, says so in its meta.
+    const config = found.config || (meta.flags ?? []).some((flag) => flag.name === "--config");
+    scripts.push({ name, file, meta, rule: rules.includes(name), ...found, config });
   }
   const run = new Set(input.files.values());
   for (const file of input.metas.keys()) {
@@ -229,7 +250,7 @@ function list(items: readonly string[]): string {
 }
 
 function kind(script: Script): string {
-  return script.rule ? "Rule" : script.meta.tool ? "Tool" : "Repository";
+  return script.rule ? "Rule" : script.meta.tool ? "Tool" : script.config ? "Product" : "Repository";
 }
 
 function casesFor(model: Model, script: string): FixtureCase[] {
@@ -243,7 +264,7 @@ export function chromeCases(model: Model): FixtureCase[] {
 }
 
 function flagsLine(script: Script): string {
-  const flags = [...(script.config ? ["`--config <file>` (required)"] : []), ...(script.meta.flags ?? []).map((flag) => code(`${flag.name}${flag.value ? ` ${flag.value}` : ""}`))];
+  const flags = [...(script.config ? ["`--config <file>` (required)"] : []), ...(script.meta.flags ?? []).filter((flag) => flag.name !== "--config").map((flag) => code(`${flag.name}${flag.value ? ` ${flag.value}` : ""}`))];
   return flags.length > 0 ? list(flags) : "none";
 }
 
@@ -295,20 +316,23 @@ export function renderReference(model: Model): string {
   for (const script of model.scripts) {
     lines.push("", `## ${code(script.name)}`, "", script.meta.summary, "");
     const about = [
-      script.rule ? "A rule check: `check:rules` runs it, and `check:product` runs it on each product." : script.meta.tool ? "A tool: the build gate does not run it." : "A repository check: it reads the repository, not one product.",
+      script.rule
+        ? "A rule check: `check:rules` runs it, and `check:product` runs it on each product."
+        : script.meta.tool
+          ? "A tool: the build gate does not run it."
+          : script.config
+            ? "A product check: it reads one product's config, and is not one of `check:rules`."
+            : "A repository check: it reads the repository, not one product.",
       `Run it as \`npm run ${script.name}\`, from the repository root, defined in \`packages/harness/src/${script.file}\`.`,
-      script.config
-        ? "It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it."
-        : script.meta.flags?.some((flag) => flag.name === "--config")
-          ? ""
-          : "It takes no `--config`.",
+      script.config ? "It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it." : "It takes no `--config`.",
       script.base ? "It compares the change with its base." : "",
       script.chrome ? "It opens pages in headless Chrome." : "",
     ];
     lines.push(about.filter(Boolean).join(" "));
-    if (script.meta.flags?.length) {
+    const flags = (script.meta.flags ?? []).filter((flag) => flag.name !== "--config");
+    if (flags.length > 0) {
       lines.push("", "Flags:", "");
-      for (const flag of script.meta.flags) lines.push(`- ${code(`${flag.name}${flag.value ? ` ${flag.value}` : ""}`)}: ${flag.what}`);
+      for (const flag of flags) lines.push(`- ${code(`${flag.name}${flag.value ? ` ${flag.value}` : ""}`)}: ${flag.what}`);
     }
     if (script.meta.fails?.length) {
       lines.push("", "It fails:", "");
@@ -348,32 +372,36 @@ export function renderClaudeList(model: Model): string {
 /** The verify skill's commands for a machine with no Chrome: the build gate with the Chrome checks left out. */
 export function renderNoChrome(model: Model): string {
   const chrome = new Set(model.scripts.filter((script) => script.chrome).map((script) => script.name));
-  const products = model.gate.filter((step) => step.config !== null);
-  const first = model.gate.findIndex((step) => step.config !== null);
-  const last = model.gate.map((step) => step.config !== null).lastIndexOf(true);
-  const before = first === -1 ? model.gate : model.gate.slice(0, first);
-  const after = first === -1 ? [] : model.gate.slice(last + 1);
-  if (products.length === 0) return ["```sh", before.map((step) => `npm run ${step.script}`).join(" && "), "```"].join("\n");
-  return [
-    "```sh",
-    before.map((step) => `npm run ${step.script}`).join(" && "),
-    `for config in ${products.map((step) => step.config).join(" ")}; do`,
-    `  for check in ${["check:opt-outs", ...model.rules].filter((name) => !chrome.has(name)).join(" ")}; do`,
-    '    npm run "$check" -- --config "$config" || break 2',
-    "  done",
-    "done",
-    after.map((step) => `npm run ${step.script}`).join(" && "),
-    "```",
-  ].join("\n");
+  const checks = ["check:opt-outs", ...model.rules].filter((name) => !chrome.has(name));
+  // Each run of plain steps is one && line; each run of product steps is one loop over their configs, so the order stays the gate's.
+  const runs: GateStep[][] = [];
+  for (const step of model.gate) {
+    const current = runs.at(-1);
+    if (current && (current[0]?.config === null) === (step.config === null)) current.push(step);
+    else runs.push([step]);
+  }
+  const lines = runs.flatMap((run) =>
+    run[0]?.config === null
+      ? [run.map((step) => `npm run ${step.script}`).join(" && ")]
+      : [
+          `for config in ${run.map((step) => step.config).join(" ")}; do`,
+          `  for check in ${checks.join(" ")}; do`,
+          '    npm run "$check" -- --config "$config" || break 2',
+          "  done",
+          "done",
+        ],
+  );
+  return ["```sh", ...lines, "```"].join("\n");
 }
 
 /** The verify skill's sentence naming what needs Chrome and what compares with the base. */
 export function renderBlockers(model: Model): string {
   const chrome = model.scripts.filter((script) => script.chrome && !script.meta.tool).map((script) => code(script.name));
+  const tools = model.scripts.filter((script) => script.chrome && script.meta.tool).map((script) => code(script.name));
   const cases = chromeCases(model).map((item) => code(item.name));
   const base = model.scripts.filter((script) => script.base).map((script) => code(script.name));
   return [
-    `Without a Chrome that starts, ${list(chrome)} are \`BLOCKED\`, and so are \`screenshots\` and the ${cases.length === 1 ? "fixture case that opens" : `${cases.length} fixture cases that open`} a page: ${list(cases)}.`,
+    `Without a Chrome that starts, ${list(chrome)} are \`BLOCKED\`, and so are ${tools.length > 0 ? `${list(tools)} and ` : ""}the ${cases.length === 1 ? "fixture case that opens" : `${cases.length} fixture cases that open`} a page: ${list(cases)}.`,
     `Without a base, ${list(base)} are \`BLOCKED\`.`,
   ].join(" ");
 }
