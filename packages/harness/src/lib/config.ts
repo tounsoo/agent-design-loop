@@ -23,7 +23,7 @@ const CHECK_FLAGS: Record<string, readonly string[]> = {
   "check-inventories.ts": ["--base", "--proposals", "--base-proposals"],
   "check-target-size.ts": ["--list"],
   "check-accessible-names.ts": ["--list"],
-  "screenshots.ts": ["--out", "--state", "--base"],
+  "screenshots.ts": ["--out", "--state", "--base", "--pin"],
 };
 
 function rejectUnknownFlags(): void {
