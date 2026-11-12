@@ -6,7 +6,7 @@ export const meta = {
   flags: [
     { name: "--out", value: "<dir>", what: "The gallery folder, `products/<name>/review/screenshots/<change>`. Each run replaces it whole, with the `CRITIQUE.md` the `critique` step wrote of the old screenshots." },
     { name: "--state", value: "<state>", what: "Keeps the scenarios of that state. Repeat it for each state the change touches, or leave it out for every scenario." },
-    { name: "--scenario", value: "<id>", what: "Keeps that scenario. Repeat it for each one." },
+    { name: "--scenario", value: "<id>", what: "Keeps that scenario. Repeat it for each one. With `--state` too, it keeps only the scenarios both keep, and a run that keeps none fails." },
     { name: "--view", value: "<view>", what: "Keeps that view: `desktop-light`, `desktop-dark`, `phone-light` or `phone-dark`. Repeat it for each one, or leave it out for all four." },
     { name: "--base", value: "<ref>", what: "Also captures the same scenarios and views at that commit, so the folder holds `before/` and `after/`. At a commit from before scenarios it captures nothing there and says so." },
     { name: "--pin", value: "<dir>", what: "Takes only `--config`. Points each image's link in a committed gallery at the raw PNG at that commit, and prints the line for the pull request description. It refuses a folder with anything but its `README.md` uncommitted." },

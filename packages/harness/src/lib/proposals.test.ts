@@ -440,6 +440,16 @@ describe("## States names a scenario", () => {
     expect("proposal" in parsed && parsed.proposal?.states?.find((state) => state.name === "Empty")?.scenarios).toEqual(["panel-empty"]);
   });
 
+  it("reads a list of scenarios, and only lowercase slugs, so a placeholder names none", () => {
+    const read = (empty: string) => {
+      const parsed = parseProposal("p.md", withStates(STATES.replace("has no history yet.", empty)));
+      return "proposal" in parsed ? parsed.proposal?.states?.find((state) => state.name === "Empty")?.scenarios : undefined;
+    };
+    expect(read("has no history yet, scenarios `panel-empty`, `panel-new` and `panel-cleared`.")).toEqual(["panel-empty", "panel-new", "panel-cleared"]);
+    expect(read("has no history yet, scenario `<id>`.")).toEqual([]);
+    expect(read("has no history yet, scenario `Panel_Empty`.")).toEqual([]);
+  });
+
   it("fails a new proposal whose edge case names no scenario, and passes one out of scope or ordinary", () => {
     const states = [edge("Pending", []), edge("Empty", []), edge("Loading", [], true), edge("Long content", ["panel-long"])];
     const problems = transitionProblems(new Map(), new Map([["n.md", withEdges("n.md", "open", states)]]));

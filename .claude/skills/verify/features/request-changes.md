@@ -17,7 +17,7 @@ On an invoice, Request changes is the secondary action. Choosing it reveals a re
 
 Preconditions:
 
-- The baseline preconditions hold, and Meridian is on an invoice (`?state=ready&page=detail`).
+- The baseline preconditions hold, and Meridian is on an invoice (`?scenario=invoice-detail`).
 
 - **Reveal.** Choose `Request changes`. The textbox `What should change?` appears.
 - **Required.** Choose `Request changes` again with the box empty. The error `Enter what the vendor should change.` shows.

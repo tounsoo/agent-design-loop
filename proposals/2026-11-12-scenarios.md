@@ -1,5 +1,5 @@
 ---
-status: decided
+status: adopted
 changes: []
 ---
 # Scenarios replace previews

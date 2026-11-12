@@ -284,14 +284,14 @@ function judgeContrast(query: string, reading: Reading, view: View): void {
     note(
       `${query}, ${view.scheme} colour scheme: every run of text sits over a background image or gradient, so no contrast was measured. Put the page's text on a background colour. At {views}.`,
       view,
-      view.label,
+      size(view),
     );
   }
   if (failures.size === 0) return;
   const list = [...failures.values()];
   const shown = list.slice(0, 5).join("; ");
   const more = list.length > 5 ? `; and ${list.length - 5} more` : "";
-  note(`${query}, ${view.scheme} colour scheme: text under WCAG AA contrast: ${shown}${more}. At {views}.`, view, view.label);
+  note(`${query}, ${view.scheme} colour scheme: text under WCAG AA contrast: ${shown}${more}. At {views}.`, view);
 }
 
 function judgePhoneLayout(query: string, reading: Reading, view: View): void {

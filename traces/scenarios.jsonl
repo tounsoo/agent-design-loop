@@ -1,0 +1,8 @@
+{"node":"read","at":"2026-11-12T11:49:57.794Z"}
+{"node":"route","when":"needs a new pattern","at":"2026-11-12T11:50:01.932Z"}
+{"node":"propose","at":"2026-11-12T11:50:02.225Z"}
+{"node":"scope","when":"anything else","at":"2026-11-12T11:50:02.522Z"}
+{"node":"proposal-pull-request","at":"2026-11-12T11:50:02.859Z"}
+{"node":"approval","when":"approved","at":"2026-11-12T11:50:03.152Z"}
+{"node":"adopt","at":"2026-11-12T11:50:03.474Z"}
+{"node":"build","at":"2026-11-12T11:50:03.789Z"}

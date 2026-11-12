@@ -65,6 +65,10 @@ const picked = scenarios.filter(
   (scenario) => (onlyStates.length === 0 || onlyStates.includes(scenario.state)) && (onlyScenarios.length === 0 || onlyScenarios.includes(scenario.id)),
 );
 
+if (picked.length === 0 && !process.env.SCREENSHOTS_BASE_RUN) {
+  fail(`No scenario in ${configName}'s flows is both of a --state and a --scenario given. Each filter keeps only what the other keeps too, so give a scenario of the state, or one filter.`);
+}
+
 const chrome = findChrome();
 if ("missing" in chrome) fail(chrome.missing);
 
@@ -81,19 +85,15 @@ assertGallery(outDir);
 mkdirSync(path.dirname(outDir), { recursive: true });
 const staging = mkdtempSync(path.join(path.dirname(outDir), `.${path.basename(outDir)}-`));
 process.on("exit", () => rmSync(staging, { recursive: true, force: true }));
-if (baseRef) {
-  // false when the base predates scenarios: the gallery then has no before side.
-  const before = captureAtBase(baseRef, path.join(staging, "before"), chrome.path);
-  if (!before) console.log(`screenshots: ${baseRef} predates scenarios, so its screenshots would pair with none here. The gallery has no before side.`);
-  await capture(picked, path.join(staging, "after"), chrome.path);
-} else {
-  await capture(picked, staging, chrome.path);
-}
+// false when the base predates scenarios: the gallery is then laid out as one with no base, so --pin and critique read it as one.
+const paired = baseRef !== undefined && captureAtBase(baseRef, path.join(staging, "before"), chrome.path);
+if (baseRef !== undefined && !paired) console.log(`screenshots: ${baseRef} predates scenarios, so its screenshots would pair with none here. The gallery has no before side.`);
+await capture(picked, paired ? path.join(staging, "after") : staging, chrome.path);
 const shots = {
-  before: baseRef ? pngs(path.join(staging, "before")) : [],
-  after: pngs(baseRef ? path.join(staging, "after") : staging),
+  before: paired ? pngs(path.join(staging, "before")) : [],
+  after: pngs(paired ? path.join(staging, "after") : staging),
 };
-writeFileSync(path.join(staging, "README.md"), galleryMarkdown({ product: configName, base: baseRef ? labelFor(baseRef) : null, ...shots }));
+writeFileSync(path.join(staging, "README.md"), galleryMarkdown({ product: configName, base: paired && baseRef !== undefined ? labelFor(baseRef) : null, ...shots }));
 rmSync(outDir, { recursive: true, force: true });
 renameSync(staging, outDir);
 

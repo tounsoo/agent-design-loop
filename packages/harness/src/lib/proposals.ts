@@ -81,8 +81,19 @@ export type ProposalState = {
   readonly scenarios: readonly string[];
 };
 
-/** How a `## States` item names the scenario that renders it: ``scenario `booking-lantern` ``. */
-const SCENARIO_MENTION = /\bscenario `([^`\s]+)`/gi;
+/**
+ * How a `## States` item names the scenarios that render it: ``scenario `booking-lantern` ``,
+ * or ``scenarios `booking-lantern` and `booking-quarry` ``. Only a lowercase slug counts, so a
+ * placeholder such as ``scenario `<id>` `` names nothing.
+ */
+const SLUG = "[a-z0-9]+(?:-[a-z0-9]+)*";
+const SCENARIO_MENTION = new RegExp(`\\b[Ss]cenarios? (\`${SLUG}\`(?:(?:,\\s*|,?\\s+(?:and|or)\\s+)\`${SLUG}\`)*)`, "g");
+const SCENARIO_ID = new RegExp(`\`(${SLUG})\``, "g");
+
+/** Every scenario id a `## States` item's text names. */
+function scenarioMentions(text: string): string[] {
+  return [...text.matchAll(SCENARIO_MENTION)].flatMap((mention) => [...(mention[1] ?? "").matchAll(SCENARIO_ID)].map((id) => id[1] ?? ""));
+}
 
 export type OptOutEntry = { readonly rule: string; readonly source: string };
 
@@ -253,7 +264,7 @@ function readStates(content: string): { states: ProposalState[]; problems: strin
     else if (outOfScope && text.replace(/^out of scope\b[\s:,.;\-\u2013\u2014]*/i, "") === "") {
       problems.push(`"## States" item "${name}" is out of scope with no reason. Write "Out of scope, <why>".`);
     }
-    states.push({ name, text, outOfScope, scenarios: [...text.matchAll(SCENARIO_MENTION)].map((mention) => mention[1] ?? "") });
+    states.push({ name, text, outOfScope, scenarios: scenarioMentions(text) });
   }
   if (states.length === 0) {
     problems.push(`"## States" lists no states. Write one "- <state>: <what the screen shows>" item for each, the edge cases ${EDGE_STATES.join(", ")} included.`);

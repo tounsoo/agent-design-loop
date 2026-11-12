@@ -25,10 +25,10 @@ npm run check:fixtures && npm run check
 | [`check:priority`](#checkpriority) | Rule | `--config <file>` (required) |  |  | 8 illegal, 5 legal |
 | [`check:one-thing`](#checkone-thing) | Rule | `--config <file>` (required) |  |  | 16 illegal, 5 legal |
 | [`check:inventories`](#checkinventories) | Rule | `--config <file>` (required), `--base <file>`, `--proposals <dir>` and `--base-proposals <dir>` | Yes |  | 33 illegal, 9 legal |
-| [`check:state-coverage`](#checkstate-coverage) | Rule | `--config <file>` (required) |  |  | 5 illegal, 1 legal |
+| [`check:state-coverage`](#checkstate-coverage) | Rule | `--config <file>` (required) |  |  | 8 illegal, 1 legal |
 | [`check:target-size`](#checktarget-size) | Rule | `--config <file>` (required) and `--list` |  | Yes | 3 illegal, 3 legal |
-| [`check:accessible-names`](#checkaccessible-names) | Rule | `--config <file>` (required) and `--list` |  | Yes | 10 illegal, 5 legal |
-| [`check:rendered-page`](#checkrendered-page) | Rule | `--config <file>` (required) |  | Yes | 10 illegal, 2 legal |
+| [`check:accessible-names`](#checkaccessible-names) | Rule | `--config <file>` (required) and `--list` |  | Yes | 11 illegal, 5 legal |
+| [`check:rendered-page`](#checkrendered-page) | Rule | `--config <file>` (required) |  | Yes | 11 illegal, 2 legal |
 | [`check:opt-outs`](#checkopt-outs) | Product | `--config <file>` (required) |  |  | 6 illegal, 2 legal |
 | [`check:products`](#checkproducts) | Repository | `--json` |  | Yes |  |
 | [`check:proposals`](#checkproposals) | Repository | none | Yes |  |  |
@@ -356,6 +356,9 @@ Fixture cases, under `packages/harness/fixtures/`, that run it:
 - `illegal/missing-view`: Illegal: invoice-approved is modeled and has no view. It fails with "has no view".
 - `illegal/scenario-not-a-slug`: Illegal: a scenario id is not a lowercase slug, so it would not read in an address, a screenshot's file name or a message. It fails with ""Invoice_Queue" is not a lowercase slug".
 - `illegal/scenario-unmodeled-state`: Illegal: a scenario renders "confirming", which is not a modeled state, so it opens nothing the flow promises to handle. It fails with "scenarios.ts "confirming" renders "confirming", which is not a modeled state".
+- `illegal/scenario-without-state`: Illegal: a scenario has a page but no state, so it names no case the flow handles. It fails with ""invoice-detail" must be an object with a state".
+- `illegal/scenarios-file-missing`: Illegal: the flow has no scenarios.ts beside its states module, so nothing says which cases to open. It fails with "scenarios.ts is missing. Beside the flow's states module".
+- `illegal/scenarios-not-exported`: Illegal: the flow's scenarios.ts exports its cases under another name, so the checks would open nothing. It fails with "does not export scenarios as an object of scenario id to".
 - `illegal/state-without-scenario`: Illegal: the modeled state changes-requested has no scenario, so no check opens it and no screenshot shows it. It fails with "has no scenario for the modeled state "changes-requested"".
 
 ## `check:target-size`
@@ -430,6 +433,7 @@ Fixture cases, under `packages/harness/fixtures/`, that run it:
 - `listed-press-gap`: Legal: the silent leave from illegal/silent-waitlist-leave, listed in knownGaps while its fix waits for its own pull request. The check passes and counts it as known. It passes with "5 of 6 presses tell a screen reader what changed and keep focus on the page, and the other 1 has a problem its flow lists in knownGaps".
 - `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes, and npm run new:product starts a product from a copy that passes. It passes with "7 scenarios declare 7 announcements" (with --list) and passes with "7 scenarios announce the 7 things their flows declare, and every control has a name at 1280 by 900 and at 390 by 844. 9 of 9 presses".
 - `illegal/no-declarations`: Illegal: the flow has no accessible-names.ts beside its views module. It fails with "accessible-names.ts is missing. Beside the flow's views module" (with --list).
+- `illegal/phone-only-unnamed-control`: Illegal: the sidebar gives way to a menu button at phone width, and the button has no name. Every control has a name at 1280 by 900, so only the phone pass finds it. It fails with "at 390 by 844: button <button type="button" class="menu-button"> has no accessible name".
 - `illegal/silent-waitlist-leave`: Illegal: Nook's Waitlist from pull request 42 after its first fix and before its second. Leaving Birch's waitlist while Cedar is free turns the row's button into Join waitlist, keeps focus on it, and leaves the status region as it was, so a screen reader hears nothing. It fails with "pressing button "Leave waitlist for Birch" changes the page, and a screen reader hears nothing".
 - `illegal/stale-declaration`: Illegal: the declarations name a scenario the flow does not have, so they would compare nothing there. It fails with ""ready" is not a scenario of this flow" (with --list).
 - `illegal/stale-press-gap`: Illegal: knownGaps still lists the silent leave after the fix that says it, on announced-waitlist's page. A gap that no longer happens fails, so the list only shrinks. It fails with "knownGaps lists button "Leave waitlist for Birch" as "silent", and pressing it on scenario freed no longer has that problem".
@@ -480,6 +484,7 @@ Fixture cases, under `packages/harness/fixtures/`, that run it:
 - `illegal/heading-in-a-one-item-list`: Illegal: a list of one item is a section in disguise, so its heading sits two steps under the title like any section heading. It fails with "section heading h2 "Vendor" is 24px, 1 type-scale step below the title".
 - `illegal/no-phone-viewport`: Illegal: with no viewport meta, Chrome lays a phone page out about 980 px wide and shrinks it to fit. It fails with "px wide on a 390 px phone, so everything on it is shrunk. Add <meta name="viewport"".
 - `illegal/page-without-a-title`: Illegal: the page's name is bold text, not an h1, so the check has no title to hold its headings to, and a screen reader has none to land on. It fails with "detail page: no visible title".
+- `illegal/phone-dark-contrast`: Illegal: the text turns light on the white page only on a phone in the dark scheme. Light passes at both widths and dark passes at 1280 by 900, so only the phone's dark view finds it. It fails with "dark colour scheme: text under WCAG AA contrast: "Northwind Office Supply" is #eeeeee on #ffffff, 1.16:1, under 3:1; "Total due" is #eeeeee on #ffffff, 1.16:1, under 4.5:1. At 390 by 844.".
 - `illegal/primary-below-the-fold`: Illegal: Approve, the rank-1 action, sits under 1000 px of content, below the first view at desktop and phone width, as PR 49's was before it pinned its action row. It fails with "at 1280 by 900: "Approve" is at" and fails with "at 390 by 844: "Approve" is at".
 - `illegal/primary-covered`: Illegal: Approve sits in the first view, but a fixed banner lies over it, so a person cannot reach it without dismissing something first. It fails with "but div.cookie-banner "We use cookies." covers its centre".
 - `illegal/section-heading-near-title`: Illegal: a 24 px section heading under a 30 px title, one step of Todae's type scale. Sections sit at least two steps below the title, as PR 48 and PR 49's Later today, Amenities, Vendor and Activity did not. It fails with "section heading h2 "Vendor" is 24px, 1 type-scale step below the title".
@@ -700,7 +705,7 @@ Flags:
 
 - `--out <dir>`: The gallery folder, `products/<name>/review/screenshots/<change>`. Each run replaces it whole, with the `CRITIQUE.md` the `critique` step wrote of the old screenshots.
 - `--state <state>`: Keeps the scenarios of that state. Repeat it for each state the change touches, or leave it out for every scenario.
-- `--scenario <id>`: Keeps that scenario. Repeat it for each one.
+- `--scenario <id>`: Keeps that scenario. Repeat it for each one. With `--state` too, it keeps only the scenarios both keep, and a run that keeps none fails.
 - `--view <view>`: Keeps that view: `desktop-light`, `desktop-dark`, `phone-light` or `phone-dark`. Repeat it for each one, or leave it out for all four.
 - `--base <ref>`: Also captures the same scenarios and views at that commit, so the folder holds `before/` and `after/`. At a commit from before scenarios it captures nothing there and says so.
 - `--pin <dir>`: Takes only `--config`. Points each image's link in a committed gallery at the raw PNG at that commit, and prints the line for the pull request description. It refuses a folder with anything but its `README.md` uncommitted.
