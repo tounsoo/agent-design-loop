@@ -26,8 +26,8 @@ import {
   formatMoney,
   invoiceHref,
   statusLabel,
-  type CollectionRoute,
   type Invoice,
+  type InvoiceRoute,
   type InvoiceStatus,
 } from "../../flows/invoice-approval";
 
@@ -64,15 +64,6 @@ type Facet = {
 
 type ActiveChip = { key: string; label: string; value: string };
 
-type VendorRow = {
-  name: string;
-  openCount: number;
-  lastNumber: string;
-  lastDue: string;
-  lastDueOn: string;
-  open: string;
-};
-
 export type CollectionBrowser = {
   heading: string;
   description: string;
@@ -82,39 +73,8 @@ export type CollectionBrowser = {
   pagination: ReactNode | null;
 };
 
-function noun(kind: "invoice" | "vendor", count: number): string {
-  if (kind === "vendor") return count === 1 ? "vendor" : "vendors";
+function noun(count: number): string {
   return count === 1 ? "invoice" : "invoices";
-}
-
-function vendorsFrom(invoices: readonly Invoice[]): VendorRow[] {
-  const byName = new Map<string, VendorRow>();
-  for (const invoice of invoices) {
-    const current = byName.get(invoice.vendor);
-    if (!current) {
-      byName.set(invoice.vendor, {
-        name: invoice.vendor,
-        openCount: invoice.status === "pending" ? 1 : 0,
-        lastNumber: invoice.number,
-        lastDue: invoice.due,
-        lastDueOn: invoice.dueOn,
-        open: "",
-      });
-      continue;
-    }
-    const later = invoice.dueOn > current.lastDueOn;
-    byName.set(invoice.vendor, {
-      name: invoice.vendor,
-      openCount: current.openCount + (invoice.status === "pending" ? 1 : 0),
-      lastNumber: later ? invoice.number : current.lastNumber,
-      lastDue: later ? invoice.due : current.lastDue,
-      lastDueOn: later ? invoice.dueOn : current.lastDueOn,
-      open: "",
-    });
-  }
-  return [...byName.values()]
-    .map((row) => ({ ...row, open: row.openCount > 0 ? "Has open invoices" : "No open invoices" }))
-    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 function compareValue(left: string | number, right: string | number): number {
@@ -123,7 +83,7 @@ function compareValue(left: string | number, right: string | number): number {
 }
 
 export function useCollectionBrowser(
-  route: CollectionRoute,
+  route: InvoiceRoute,
   invoices: readonly Invoice[],
   onOpen: (invoiceId: string) => void,
 ): CollectionBrowser {
@@ -147,27 +107,22 @@ export function useCollectionBrowser(
     setQuery("");
     setPage(1);
     setFilters({});
-    setSorted(route === "vendors" ? { column: "name", direction: "ascending" } : { column: "due", direction: "ascending" });
+    setSorted({ column: "due", direction: "ascending" });
     setOpenMenu(null);
     skipAnnounce.current = true;
   }
 
-  const kind = route === "vendors" ? "vendor" : "invoice";
   const invoiceRows = route === "to-approve" ? invoices.filter((invoice) => invoice.status === "pending") : invoices;
-  const vendorRows = vendorsFrom(invoices);
-  const facets: readonly Facet[] =
-    route === "vendors"
-      ? [{ key: "open", label: "Open invoices", options: ["Has open invoices", "No open invoices"] }]
-      : [
-          ...(route === "invoices"
-            ? [{ key: "status", label: "Status", options: ["Pending", "Approved", "Changes requested"] } satisfies Facet]
-            : []),
-          {
-            key: "vendor",
-            label: "Vendor",
-            options: [...new Set(invoiceRows.map((invoice) => invoice.vendor))].sort((a, b) => a.localeCompare(b)),
-          },
-        ];
+  const facets: readonly Facet[] = [
+    ...(route === "invoices"
+      ? [{ key: "status", label: "Status", options: ["Pending", "Approved", "Changes requested"] } satisfies Facet]
+      : []),
+    {
+      key: "vendor",
+      label: "Vendor",
+      options: [...new Set(invoiceRows.map((invoice) => invoice.vendor))].sort((a, b) => a.localeCompare(b)),
+    },
+  ];
 
   const needle = query.trim().toLowerCase();
   const active: ActiveChip[] = facets.flatMap((facet) =>
@@ -183,11 +138,6 @@ export function useCollectionBrowser(
     if (column === "number") return invoice.number;
     return invoice.dueOn;
   };
-  const vendorValue = (row: VendorRow, column: string): string | number => {
-    if (column === "open") return row.openCount;
-    if (column === "last") return row.lastDueOn;
-    return row.name;
-  };
 
   const invoiceMatches = invoiceRows.filter((invoice) => {
     const text = `${invoice.number} ${invoice.vendor} ${statusLabel[invoice.status]} ${formatMoney(invoice.amountCents)} ${invoice.due}`;
@@ -199,28 +149,16 @@ export function useCollectionBrowser(
       return chosen.includes(value);
     });
   });
-  const vendorMatches = vendorRows.filter((row) => {
-    const text = `${row.name} ${row.lastNumber} ${row.lastDue} ${row.openCount}`;
-    if (needle && !text.toLowerCase().includes(needle)) return false;
-    return facets.every((facet) => {
-      const chosen = filters[facet.key] ?? [];
-      return chosen.length === 0 || chosen.includes(row.open);
-    });
-  });
 
   const direction = sorted.direction === "ascending" ? 1 : -1;
   const sortedInvoices = [...invoiceMatches].sort(
     (a, b) => direction * compareValue(invoiceValue(a, sorted.column), invoiceValue(b, sorted.column)),
   );
-  const sortedVendors = [...vendorMatches].sort(
-    (a, b) => direction * compareValue(vendorValue(a, sorted.column), vendorValue(b, sorted.column)),
-  );
-  const matchCount = route === "vendors" ? sortedVendors.length : sortedInvoices.length;
-  const total = route === "vendors" ? vendorRows.length : invoiceRows.length;
+  const matchCount = sortedInvoices.length;
+  const total = invoiceRows.length;
   const pageCount = Math.max(1, Math.ceil(matchCount / PAGE_SIZE));
   const current = Math.min(page, pageCount);
   const pageInvoices = sortedInvoices.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
-  const pageVendors = sortedVendors.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
   const chosen = `${needle}|${active.map((chip) => `${chip.key}:${chip.value}`).join("|")}`;
 
   useEffect(() => {
@@ -233,15 +171,11 @@ export function useCollectionBrowser(
       }
       if (announced.current === chosen) return;
       announced.current = chosen;
-      const none = needle
-        ? `No ${kind === "vendor" ? "vendors" : "invoices"} found`
-        : active.length > 0
-          ? `No ${kind === "vendor" ? "vendors" : "invoices"} match these filters`
-          : `No ${kind === "vendor" ? "vendors" : "invoices"} left`;
-      announce(matchCount === 0 ? none : `${matchCount} ${noun(kind, matchCount)} found`);
+      const none = needle ? "No invoices found" : active.length > 0 ? "No invoices match these filters" : "No invoices left";
+      announce(matchCount === 0 ? none : `${matchCount} ${noun(matchCount)} found`);
     }, 500);
     return () => clearTimeout(timer);
-  }, [active.length, announce, chosen, kind, matchCount, needle, openMenu]);
+  }, [active.length, announce, chosen, matchCount, needle, openMenu]);
 
   const changeQuery = (next: string) => {
     setQuery(next);
@@ -276,25 +210,17 @@ export function useCollectionBrowser(
   const sortOf = (column: string): TableSort => (sorted.column === column ? sorted.direction : "none");
 
   const copy =
-    route === "vendors"
-      ? meridianCopy("Vendors", "Vendors with invoices in Meridian.", "Search vendors", "Filter vendors", "Vendors", "Vendors table", "Vendor pages")
-      : route === "invoices"
-        ? meridianCopy("All invoices", "Every invoice in the payables ledger.", "Search invoices", "Filter invoices", "Invoices", "Invoices table", "Invoice pages")
-        : meridianCopy("To approve", "Vendor invoices waiting for a decision.", "Search invoices", "Filter invoices", "Invoices to approve", "Invoices table", "Invoice pages");
+    route === "invoices"
+      ? meridianCopy("All invoices", "Every invoice in the payables ledger.", "Search invoices", "Filter invoices", "Invoices", "Invoices table", "Invoice pages")
+      : meridianCopy("To approve", "Vendor invoices waiting for a decision.", "Search invoices", "Filter invoices", "Invoices to approve", "Invoices table", "Invoice pages");
 
   const filtered = active.length > 0;
-  const emptyTitle = needle
-    ? `No ${kind === "vendor" ? "vendors" : "invoices"} found`
-    : filtered
-      ? `No ${kind === "vendor" ? "vendors" : "invoices"} match these filters`
-      : `No ${kind === "vendor" ? "vendors" : "invoices"}`;
+  const emptyTitle = needle ? "No invoices found" : filtered ? "No invoices match these filters" : "No invoices";
   const emptyDescription = needle
     ? `Nothing matches “${query.trim()}”. Check the spelling or try a shorter search.`
     : filtered
       ? "Remove a filter or clear them all."
-      : kind === "vendor"
-        ? "There are no vendors in the ledger."
-        : "There are no invoices in this view.";
+      : "There are no invoices in this view.";
 
   const toolbar = (
     <Stack.Root gap="normal">
@@ -392,81 +318,51 @@ export function useCollectionBrowser(
     </Table.HeaderCell>
   );
 
-  const table =
-    route === "vendors" ? (
-      <Stack.Root gap="condensed">
-        <Text.Root tone="muted">{`${matchCount} of ${total} ${noun("vendor", total)}`}</Text.Root>
-        <ScrollArea.Root aria-label={copy.scroll} axis="inline" focusable>
-          <Table.Root>
-            <Table.Caption>{copy.caption}</Table.Caption>
-            <Table.Head>
-              <Table.Row>
-                {header("name", "Vendor")}
-                {header("open", "Open invoices", true)}
-                {header("last", "Last invoice")}
+  const table = (
+    <Stack.Root gap="condensed">
+      <Text.Root tone="muted">{`${matchCount} of ${total} ${noun(total)}`}</Text.Root>
+      <ScrollArea.Root aria-label={copy.scroll} axis="inline" focusable>
+        <Table.Root>
+          <Table.Caption>{copy.caption}</Table.Caption>
+          <Table.Head>
+            <Table.Row>
+              {header("number", "Invoice")}
+              {header("vendor", "Vendor")}
+              {header("status", "Status")}
+              {header("amount", "Amount", true)}
+              {header("due", "Due")}
+            </Table.Row>
+          </Table.Head>
+          <Table.Body>
+            {pageInvoices.map((invoice) => (
+              <Table.Row key={invoice.id}>
+                <Table.HeaderCell scope="row">
+                  <Link.Root
+                    href={invoiceHref(route, invoice.id)}
+                    onClick={(event) => {
+                      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                      event.preventDefault();
+                      onOpen(invoice.id);
+                    }}
+                  >
+                    {invoice.number}
+                    <VisuallyHidden.Root>{`, ${invoice.vendor}`}</VisuallyHidden.Root>
+                  </Link.Root>
+                </Table.HeaderCell>
+                <Table.Cell>{invoice.vendor}</Table.Cell>
+                <Table.Cell>
+                  <Badge.Root tone={STATUS_TONE[invoice.status]}>{statusLabel[invoice.status]}</Badge.Root>
+                </Table.Cell>
+                <Table.Cell className="num">{formatMoney(invoice.amountCents)}</Table.Cell>
+                <Table.Cell>{invoice.due}</Table.Cell>
               </Table.Row>
-            </Table.Head>
-            <Table.Body>
-              {pageVendors.map((row) => (
-                <Table.Row key={row.name}>
-                  <Table.HeaderCell scope="row">{row.name}</Table.HeaderCell>
-                  <Table.Cell className="num">{row.openCount}</Table.Cell>
-                  <Table.Cell>
-                    {row.lastNumber}
-                    <Text.Root as="span" tone="muted">{` · ${row.lastDue}`}</Text.Root>
-                  </Table.Cell>
-                </Table.Row>
-              ))}
-              {pageVendors.length === 0 ? emptyRow(3) : null}
-            </Table.Body>
-          </Table.Root>
-        </ScrollArea.Root>
-      </Stack.Root>
-    ) : (
-      <Stack.Root gap="condensed">
-        <Text.Root tone="muted">{`${matchCount} of ${total} ${noun("invoice", total)}`}</Text.Root>
-        <ScrollArea.Root aria-label={copy.scroll} axis="inline" focusable>
-          <Table.Root>
-            <Table.Caption>{copy.caption}</Table.Caption>
-            <Table.Head>
-              <Table.Row>
-                {header("number", "Invoice")}
-                {header("vendor", "Vendor")}
-                {header("status", "Status")}
-                {header("amount", "Amount", true)}
-                {header("due", "Due")}
-              </Table.Row>
-            </Table.Head>
-            <Table.Body>
-              {pageInvoices.map((invoice) => (
-                <Table.Row key={invoice.id}>
-                  <Table.HeaderCell scope="row">
-                    <Link.Root
-                      href={invoiceHref(route, invoice.id)}
-                      onClick={(event) => {
-                        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-                        event.preventDefault();
-                        onOpen(invoice.id);
-                      }}
-                    >
-                      {invoice.number}
-                      <VisuallyHidden.Root>{`, ${invoice.vendor}`}</VisuallyHidden.Root>
-                    </Link.Root>
-                  </Table.HeaderCell>
-                  <Table.Cell>{invoice.vendor}</Table.Cell>
-                  <Table.Cell>
-                    <Badge.Root tone={STATUS_TONE[invoice.status]}>{statusLabel[invoice.status]}</Badge.Root>
-                  </Table.Cell>
-                  <Table.Cell className="num">{formatMoney(invoice.amountCents)}</Table.Cell>
-                  <Table.Cell>{invoice.due}</Table.Cell>
-                </Table.Row>
-              ))}
-              {pageInvoices.length === 0 ? emptyRow(5) : null}
-            </Table.Body>
-          </Table.Root>
-        </ScrollArea.Root>
-      </Stack.Root>
-    );
+            ))}
+            {pageInvoices.length === 0 ? emptyRow(5) : null}
+          </Table.Body>
+        </Table.Root>
+      </ScrollArea.Root>
+    </Stack.Root>
+  );
 
   const step = (to: number, label: string) => (
     <Pagination.Item>

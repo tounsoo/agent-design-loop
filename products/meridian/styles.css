@@ -74,6 +74,16 @@
     max-inline-size: 22rem;
   }
 
+  .directory-form {
+    max-inline-size: 28rem;
+    padding-block-start: var(--todae-space-2);
+  }
+
+  /* People copy names and emails, so a long one breaks rather than truncates. */
+  .directory-card {
+    overflow-wrap: anywhere;
+  }
+
   .num {
     text-align: end;
     font-variant-numeric: tabular-nums;

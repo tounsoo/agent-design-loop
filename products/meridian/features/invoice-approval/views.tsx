@@ -23,12 +23,18 @@ import {
   lineTotal,
   routeHref,
   statusLabel,
+  vendorRows,
+  vendorsErrorMessage,
   type CollectionRoute,
   type FlowState,
   type Invoice,
+  type InvoiceRoute,
   type ModeledState,
+  type NewVendor,
+  type Vendor,
 } from "../../flows/invoice-approval";
 import { DataTable, useCollectionBrowser } from "../../content-layouts/data-table";
+import { Directory } from "../../content-layouts/directory";
 import { CollectionPage } from "../../page-types/collection";
 import { DetailPage } from "../../page-types/detail";
 import { navCopy } from "./navigation";
@@ -40,6 +46,7 @@ export type Actions = {
   requestChanges: () => void;
   setReason: (reason: string) => void;
   approve: () => void;
+  addVendor: (vendor: NewVendor) => void;
 };
 
 /** States this module renders. A missing member is a type error. */
@@ -50,6 +57,7 @@ export const renderedStates = [
   "ready",
   "invoice-approved",
   "changes-requested",
+  "vendor-added",
 ] as const satisfies readonly ModeledState[];
 
 type MissingView = Exclude<ModeledState, (typeof renderedStates)[number]>;
@@ -68,12 +76,15 @@ function showsDetail(state: FlowState): state is Extract<FlowState, { invoiceId:
   );
 }
 
-function LoadingBody() {
+/** A state that lists records: everything but an opened invoice. */
+type ListState = Exclude<FlowState, { invoiceId: string }>;
+
+function LoadingBody({ label }: { label: string }) {
   return (
     <>
-      <VisuallyHidden.Root>Loading invoices</VisuallyHidden.Root>
+      <VisuallyHidden.Root>{label}</VisuallyHidden.Root>
       <Stack.Root aria-hidden="true" gap="normal">
-        <Loader.Root aria-label="Loading invoices" />
+        <Loader.Root aria-label={label} />
         <Skeleton.Root>
           <Text.Root>Northwind Office Supply</Text.Root>
         </Skeleton.Root>
@@ -85,13 +96,11 @@ function LoadingBody() {
   );
 }
 
-function EmptyBody({ route }: { route: CollectionRoute }) {
+function EmptyBody({ route }: { route: InvoiceRoute }) {
   const copy =
-    route === "vendors"
-      ? { title: "No vendors", description: "No vendors are in the ledger." }
-      : route === "invoices"
-        ? { title: "No invoices", description: "The ledger has no invoices." }
-        : { title: "No invoices waiting", description: "Nothing needs approval right now." };
+    route === "invoices"
+      ? { title: "No invoices", description: "The ledger has no invoices." }
+      : { title: "No invoices waiting", description: "Nothing needs approval right now." };
   return (
     <EmptyState.Root>
       <EmptyState.Title as="h2">{copy.title}</EmptyState.Title>
@@ -245,21 +254,84 @@ function crumbFor(route: CollectionRoute): { href: string; label: string } {
   return { href: routeHref("to-approve"), label: "To approve" };
 }
 
+function InvoicesCollection({
+  state,
+  route,
+  ledger,
+  actions,
+}: {
+  state: Exclude<ListState, { status: "vendor-added" }>;
+  route: InvoiceRoute;
+  ledger: readonly Invoice[];
+  actions: Actions;
+}) {
+  const browser = useCollectionBrowser(route, ledger, actions.openInvoice);
+  const copy = navCopy(route);
+  const ready = state.status === "ready";
+  const showTable = ready && browser.total > 0;
+  return (
+    <CollectionPage state={state.status}>
+      <CollectionPage.Heading>{ready ? browser.heading : copy.label}</CollectionPage.Heading>
+      {ready ? <CollectionPage.Description>{browser.description}</CollectionPage.Description> : null}
+      <CollectionPage.Body>
+        {state.status === "loading" ? <LoadingBody label="Loading invoices" /> : null}
+        {state.status === "empty" || (ready && browser.total === 0) ? <EmptyBody route={route} /> : null}
+        {state.status === "error" ? <ErrorBody message={state.message} onRetry={actions.retry} /> : null}
+        {showTable ? (
+          <DataTable pagination={browser.pagination} table={browser.table} toolbar={browser.toolbar} />
+        ) : null}
+      </CollectionPage.Body>
+    </CollectionPage>
+  );
+}
+
+function VendorsCollection({
+  state,
+  registry,
+  ledger,
+  actions,
+}: {
+  state: ListState;
+  registry: readonly Vendor[];
+  ledger: readonly Invoice[];
+  actions: Actions;
+}) {
+  const copy = navCopy("vendors");
+  const listed = state.status === "ready" || state.status === "empty" || state.status === "vendor-added";
+  return (
+    <CollectionPage state={state.status}>
+      <CollectionPage.Heading>{copy.label}</CollectionPage.Heading>
+      {listed ? <CollectionPage.Description>{copy.description}</CollectionPage.Description> : null}
+      <CollectionPage.Body>
+        {state.status === "loading" ? <LoadingBody label="Loading vendors" /> : null}
+        {state.status === "error" ? <ErrorBody message={vendorsErrorMessage} onRetry={actions.retry} /> : null}
+        {listed ? (
+          <Directory
+            justAdded={state.status === "vendor-added" ? state.vendorId : null}
+            rows={vendorRows(registry, ledger)}
+            onAdd={actions.addVendor}
+          />
+        ) : null}
+      </CollectionPage.Body>
+    </CollectionPage>
+  );
+}
+
 export function InvoiceApprovalView({
   state,
   actions,
   route,
   ledger,
+  registry,
   onNavigate,
 }: {
   state: FlowState;
   actions: Actions;
   route: CollectionRoute;
   ledger: readonly Invoice[];
+  registry: readonly Vendor[];
   onNavigate: (href: string) => void;
 }): ReactElement {
-  const browser = useCollectionBrowser(route, ledger, actions.openInvoice);
-
   switch (state.status) {
     case "loading":
     case "empty":
@@ -267,6 +339,7 @@ export function InvoiceApprovalView({
     case "ready":
     case "invoice-approved":
     case "changes-requested":
+    case "vendor-added":
       break;
     default: {
       const unreachable: never = state;
@@ -275,23 +348,10 @@ export function InvoiceApprovalView({
   }
 
   if (!showsDetail(state)) {
-    const copy = navCopy(route);
-    const ready = state.status === "ready";
-    const showTable = ready && browser.total > 0;
-    return (
-      <CollectionPage state={state.status}>
-        <CollectionPage.Heading>{ready ? browser.heading : copy.label}</CollectionPage.Heading>
-        {ready ? <CollectionPage.Description>{browser.description}</CollectionPage.Description> : null}
-        <CollectionPage.Body>
-          {state.status === "loading" ? <LoadingBody /> : null}
-          {state.status === "empty" || (ready && browser.total === 0) ? <EmptyBody route={route} /> : null}
-          {state.status === "error" ? <ErrorBody message={state.message} onRetry={actions.retry} /> : null}
-          {showTable ? (
-            <DataTable pagination={browser.pagination} table={browser.table} toolbar={browser.toolbar} />
-          ) : null}
-        </CollectionPage.Body>
-      </CollectionPage>
-    );
+    if (state.status === "vendor-added" || route === "vendors") {
+      return <VendorsCollection actions={actions} ledger={ledger} registry={registry} state={state} />;
+    }
+    return <InvoicesCollection actions={actions} ledger={ledger} route={route} state={state} />;
   }
 
   const invoice = lookup(ledger, state.invoiceId);

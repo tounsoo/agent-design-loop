@@ -27,7 +27,7 @@ export const meridianNav: readonly {
     route: "vendors",
     href: routeHref("vendors"),
     label: "Vendors",
-    description: "Vendors with invoices in Meridian.",
+    description: "Vendors Meridian pays.",
     icon: Building2,
   },
 ];

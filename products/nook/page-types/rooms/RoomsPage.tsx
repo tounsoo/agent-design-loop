@@ -2,10 +2,11 @@ import { Children, isValidElement, type ReactNode } from "react";
 import { Stack, Text } from "../../catalog";
 
 /**
- * Rooms page type: the free rooms to choose from. Slots: title, intro, and
- * the list. The list's ready body is a content layout; loading, no rooms and
- * an error render in the list as the catalog's status parts. This shell has
- * no primary-action slot: choosing a room opens its booking page.
+ * Rooms page type: a list of rooms, either the free rooms to choose from or
+ * the full rooms to wait for. Slots: title, intro, and the list. The list's
+ * ready body is a content layout; loading, no rooms, an error and the
+ * waitlist's status render in the list as the catalog's status parts. This
+ * shell has no primary-action slot: choosing a room opens its booking page.
  */
 
 export function Title({ children }: { children: ReactNode }) {

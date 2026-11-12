@@ -2,7 +2,8 @@ import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
-import { HOLD_MINUTES, modeledStates } from "./flows/booking/states";
+import { FREE_UP_SECONDS, HOLD_MINUTES, modeledStates } from "./flows/booking/states";
+import { transition } from "./flows/booking/transition";
 
 describe("Nook", () => {
   beforeEach(() => {
@@ -115,6 +116,114 @@ describe("Nook", () => {
     render(<App />);
     await user.click(await screen.findByRole("button", { name: "Try again" }));
     expect(screen.getByLabelText("Loading free rooms")).toBeInTheDocument();
+  });
+
+  it("joins and leaves a waitlist, and says which rooms the person waits for", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("button", { name: "Choose Harbor" });
+    await user.click(screen.getByRole("button", { name: "Waitlist" }));
+    expect(screen.getByRole("heading", { name: "Waitlist" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Waitlist" })).toHaveAttribute("aria-current", "page");
+    await user.click(screen.getByRole("button", { name: "Join waitlist for Cedar" }));
+    expect(screen.getByRole("button", { name: "Leave waitlist for Cedar" })).toHaveFocus();
+    await user.click(screen.getByRole("button", { name: "Join waitlist for Birch" }));
+    expect(screen.getByRole("status")).toHaveTextContent("You're on the waitlist for Cedar and Birch.");
+    await user.click(screen.getByRole("button", { name: "Leave waitlist for Cedar" }));
+    expect(screen.getByRole("status")).toHaveTextContent("You're on the waitlist for Birch.");
+    await user.click(screen.getByRole("button", { name: "Leave waitlist for Birch" }));
+    expect(screen.getByRole("status")).toHaveTextContent("You left the waitlist for Birch.");
+    expect(screen.getByRole("button", { name: "Join waitlist for Birch" })).toBeInTheDocument();
+  });
+
+  it("keeps the person's place on the waitlist when they go back to the rooms", async () => {
+    const user = userEvent.setup();
+    window.history.replaceState(null, "", "/?state=waiting");
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Rooms" }));
+    expect(screen.getByRole("heading", { name: "Book a room" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Choose Lantern" }));
+    await user.click(screen.getByRole("button", { name: "Waitlist" }));
+    expect(screen.getByRole("button", { name: "Leave waitlist for Cedar" })).toBeInTheDocument();
+  });
+
+  it("frees a room the person waits for, and books it from the waitlist", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+    window.history.replaceState(null, "", "/?state=waitlist");
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Join waitlist for Cedar" }));
+    act(() => {
+      vi.advanceTimersByTime(FREE_UP_SECONDS * 1000 - 1_000);
+    });
+    expect(screen.getByRole("button", { name: "Leave waitlist for Cedar" })).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(1_000);
+    });
+    expect(screen.getByRole("status")).toHaveTextContent("Cedar is free now.Choose it to book it.");
+    await user.click(screen.getByRole("button", { name: "Choose Cedar" }));
+    expect(screen.getByRole("heading", { name: "Cedar" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Book room" }));
+    expect(screen.getByText("Cedar is yours for 1 hour.")).toBeInTheDocument();
+  });
+
+  it("says so when the person leaves a waitlist while a room is free", async () => {
+    const user = userEvent.setup();
+    window.history.replaceState(null, "", "/?state=freed");
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Leave waitlist for Birch" }));
+    expect(screen.getByRole("status")).toHaveTextContent("Cedar is free now.Choose it to book it. You left the waitlist for Birch.");
+    expect(screen.getByRole("button", { name: "Join waitlist for Birch" })).toHaveFocus();
+    await user.click(screen.getByRole("button", { name: "Join waitlist for Birch" }));
+    expect(screen.getByRole("status")).toHaveTextContent("Cedar is free now.Choose it to book it. You're still on the waitlist for Birch.");
+  });
+
+  it("keeps a waiting preview waiting", () => {
+    vi.useFakeTimers();
+    window.history.replaceState(null, "", "/?state=waiting");
+    render(<App />);
+    act(() => {
+      vi.advanceTimersByTime(FREE_UP_SECONDS * 1000);
+    });
+    expect(screen.getByRole("status")).toHaveTextContent("You're on the waitlist for Cedar.");
+  });
+
+  it("turns the top bar off where the flow keeps the person on the page", () => {
+    window.history.replaceState(null, "", "/?state=held");
+    render(<App />);
+    expect(screen.getByRole("button", { name: "Rooms" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Waitlist" })).toBeDisabled();
+  });
+
+  it("opens the waitlist from No rooms are free", async () => {
+    const user = userEvent.setup();
+    window.history.replaceState(null, "", "/?state=no-rooms");
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "See the waitlist" }));
+    expect(screen.getByRole("heading", { name: "Waitlist" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Rooms" }));
+    expect(screen.getByRole("heading", { name: "No rooms are free" })).toBeInTheDocument();
+  });
+
+  it("goes back from the waitlist to No rooms are free when it opened from there", () => {
+    const opened = transition({ status: "no-rooms", waitingFor: [] }, { type: "open-waitlist" });
+    expect(opened).toEqual({ status: "waitlist", roomsFree: false, left: null, waitingFor: [] });
+    expect(transition(opened, { type: "open-rooms" })).toEqual({ status: "no-rooms", waitingFor: [] });
+  });
+
+  it("only frees a room on the waitlist page, and only one the person waits for", () => {
+    const rooms = { status: "choosing", page: "rooms", waitingFor: ["cedar"] } as const;
+    expect(transition(rooms, { type: "room-freed", roomId: "cedar" })).toBe(rooms);
+    const waiting = { status: "waiting", roomsFree: true, waitingFor: ["cedar"] } as const;
+    expect(transition(waiting, { type: "room-freed", roomId: "birch" })).toBe(waiting);
+    expect(transition(waiting, { type: "room-freed", roomId: "cedar" })).toEqual({ status: "freed", roomsFree: true, roomId: "cedar", left: null, waitingFor: [] });
+  });
+
+  it("does not join a free room's waitlist or choose a full room from the room list", () => {
+    const waitlist = { status: "waitlist", roomsFree: true, left: null, waitingFor: [] } as const;
+    expect(transition(waitlist, { type: "join-waitlist", roomId: "harbor" })).toBe(waitlist);
+    const rooms = { status: "choosing", page: "rooms", waitingFor: [] } as const;
+    expect(transition(rooms, { type: "choose-room", roomId: "cedar" })).toBe(rooms);
   });
 
   it.each(modeledStates)("previews the %s state on one page", (state) => {

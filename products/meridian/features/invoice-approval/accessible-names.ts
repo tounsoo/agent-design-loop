@@ -9,6 +9,7 @@ import type { AccessibleNames, KnownGaps } from "@agent-design-loop/harness";
 
 const here = (name: string) => ({ role: "link", name, current: "page" });
 const queue = here("To approve");
+const vendors = here("Vendors");
 const invoice = [queue, { role: "generic", text: "INV-1842", current: "page" }, { role: "heading", name: "Northwind Office Supply" }];
 const received = { role: "listitem", text: "Done: Received" };
 const paymentNotStarted = { role: "listitem", text: "Not started: Payment due Nov 18, 2026" };
@@ -26,7 +27,13 @@ export const accessibleNames = {
     { role: "button", name: "Previous", disabled: true },
   ],
   "state=ready&route=invoices": [here("All invoices"), { role: "table", name: "Invoices" }, { role: "button", name: "1", current: "page" }],
-  "state=ready&route=vendors": [here("Vendors"), { role: "heading", name: "Vendors" }, { role: "button", name: "1", current: "page" }],
+  "state=ready&route=vendors": [
+    vendors,
+    { role: "heading", name: "Vendors" },
+    { role: "searchbox", name: "Search vendors" },
+    { role: "DisclosureTriangle", name: "Add a vendor", expanded: false },
+    { role: "list", name: "Vendors" },
+  ],
   "state=ready&page=detail": [
     ...invoice,
     ...awaitingApproval,
@@ -51,6 +58,17 @@ export const accessibleNames = {
     paymentNotStarted,
     { role: "status", text: "Changes requested Quantity on toner does not match the packing slip." },
     { role: "button", name: "Approve", disabled: true },
+  ],
+  "state=vendor-added": [
+    vendors,
+    { role: "heading", name: "Vendors" },
+    { role: "DisclosureTriangle", name: "Add a vendor", expanded: true },
+    { role: "status", text: "Added Ridgeway Janitorial." },
+    { role: "textbox", name: "Vendor name" },
+    { role: "textbox", name: "Remittance email" },
+    { role: "combobox", name: "Payment terms" },
+    { role: "button", name: "Add vendor" },
+    { role: "heading", name: "Ridgeway Janitorial" },
   ],
 } satisfies AccessibleNames;
 
