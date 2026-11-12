@@ -50,7 +50,7 @@ The harness's own scripts, written by `npm run docs:gen`:
 | [`npm run check:docs`](docs/checks.md#checkdocs) | Repository | The check reference and the docs that copy it are the ones the code writes: `npm run docs:gen` rewrites them. |
 | [`npm run check:fixtures`](docs/checks.md#checkfixtures) | Repository | The harness's own tests: every illegal fixture case fails with its expected message, and every legal case passes with its. |
 | [`npm run check:product`](docs/checks.md#checkproduct) | Product | Runs `check:opt-outs`, then every rule check in `check:rules`, on one product, skipping a rule the product opts out of. |
-| [`npm run check:trace`](docs/checks.md#checktrace) | Repository | A change that touches a product carries a loop trace, and every trace it adds or edits is a walk the design loop graph allows. |
+| [`npm run check:trace`](docs/checks.md#checktrace) | Repository | A change that touches a product carries a loop trace, and every trace it adds or edits is a walk the design loop graph allowed when each step was recorded. |
 | [`npm run critique`](docs/checks.md#critique) | Tool | The design loop's `critique` step: writes the brief for a second model to judge the screenshots, then records its findings and the edge back to build or on to the note. |
 | [`npm run loop:step`](docs/checks.md#loopstep) | Tool | Appends one step to a change's loop trace, and refuses a step the design loop graph does not allow. |
 | [`npm run new:product`](docs/checks.md#newproduct) | Tool | Starts a product: copies the harness's fixture product, which passes every check, to `products/<name>/` and points its config there. |
