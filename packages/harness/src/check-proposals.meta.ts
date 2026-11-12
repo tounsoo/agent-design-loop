@@ -4,10 +4,10 @@ export const meta = {
   summary: "Every proposal has its fields and sections, a new one has a dated name, and each status moves one step at a time from the base.",
   fails: [
     "A proposal without front matter, with an unknown or missing `status` (`open`, `decided` or `adopted`) or `changes`, or a field that is not a list.",
-    "`adds` beside `changes`, `retires` or `opts-out`, or on a proposal that is not `adopted`, and an `opts-out` entry that is not `<rule> for <paths.source>`.",
+    "`adds` or `tightens` beside `changes`, `retires` or `opts-out`, or on a proposal that is not `adopted`, and an `opts-out` entry that is not `<rule> for <paths.source>`.",
     "An empty or missing `## Reason`, `## Preview` or `## Adoption`, and the names before the rename, `status: graduated` and `## Graduation`, which only a base proposal may still have.",
     "A `## States` section that misses an edge case (Empty, Loading, Error, Long content, Permissions, Over time), gives a state no text, marks one `Out of scope` without a reason, lists only edge cases, or puts `None` beside other states.",
-    "Compared with the base: a status that moves more than one step or backwards; a change to a decided or adopted proposal's `changes`, `retires`, `opts-out` or `adds`; a decided or adopted proposal renamed or deleted.",
+    "Compared with the base: a status that moves more than one step or backwards; a change to a decided or adopted proposal's `changes`, `retires`, `opts-out`, `adds` or `tightens`; a decided or adopted proposal renamed or deleted.",
     "Compared with the base: a new proposal that starts `adopted` while it lists anything under `changes`, `retires` or `opts-out`.",
     "Compared with the base: a proposal that lists anything under `changes` or `adds` with no `## States` when it is new or moves from `open` to `decided`, and a decided or adopted proposal that drops the `## States` it had.",
     "A proposal the change adds or renames whose file name is not a real date no later than tomorrow in UTC and a lowercase slug, such as `2026-11-12-side-panel.md`, or that shares its name with a proposal in another proposal folder.",

@@ -1,19 +1,20 @@
 # Proposals change the rules the next run is constrained by.
-# GitHub requests this review on a pull request someone else opens. It blocks
-# a merge only once branch protection on main requires code owner review.
-# Merging a proposal does not apply it.
+# A proposal is approved when the code owner merges the pull request that
+# moves it to status: decided. In this repository that is Ben. GitHub requests
+# the code owner's review on a pull request someone else opens, and it blocks a
+# merge only once branch protection on main requires code owner review.
 /proposals/ @tounsoo
-# A proposal that only adds is adopted in the pull request that adds it, so
-# this review is its only approval. This line covers any folder named
-# proposals. A product whose paths.proposals names a folder with another
-# name needs its own line here.
+# A proposal that only adds or tightens is adopted in the pull request that
+# adds it, so the code owner's merge of that pull request is its only
+# approval. This line covers any folder named proposals. A product whose
+# paths.proposals names a folder with another name needs its own line here.
 proposals/ @tounsoo
 # Each product under products/ has a harness config that says where every
 # inventory lives. Changing a path can empty a check, so it needs a proposal
 # and the same review.
 /products/*/harness.config.ts @tounsoo
 # An approved pattern is adopted into the harness as a check that applies to
-# every product, so a designer reviews every change to the harness.
+# every product, so the code owner merges every change to the harness.
 /packages/harness/ @tounsoo
 # check:rules in package.json is the list of rules every product follows, so
 # taking a rule out of it is a retirement and needs the same review.
