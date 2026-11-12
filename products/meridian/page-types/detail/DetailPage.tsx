@@ -1,6 +1,5 @@
 import { Children, isValidElement, type ReactElement, type ReactNode } from "react";
 import { Button, Stack, Text } from "../../catalog";
-import { usePageHeading } from "../../layouts/app-shell";
 
 /**
  * Detail page type. One record. Slots: breadcrumbs, heading, meta, body,
@@ -25,9 +24,9 @@ export function Breadcrumbs({ children }: { children: ReactNode }) {
 }
 
 export function Heading({ children }: { children: ReactNode }) {
-  const headingRef = usePageHeading();
+  // The app shell moves focus here on a page change.
   return (
-    <Text.Root as="h1" ref={headingRef ?? undefined} tabIndex={-1}>
+    <Text.Root as="h1" tabIndex={-1}>
       {children}
     </Text.Root>
   );

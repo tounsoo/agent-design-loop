@@ -24,5 +24,6 @@ export const knownGaps = [
     problem: "silent",
     previews: ["state=freed"],
     why: "Leaving while a room is free changes only the button. Say it in the status region.",
+    fixIn: "https://github.com/acme/rooms/issues/3",
   },
 ] satisfies KnownGaps;

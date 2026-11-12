@@ -123,7 +123,7 @@ describe("invoice approval views", () => {
 
     await user.click(screen.getByRole("button", { name: "Approve" }));
     expect(screen.getByText("Invoice approved")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Approve" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Approve" })).toHaveAttribute("aria-disabled", "true");
   });
 
   it("totals the line items under the table", () => {
@@ -153,7 +153,7 @@ describe("invoice approval views", () => {
     await user.click(screen.getByRole("button", { name: "Request changes" }));
     expect(screen.getByRole("status")).toHaveTextContent("Changes requested");
     expect(screen.getByText("Quantity on toner does not match the packing slip.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Approve" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Approve" })).toHaveAttribute("aria-disabled", "true");
   });
   it("shows where the invoice is on its way to payment, before and after Approve", async () => {
     const user = userEvent.setup();

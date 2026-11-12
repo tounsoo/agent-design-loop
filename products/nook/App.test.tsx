@@ -19,12 +19,30 @@ describe("Nook", () => {
     render(<App />);
     expect(screen.getByRole("heading", { name: "Book a room" })).toBeInTheDocument();
     await user.click(await screen.findByRole("button", { name: "Choose Lantern" }));
-    expect(screen.getByRole("heading", { name: "Lantern" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Lantern" })).toHaveFocus();
     await user.selectOptions(screen.getByLabelText("How long?"), "90");
     await user.click(screen.getByRole("button", { name: "Book room" }));
     expect(screen.getByText("Lantern is yours for 1 hour 30 minutes.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Book room" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Hold room" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Book room" })).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("button", { name: "Hold room" })).toHaveAttribute("aria-disabled", "true");
+    // A submit keeps focus, and the status says what happened.
+    expect(screen.getByRole("button", { name: "Book room" })).toHaveFocus();
+  });
+
+  it("moves focus to the new page's title on every page change, and not on the first page", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("button", { name: "Choose Harbor" });
+    expect(screen.getByRole("heading", { name: "Book a room" })).not.toHaveFocus();
+    await user.click(screen.getByRole("button", { name: "Waitlist" }));
+    expect(screen.getByRole("heading", { name: "Waitlist" })).toHaveFocus();
+    await user.click(screen.getByRole("button", { name: "Rooms" }));
+    expect(screen.getByRole("heading", { name: "Book a room" })).toHaveFocus();
+    await user.click(screen.getByRole("button", { name: "Choose Quarry" }));
+    expect(screen.getByRole("heading", { name: "Quarry" })).toHaveFocus();
+    await user.click(screen.getByRole("button", { name: "Hold room" }));
+    // Holding stays on the same page, so focus stays on the button.
+    expect(screen.getByRole("button", { name: "Hold room" })).toHaveFocus();
   });
 
   it("holds a room instead of booking it", async () => {
@@ -43,11 +61,11 @@ describe("Nook", () => {
     render(<App />);
     await user.selectOptions(screen.getByLabelText("How long?"), "30");
     await user.click(screen.getByRole("button", { name: "Hold room" }));
-    expect(screen.getByRole("button", { name: "Hold room" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Hold room" })).toHaveAttribute("aria-disabled", "true");
     await user.click(screen.getByRole("button", { name: "Book room" }));
     expect(screen.getByText("Room booked")).toBeInTheDocument();
     expect(screen.getByText("Harbor is yours for 30 minutes.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Book room" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Book room" })).toHaveAttribute("aria-disabled", "true");
   });
 
   it("ends a hold after its minutes run out and still books the room", async () => {
@@ -66,7 +84,7 @@ describe("Nook", () => {
     });
     expect(screen.getByText("Hold ended")).toBeInTheDocument();
     expect(screen.queryByText("Room held")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Hold room" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Hold room" })).toHaveAttribute("aria-disabled", "true");
     expect(screen.getByRole("button", { name: "All rooms" })).toBeEnabled();
     await user.click(screen.getByRole("button", { name: "Book room" }));
     expect(screen.getByText("Harbor is yours for 30 minutes.")).toBeInTheDocument();

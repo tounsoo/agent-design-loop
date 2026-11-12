@@ -1,3 +1,4 @@
+import { statSync } from "node:fs";
 import type { AxNode } from "./accessible-names";
 
 /**
@@ -160,19 +161,55 @@ export type KnownGap = {
   readonly previews?: readonly string[];
   /** Why it waits, and what fixes it. */
   readonly why: string;
+  /**
+   * Where its fix is tracked, so no gap waits on nothing: a GitHub issue or
+   * pull request, as its URL, or a proposal, as its path from the repository
+   * root, such as `proposals/2026-11-12-press-every-action.md`.
+   */
+  readonly fixIn: string;
 };
 
 export type KnownGaps = readonly KnownGap[];
 
-const GAP_KEYS = new Set(["presses", "problem", "previews", "why"]);
+const GAP_KEYS = new Set(["presses", "problem", "previews", "why", "fixIn"]);
+
+const TRACKER = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/(issues|pull)\/[1-9]\d*$/;
+/** A relative path with no `.` or `..` segment, ending `proposals/<name>.md`, never the folder's README. */
+const PROPOSAL = /^(?:(?!\.\.?\/)[\w.-]+\/)*proposals\/(?!\.|README\.md$)[\w.-]+\.md$/;
+
+function isFile(path: string): boolean {
+  try {
+    return statSync(path).isFile();
+  } catch {
+    return false;
+  }
+}
+
+/** Why `fixIn` names no tracked fix, or null when it does: an issue or pull request URL, or a proposal file that exists. */
+function untracked(value: unknown, exists: (file: string) => boolean): string | null {
+  const how = "a GitHub issue or pull request URL, or the path of a proposal file under proposals/";
+  if (typeof value !== "string" || value.trim() === "") return `needs fixIn: where its fix is tracked, as ${how}.`;
+  if (TRACKER.test(value)) return null;
+  if (PROPOSAL.test(value)) return exists(value) ? null : `fixIn names ${value}, which does not exist.`;
+  return `fixIn must be ${how}, not "${value}".`;
+}
 const KINDS: readonly PressProblemKind[] = ["focus lost", "silent"];
 
 function nonEmptyStrings(value: unknown): value is string[] {
   return Array.isArray(value) && value.length > 0 && value.every((item) => typeof item === "string" && item.trim() !== "");
 }
 
-/** Parses a declarations module's optional `knownGaps` export against the previews its flow opens. */
-export function parseKnownGaps(value: unknown, file: string, previews: readonly string[]): { gaps: KnownGap[]; problems: string[] } {
+/**
+ * Parses a declarations module's optional `knownGaps` export against the
+ * previews its flow opens. `exists` says whether a proposal path in `fixIn`
+ * is a file, read from the repository root.
+ */
+export function parseKnownGaps(
+  value: unknown,
+  file: string,
+  previews: readonly string[],
+  exists: (file: string) => boolean = isFile,
+): { gaps: KnownGap[]; problems: string[] } {
   if (value === undefined) return { gaps: [], problems: [] };
   if (!Array.isArray(value)) return { gaps: [], problems: [`${file} exports knownGaps as something other than a list.`] };
   const gaps: KnownGap[] = [];
@@ -196,7 +233,7 @@ export function parseKnownGaps(value: unknown, file: string, previews: readonly 
               ? "previews must list at least one preview, or be left out for every preview."
               : typeof record.why !== "string" || record.why.trim() === ""
                 ? "needs why: what fixes it, and why it waits."
-                : null;
+                : untracked(record.fixIn, exists);
     if (problem !== null) {
       problems.push(`${where} ${problem}`);
       continue;
