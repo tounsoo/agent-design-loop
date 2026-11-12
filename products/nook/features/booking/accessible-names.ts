@@ -69,64 +69,18 @@ export const accessibleNames = {
 } satisfies AccessibleNames;
 
 /**
- * Presses that change the page without telling a screen reader, found when
- * check:accessible-names began pressing every action. Each waits for a fix in
- * its own pull request, and the check fails an entry once its press is fixed,
- * so this list only shrinks.
+ * Presses that change the page without telling a screen reader. The top bar
+ * moves focus to the new page's title on every page change, and submits keep
+ * focus (`submitOff`), so what is left changes one page in place. Each entry
+ * names where its fix is tracked, and the check fails an entry once its press
+ * is fixed, so this list only shrinks.
  */
 export const knownGaps = [
-  {
-    presses: ['button "Waitlist"'],
-    problem: "silent",
-    previews: ["state=no-rooms", "state=choosing&page=rooms", "state=choosing&page=booking", "state=expired"],
-    why: "The top bar's Waitlist swaps the page for the waitlist and keeps focus on the button, where only its current mark moves. Move focus to the new page's title, or say the page in a status region.",
-  },
-  {
-    presses: ['button "Rooms"'],
-    problem: "silent",
-    previews: ["state=choosing&page=booking", "state=expired", "state=waitlist", "state=waiting", "state=freed"],
-    why: "The top bar's Rooms swaps the page for the rooms list and keeps focus on the button, where only its current mark moves. Move focus to the new page's title, or say the page in a status region.",
-  },
-  {
-    presses: ['button "See the waitlist"'],
-    problem: "focus lost",
-    previews: ["state=no-rooms"],
-    why: "See the waitlist replaces the no-rooms page, and the button with it, with the waitlist, so focus falls to the page body. Move focus to the waitlist's title.",
-  },
-  {
-    presses: ['button "Choose Cedar"'],
-    problem: "focus lost",
-    previews: ["state=freed"],
-    why: "Choosing a freed room replaces the waitlist with its booking page, and nothing moves focus to the new page. Move focus to the new page's title.",
-  },
-  {
-    presses: ['button "Choose Harbor"', 'button "Choose Lantern"', 'button "Choose Quarry"'],
-    problem: "focus lost",
-    previews: ["state=choosing&page=rooms"],
-    why: "Choosing a room replaces the rooms page with its booking page, and nothing moves focus to the new page. Move focus to the new page's title.",
-  },
-  {
-    presses: ['button "All rooms"'],
-    problem: "focus lost",
-    previews: ["state=choosing&page=booking", "state=expired"],
-    why: "All rooms replaces the booking page with the rooms page, and nothing moves focus to the new page. Move focus to the new page's title.",
-  },
-  {
-    presses: ['button "Hold room"'],
-    problem: "focus lost",
-    previews: ["state=choosing&page=booking"],
-    why: "The button turns itself off, and Chrome drops focus to the page body; the status region does say what happened. Move focus to that status, or to the next action.",
-  },
-  {
-    presses: ['button "Book room"'],
-    problem: "focus lost",
-    previews: ["state=choosing&page=booking", "state=held", "state=expired"],
-    why: "The button turns itself off, and Chrome drops focus to the page body; the status region does say what happened. Move focus to that status, or to the next action.",
-  },
   {
     presses: ['button "Try again"'],
     problem: "focus lost",
     previews: ["state=error"],
     why: "Try again replaces the error, and the button with it, with the loader, so focus falls to the page body. Move focus to the loader, or keep a focusable element in the button's place.",
+    fixIn: "https://github.com/tounsoo/agent-design-loop/issues/50",
   },
 ] satisfies KnownGaps;

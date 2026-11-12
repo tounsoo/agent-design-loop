@@ -27,7 +27,7 @@ npm run check:fixtures && npm run check
 | [`check:inventories`](#checkinventories) | Rule | `--config <file>` (required), `--base <file>`, `--proposals <dir>` and `--base-proposals <dir>` | Yes |  | 28 illegal, 6 legal |
 | [`check:state-coverage`](#checkstate-coverage) | Rule | `--config <file>` (required) |  |  | 1 illegal, 1 legal |
 | [`check:target-size`](#checktarget-size) | Rule | `--config <file>` (required) and `--list` |  | Yes | 4 illegal, 3 legal |
-| [`check:accessible-names`](#checkaccessible-names) | Rule | `--config <file>` (required) and `--list` |  | Yes | 9 illegal, 5 legal |
+| [`check:accessible-names`](#checkaccessible-names) | Rule | `--config <file>` (required) and `--list` |  | Yes | 10 illegal, 5 legal |
 | [`check:opt-outs`](#checkopt-outs) | Product | `--config <file>` (required) |  |  | 6 illegal, 2 legal |
 | [`check:proposals`](#checkproposals) | Repository | none | Yes |  |  |
 | [`check:retirement`](#checkretirement) | Repository | none | Yes |  |  |
@@ -380,6 +380,7 @@ It fails:
 - An action the check cannot focus, one that moves focus elsewhere when focused, and a preview that does not render the same actions on every load, so an action cannot be pressed on its own.
 - An `accessible-names.ts` that does not load, a malformed `knownGaps` entry, and a `previews` entry that cannot be listed.
 - A `knownGaps` entry whose press no longer has its problem on a preview it names, so the list only shrinks.
+- A `knownGaps` entry with no `fixIn`, or one that is neither a GitHub issue or pull request URL nor the path of a proposal file that exists, with or without Chrome, so no gap waits on nothing.
 
 It builds and serves the app as `check:target-size` does and opens the same previews. On each it reads the whole document's accessibility tree, the one a screen reader reads, through the DevTools protocol: each node's role, its accessible name, the text its subtree reads with `aria-hidden` runs left out, and `aria-current`, disabled, expanded, checked, pressed and selected. Chrome's tree does not carry `aria-current`, so it reads that from the element. Roles are Chrome's names, such as `image` and `DisclosureTriangle`. A node's text is its runs joined by a space, so write it the way a failure message prints it. Frames inside the page are not read.
 
@@ -387,7 +388,9 @@ Beside each flow's `views` module, `accessible-names.ts` exports `accessibleName
 
 Then it presses every action. On each preview, from a fresh load with the origin's storage cleared, it focuses each enabled button, link, disclosure summary, menu item, tab, checkbox, radio or switch, checks that focus stayed on it, presses Enter, or Space for a checkbox, radio, switch, or checkbox or radio menu item, and reads the page 150 ms later, past the 100 ms Todae's announcer waits before it writes (inside an open Todae modal it writes later, which the check does not wait for). A new name on the focused control is not enough, and neither is a status region added with its words already in it, since screen readers do not reliably read either. A press that loads another document is skipped and not counted, and a dialog a press opens is dismissed.
 
-Problems a product has not fixed yet go in the same file's `knownGaps` (`satisfies KnownGaps`), as `{ presses: ['button "Try again"'], problem: "focus lost", previews: ["state=error"], why }`. Leaving `previews` out covers every preview, later ones included. A listed problem passes, and the check's last line counts them. [Proposal 2026-11-12-press-every-action](../../../proposals/2026-11-12-press-every-action.md) records the pass and what it cannot see.
+Problems a product has not fixed yet go in the same file's `knownGaps` (`satisfies KnownGaps`), as `{ presses: ['button "Try again"'], problem: "focus lost", previews: ["state=error"], why, fixIn }`, where `fixIn` is the issue, pull request or proposal its fix waits on. Leaving `previews` out covers every preview, later ones included. A listed problem passes, and the check's last line counts them. [Proposal 2026-11-12-press-every-action](../../../proposals/2026-11-12-press-every-action.md) records the pass and what it cannot see, and [proposal 2026-11-12-shell-owned-focus](../../../proposals/2026-11-12-shell-owned-focus.md) adds `fixIn`.
+
+Two patterns are fixed where every page shares them, so a page that uses them needs no listing, and the press check still catches one that does not: each product's shell moves focus to the new page's h1 on a page change, and a submit that turns itself off takes the catalog's `submitOff`, `aria-disabled` rather than `disabled`, so it keeps focus.
 
 Fixture cases, under `packages/harness/fixtures/`, that run it:
 
@@ -404,6 +407,7 @@ Fixture cases, under `packages/harness/fixtures/`, that run it:
 - `illegal/undeclared-current-step`: Illegal: pull request 32's list with declarations that leave it out. The current step's announcement changes with the state, so the check asks for it to be declared, and the declaration puts "In progress: Payment due" in front of the reviewer. It fails with "listitem reading "In progress: Payment due Nov 18, 2026" (aria-current="step") changes with the state, and".
 - `illegal/undeclared-preview`: Illegal: the declarations leave out one preview, changes-requested, so nothing says what a screen reader hears there. It fails with "declares nothing for "state=changes-requested"" (with --list).
 - `illegal/unnamed-control`: Illegal: an icon-only button with no label. Every declaration holds, and a screen reader still announces the button as only "button". It fails with "button <button type="button" class="more-actions"> has no accessible name".
+- `illegal/untracked-press-gap`: Illegal: knownGaps lists the silent leave from listed-press-gap without fixIn, so nothing tracks its fix. Every gap names the issue, pull request or proposal its fix waits on. It fails with "knownGaps[0] needs fixIn: where its fix is tracked" (with --list).
 - `illegal/waitlist-row-loses-focus`: Illegal: Nook's Waitlist rows from pull request 42 before its fix. Joining swaps the row's Join waitlist button for a new Leave waitlist button, and focus falls to the page body. The status region says the right thing, and the check still fails. It fails with "pressing button "Join waitlist for Cedar" removes it from the page, and focus falls to the page body".
 
 ## `check:opt-outs`
