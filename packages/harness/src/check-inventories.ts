@@ -378,10 +378,17 @@ function readInventory(root: Root): Inventory | null {
  * terms are then exactly those members.
  */
 type Term = string | readonly string[];
-type Change = { readonly text: string; readonly terms: readonly Term[]; readonly additions?: true };
+type Change = { readonly text: string; readonly terms: readonly Term[]; readonly additions?: true; readonly note?: string };
 
-/** The inventory lists a proposal that only adds may grow in the pull request that adds it. Every other change waits for a decided proposal. */
-const ADDABLE_LISTS = ["catalog exports", "allowed_layouts", "allowed_content_layouts", "allowed_page_types", "flow states"] as const;
+/**
+ * The inventory lists a proposal that only adds may grow in the pull request
+ * that adds it. Every other change waits for a decided proposal.
+ * allowed_page_types is not one: a new page type also needs an entry under
+ * `shells` in the product's config, which is not an addition, so it always
+ * takes two pull requests (proposal 2026-11-12-page-types-take-two-pull-requests).
+ */
+const ADDABLE_LISTS = ["catalog exports", "allowed_layouts", "allowed_content_layouts", "flow states"] as const;
+const PAGE_TYPE_NOTE = ` A page type is never added in one pull request: it also needs an entry under shells in ${configName}, so one proposal decided on the base lists the page type and the shells rule it joins, shells.primarySlots or shells.collections, under changes.`;
 const addableText = `${ADDABLE_LISTS.slice(0, -1).join(", ")} or ${ADDABLE_LISTS.at(-1)}`;
 
 function differingMembers(before: readonly string[], after: readonly string[]): string[] {
@@ -408,6 +415,7 @@ function membershipChanges(base: Inventory, head: Inventory, compareConfig: bool
     const change = changes[count];
     // A renamed or reordered member is not an addition: only a list whose every difference is a new member qualifies.
     if (change && (ADDABLE_LISTS as readonly string[]).includes(label) && before.every((member) => after.includes(member))) changes[count] = { ...change, additions: true };
+    if (change && label === "allowed_page_types" && after.some((member) => !before.includes(member))) changes[count] = { ...changes[count]!, note: PAGE_TYPE_NOTE };
   };
   // A missing list on the base is the bootstrap that records it.
   if (base.layouts !== null) list("allowed_layouts", base.layouts, head.layouts ?? []);
@@ -660,7 +668,7 @@ function reportMembership(changes: readonly Change[], proposals: ProposalsForCha
     const none = reasons.length === 0 && adopts.length > 0 && missing.length > 0 ? `, and no adopted proposal lists ${missing.map(termText).join(", ")}` : "";
     const orAdds = change.additions ? `, or a proposal this change adds must list ${change.terms.map(termText).join(", ")} under adds alone` : "";
     uncovered.push(
-      `inventory: ${change.text} No adopted proposal covers it: a decided proposal must list ${change.terms.map(termText).join(", ")} under changes${none}${orAdds}.`,
+      `inventory: ${change.text} No adopted proposal covers it: a decided proposal must list ${change.terms.map(termText).join(", ")} under changes${none}${orAdds}.${change.note ?? ""}`,
       ...reasons.map((reason) => `inventory:   ${reason}`),
     );
   }

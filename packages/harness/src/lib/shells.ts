@@ -170,7 +170,7 @@ function unclassifiedPageTypes(rules: ShellRules, allowed: readonly string[]): s
       return [`${configName} shells names page type "${pageType}" in both primarySlots and collections, but a collection has no primary action.`];
     }
     if (!primary && !collection) {
-      return [`${configName} shells names page type "${pageType}" in neither primarySlots nor collections, so no shell rule reads its pages.`];
+      return [`${configName} shells names page type "${pageType}" in neither primarySlots nor collections, so no shell rule reads its pages. Add it to shells.primarySlots with the slot that holds its one primary action, or to shells.collections with its chrome slots. That is a config change, so a proposal decided on the base lists the page type and that shells rule under changes, and a new page type takes two pull requests.`];
     }
     return [];
   });

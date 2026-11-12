@@ -14,6 +14,8 @@ Rule or input: a new optional proposal field, `adds`, read by `check:proposals` 
 - **The loop.** The design loop graph gets a router after `propose`: "Does the proposal only add members to an inventory list?" On `only adds`, the run graduates the proposal and builds in the same pull request. On `anything else`, it opens the proposal's pull request and waits for approval, as before.
 - **Review.** `CODEOWNERS` gains `proposals/` beside `/proposals/`, so review is requested for a proposal in any folder named `proposals`. A product whose `paths.proposals` names a folder with another name needs its own line.
 
+The first bullet lists `allowed_page_types` among the five lists as this proposal merged, and for page types it never held. A new page type also needs an entry under `shells` in the product's config, which the same bullet counts as no addition, and since [proposal 0005](0005-config-shells-and-web.md) every allowed page type must be named in exactly one `shells` rule. So no page type could ever pass on this path. [Proposal 2026-11-12-page-types-take-two-pull-requests](2026-11-12-page-types-take-two-pull-requests.md) took `allowed_page_types` off the list, which leaves four.
+
 ## Reason
 
 An addition is the common case and the cheap one to undo: a new export or layout that nothing uses yet, or that a later pull request removes. Two pull requests for it doubled the review for the change that most often grows the product. Removals, renames, rule inputs, opt-outs and retirements change what already ships or loosen a rule, so they keep the approval on record before they land.
