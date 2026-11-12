@@ -134,7 +134,7 @@ describe("invoice approval views", () => {
   });
 
   it("prices each line by quantity and unit", () => {
-    renderApproval("?state=ready&page=detail");
+    renderApproval("?scenario=invoice-detail");
     const toner = screen.getByRole("row", { name: /Printer toner/ });
     expect(toner).toHaveTextContent("4");
     expect(toner).toHaveTextContent("$215.00");
@@ -143,7 +143,7 @@ describe("invoice approval views", () => {
 
   it("shows the vendor and the invoice's activity, and moves both on Approve", async () => {
     const user = userEvent.setup();
-    renderApproval("?state=ready&page=detail");
+    renderApproval("?scenario=invoice-detail");
     const vendor = screen.getByRole("region", { name: "Vendor" });
     expect(within(vendor).getByText("ar@northwindoffice.example")).toBeInTheDocument();
     expect(within(vendor).getByText("Net 30")).toBeInTheDocument();
