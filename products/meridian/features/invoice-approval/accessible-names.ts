@@ -86,6 +86,12 @@ export const knownGaps = [
     why: "These previews already show the To approve title, so going to To approve swaps in the queue and the shell's announcer, which speaks only when the title changes, says nothing. Announce every navigation, or move focus to the page heading.",
   },
   {
+    presses: ['link "Vendors"'],
+    problem: "silent",
+    previews: ["state=vendor-added"],
+    why: "This preview already shows the Vendors title, so going to Vendors resets the list and the shell's announcer, which speaks only when the title changes, says nothing. Announce every navigation, or move focus to the page heading.",
+  },
+  {
     presses: [
       'link "INV-1842 , Northwind Office Supply"',
       'link "INV-1855 , Fieldnote Print"',

@@ -76,6 +76,30 @@ export const accessibleNames = {
  */
 export const knownGaps = [
   {
+    presses: ['button "Waitlist"'],
+    problem: "silent",
+    previews: ["state=no-rooms", "state=choosing&page=rooms", "state=choosing&page=booking", "state=expired"],
+    why: "The top bar's Waitlist swaps the page for the waitlist and keeps focus on the button, where only its current mark moves. Move focus to the new page's title, or say the page in a status region.",
+  },
+  {
+    presses: ['button "Rooms"'],
+    problem: "silent",
+    previews: ["state=choosing&page=booking", "state=expired", "state=waitlist", "state=waiting", "state=freed"],
+    why: "The top bar's Rooms swaps the page for the rooms list and keeps focus on the button, where only its current mark moves. Move focus to the new page's title, or say the page in a status region.",
+  },
+  {
+    presses: ['button "See the waitlist"'],
+    problem: "focus lost",
+    previews: ["state=no-rooms"],
+    why: "See the waitlist replaces the no-rooms page, and the button with it, with the waitlist, so focus falls to the page body. Move focus to the waitlist's title.",
+  },
+  {
+    presses: ['button "Choose Cedar"'],
+    problem: "focus lost",
+    previews: ["state=freed"],
+    why: "Choosing a freed room replaces the waitlist with its booking page, and nothing moves focus to the new page. Move focus to the new page's title.",
+  },
+  {
     presses: ['button "Choose Harbor"', 'button "Choose Lantern"', 'button "Choose Quarry"'],
     problem: "focus lost",
     previews: ["state=choosing&page=rooms"],
