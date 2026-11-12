@@ -3,6 +3,7 @@ import path from "node:path";
 import designLoop from "../design-loop";
 import { config, configName, loadInputs } from "./lib/config";
 import { CRITIQUE_FILE, critiqueBrief, critiqueMarkdown, critiquePullRequestMarkdown, critiqueTrace, galleryShots, parseCritique, verdict } from "./lib/critique";
+import { loopBase, recordedLoops } from "./lib/trace-history";
 
 /**
  * The design loop's `critique` step, in two runs around a model the harness
@@ -54,7 +55,9 @@ if (!findingsFile || !traceFile) fail("--findings needs --trace.");
 
 if (!existsSync(findingsFile)) fail(`${findingsFile} does not exist. Save the critic's answer there first.`);
 if (!existsSync(traceFile)) fail(`${traceFile} does not exist. Record the walk with npm run loop:step first.`);
-const walk = critiqueTrace(designLoop, readFileSync(traceFile, "utf8"));
+const loops = recordedLoops(traceFile, designLoop, loopBase());
+if ("problems" in loops) fail(`${traceFile} is not ready for a critique:\n${loops.problems.map((problem) => `- ${problem}`).join("\n")}`);
+const walk = critiqueTrace(designLoop, readFileSync(traceFile, "utf8"), loops.loopAt);
 if ("problems" in walk) fail(`${traceFile} is not ready for a critique:\n${walk.problems.map((problem) => `- ${problem}`).join("\n")}`);
 const parsed = parseCritique(readFileSync(findingsFile, "utf8"), shots);
 if ("problems" in parsed) fail(`${findingsFile} is not a critique of ${gallery}:\n${parsed.problems.map((problem) => `- ${problem}`).join("\n")}`);

@@ -2,7 +2,7 @@ import { existsSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import type { LoopGraph } from "./loop";
 import { VIEWS } from "./views";
-import { parseTrace, traceProblems, type TraceStep } from "./trace";
+import { parseTrace, traceProblems, type LoopAt, type TraceStep } from "./trace";
 
 /**
  * The design loop's critique step. Once the screenshots are taken, a second
@@ -258,12 +258,14 @@ export function reviseRounds(steps: readonly TraceStep[], start: string): number
  * The trace the critique is recorded in, read for its rounds. It has to be a
  * walk the graph allows that stands at `screenshots`, the step before
  * `critique`, so a broken trace cannot reset the rounds and a critique already
- * recorded is not counted twice.
+ * recorded is not counted twice. `loopAt` gives the loop each line was
+ * recorded under, as check:trace reads it; by default every line is read
+ * against `graph`.
  */
-export function critiqueTrace(graph: LoopGraph, trace: string): { rounds: number } | { problems: string[] } {
+export function critiqueTrace(graph: LoopGraph, trace: string, loopAt: LoopAt = () => graph): { rounds: number } | { problems: string[] } {
   const parsed = parseTrace(trace);
   if ("problems" in parsed) return { problems: parsed.problems };
-  const problems = traceProblems(graph, trace, { partial: true });
+  const problems = traceProblems(loopAt, trace, { partial: true });
   if (problems.length > 0) return { problems };
   const last = parsed.steps.at(-1)?.node;
   if (last !== "screenshots") {

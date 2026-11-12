@@ -328,15 +328,18 @@ The agent records its walk in a trace, one JSON line per node, in a file under `
 
 - the change touches a product's directory, the folder of any `harness.config.ts` outside the harness package, and adds or edits no trace
 - a trace the change adds or edits does not start at the graph's `start`, names a node the graph does not have, or steps between two nodes no edge connects
+- a line was added in a commit whose `design-loop.ts` is missing or is not a plain literal, so there is no loop to read it against, or, in a shallow clone, a line is dated to the clone's cut
 - a router, eval or human step has no `when`, or one its node has no edge for, or the next step is not where that `when` leads. Other steps take no `when`
 - the step after a node with no edge out, which ends a run, is not a new run at `start`. After a checkpoint with an edge out, which pauses the run, a new run may start too
 - a file the change adds under `traces/` is not a `.jsonl` trace, other than the folder's README
 - the trace stops anywhere but a checkpoint
 - the trace stops at a node that ends a run, and the last change to state an eval node reads has no passing eval node after it. A run paused at a checkpoint with an edge out, the proposal's pull request, may stop with its work unchecked, because it waits on approval
 
+Each line is read against the graph as it stood in the commit that added it, which `git blame` names, and a line not yet committed against the graph in the working tree. The loop changes over time, and a run recorded before a change was a walk of the loop it followed, so a pull request that merges `main` after the loop gained a step keeps its trace as it is. Where the graph changed between two steps, the later one may start a new run at `start`, or go on along the new graph's edges from the earlier step's node. History never loosens the check: a commit's graph counts only when it is the working tree's or the one the commit's merge base with the base held, so a branch cannot loosen the graph, or copy back an older one, walk it and put it back, and a line someone edited later pulls the lines after it onto its newer graph. A rebase re-dates the lines it moves onto the new base's graph, which is one more reason to merge `main` in. `loop:step` and `critique` read a trace the same way, in `packages/harness/src/lib/trace-history.ts`.
+
 The trace shows that the agent recorded a walk the graph allows. It does not prove the agent did what each line says: the agent writes its own trace, and nothing executes the graph. A false `checks pass` line does not let unchecked work merge, because CI runs the gate on every pull request anyway. The trace is for the reviewer, who can see whether the run went through a proposal, failed the gate first, or waited on a person, and hold the diff against that.
 
-`check:trace` is not in `npm run check`. The eval node runs `check` in the middle of the walk, when the trace does not yet end at a checkpoint, so the gate would fail itself. CI runs `check:trace` after `check:loop`, and the agent runs it before it pushes. Its Vitest tests are in `packages/harness/src/lib/trace.test.ts`.
+`check:trace` is not in `npm run check`. The eval node runs `check` in the middle of the walk, when the trace does not yet end at a checkpoint, so the gate would fail itself. CI runs `check:trace` last, after `check:docs`, and the agent runs it before it pushes. Its Vitest tests are in `packages/harness/src/lib/trace.test.ts` and, for reading each line's loop from git, `packages/harness/src/lib/trace-history.test.ts`.
 
 ## How the repo gets more capable
 
