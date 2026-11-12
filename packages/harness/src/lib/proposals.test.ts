@@ -10,7 +10,7 @@ function text(front: string, body = BODY): string {
 const LISTED: Proposal["states"] = [{ name: "Pending", text: "The panel shows the record.", outOfScope: false }];
 
 function proposal(file: string, status: Proposal["status"], changes: string[] = [], retires: string[] = [], states: Proposal["states"] = LISTED): Proposal {
-  return { file, status, changes, retires, optsOut: [], adds: [], states };
+  return { file, status, changes, retires, optsOut: [], adds: [], tightens: [], states };
 }
 
 describe("parseProposal", () => {
@@ -27,6 +27,7 @@ describe("parseProposal", () => {
       retires: ["check:disclosure"],
       optsOut: [{ rule: "check:priority", source: "products/nook" }],
       adds: [],
+      tightens: [],
       states: null,
     });
   });

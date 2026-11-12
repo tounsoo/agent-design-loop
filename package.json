@@ -29,6 +29,7 @@
     "check:rendered-page": "tsx packages/harness/src/check-rendered-page.ts",
     "setup:chrome": "tsx packages/harness/src/setup-chrome.ts",
     "screenshots": "tsx packages/harness/src/screenshots.ts",
+    "critique": "tsx packages/harness/src/critique.ts",
     "check:opt-outs": "tsx packages/harness/src/check-opt-outs.ts",
     "check:retirement": "tsx packages/harness/src/check-retirement.ts",
     "check:proposals": "tsx packages/harness/src/check-proposals.ts",

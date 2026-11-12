@@ -17,6 +17,14 @@ Once pinned, each image in the gallery opens its raw PNG, full size, on a click.
 A change that renders nothing: write "None, nothing renders differently."
 -->
 
+## Critique
+
+<!--
+A change to what a product renders: paste the block `npm run critique -- ... --findings <file> --trace <trace>` prints at the design loop's critique node,
+after the screenshots: the round, the critic's model, the edge it took and each finding on one line.
+A change that renders nothing: write "None, nothing renders differently."
+-->
+
 ## Verify
 
 <!-- The verify skill's verdict (PASS, FAIL or BLOCKED), the tested commit's full SHA, and each step's verdict line. -->

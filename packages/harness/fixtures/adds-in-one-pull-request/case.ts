@@ -9,6 +9,6 @@ export default {
   base: {},
   proposals: "packages/harness/fixtures/adds-in-one-pull-request/proposals",
   checks: [
-    { run: "check:inventories", passes: "0106-side-panel.md (only adds, so it is adopted in the pull request that adds it, which a designer reviews)" },
+    { run: "check:inventories", passes: "0106-side-panel.md (only adds or tightens, so it is adopted in the pull request that adds it, which the code owner merges)" },
   ],
 };

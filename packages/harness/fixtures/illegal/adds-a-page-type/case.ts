@@ -1,4 +1,4 @@
-/** Illegal: the change adds the board page type with its shells entry, and a proposal the change adds lists board under adds. A page type also needs a shells entry, which is a config change, so it is never an addition: it takes a proposal decided on the base. */
+/** Illegal: the change adds the board page type with its shells entry, and a proposal the change adds lists board under adds by its bare name. A page type goes under adds as page-type:<id>, so the bare name covers nothing. */
 export default {
   config: {
     paths: {
@@ -13,7 +13,7 @@ export default {
   base: {},
   proposals: "packages/harness/fixtures/illegal/adds-a-page-type/proposals",
   checks: [
-    { run: "check:inventories", fails: "A page type is never added in one pull request" },
-    { run: "check:inventories", fails: "a new page type is never an addition, because it also needs an entry under shells" },
+    { run: "check:inventories", fails: 'a proposal this change adds must list "page-type:board" under adds' },
+    { run: "check:inventories", fails: 'lists "board" under adds, but this change adds "page-type:board"' },
   ],
 };

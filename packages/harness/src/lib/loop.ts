@@ -24,7 +24,7 @@ export type LoopNode =
   | (NodeBase & { readonly kind: "router" })
   /** Runs npm scripts. Its `pass` edge is taken when every script exits 0, its `fail` edge otherwise. */
   | (NodeBase & { readonly kind: "eval"; readonly run: readonly string[] })
-  /** Waits for a person. `gate` is the CODEOWNERS pattern whose review is the approval. */
+  /** Waits for a person: `approver` names who. `gate` is the CODEOWNERS pattern whose owner merges the pull request it waits on. */
   | (NodeBase & { readonly kind: "human"; readonly approver: string; readonly gate: string })
   /** Saves the run's work where the next run and the reviewer can read it. With no edge out, the run ends here. */
   | (NodeBase & { readonly kind: "checkpoint" });
