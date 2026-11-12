@@ -40,9 +40,11 @@ export function routeHref(route: CollectionRoute): string {
   return `?route=${route}`;
 }
 
-export function invoiceHref(route: CollectionRoute, invoiceId: string): string {
+export function invoiceHref(route: CollectionRoute, invoiceId: string, vendorId?: string): string {
   const params = new URLSearchParams();
   if (route !== "to-approve") params.set("route", route);
+  // From a vendor's page, so its breadcrumb can lead back there.
+  if (route === "vendors" && vendorId) params.set("vendor", vendorId);
   params.set("invoice", invoiceId);
   return `?${params.toString()}`;
 }
@@ -99,6 +101,6 @@ export function flowFromLocation(location: AppLocation, ledger: readonly Invoice
     }
     return detailReady(invoice.id);
   }
-  if (vendorId && location.route === "vendors") return { status: "ready", screen: "vendor", vendorId };
+  if (vendorId && location.route === "vendors" && preview.state === null) return { status: "ready", screen: "vendor", vendorId };
   return { status: "ready", screen: "collection" };
 }

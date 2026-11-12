@@ -83,6 +83,7 @@ export function InvoiceApproval({
       registry={shownVendors}
       route={location.route}
       state={flow}
+      vendorId={location.vendorId}
       onNavigate={onNavigate}
     />
   );

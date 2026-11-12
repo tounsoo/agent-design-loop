@@ -308,6 +308,29 @@ describe("invoice approval views", () => {
 
     renderApproval("?scenario=vendor-unknown");
     expect(screen.getByRole("heading", { level: 1, name: "Vendors" })).toBeInTheDocument();
+    expect(screen.getByText("9 vendors")).toBeInTheDocument();
+  });
+
+  it("leads an invoice opened from a vendor's page back to that vendor", async () => {
+    const user = userEvent.setup();
+    renderApproval("?route=vendors&vendor=helios-freight");
+    await user.click(screen.getByRole("link", { name: "INV-1907" }));
+    expect(screen.getByRole("heading", { level: 1, name: "Helios Freight" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Approve" })).toBeInTheDocument();
+    await user.click(screen.getByRole("link", { name: "Helios Freight" }));
+    expect(screen.getByRole("table", { name: "Open invoices" })).toBeInTheDocument();
+  });
+
+  it("opens the page of a vendor added in the session", async () => {
+    const user = userEvent.setup();
+    renderApproval("?route=vendors");
+    await user.click(screen.getByText("Add a vendor"));
+    await user.type(screen.getByRole("textbox", { name: "Vendor name" }), "Ridgeway Janitorial");
+    await user.type(screen.getByRole("textbox", { name: "Remittance email" }), "ap@ridgeway.example");
+    await user.click(screen.getByRole("button", { name: "Add vendor" }));
+    await user.click(within(vendorCard("Ridgeway Janitorial")).getByRole("link", { name: "Ridgeway Janitorial" }));
+    expect(screen.getByRole("heading", { level: 1, name: "Ridgeway Janitorial" })).toBeInTheDocument();
+    expect(screen.getByText("No invoices from this vendor yet.")).toBeInTheDocument();
   });
 
   it("shows an invoice approved in the session under Approved the next time the vendor's page opens", async () => {

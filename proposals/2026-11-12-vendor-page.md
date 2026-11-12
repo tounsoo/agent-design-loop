@@ -40,7 +40,7 @@ The vendor page at `?route=vendors&vendor=helios-freight`:
 - Breadcrumbs: Vendors, then the vendor's name.
 - The title: the vendor's name, `h1`, which the app shell focuses on arrival.
 - Facts in one horizontal list: Remittance (the email), Terms (Net 45) and Open total ($12,640.50).
-- A section Open invoices: a table of Invoice (a link to the invoice), Status, Due and Amount, soonest due first.
+- A section Open invoices: a table of Invoice (a link to the invoice), Status, Amount and Due, soonest due first. An invoice opened from it has the breadcrumbs Vendors, the vendor, then the invoice number.
 - A section Approved: the same table without Status, latest due first.
 - No buttons on the page.
 
