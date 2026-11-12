@@ -12,7 +12,7 @@ npm run check:fixtures && npm run check
 
 `npm run check` runs `typecheck`, `lint`, `test`, `check:products`, `check:proposals`, `check:retirement`, `check:loop` and `check:docs`, in that order, and stops at the first failure. `check:products` runs `check:product` on every product's config, which runs `check:opt-outs`, `lint:product-ui`, `lint:slots`, `check:step-budget`, `check:disclosure`, `check:priority`, `check:one-thing`, `check:inventories`, `check:state-coverage`, `check:target-size`, `check:accessible-names` and `check:rendered-page`, in that order, and skips a rule the config opts out of.
 
-**Base.** `check:inventories`, `check:proposals`, `check:retirement` and `check:trace` compare the change with its base. The base is `INVENTORY_BASE` when it is set: CI sets it to the pull request base, or on a push to `main` to `github.event.before`, the tip of `main` before the push. A base missing from the clone fails the check. Unset, empty, `true`, `false` or all zeros, it is the merge base with `origin/main`, or with a local `main`. Without either, the check fails.
+**Base.** `check:inventories`, `check:proposals`, `check:retirement`, `check:trace`, `critique` and `loop:step` compare the change with its base. The base is `INVENTORY_BASE` when it is set: CI sets it to the pull request base, or on a push to `main` to `github.event.before`, the tip of `main` before the push. A base missing from the clone fails the check. Unset, empty, `true`, `false` or all zeros, it is the merge base with `origin/main`, or with a local `main`. Without either, the check fails.
 
 **Chrome.** `check:target-size`, `check:accessible-names`, `check:rendered-page`, `check:products`, `check:product` and `screenshots` need headless Chrome, because they open pages in it or run a check that does, and so do the fixture cases that run a Chrome check without `--list`. They find Chrome at `CHROME_PATH`, then the chrome-headless-shell build that `puppeteer-core` pins, which `npm run setup:chrome` installs into `.cache/chrome` (CI runs the same script), then the usual `/usr/bin` paths. A `CHROME_PATH` that names no file fails on its own. With no Chrome, the check fails, naming each place it looked and both fixes.
 
@@ -38,8 +38,8 @@ npm run check:fixtures && npm run check
 | [`check:fixtures`](#checkfixtures) | Repository | none |  |  |  |
 | [`check:product`](#checkproduct) | Product | `--config <file>` (required) |  | Yes |  |
 | [`check:trace`](#checktrace) | Repository | none | Yes |  |  |
-| [`critique`](#critique) | Tool | `--config <file>` (required), `--gallery <dir>`, `--brief <file>`, `--findings <file>` and `--trace <file>` |  |  |  |
-| [`loop:step`](#loopstep) | Tool | none |  |  |  |
+| [`critique`](#critique) | Tool | `--config <file>` (required), `--gallery <dir>`, `--brief <file>`, `--findings <file>` and `--trace <file>` | Yes |  |  |
+| [`loop:step`](#loopstep) | Tool | none | Yes |  |  |
 | [`new:product`](#newproduct) | Tool | none |  |  |  |
 | [`screenshots`](#screenshots) | Tool | `--config <file>` (required), `--out <dir>`, `--state <state>`, `--scenario <id>`, `--view <view>`, `--base <ref>` and `--pin <dir>` |  | Yes |  |
 | [`setup:chrome`](#setupchrome) | Tool | none |  |  |  |
@@ -649,7 +649,7 @@ The checks that open the app in Chrome, `check:target-size` and `check:accessibl
 
 ## `check:trace`
 
-A change that touches a product carries a loop trace, and every trace it adds or edits is a walk the design loop graph allows.
+A change that touches a product carries a loop trace, and every trace it adds or edits is a walk the design loop graph allowed when each step was recorded.
 
 A repository check: it reads the repository, not one product. Run it as `npm run check:trace`, from the repository root, defined in `packages/harness/src/check-trace.ts`. It takes no `--config`. It compares the change with its base.
 
@@ -660,14 +660,17 @@ It fails:
 - A trace that ends its run with a change to checked state that no passing eval node follows. A run paused at a checkpoint with an edge out may stop unchecked.
 - A file under `traces/` that is not a `.jsonl` trace or the folder's README.
 - A trace line that is not a JSON object, has a key other than `node`, `when` and `at`, has a value that is not a string, has no `node`, or names a node the design loop does not have.
+- A trace line added in a commit whose `packages/harness/design-loop.ts` is missing or is not a plain literal, so there is no loop to read the line against, a tracked trace `git blame` cannot read, or, in a shallow clone, a line dated to the clone's cut.
 
 It is not in `npm run check`, because the eval node runs the gate in the middle of the walk, before the trace ends at a checkpoint. CI runs it after the build gate, and an agent runs it before pushing. `npm run loop:step` writes a trace step by step. A trace is the agent's own record, so passing shows the record is a walk the graph allows, not that the work was done: [proposal 0010](../../../proposals/0010-loop-trace.md). Only traces the change adds or edits are read.
+
+Each line is read against the design loop as it stood in the commit that added it, which `git blame` names, and a line not yet committed against the loop in the working tree (`lib/trace-history.ts`). So a run recorded before the loop changed still passes as the walk it was, and a pull request that merges `main` after the loop gained a step keeps its trace as it is. Where the loop changed between two steps, the later one may start a new run at the start or go on along the new loop's edges. A commit's loop counts only when it is the working tree's or the one the commit's merge base with the base held, so a line recorded under a loop a branch made, or copied from an older `main`, and then put back is read against today's. A line takes the newest loop of any line up to it, newest by the history of `design-loop.ts`, so a line someone edited later pulls the lines after it onto its loop. Two versions that differ only in labels or in the order of their lists are the same loop. A rebase re-dates every line it moves onto the new base's loop, so merge `main` in instead. `loop:step` and `critique` read a trace the same way.
 
 ## `critique`
 
 The design loop's `critique` step: writes the brief for a second model to judge the screenshots, then records its findings and the edge back to build or on to the note.
 
-A tool: the build gate does not run it. Run it as `npm run critique`, from the repository root, defined in `packages/harness/src/critique.ts`. It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it.
+A tool: the build gate does not run it. Run it as `npm run critique`, from the repository root, defined in `packages/harness/src/critique.ts`. It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it. It compares the change with its base.
 
 Flags:
 
@@ -684,7 +687,7 @@ With `--findings` and `--trace`, a finding that calls for `revise` sends the loo
 
 Appends one step to a change's loop trace, and refuses a step the design loop graph does not allow.
 
-A tool: the build gate does not run it. Run it as `npm run loop:step`, from the repository root, defined in `packages/harness/src/loop-step.ts`. It takes no `--config`.
+A tool: the build gate does not run it. Run it as `npm run loop:step`, from the repository root, defined in `packages/harness/src/loop-step.ts`. It takes no `--config`. It compares the change with its base.
 
 Run it as `npm run loop:step -- traces/<change>.jsonl <node> [when]`, with the `when` of the edge taken out of a router, eval or human node. It writes only a `.jsonl` file under `traces/`, so a wrong edge shows up at the step that takes it, not at `check:trace`. `traces/README.md` has the format.
 

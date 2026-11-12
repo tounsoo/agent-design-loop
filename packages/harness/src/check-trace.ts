@@ -4,6 +4,7 @@ import designLoop from "../design-loop";
 import { resolveBaseRev, tryGit } from "./lib/base";
 import { isProductConfig, productConfigs } from "./lib/products";
 import { changedTraces, touchedProducts, traceProblems, TRACE_DIR, type ChangedFile } from "./lib/trace";
+import { recordedLoops } from "./lib/trace-history";
 
 /**
  * Reads the change against its base, as check:inventories does, and checks
@@ -11,6 +12,10 @@ import { changedTraces, touchedProducts, traceProblems, TRACE_DIR, type ChangedF
  * loop graph. A change that touches a product's directory, the folder of any
  * harness.config.ts outside the harness package, must add or edit one. It
  * takes no --config: the loop is the harness's, and the trace is the change's.
+ *
+ * Each line is held to the design loop as it stood in the commit that added
+ * it, so a run recorded before the loop changed still reads as the walk it
+ * was (lib/trace-history.ts).
  *
  * A trace is the agent's own record of its walk, so passing shows the record
  * is one the graph allows, not that the agent did the work it names.
@@ -68,7 +73,8 @@ if (misnamed.length > 0) {
   console.error(`trace: ${misnamed.join(", ")} ${misnamed.length === 1 ? "is" : "are"} under ${TRACE_DIR}/ but not a .jsonl trace, so check:trace would not read ${misnamed.length === 1 ? "it" : "them"}. Name a trace <change>.jsonl.`);
 }
 for (const trace of traces) {
-  const problems = traceProblems(designLoop, existsSync(trace) ? readFileSync(trace, "utf8") : "");
+  const loops = recordedLoops(trace, designLoop, { base: base.rev });
+  const problems = "problems" in loops ? loops.problems : traceProblems(loops.loopAt, existsSync(trace) ? readFileSync(trace, "utf8") : "");
   if (problems.length === 0) continue;
   failed = true;
   console.error(`trace: ${trace} is not a walk of the design loop graph:`);
