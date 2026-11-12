@@ -23,9 +23,9 @@ jobs:
           path: .cache/chrome
           key: chrome-headless-shell-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - run: npm run setup:chrome
-      # The harness's fixtures, the repository-wide checks, Meridian's rule checks, then the proposals and retirement checks across every product and the design loop graph.
+      # The harness's fixtures, the repository-wide checks, Meridian's rule checks, then the proposals and retirement checks across every product, the design loop graph and the generated check reference.
       # Last, the change's loop trace, which is not part of the build gate: the agent runs the gate in the middle of its walk, before the trace ends.
-      - run: npm run check:fixtures && npm run typecheck && npm run lint && npm run test && npm run check:product -- --config products/meridian/harness.config.ts && npm run check:proposals && npm run check:retirement && npm run check:loop && npm run check:trace
+      - run: npm run check:fixtures && npm run typecheck && npm run lint && npm run test && npm run check:product -- --config products/meridian/harness.config.ts && npm run check:proposals && npm run check:retirement && npm run check:loop && npm run check:docs && npm run check:trace
         env:
           INVENTORY_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
 

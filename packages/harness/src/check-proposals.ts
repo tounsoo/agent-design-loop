@@ -17,8 +17,9 @@ import { nameProblems, parseAll, sharedNameProblems, proposalsAtRev, proposalsIn
  * what it names in the change that adds it, and is named for the UTC day it
  * was written and a slug, so parallel changes cannot pick the same name.
  *
- * The folders read are `proposals/` and every product config's
- * `paths.proposals`. It takes no arguments.
+ * The folders read are `proposals/`, every product config's
+ * `paths.proposals`, and any other folder named `proposals` outside the
+ * harness package. It takes no arguments.
  */
 
 if (process.argv.length > 2) {

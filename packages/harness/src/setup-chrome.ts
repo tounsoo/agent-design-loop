@@ -4,8 +4,8 @@ import { CHROME_BUILD, CHROME_CACHE } from "./lib/chrome";
 
 /**
  * Installs the chrome-headless-shell build puppeteer-core pins into
- * `.cache/chrome`, where check:target-size, check:accessible-names and the
- * seven fixture cases that open a page look for it. CI runs this too, so a
+ * `.cache/chrome`, where check:target-size, check:accessible-names,
+ * screenshots and the fixture cases that open a page look for it. CI runs this too, so a
  * local run measures in the same build. Nothing is installed system-wide.
  */
 
