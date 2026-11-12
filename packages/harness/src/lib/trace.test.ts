@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import designLoop from "../../design-loop";
 import type { LoopGraph } from "./loop";
-import { changedTraces, parseTrace, touchedProducts, traceProblems } from "./trace";
+import { changedTraces, parseTrace, touchedProducts, traceProblems, type LoopAt } from "./trace";
 
 /** The same small loop loop.test.ts uses: build, check, retry on fail, ask a person, end. */
 const graph: LoopGraph = {
@@ -189,6 +189,69 @@ describe("traceProblems", () => {
 
   it("passes a partial walk, which loop:step checks as it appends", () => {
     expect(traceProblems(graph, lines({ node: "build" }, { node: "checks", when: "fail" }), { partial: true })).toEqual([]);
+  });
+});
+
+describe("traceProblems across a change of loop", () => {
+  // The same loop after it gained a review step between the passing check and the checkpoint, as the design loop gained critique.
+  const reviewed: LoopGraph = {
+    ...graph,
+    nodes: [...graph.nodes, { id: "review", kind: "llm", label: "Review" }],
+    edges: [...graph.edges.filter((edge) => !(edge.from === "checks" && edge.when === "pass")), { from: "checks", to: "review", when: "pass" }, { from: "review", to: "done" }],
+  };
+  /** Lines up to `last` were recorded under `graph`, the rest under `reviewed`. */
+  const changedAfter = (last: number): LoopAt => (line) => (line <= last ? graph : reviewed);
+
+  it("fails a run recorded before the loop changed when every line is read against today's loop, the bug this guards", () => {
+    expect(traceProblems(reviewed, pass)).toContain("line 3 goes from checks when pass to done, an edge the graph does not have. It goes to review.");
+  });
+
+  it("passes a run recorded before the loop changed, read against the loop of its day", () => {
+    expect(traceProblems(changedAfter(3), pass)).toEqual([]);
+  });
+
+  it("passes a new run after the change, walked under the new loop", () => {
+    const next = lines({ node: "build" }, { node: "checks", when: "pass" }, { node: "review" }, { node: "done" });
+    expect(traceProblems(changedAfter(3), `${pass}${next}`)).toEqual([]);
+  });
+
+  it("fails a new run after the change that walks the old loop", () => {
+    expect(traceProblems(changedAfter(3), `${pass}${pass}`)).toContain("line 6 goes from checks when pass to done, an edge the graph does not have. It goes to review.");
+  });
+
+  it("lets a run cut off by the change start over at the new loop's start, though it stopped short of a checkpoint", () => {
+    const restarted = lines({ node: "build" }, { node: "build" }, { node: "checks", when: "pass" }, { node: "review" }, { node: "done" });
+    expect(traceProblems(changedAfter(1), restarted)).toEqual([]);
+    // Without a change of loop, the same step back to the start is an edge the graph does not have.
+    expect(traceProblems(reviewed, restarted)).toContain("line 2 goes from build to build, an edge the graph does not have. It goes to checks.");
+  });
+
+  it("goes on with a run cut off by the change along the new loop's edges, and fails one that keeps to the old loop's", () => {
+    const goesOn = lines({ node: "build" }, { node: "checks", when: "pass" }, { node: "review" }, { node: "done" });
+    expect(traceProblems(changedAfter(2), goesOn)).toEqual([]);
+    expect(traceProblems(changedAfter(2), pass)).toContain(
+      "line 3 goes from checks when pass to done, an edge the graph does not have. It goes to review. The design loop changed after line 2, and this step follows the loop it was recorded under.",
+    );
+  });
+
+  it("treats a loop that only rewords a label or reorders its lists as the same loop, so a run cut there cannot start over", () => {
+    const reworded: LoopGraph = { ...graph, nodes: [...graph.nodes].reverse().map((node) => ({ ...node, label: `${node.label}, reworded` })), edges: [...graph.edges].reverse() };
+    const cut = lines({ node: "build" }, { node: "build" });
+    expect(traceProblems((line) => (line <= 1 ? graph : reworded), cut, { partial: true })).toEqual(["line 2 goes from build to build, an edge the graph does not have. It goes to checks."]);
+  });
+
+  it("goes on from a checkpoint that ended the run under the old loop along an edge the new loop adds out of it", () => {
+    const reopened: LoopGraph = { ...graph, edges: [...graph.edges, { from: "done", to: "checks" }] };
+    const walk = lines({ node: "build" }, { node: "checks", when: "pass" }, { node: "done" }, { node: "checks", when: "pass" }, { node: "done" });
+    expect(traceProblems((line) => (line <= 3 ? graph : reopened), walk)).toEqual([]);
+  });
+
+  it("fails a step that goes on from a node the new loop dropped", () => {
+    const dropped: LoopGraph = { ...reviewed, nodes: reviewed.nodes.filter((node) => node.id !== "fork"), edges: reviewed.edges.filter((edge) => edge.from !== "fork" && edge.to !== "fork") };
+    const walk = lines({ node: "build" }, { node: "checks", when: "fail" }, { node: "fork", when: "inside" }, { node: "ask", when: "approved" });
+    expect(traceProblems((line) => (line <= 3 ? graph : dropped), walk, { partial: true })).toEqual([
+      "line 4 follows line 3, and the two were recorded under different versions of the design loop: the one line 4 was recorded under has no node fork. Where the loop changes, a new run starts at build.",
+    ]);
   });
 });
 

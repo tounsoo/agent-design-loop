@@ -125,7 +125,7 @@ function unwrap(expression: ts.Expression): ts.Expression {
   return current;
 }
 
-function literal(node: ts.Expression, where: string): Literal {
+export function literal(node: ts.Expression, where: string): Literal {
   const value = unwrap(node);
   if (ts.isStringLiteral(value) || ts.isNoSubstitutionTemplateLiteral(value)) return value.text;
   if (ts.isNumericLiteral(value)) return Number(value.text.replace(/_/g, ""));

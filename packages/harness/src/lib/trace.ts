@@ -60,6 +60,42 @@ export function parseTrace(text: string): { steps: (TraceStep & { line: number }
 const hasOutcomes = (node: LoopNode): boolean => node.kind === "router" || node.kind === "eval" || node.kind === "human";
 
 /**
+ * The design loop each line of a trace was recorded under, by line number.
+ * The loop changes over time, and a trace keeps the steps an agent took under
+ * the loop of its day, so each step is held to that loop: `recordedLoops` in
+ * trace-history.ts reads it from git. A plain graph holds every line to one loop.
+ */
+export type LoopAt = (line: number) => LoopGraph;
+
+const keys = new WeakMap<LoopGraph, string>();
+/**
+ * A loop's shape as one string: its start, nodes and edges, with keys and
+ * lists in a fixed order and without labels or descriptions, which a walk
+ * never reads. Two versions of design-loop.ts with the same key are the same
+ * loop to a trace, so a reworded label or a reordered list is no change.
+ */
+export function loopKey(graph: LoopGraph): string {
+  let value = keys.get(graph);
+  if (value !== undefined) return value;
+  const canonical = (item: unknown): unknown => {
+    if (Array.isArray(item)) return item.map(canonical).map((entry) => JSON.stringify(entry)).sort();
+    if (typeof item !== "object" || item === null) return item;
+    return Object.fromEntries(
+      Object.keys(item)
+        .filter((key) => key !== "label" && key !== "what")
+        .sort()
+        .map((key) => [key, canonical((item as Record<string, unknown>)[key])]),
+    );
+  };
+  value = JSON.stringify(canonical(graph));
+  keys.set(graph, value);
+  return value;
+}
+const sameLoop = (a: LoopGraph, b: LoopGraph): boolean => a === b || loopKey(a) === loopKey(b);
+
+type Placed = TraceStep & { line: number; graph: LoopGraph; nodes: Map<string, LoopNode> };
+
+/**
  * What is wrong with a walk of the graph. An empty list means the walk is one
  * the graph allows. With `partial`, the walk may stop anywhere, which is how
  * `loop:step` checks a trace still being written. Otherwise it must stop at a
@@ -68,14 +104,26 @@ const hasOutcomes = (node: LoopNode): boolean => node.kind === "router" || node.
  * check:loop holds the graph's ends to. A checkpoint with an edge out, such as
  * the proposal's pull request, pauses the run, so its work may still be unchecked.
  * The step after any checkpoint may start a new run.
+ *
+ * Each step is held to the loop it was recorded under. Where the loop changed
+ * between two steps, the later one may start a new run at the new loop's
+ * start, or go on with the run along the new loop's edges.
  */
-export function walkProblems(graph: LoopGraph, steps: readonly (TraceStep & { line: number })[], options: { partial?: boolean } = {}): string[] {
+export function walkProblems(loop: LoopGraph | LoopAt, steps: readonly (TraceStep & { line: number })[], options: { partial?: boolean } = {}): string[] {
   const problems: string[] = [];
-  const nodes = new Map(graph.nodes.map((node) => [node.id, node]));
-  const isEnd = (id: string): boolean => !graph.edges.some((edge) => edge.from === id);
   if (steps.length === 0) return ["the trace has no steps."];
+  const loopAt: LoopAt = typeof loop === "function" ? loop : () => loop;
+  const indexes = new Map<LoopGraph, Map<string, LoopNode>>();
+  const placed: Placed[] = steps.map((step) => {
+    const graph = loopAt(step.line);
+    let nodes = indexes.get(graph);
+    if (!nodes) indexes.set(graph, (nodes = new Map(graph.nodes.map((node) => [node.id, node]))));
+    return { ...step, graph, nodes };
+  });
+  const isEnd = (graph: LoopGraph, id: string): boolean => !graph.edges.some((edge) => edge.from === id);
 
-  steps.forEach((step, index) => {
+  placed.forEach((step, index) => {
+    const { graph, nodes } = step;
     const node = nodes.get(step.node);
     if (!node) {
       problems.push(`line ${step.line} names ${step.node}, which is not a node of the design loop.`);
@@ -90,43 +138,58 @@ export function walkProblems(graph: LoopGraph, steps: readonly (TraceStep & { li
       problems.push(`line ${step.line}: ${node.kind} node ${node.id} has no outcomes, so its step takes no when.`);
     }
 
-    const previous = steps[index - 1];
+    const previous = placed[index - 1];
     if (!previous) {
       if (node.id !== graph.start) problems.push(`line ${step.line} starts at ${node.id}. A run starts at ${graph.start}.`);
       return;
     }
-    const before = nodes.get(previous.node);
+    const before = previous.nodes.get(previous.node);
     if (!before) return;
     // A checkpoint saves the run's work, so the next step may start a new run there. After an end it must.
     if (before.kind === "checkpoint" && node.id === graph.start) return;
-    if (isEnd(previous.node)) {
+    const changed = !sameLoop(previous.graph, graph);
+    if (changed) {
+      // The loop changed after the previous step, so this step may start over under the new loop.
+      if (node.id === graph.start) return;
+      if (!nodes.has(previous.node)) {
+        problems.push(`line ${step.line} follows line ${previous.line}, and the two were recorded under different versions of the design loop: the one line ${step.line} was recorded under has no node ${previous.node}. Where the loop changes, a new run starts at ${graph.start}.`);
+        return;
+      }
+    }
+    // Across a change of loop, the new loop says whether the previous node ends the run.
+    if (isEnd(changed ? graph : previous.graph, previous.node)) {
       if (node.id !== graph.start) problems.push(`line ${step.line} follows ${previous.node}, which ends the run, so a new run starts at ${graph.start}, not ${node.id}.`);
       return;
     }
+    // Across a change of loop, the run goes on along the new loop's edges.
     const taken = graph.edges.filter((edge) => edge.from === previous.node && (edge.when === undefined || edge.when === previous.when));
     if (!taken.some((edge) => edge.to === node.id)) {
       const after = previous.when === undefined ? previous.node : `${previous.node} when ${previous.when}`;
       const next = taken.map((edge) => edge.to).join(" or ");
-      problems.push(`line ${step.line} goes from ${after} to ${node.id}, an edge the graph does not have.${next ? ` It goes to ${next}.` : ""}`);
+      const under = changed ? ` The design loop changed after line ${previous.line}, and this step follows the loop it was recorded under.` : "";
+      problems.push(`line ${step.line} goes from ${after} to ${node.id}, an edge the graph does not have.${next ? ` It goes to ${next}.` : ""}${under}`);
     }
   });
   if (options.partial) return problems;
 
-  const last = steps[steps.length - 1];
-  const lastNode = last ? nodes.get(last.node) : undefined;
+  const last = placed[placed.length - 1];
+  const lastNode = last?.nodes.get(last.node);
   if (last && lastNode && lastNode.kind !== "checkpoint") {
     problems.push(`the trace ends at ${last.node} on line ${last.line}, which is not a checkpoint, so the run's work is not saved for review.`);
   }
 
-  if (!last || !isEnd(last.node)) return problems;
+  if (!last || !isEnd(last.graph, last.node)) return problems;
   // Every state an eval node reads, written after the last eval node that reads it passed, is unchecked work.
-  const checked = new Set(graph.nodes.flatMap((node) => (node.kind === "eval" ? (node.reads ?? []) : [])));
-  const unchecked = new Map<string, TraceStep & { line: number }>();
-  for (const step of steps) {
-    const node = nodes.get(step.node);
+  // A write counts only where the loop it was recorded under has an eval node that reads that state.
+  const checkedIn = new Map<LoopGraph, Set<string>>(
+    [...indexes.keys()].map((graph) => [graph, new Set(graph.nodes.flatMap((node) => (node.kind === "eval" ? (node.reads ?? []) : [])))]),
+  );
+  const unchecked = new Map<string, Placed>();
+  for (const step of placed) {
+    const node = step.nodes.get(step.node);
     if (!node) continue;
     if (node.kind === "eval" && step.when === "pass") for (const id of node.reads ?? []) unchecked.delete(id);
-    for (const id of node.writes ?? []) if (checked.has(id) && !unchecked.has(id)) unchecked.set(id, step);
+    for (const id of node.writes ?? []) if (checkedIn.get(step.graph)?.has(id) && !unchecked.has(id)) unchecked.set(id, step);
   }
   for (const [state, step] of unchecked) {
     problems.push(`line ${step.line}: ${step.node} writes ${state}, and no eval node that reads ${state} passes after it, so the run ends with unchecked work.`);
@@ -135,9 +198,9 @@ export function walkProblems(graph: LoopGraph, steps: readonly (TraceStep & { li
 }
 
 /** The problems with a trace file's text: parse problems first, then walk problems. */
-export function traceProblems(graph: LoopGraph, text: string, options: { partial?: boolean } = {}): string[] {
+export function traceProblems(loop: LoopGraph | LoopAt, text: string, options: { partial?: boolean } = {}): string[] {
   const parsed = parseTrace(text);
-  return "problems" in parsed ? parsed.problems : walkProblems(graph, parsed.steps, options);
+  return "problems" in parsed ? parsed.problems : walkProblems(loop, parsed.steps, options);
 }
 
 /** A change's files, as `git diff --name-status` gives them, plus untracked files as added. */
