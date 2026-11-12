@@ -178,7 +178,7 @@ function unclassifiedPageTypes(rules: ShellRules, allowed: readonly string[]): s
       return [`${configName} shells names page type "${pageType}" in both ${kinds.join(" and ")}, but ${why}.`];
     }
     if (kinds.length === 0) {
-      return [`${configName} shells names page type "${pageType}" in neither primarySlots nor collections nor content, so no shell rule reads its pages. Add it to shells.primarySlots with the slot that holds its one primary action, to shells.collections with its chrome slots, or to shells.content when its pages show information with no primary action. That is a config change, so a proposal decided on the base lists the page type and that shells rule under changes, and a new page type takes two pull requests.`];
+      return [`${configName} shells names page type "${pageType}" in neither primarySlots nor collections nor content, so no shell rule reads its pages. Add it to shells.primarySlots with the slot that holds its one primary action, to shells.collections with its chrome slots, or to shells.content when its pages show information with no primary action. A new page type with its own new entry there takes one pull request, with a proposal the change adds that lists page-type:${pageType} under adds; moving a page type the base had between the rules takes a proposal decided on the base.`];
     }
     return [];
   });
@@ -213,6 +213,10 @@ export function collectionShellsOf(
     const chrome = rules.collections[shell.pageType];
     if (chrome === undefined) return [];
     problems.push(...unknownSlots("collections", shell, chrome));
+    // A collection's body is built from content layouts, so naming every slot as chrome would leave its pages nothing to check, before any page exists.
+    if (shell.slots !== null && shell.slots.size > 0 && [...shell.slots].every((slot) => chrome.includes(slot))) {
+      problems.push(`${configName} shells.collections names every slot of ${shell.name} as chrome (${[...shell.slots].join(", ")}), so its pages have no body slot. Leave at least one slot out of its chrome.`);
+    }
     return [{ shell, chrome: new Set(chrome.map((slot) => `${shell.name}.${slot}`)) }];
   });
   return { collections, problems };

@@ -1,5 +1,5 @@
 ---
-status: decided
+status: adopted
 changes: []
 ---
 # One pull request for changes that grow a product or tighten a rule

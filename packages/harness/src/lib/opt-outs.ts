@@ -89,7 +89,7 @@ export function retirementCandidates(products: readonly OptOutProduct[]): Retire
 /**
  * Rules the base's `check:rules` ran that the head's does not. Each must be
  * retired by a proposal this change adopts whose `retires` lists it, so a
- * rule leaves the harness only on a designer's decision.
+ * rule leaves the harness only on a decision the code owner merged first.
  */
 export function unretiredRemovals(baseRules: readonly string[], headRules: readonly string[], adopts: readonly Proposal[]): string[] {
   return [...new Set(baseRules)]
