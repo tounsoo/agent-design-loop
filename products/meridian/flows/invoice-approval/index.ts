@@ -34,6 +34,7 @@ export {
   searchVendors,
   termsLabel,
   vendorRows,
+  knownVendors,
   previewVendors,
 } from "./vendors";
 export type { NewVendor, Vendor, VendorDraft, VendorId, VendorRow } from "./vendors";

@@ -10,6 +10,7 @@ import {
   searchVendors,
   vendorKey,
   vendorRows,
+  knownVendors,
   previewVendors,
   type NewVendor,
 } from "./vendors";
@@ -149,8 +150,20 @@ describe("the vendors a preview shows", () => {
     expect(previewVendors("ready", quarry)).toEqual([...sampleVendors, ...quarry]);
   });
 
-  it("never mints a sample vendor's id, even for a list without the samples", () => {
-    const { id } = addVendor([], valid("Harbor and Pine Catering"));
-    expect(sampleVendors.map((vendor) => vendor.id)).not.toContain(id);
+  it("never mints an id a reserved vendor has, even one off the list", () => {
+    const known = knownVendors([]);
+    const harbor = addVendor([], valid("Harbor and Pine Catering"), known);
+    expect(known.map((vendor) => vendor.id)).not.toContain(harbor.id);
+    const ridgeway = addVendor(sampleVendors, valid("Ridgeway Janitorial."), known);
+    expect(ridgeway.id).not.toBe(previewAddedVendorId);
+  });
+
+  it("gives two session vendors different ids when a preview hides the first", () => {
+    const fromEmpty = checkVendorDraft({ name: "Northwind Office Supply", remitEmail: "ap@other.example", terms: "net-30" }, []);
+    if (!fromEmpty.ok) throw new Error("expected the draft to pass against an empty list");
+    const first = addVendor([], fromEmpty.vendor, knownVendors([]));
+    const added = first.registry;
+    const second = addVendor(previewVendors("ready", added), valid("Northwind Office Supply 2"), knownVendors(added));
+    expect(second.id).not.toBe(first.id);
   });
 });

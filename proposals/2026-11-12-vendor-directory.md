@@ -81,6 +81,6 @@ The happy path is open Vendors, open "Add a vendor", fill the three fields, then
 - `products/meridian/inputs/product.ts` adds `directory` to `allowed_content_layouts`, and `products/meridian/content-layouts/directory/` holds the layout.
 - `products/meridian/flows/invoice-approval/states.ts` adds `vendor-added` to `modeledStates`, its `FlowState` and the `add-vendor` event. `transition.ts`, `location.ts` and `graph.ts` handle them, and `vendors.ts` holds the vendor registry, the validation rules and their copy.
 - `products/meridian/preview/readState.ts` gives `vendor-added` its route, and the preview menu links to it.
-- `products/meridian/features/invoice-approval/views.tsx` renders Vendors as its own collection page on the directory, and `InvoiceApproval.tsx` keeps the registry beside the ledger. `content-layouts/data-table` no longer serves vendors.
+- `products/meridian/features/invoice-approval/views.tsx` renders Vendors as its own collection page on the directory, and `InvoiceApproval.tsx` keeps the vendors added in the session beside the ledger. `content-layouts/data-table` no longer serves vendors.
 - `products/meridian/features/invoice-approval/accessible-names.ts` declares what Vendors and the `vendor-added` preview announce.
 - `products/meridian/review/vendor-directory.md` records what the checks cannot decide.

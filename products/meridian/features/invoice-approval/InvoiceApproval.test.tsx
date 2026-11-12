@@ -266,11 +266,12 @@ describe("invoice approval views", () => {
   it("adds the first vendor from an empty vendor list", async () => {
     const user = userEvent.setup();
     renderApproval("?state=empty&route=vendors");
-    await user.type(screen.getByRole("textbox", { name: "Vendor name" }), "Ridgeway Janitorial");
-    await user.type(screen.getByRole("textbox", { name: "Remittance email" }), "ap@ridgeway.example");
+    // A sample invoice names this vendor, but on Empty nothing has loaded.
+    await user.type(screen.getByRole("textbox", { name: "Vendor name" }), "Northwind Office Supply");
+    await user.type(screen.getByRole("textbox", { name: "Remittance email" }), "ap@northwind.example");
     await user.click(screen.getByRole("button", { name: "Add vendor" }));
-    expect(screen.getByRole("status")).toHaveTextContent("Added Ridgeway Janitorial.");
-    expect(vendorCard("Ridgeway Janitorial")).toHaveTextContent("No invoices yet");
+    expect(screen.getByRole("status")).toHaveTextContent("Added Northwind Office Supply.");
+    expect(vendorCard("Northwind Office Supply")).toHaveTextContent("No invoices yet");
     expect(screen.getByText("1 vendor")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "No vendors yet" })).toBeNull();
   });

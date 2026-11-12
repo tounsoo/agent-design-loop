@@ -95,9 +95,7 @@ function slug(name: string): string {
   return base === "" ? "vendor" : base;
 }
 
-function mintId(registry: readonly Vendor[], name: string): VendorId {
-  // Sample ids stay reserved, so a vendor added on the Empty preview never shares one.
-  const taken = new Set<string>([...registry, ...sampleVendors].map((vendor) => vendor.id));
+function mintId(taken: ReadonlySet<string>, name: string): VendorId {
   const base = slug(name);
   let id = base;
   for (let n = 2; taken.has(id); n += 1) id = `${base}-${n}`;
@@ -107,15 +105,17 @@ function mintId(registry: readonly Vendor[], name: string): VendorId {
 /**
  * Idempotent on the vendor's name: adding a name the registry already has
  * returns the registry as it is, with that vendor's id, so a double submit
- * never adds a second card.
+ * never adds a second card. `reserved` holds vendors kept off this list whose
+ * ids a new vendor still must not take, because they can show beside it later.
  */
 export function addVendor(
   registry: readonly Vendor[],
   vendor: NewVendor,
+  reserved: readonly Vendor[] = [],
 ): { readonly registry: readonly Vendor[]; readonly id: VendorId; readonly added: boolean } {
   const existing = sameVendor(registry, vendor.name);
   if (existing) return { registry, id: existing.id, added: false };
-  const id = mintId(registry, vendor.name);
+  const id = mintId(new Set([...registry, ...reserved].map((entry) => entry.id)), vendor.name);
   const { name, remitEmail, terms } = vendor;
   return { registry: [...registry, { id, name, remitEmail, terms }], id, added: true };
 }
@@ -180,10 +180,15 @@ export const previewAddedVendor: NewVendor = checked({
 export const previewAddedVendorId: VendorId = addVendor(sampleVendors, previewAddedVendor).id;
 
 /**
- * The vendors a preview shows: none on Empty, the sample vendors elsewhere, plus
- * the preview's own vendor on vendor-added. Vendors added in this session follow,
- * minus any whose name the preview already has.
+ * Empty means nothing has loaded, so it shows only what this session added. A
+ * session vendor whose name the preview already has stays hidden rather than
+ * showing twice.
  */
+/** Every vendor any preview can show, so a new vendor's id is unique wherever it appears. */
+export function knownVendors(added: readonly Vendor[]): readonly Vendor[] {
+  return [...addVendor(sampleVendors, previewAddedVendor).registry, ...added];
+}
+
 export function previewVendors(previewState: ModeledState | null, added: readonly Vendor[]): readonly Vendor[] {
   const base =
     previewState === "empty"
