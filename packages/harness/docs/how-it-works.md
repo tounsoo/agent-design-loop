@@ -97,6 +97,7 @@ flowchart TB
   n_approval(["human: The code owner merges the proposal's pull request"])
   n_adopt["llm: Adopt it into the inventory data or a harness rule"]
   n_screenshots["llm: Capture each state the change touches, with a gallery the pull request links"]
+  n_critique{"router: Does a second model, not the builder, find a problem in the screenshots to fix before review?"}
   n_note["llm: Write the leftover judgment in the review notes"]
   n_pull_request[("checkpoint: Open the pull request for review")]
   n_read --> n_route
@@ -114,7 +115,9 @@ flowchart TB
   n_approval -->|approved| n_adopt
   n_approval -->|declined| n_build
   n_adopt --> n_build
-  n_screenshots --> n_note
+  n_screenshots --> n_critique
+  n_critique -->|revise| n_build
+  n_critique -->|pass| n_note
   n_note --> n_pull_request
 ```
 
@@ -128,7 +131,7 @@ Each node has a kind, and the shape in the diagram shows it.
 - **human.** The run stops until a person decides. Its `gate` is a `CODEOWNERS` pattern, and the review `CODEOWNERS` requests on that pull request is the approval. Its edges are `approved` and `declined`. `main` has no branch protection, so GitHub requests the review but does not block a merge without it.
 - **checkpoint.** The work is saved where the next run and the reviewer read it, as a pull request. A checkpoint with no edge out ends the run. The proposal's checkpoint opens the pull request the human node reviews.
 
-The graph's `state` lists what the nodes read and write: the inventories, the harness rules, the proposals, the product's UI and its `review/` folder, which holds the review notes and each change's screenshots. An adopted proposal writes the inventories or the rules, so the next run reads a larger set.
+The graph's `state` lists what the nodes read and write: the inventories, the harness rules, the proposals, the product's UI and its `review/` folder, which holds the review notes and each change's screenshots with their critique. An adopted proposal writes the inventories or the rules, so the next run reads a larger set.
 
 `npm run check:loop` fails the build when the graph is not one an agent can follow:
 
@@ -284,6 +287,28 @@ npm run screenshots -- --config products/meridian/harness.config.ts --out produc
 `<change>` is the name the change's trace uses, `traces/<change>.jsonl`. The script builds the product, serves it with `vite preview` on a free port and opens the same previews `check:target-size` does, every modeled state once per query string its flow's `previews` lists, at 1280 by 900 CSS px in the same headless Chrome. It saves one full-page PNG per preview, named by its query, such as `ready--page-detail.png`. A state can have several previews: Meridian's `ready` has five. Each run replaces the whole folder, so a retake repeats every flag. `--state <name>` keeps one state's previews and repeats, and leaving it out takes every preview. `--base <ref>` takes the same previews at that commit too, from a temporary git worktree that borrows the installed packages, so the folder holds `before/` and `after/`. A base built with packages newer than its own lockfile asks for can differ from what shipped then, which matters only for a change to a package version.
 
 The folder also gets a `README.md`, the gallery: a table of before and after, or one section per preview without a base, with each image wrapped in a link to its own file. GitHub renders it with the images. A link to the file itself opens GitHub's page for it, which shows the image no larger than the gallery does on a phone, and a link to that page with `?raw=true` fails in GitHub's own page navigation. So once the folder is committed, `npm run screenshots -- --config <product config> --pin <folder>` points each link at the raw PNG on `raw.githubusercontent.com`, at that commit, and a click opens the image itself, full size on any device, even after the branch is deleted. It refuses a folder with anything but its `README.md` uncommitted, so every link names a PNG that commit holds, and pinning again moves every link to the new commit. Pinning needs a second commit, of the `README.md` alone, because no link can name the commit it is part of. `raw.githubusercontent.com` serves a private repository's files only with a token in the address, so in a private repository a pinned link opens nothing, and its gallery is better left unpinned. [`screenshots-example/`](screenshots-example/README.md) is one gallery, of two Meridian states without a base, pinned. An agent's pull request description may not carry images, so it carries none: one plain link to the gallery, pinned to the pushed commit's full SHA, is enough. `--pin` prints that line, with a `<sha>` to replace, and the whole `https://github.com/` address: a relative path resolves only on github.com itself, so it breaks in the GitHub app and in email, and a branch link breaks once the branch is deleted. No check requires the screenshots: the trace records the step, and the reviewer sees whether the description links a gallery.
+
+### The critique
+
+The checks hold rules, and a page can follow every one and still read wrong to a designer: sections of equal weight crowding the one the page is for, a block set apart from the thing it describes, a long page with nothing to say which part matters. Once the screenshots are taken, the loop's `critique` node has a second model, not the one that built the change, look at them. It is a router: the critique answers `revise`, back to `build`, or `pass`, on to the review note. [Proposal 2026-11-12-critique-step](../../../proposals/2026-11-12-critique-step.md) records the decision.
+
+```sh
+npm run critique -- --config products/meridian/harness.config.ts --gallery products/meridian/review/screenshots/<change> --brief <scratch>/critique-brief.md
+npm run critique -- --config products/meridian/harness.config.ts --gallery products/meridian/review/screenshots/<change> --findings <scratch>/findings.json --trace traces/<change>.jsonl
+```
+
+The harness calls no model. The first run writes the critic's brief: the product's tasks and ranked actions, every screenshot of the change, with the base's for comparison, and a rubric of four patterns that hold on any page:
+
+- **Hierarchy.** The title is the strongest thing on the page, and section headings read as clearly below it.
+- **Primary action.** One action reads as the main one, it is the rank-1 action, and it sits in view beside what it acts on. A list or a page of information needs none.
+- **Grouping.** Related things sit together, unrelated things apart, and nothing shows twice.
+- **Crowding.** The page asks for attention only on what its job needs, and secondary content is quieter or disclosed.
+
+The critic judges relationships and weight, never counts: no number of sections, fields or pixels, for any page or page type. A long page in good order passes, and a short page where everything shouts does not. The agent gives the brief to a different model from the one that built the change, which answers with JSON: each finding's pattern, `revise` or `note`, the screenshots it shows in, the problem and the fix.
+
+The second run checks that answer against the gallery, writes it into the gallery as `CRITIQUE.md` and prints the edge, the `loop:step` line and a block for the pull request description. A `revise` finding sends the change back to `build`, and from there through the gate and a retake of the screenshots, which replaces `CRITIQUE.md` with the next round's. After two rounds of revision in a run, the next critique says `pass`, and what is left open goes in the review note with the `note` findings, so a noisy critic cannot hold a change forever.
+
+The critique is advisory. The build gate does not run it, and no check reads `CRITIQUE.md`. `check:trace` holds only that the step is in the walk: a trace that goes from `screenshots` straight to `note` is not one the graph allows. Whether `revise` was the right answer is the reviewer's to judge from the findings in the description. Making the critique blocking, for example by having `check:trace` require a `pass` with no `revise` finding left, is a later decision.
 
 ### The trace
 

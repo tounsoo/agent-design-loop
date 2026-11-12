@@ -50,6 +50,7 @@ Every harness script, in one line each. [The check reference](packages/harness/d
 - [`check:fixtures`](packages/harness/docs/checks.md#checkfixtures), repository: The harness's own tests: every illegal fixture case fails with its expected message, and every legal case passes with its.
 - [`check:product`](packages/harness/docs/checks.md#checkproduct), product, needs `--config`: Runs `check:opt-outs`, then every rule check in `check:rules`, on one product, skipping a rule the product opts out of.
 - [`check:trace`](packages/harness/docs/checks.md#checktrace), repository: A change that touches a product carries a loop trace, and every trace it adds or edits is a walk the design loop graph allows.
+- [`critique`](packages/harness/docs/checks.md#critique), tool, needs `--config`: The design loop's `critique` step: writes the brief for a second model to judge the screenshots, then records its findings and the edge back to build or on to the note.
 - [`loop:step`](packages/harness/docs/checks.md#loopstep), tool: Appends one step to a change's loop trace, and refuses a step the design loop graph does not allow.
 - [`new:product`](packages/harness/docs/checks.md#newproduct), tool: Starts a product: copies the harness's fixture product, which passes every check, to `products/<name>/` and points its config there.
 - [`screenshots`](packages/harness/docs/checks.md#screenshots), tool, needs `--config`: The design loop's `screenshots` step: captures each preview before and after a change into a gallery the pull request links.

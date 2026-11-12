@@ -15,7 +15,7 @@ const designLoop = {
     { id: "rules", what: "The harness rules, which check:rules in package.json runs on every product, and each product's opt-outs." },
     { id: "proposals", what: "proposals/, the requests and decisions that change an inventory or a rule." },
     { id: "ui", what: "The product's UI under its paths.source." },
-    { id: "review", what: "The product's review/ folder: the notes on the judgment the checks leave open, and each change's screenshots with their gallery." },
+    { id: "review", what: "The product's review/ folder: the notes on the judgment the checks leave open, and each change's screenshots with their gallery and critique." },
   ],
   nodes: [
     { id: "read", kind: "llm", label: "Read the inventories in the order AGENTS.md lists", reads: ["inventories", "rules", "proposals"] },
@@ -29,6 +29,7 @@ const designLoop = {
     { id: "approval", kind: "human", label: "The code owner merges the proposal's pull request", approver: "code owner", gate: "/proposals/", reads: ["proposals"] },
     { id: "adopt", kind: "llm", label: "Adopt it into the inventory data or a harness rule", reads: ["proposals"], writes: ["inventories", "rules"] },
     { id: "screenshots", kind: "llm", label: "Capture each state the change touches, with a gallery the pull request links", reads: ["ui"], writes: ["review"] },
+    { id: "critique", kind: "router", label: "Does a second model, not the builder, find a problem in the screenshots to fix before review?", reads: ["review"], writes: ["review"] },
     { id: "note", kind: "llm", label: "Write the leftover judgment in the review notes", writes: ["review"] },
     { id: "pull-request", kind: "checkpoint", label: "Open the pull request for review", reads: ["ui", "review"] },
   ],
@@ -48,7 +49,9 @@ const designLoop = {
     { from: "approval", to: "adopt", when: "approved" },
     { from: "approval", to: "build", when: "declined" },
     { from: "adopt", to: "build" },
-    { from: "screenshots", to: "note" },
+    { from: "screenshots", to: "critique" },
+    { from: "critique", to: "build", when: "revise" },
+    { from: "critique", to: "note", when: "pass" },
     { from: "note", to: "pull-request" },
   ],
 } as const satisfies LoopGraph;

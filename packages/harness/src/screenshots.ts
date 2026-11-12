@@ -5,11 +5,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer-core";
 import { tryGit } from "./lib/base";
+import { CRITIQUE_FILE, CRITIQUE_HEADING } from "./lib/critique";
 import { findChrome } from "./lib/chrome";
 import { config, configName } from "./lib/config";
 import { previewQueries } from "./lib/previews";
 import { APP_URL_ENV, APP_WEB_ENV, serveApp, sharedAppUrl, type ServedApp } from "./lib/served-app";
-import { galleryMarkdown, pinGallery, pullRequestMarkdown, rawFolderUrl, screenshotName } from "./lib/screenshots";
+import { galleryMarkdown, pinGallery, pullRequestMarkdown, rawFolderUrl, screenshotName, VIEWPORT } from "./lib/screenshots";
 
 /**
  * Captures the screenshots a pull request shows: one PNG per preview the
@@ -26,7 +27,6 @@ import { galleryMarkdown, pinGallery, pullRequestMarkdown, rawFolderUrl, screens
  */
 
 const SCRIPT = fileURLToPath(import.meta.url);
-const VIEWPORT = { width: 1280, height: 900 };
 
 const pinDir = flag("--pin");
 if (pinDir) {
@@ -225,8 +225,9 @@ function labelFor(ref: string): string {
 
 /**
  * Fails unless `--out` is new or a folder this script wrote, which a retake
- * replaces so no stale shot is left. A folder that holds anything else, such
- * as a product's review notes, is refused, so a wrong `--out` deletes nothing.
+ * replaces so no stale shot is left, along with the CRITIQUE.md the critique
+ * step wrote of the old shots. A folder that holds anything else, such as a
+ * product's review notes, is refused, so a wrong `--out` deletes nothing.
  */
 function assertGallery(dir: string): void {
   if (!existsSync(dir)) return;
@@ -234,6 +235,7 @@ function assertGallery(dir: string): void {
     readdirSync(folder, { withFileTypes: true }).every((entry) => {
       if (entry.isFile() && entry.name.endsWith(".png")) return true;
       if (!nested && entry.isFile() && entry.name === "README.md") return readFileSync(path.join(folder, entry.name), "utf8").startsWith("# Screenshots\n");
+      if (!nested && entry.isFile() && entry.name === CRITIQUE_FILE) return readFileSync(path.join(folder, entry.name), "utf8").startsWith(`${CRITIQUE_HEADING}\n`);
       if (!nested && entry.isDirectory() && (entry.name === "before" || entry.name === "after")) return own(path.join(folder, entry.name), true);
       return false;
     });
