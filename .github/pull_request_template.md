@@ -10,10 +10,10 @@
 
 <!--
 A change to what a product renders: run `npm run screenshots` at the design loop's screenshots node,
-commit the folder under products/<name>/review/screenshots/<change>/, and paste the line it prints here,
+commit the folder under products/<name>/review/screenshots/<change>/, run the --pin line it prints, commit README.md again, and paste the line --pin prints here,
 a plain link to the gallery at the pushed commit's full SHA. Replace <sha> in the line it prints, and keep its whole https://github.com/ address:
 a relative path breaks in the GitHub app and in email, and a branch link breaks once the branch is deleted.
-Each image in the gallery opens full size on a click.
+Once pinned, each image in the gallery opens its raw PNG, full size, on a click.
 A change that renders nothing: write "None, nothing renders differently."
 -->
 
