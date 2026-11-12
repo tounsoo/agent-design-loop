@@ -1,7 +1,8 @@
 import { fullRooms, isModeledState, loadErrorMessage, sampleRooms, type FlowState } from "../flows/booking/states";
 
 /**
- * `?state=<modeled state>` and, for choosing, `?page=rooms` or `?page=booking`.
+ * `?state=<modeled state>` and, for choosing, `?page=rooms` or `?page=booking`,
+ * with `&room=<id>` for another room's booking page.
  * check:target-size opens every modeled state this way. Unknown values show
  * the live app. The Waitlist previews wait for no room, for Cedar, and for
  * Birch once Cedar has freed up.
@@ -23,7 +24,7 @@ export function readPreview(search: string): FlowState | null {
       return { status: "error", message: loadErrorMessage, waitingFor };
     case "choosing":
       return params.get("page") === "booking"
-        ? { status: "choosing", page: "booking", roomId, duration: "60", detailsOpen: false, waitingFor }
+        ? { status: "choosing", page: "booking", roomId: sampleRooms.find((room) => room.id === params.get("room"))?.id ?? roomId, duration: "60", detailsOpen: false, waitingFor }
         : { status: "choosing", page: "rooms", waitingFor };
     case "booked":
       return { status: "booked", roomId, duration: "60", waitingFor };

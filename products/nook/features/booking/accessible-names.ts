@@ -29,6 +29,13 @@ export const accessibleNames = {
     { role: "button", name: "Hold room", disabled: false },
     { role: "button", name: "Book room", disabled: false },
   ],
+  "state=choosing&page=booking&room=quarry": [
+    ...topBar("Rooms", false),
+    { role: "heading", name: "Quarry" },
+    { role: "combobox", name: "How long?", disabled: false },
+    { role: "button", name: "Hold room", disabled: false },
+    { role: "button", name: "Book room", disabled: false },
+  ],
   "state=booked": [
     ...topBar("Rooms", true),
     { role: "status", text: "Room booked Harbor is yours for 1 hour." },

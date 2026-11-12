@@ -37,7 +37,7 @@ export default {
         "hold-room": "products/nook/flows/booking/hold-room.ts",
       },
       previews: {
-        choosing: ["page=rooms", "page=booking"],
+        choosing: ["page=rooms", "page=booking", "page=booking&room=quarry"],
       },
     },
   ],
