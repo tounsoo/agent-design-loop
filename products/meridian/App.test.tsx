@@ -40,4 +40,20 @@ describe("Meridian shell", () => {
     await user.click(within(screen.getByRole("navigation", { name: "Main" })).getByRole("link", { name: "All invoices" }));
     expect(screen.getByRole("heading", { level: 1, name: "All invoices" })).toHaveFocus();
   });
+
+  it("titles a vendor's page with its vendor, an added vendor included", async () => {
+    const user = userEvent.setup();
+    window.history.replaceState(null, "", "/?route=vendors");
+    render(<App />);
+    await user.click(screen.getByText("Add a vendor"));
+    await user.type(screen.getByRole("textbox", { name: "Vendor name" }), "Ridgeway Janitorial");
+    await user.type(screen.getByRole("textbox", { name: "Remittance email" }), "ap@ridgeway.example");
+    await user.click(screen.getByRole("button", { name: "Add vendor" }));
+    await user.click(screen.getByRole("link", { name: "Ridgeway Janitorial" }));
+    expect(screen.getByRole("heading", { level: 1, name: "Ridgeway Janitorial" })).toHaveFocus();
+    expect(document.title).toMatch(/^Ridgeway Janitorial/);
+    await user.click(within(screen.getByRole("navigation", { name: "Main" })).getByRole("link", { name: "Vendors" }));
+    await user.click(screen.getByRole("link", { name: "Helios Freight" }));
+    expect(document.title).toMatch(/^Helios Freight/);
+  });
 });

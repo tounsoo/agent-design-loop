@@ -321,6 +321,21 @@ describe("invoice approval views", () => {
     expect(screen.getByRole("table", { name: "Open invoices" })).toBeInTheDocument();
   });
 
+  it("adds a vendor on the Vendors page a link to an unknown vendor opens, and says so", async () => {
+    const user = userEvent.setup();
+    renderApproval("?route=vendors&vendor=no-such-vendor");
+    await user.click(screen.getByText("Add a vendor"));
+    await user.type(screen.getByRole("textbox", { name: "Vendor name" }), "Ridgeway Janitorial");
+    await user.type(screen.getByRole("textbox", { name: "Remittance email" }), "ap@ridgeway.example");
+    await user.click(screen.getByRole("button", { name: "Add vendor" }));
+    expect(screen.getByRole("status")).toHaveTextContent("Added Ridgeway Janitorial.");
+  });
+
+  it("reads a vendor only on the Vendors route", () => {
+    renderApproval("?vendor=helios-freight");
+    expect(screen.getByRole("heading", { level: 1, name: "To approve" })).toBeInTheDocument();
+  });
+
   it("opens the page of a vendor added in the session", async () => {
     const user = userEvent.setup();
     renderApproval("?route=vendors");

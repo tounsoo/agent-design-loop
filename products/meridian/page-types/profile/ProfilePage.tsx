@@ -1,4 +1,4 @@
-import { Children, isValidElement, useId, type ReactElement, type ReactNode } from "react";
+import { Children, isValidElement, type ReactElement, type ReactNode } from "react";
 import { Stack, Text } from "../../catalog";
 
 /**
@@ -39,12 +39,10 @@ export function Body({ children }: { children: ReactNode }) {
 
 /** One part of the record under its own heading. The shell owns the heading, so every profile page's sections read the same. */
 export function Section({ title, children }: { title: string; children: ReactNode }) {
-  const headingId = useId();
+  // Its heading names the section for the page outline; the table inside carries its own name, so the section is not a second landmark.
   return (
-    <Stack.Root aria-labelledby={headingId} as="section" className="profile-section" gap="normal">
-      <Text.Root as="h2" id={headingId}>
-        {title}
-      </Text.Root>
+    <Stack.Root as="section" className="profile-section" gap="normal">
+      <Text.Root as="h2">{title}</Text.Root>
       {children}
     </Stack.Root>
   );
