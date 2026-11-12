@@ -1,6 +1,5 @@
 import { Children, isValidElement, type ReactElement, type ReactNode } from "react";
 import { Stack, Text } from "../../catalog";
-import { usePageHeading } from "../../layouts/app-shell";
 
 /**
  * Collection page type. Heading, description, and body. The ready body is a
@@ -15,9 +14,9 @@ function isSlot(node: ReactNode, slot: unknown): boolean {
 }
 
 export function Heading({ children }: { children: ReactNode }) {
-  const headingRef = usePageHeading();
+  // The app shell moves focus here on a page change.
   return (
-    <Text.Root as="h1" ref={headingRef ?? undefined} tabIndex={-1}>
+    <Text.Root as="h1" tabIndex={-1}>
       {children}
     </Text.Root>
   );
