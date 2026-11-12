@@ -198,4 +198,62 @@ describe("recordedLoops", () => {
       rmSync(shallow, { recursive: true, force: true });
     }
   });
+  it("reads a line recorded under an older main loop a branch copied back against today's loop", () => {
+    const { dir, write, commit } = newRepo();
+    write(LOOP_FILE, loopSource(before));
+    commit("the old loop on main");
+    write(LOOP_FILE, loopSource(after));
+    commit("main adds a review step");
+    git(dir, "tag", "base");
+    // The branch copies the old loop back, walks it, and restores today's, so its diff shows no loop change.
+    write(LOOP_FILE, loopSource(before));
+    write(TRACE, oldRun);
+    commit("copy the old loop back and walk it");
+    write(LOOP_FILE, loopSource(after));
+    commit("restore the loop");
+    const loops = recordedLoops(TRACE, after, { cwd: dir, base: "base" });
+    if ("problems" in loops) throw new Error(loops.problems.join("\n"));
+    expect(traceProblems(loops.loopAt, oldRun)).toContain("line 3 goes from checks when pass to done, an edge the graph does not have. It goes to review.");
+  });
+
+  it("orders loops by the loop file's history, not by which side of a merge a line came from", () => {
+    const shipped: LoopGraph = {
+      ...before,
+      nodes: before.nodes.map((node) => (node.id === "done" ? { ...node, id: "ship" } : node)),
+      edges: before.edges.map((edge) => (edge.to === "done" ? { ...edge, to: "ship" } : edge)),
+    };
+    const { dir, write, commit } = newRepo();
+    write(LOOP_FILE, loopSource(before));
+    write(TRACE, oldRun);
+    commit("walk the loop");
+    git(dir, "branch", "-q", "side");
+    write(LOOP_FILE, loopSource(shipped));
+    write(TRACE, lines({ node: "build" }, { node: "checks", when: "pass" }, { node: "ship" }));
+    commit("rename done to ship, in the trace too");
+    git(dir, "checkout", "-q", "side");
+    write(TRACE, lines({ node: "build", at: "2026-11-12T00:00:00Z" }, { node: "checks", when: "pass" }, { node: "done" }));
+    commit("date the first step");
+    git(dir, "checkout", "-q", "-");
+    git(dir, "-c", "core.editor=true", "merge", "-q", "--no-ff", "side");
+    const text = readFileSync(path.join(dir, TRACE), "utf8");
+    expect(text).toContain('"ship"');
+    const loops = recordedLoops(TRACE, shipped, { cwd: dir, base: "HEAD" });
+    if ("problems" in loops) throw new Error(loops.problems.join("\n"));
+    expect(traceProblems(loops.loopAt, text)).toEqual([]);
+  });
+  it("keeps a run walked between a loop change and its revert on the loop it walked", () => {
+    const { dir, write, commit } = newRepo();
+    write(LOOP_FILE, loopSource(before));
+    write(TRACE, oldRun);
+    commit("walk the first loop");
+    write(LOOP_FILE, loopSource(after));
+    write(TRACE, `${oldRun}${newRun}`);
+    commit("add a review step and walk it");
+    write(LOOP_FILE, loopSource(before));
+    commit("revert the review step");
+    write(TRACE, `${oldRun}${newRun}${oldRun}`);
+    const loops = recordedLoops(TRACE, before, { cwd: dir, base: "HEAD" });
+    if ("problems" in loops) throw new Error(loops.problems.join("\n"));
+    expect(traceProblems(loops.loopAt, `${oldRun}${newRun}${oldRun}`)).toEqual([]);
+  });
 });

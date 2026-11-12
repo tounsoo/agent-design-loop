@@ -20,11 +20,14 @@ import { loopKey, type LoopAt } from "./trace";
  * working tree, the one an agent walks now.
  *
  * Three guards keep history from loosening the check:
- * - A loop counts only when it is the working tree's or one the base's
- *   history holds. A loop a branch made and then dropped never reached
- *   review, so a line recorded under it is read against today's loop.
- * - A line is read against the newest loop of any line up to it, so an older
- *   line after a line someone edited or inserted later takes the newer loop.
+ * - A commit's loop counts only when it is the working tree's, or the one the
+ *   commit's merge base with the base held, so the branch had not changed it
+ *   by then. A loop a branch made, or copied from an older main, and then
+ *   put back never reached review, so a line recorded under it is read
+ *   against today's loop.
+ * - A line is read against the newest loop of any line up to it, newest by
+ *   the history of design-loop.ts, so an older line after a line someone
+ *   edited or inserted later takes the newer loop.
  * - In a shallow clone, blame gives every line older than the cut to the
  *   cut's commit, so a line dated there is a problem, not a guess.
  */
@@ -86,6 +89,8 @@ export function blameCommits(porcelain: string): Map<number, string> {
 
 const UNCOMMITTED = /^0+$/;
 
+const sameKey = (a: LoopGraph, b: LoopGraph): boolean => a === b || loopKey(a) === loopKey(b);
+
 /**
  * The loop each line of `file` was recorded under. `current` is the loop in
  * the working tree, and `base` the revision the change is compared with,
@@ -130,36 +135,44 @@ export function recordedLoops(file: string, current: LoopGraph, options: { base?
     }
   };
 
-  // The loops a line may be read against: today's, and every version the base's history holds.
-  let allowed: Set<string> | null = null;
-  if (options.base !== undefined) {
-    const history = git(["log", "--format=%H", options.base, "--", LOOP_FILE]);
-    if (history === null) return { problems: [`git cannot read the history of ${LOOP_FILE} at ${options.base}.`] };
-    allowed = new Set([loopKey(current)]);
-    for (const commit of history.split("\n").filter(Boolean)) {
-      const graph = loadAt(commit);
-      if (typeof graph !== "string") allowed.add(loopKey(graph));
-    }
-  }
+  // A commit's loop counts only when the branch had not changed the loop by then: it is the loop the
+  // commit's merge base with the base held, which reached review there. Any other loop, made on a branch
+  // and perhaps put back before the end, is read as today's, the strict reading.
+  const reviewed = (commit: string, graph: LoopGraph): boolean => {
+    if (options.base === undefined || sameKey(graph, current)) return true;
+    const mergeBase = git(["merge-base", commit, options.base])?.trim();
+    const there = mergeBase ? loadAt(mergeBase) : null;
+    return there !== null && typeof there !== "string" && sameKey(there, graph);
+  };
 
   const byCommit = new Map<string, LoopGraph>();
   for (const [line, commit] of [...lines].sort(([a], [b]) => a - b)) {
     if (UNCOMMITTED.test(commit) || byCommit.has(commit)) continue;
     const graph = loadAt(commit);
     if (typeof graph === "string") problems.push(`${file} line ${line} was recorded in commit ${commit.slice(0, 7)}, ${graph}`);
-    // A loop the base never had is read as today's, the strict reading.
-    else byCommit.set(commit, allowed && !allowed.has(loopKey(graph)) ? current : graph);
+    else byCommit.set(commit, reviewed(commit, graph) ? graph : current);
   }
   if (problems.length > 0) return { problems };
 
-  // Each line takes the newest loop of any line up to it. Newest is nearest HEAD in git's order; a line not yet committed is newer still.
-  const order = new Map((git(["rev-list", "--topo-order", "HEAD"]) ?? "").split("\n").filter(Boolean).map((commit, index) => [commit, index] as const));
+  // Each line takes the newest loop of any line up to it. A line's loop is as new as the last change to
+  // design-loop.ts at or before its commit, placed in that file's history at the base, or else HEAD,
+  // newest first. A line not yet committed, or read as today's, is newer still.
+  const history = git(["log", "--format=%H", options.base ?? "HEAD", "--", LOOP_FILE]);
+  if (history === null) return { problems: [`git cannot read the history of ${LOOP_FILE}, so the lines of ${file} cannot be put in order.`] };
+  const position = new Map(history.split("\n").filter(Boolean).map((commit, index) => [commit, index] as const));
+  const rankOf = (commit: string, graph: LoopGraph): number => {
+    if (UNCOMMITTED.test(commit) || graph === current) return -1;
+    const change = git(["log", "-1", "--format=%H", commit, "--", LOOP_FILE])?.trim() ?? "";
+    // A change the history does not hold came from the branch: treat it as today's in age.
+    return position.get(change) ?? -1;
+  };
+  const ranks = new Map<string, number>();
   const effective = new Map<number, LoopGraph>();
   let newest: { rank: number; graph: LoopGraph } | null = null;
   for (const [line, commit] of [...lines].sort(([a], [b]) => a - b)) {
-    const uncommitted = UNCOMMITTED.test(commit);
-    const rank = uncommitted ? -1 : (order.get(commit) ?? Infinity);
-    const graph = uncommitted ? current : (byCommit.get(commit) ?? current);
+    const graph = UNCOMMITTED.test(commit) ? current : (byCommit.get(commit) ?? current);
+    let rank = ranks.get(commit);
+    if (rank === undefined) ranks.set(commit, (rank = rankOf(commit, graph)));
     if (!newest || rank <= newest.rank) newest = { rank, graph };
     effective.set(line, newest.graph);
   }
