@@ -1,20 +1,23 @@
-import { fullRooms, isModeledState, loadErrorMessage, sampleRooms, type FlowState } from "../flows/booking/states";
+import { readScenario } from "@agent-design-loop/harness/scenarios";
+import { scenarios } from "../flows/booking/scenarios";
+import { fullRooms, loadErrorMessage, sampleRooms, type FlowState } from "../flows/booking/states";
 
 /**
- * `?state=<modeled state>` and, for choosing, `?page=rooms` or `?page=booking`.
- * check:target-size opens every modeled state this way. Unknown values show
- * the live app. The Waitlist previews wait for no room, for Cedar, and for
- * Birch once Cedar has freed up.
+ * The flow's first state for the scenario `?scenario=<id>` names, from the
+ * booking flow's scenarios.ts. An unknown id or none shows the live app. A
+ * booking, hold or wait is for the scenario's room, or the first sample room.
+ * The Waitlist scenarios wait for no room, for Cedar, and for Birch once
+ * Cedar has freed up.
  */
 export function readPreview(search: string): FlowState | null {
-  const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
-  const state = params.get("state");
-  if (state === null || !isModeledState(state)) return null;
-  const roomId = sampleRooms[0]?.id ?? "";
+  const scenario = readScenario(search, scenarios);
+  if (scenario === null) return null;
+  const roomId = ("room" in scenario ? scenario.room : undefined) ?? sampleRooms[0]?.id ?? "";
+  if (!sampleRooms.some((room) => room.id === roomId)) throw new Error(`Nook's scenario ${scenario.id} names room "${roomId}", which is not a sample room.`);
   const [first, second] = fullRooms.map((room) => room.id);
-  if (!first || !second) throw new Error("Nook's previews need two full rooms.");
+  if (!first || !second) throw new Error("Nook's scenarios need two full rooms.");
   const waitingFor: readonly string[] = [];
-  switch (state) {
+  switch (scenario.state) {
     case "loading":
       return { status: "loading", waitingFor };
     case "no-rooms":
@@ -22,7 +25,7 @@ export function readPreview(search: string): FlowState | null {
     case "error":
       return { status: "error", message: loadErrorMessage, waitingFor };
     case "choosing":
-      return params.get("page") === "booking"
+      return "page" in scenario && scenario.page === "booking"
         ? { status: "choosing", page: "booking", roomId, duration: "60", detailsOpen: false, waitingFor }
         : { status: "choosing", page: "rooms", waitingFor };
     case "booked":

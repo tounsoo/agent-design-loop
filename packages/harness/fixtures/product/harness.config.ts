@@ -33,9 +33,6 @@ export default {
       tasks: {
         "approve-vendor-invoice": "packages/harness/fixtures/product/flows/approve-vendor-invoice.ts",
       },
-      previews: {
-        ready: ["page=collection", "page=detail"],
-      },
     },
   ],
 } satisfies HarnessConfig;

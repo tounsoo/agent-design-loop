@@ -39,4 +39,4 @@ npm run check:fixtures && npm run check
 - [How this design loop works](packages/harness/docs/how-it-works.md): the control ladder, the checks, and when a proposal is required.
 - [How Meridian works](products/meridian/docs/how-it-works.md): the layers on a Meridian screen, its flow, and a worked example.
 - [The harness README](packages/harness/README.md): the checks, `check:product`, and how a product plugs in.
-- [Meridian's README](products/meridian/README.md): running the app, its previews, and where its constraints live.
+- [Meridian's README](products/meridian/README.md): running the app, its scenarios, and where its constraints live.

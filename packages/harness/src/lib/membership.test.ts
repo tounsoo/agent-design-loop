@@ -4,7 +4,7 @@ import type { ParsedConfig } from "./parse-config";
 
 const CONFIG = "products/demo/harness.config.ts";
 
-function config(change: { shells?: ParsedConfig["shells"]; tasks?: Record<string, string>; previews?: Record<string, string[]> } = {}): ParsedConfig {
+function config(change: { shells?: ParsedConfig["shells"]; tasks?: Record<string, string> } = {}): ParsedConfig {
   return {
     adapter: "packages/adapter-todae/index.ts",
     paths: {
@@ -27,7 +27,6 @@ function config(change: { shells?: ParsedConfig["shells"]; tasks?: Record<string
         states: "products/demo/flows/states.ts",
         views: "products/demo/features/views.tsx",
         tasks: change.tasks ?? { approve: "products/demo/flows/approve.ts" },
-        previews: change.previews ?? { ready: ["page=collection", "page=detail"] },
       },
     ],
     optOuts: {},
@@ -36,8 +35,6 @@ function config(change: { shells?: ParsedConfig["shells"]; tasks?: Record<string
 
 function inventory(change: Partial<Inventory> = {}): Inventory {
   const own = change.config ?? config();
-  const previews: Record<string, string[]> = { ready: [], approved: [] };
-  for (const flow of own.flows) for (const [state, queries] of Object.entries(flow.previews ?? {})) previews[state] = [...queries];
   return {
     layouts: ["app-shell"],
     contentLayouts: ["data-table"],
@@ -51,7 +48,6 @@ function inventory(change: Partial<Inventory> = {}): Inventory {
     disclosuresPerPage: 1,
     visibleQuestions: 1,
     targetMinPx: 24,
-    previews,
     adapter: null,
     ...change,
     config: own,
@@ -145,25 +141,6 @@ describe("membershipChanges", () => {
 
   it("does not make a changed graph module an addition", () => {
     const change = one(compare({ config: config({ tasks: { approve: "products/demo/flows/other.ts" } }) }), 'task graph of "approve"');
-    expect(change.kind).toBeUndefined();
-  });
-
-  it("makes a new preview pair an addition", () => {
-    const head = config({ previews: { ready: ["page=collection", "page=detail", "page=detail&room=quarry"] } });
-    expect(one(compare({ config: head }), "flows previews")).toMatchObject({ kind: "adds", names: ["preview:ready?page=detail&room=quarry"] });
-  });
-
-  it("does not make a query moved to another state an addition", () => {
-    const head = config({ previews: { ready: ["page=collection"], approved: ["page=detail"] } });
-    const change = one(compare({ config: head }), "flows previews");
-    expect(change.kind).toBeUndefined();
-    expect(change.terms).toEqual(["flows", "preview:approved", ["preview:approved?page=detail", "page=detail"], ["preview:ready?page=detail", "page=detail"]]);
-  });
-
-  it("does not make a state's first query an addition, since it drops the bare preview", () => {
-    const head = config({ previews: { ready: ["page=collection", "page=detail"], approved: ["page=detail"] } });
-    const change = one(compare({ config: head }), "flows previews");
-    expect(change).toMatchObject({ names: ["preview:approved?page=detail"], notAddition: "the change also drops a preview the base had" });
     expect(change.kind).toBeUndefined();
   });
 

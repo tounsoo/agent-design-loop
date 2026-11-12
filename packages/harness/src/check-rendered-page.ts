@@ -5,7 +5,7 @@ import type { Page } from "puppeteer-core";
 import { adapter } from "./lib/adapter";
 import { declarationsFile, parseDeclarations } from "./lib/accessible-names";
 import { config, loadInputs } from "./lib/config";
-import { previewQueries } from "./lib/previews";
+import { loadScenarios, scenariosFile, type LoadedScenario } from "./lib/scenarios";
 import {
   LIST_ITEM_STEPS_BELOW_TITLE,
   SECTION_STEPS_BELOW_TITLE,
@@ -17,11 +17,12 @@ import {
   type Rgba,
   type TextRun,
 } from "./lib/rendered-page";
-import { DESKTOP, PHONE, withServedApp } from "./lib/served-app";
+import { withServedApp } from "./lib/served-app";
 import { resolveLength, scaleFrom, typeScaleTokens, type ScaleStep } from "./lib/tokens";
+import { viewNamed, type View } from "./lib/views";
 
 /**
- * Reads every preview as Chrome paints it, the way a person sees it, and
+ * Reads every scenario as Chrome paints it, the way a person sees it, and
  * holds it to five patterns that hold on any page. None is a number set per
  * page or per page type.
  *
@@ -30,18 +31,19 @@ import { resolveLength, scaleFrom, typeScaleTokens, type ScaleStep } from "./lib
  *    included, sits at least two steps below it. A heading inside a list item
  *    or table row names a record, not a section, and sits at least one step
  *    below. The steps are the numbered font-size tokens in the adapter's
- *    stylesheet. Measured at desktop and phone width.
+ *    stylesheet. Measured at desktop and phone width, in light.
  * 2. Reach. On a page type with a primary slot, the rank-1 action in the
  *    product's `priority` is whole inside the first view, and nothing covers
  *    its centre, at desktop and phone width, before any scroll.
  * 3. Disclosures, `<details>` with a summary a person can see, load closed,
- *    unless the preview's state opens one: the flow's accessible-names.ts
- *    declares it `expanded: true` on that preview. A `<details>` whose
+ *    unless the scenario's state opens one: the flow's accessible-names.ts
+ *    declares it `expanded: true` on that scenario. A `<details>` whose
  *    summary is hidden, like a menu a wide view always shows, is not one.
  *    A button with aria-expanded, such as a sidebar toggle, is not read.
  * 4. Contrast. Every run of text on the page, the chrome's included, meets
  *    WCAG AA against what is painted under it, in the light and the dark
- *    colour scheme. Text in a turned-off control is exempt, as WCAG allows.
+ *    colour scheme, at desktop and phone width. Text in a turned-off control
+ *    is exempt, as WCAG allows.
  * 5. No sideways scroll on a phone.
  */
 
@@ -53,8 +55,8 @@ function fail(lines: readonly string[]): never {
   process.exit(1);
 }
 
-const { queries, problems: previewProblems } = await previewQueries(config.flows);
-if (previewProblems.length > 0) fail(previewProblems);
+const { scenarios, problems: scenarioProblems } = await loadScenarios(config.flows);
+if (scenarioProblems.length > 0) fail(scenarioProblems);
 
 // The names come from the stylesheet; their sizes come from Chrome, per view, so clamp(), calc() and media queries count as painted.
 let scaleTokens: string[];
@@ -79,24 +81,24 @@ const { priority } = await loadInputs();
 const primaryLabels = priority.filter((item) => item.rank === 1).map((item) => item.action);
 const primaryPageTypes = Object.keys(config.shells.primarySlots);
 
-/** Per preview, the disclosures its state opens: the names accessible-names.ts declares with `expanded: true`. */
+/** Per scenario id, the disclosures its state opens: the names accessible-names.ts declares with `expanded: true`. */
 const opened = new Map<string, Set<string>>();
-for (const [index, flow] of config.flows.entries()) {
+for (const flow of config.flows) {
   const file = declarationsFile(flow.views);
   // check:accessible-names fails a missing or broken file; here it only means no disclosure is declared open.
   if (!existsSync(file)) continue;
-  const { queries: flowQueries } = await previewQueries([flow], index);
+  const flowIds = scenarios.filter((scenario) => scenario.file === scenariosFile(flow)).map((scenario) => scenario.id);
   let module: { accessibleNames?: unknown };
   try {
     module = (await import(pathToFileURL(path.resolve(file)).href)) as { accessibleNames?: unknown };
   } catch {
     continue;
   }
-  const { declarations } = parseDeclarations(module.accessibleNames, file, flowQueries);
-  for (const [query, list] of Object.entries(declarations)) {
-    const names = opened.get(query) ?? new Set<string>();
+  const { declarations } = parseDeclarations(module.accessibleNames, file, flowIds);
+  for (const [id, list] of Object.entries(declarations)) {
+    const names = opened.get(id) ?? new Set<string>();
     for (const item of list) if (item.expanded === true && item.name !== undefined) names.add(item.name);
-    opened.set(query, names);
+    opened.set(id, names);
   }
 }
 
@@ -115,10 +117,10 @@ type Reading = {
   measured: { name: string; px: number }[];
 };
 
-type View = { label: string; width: number; height: number; mobile: boolean; scheme: "light" | "dark" };
-const desktopLight: View = { label: `${DESKTOP.width} by ${DESKTOP.height}`, ...DESKTOP, mobile: false, scheme: "light" };
-const desktopDark: View = { ...desktopLight, scheme: "dark" };
-const phoneLight: View = { label: `${PHONE.width} by ${PHONE.height}`, ...PHONE, mobile: true, scheme: "light" };
+const desktopLight = viewNamed("desktop-light");
+const desktopDark = viewNamed("desktop-dark");
+const phoneLight = viewNamed("phone-light");
+const phoneDark = viewNamed("phone-dark");
 
 const hierarchy = new Map<string, Set<string>>();
 let reached = 0;
@@ -127,24 +129,25 @@ let runsRead = 0;
 let unknownRuns = 0;
 
 await withServedApp(LABEL, config.paths.web, async (page, base) => {
-  for (const search of queries) {
-    // A preview with no query is the page itself.
-    const query = search || "the page with no query";
-    const desktop = await open(page, base, search, desktopLight, true);
+  for (const scenario of scenarios) {
+    const query = `scenario ${scenario.id}`;
+    const desktop = await open(page, base, scenario, desktopLight, true);
     judgeHierarchy(query, desktop, desktopLight);
     judgeReach(query, desktop, desktopLight);
-    judgeDisclosures(query, search, desktop, desktopLight);
+    judgeDisclosures(query, scenario.id, desktop, desktopLight);
     judgeContrast(query, desktop, desktopLight);
-    judgeContrast(query, await open(page, base, search, desktopDark, true), desktopDark);
-    const phone = await open(page, base, search, phoneLight, false);
+    judgeContrast(query, await open(page, base, scenario, desktopDark, true), desktopDark);
+    const phone = await open(page, base, scenario, phoneLight, true);
     judgePhoneLayout(query, phone, phoneLight);
-    judgeDisclosures(query, search, phone, phoneLight);
+    judgeDisclosures(query, scenario.id, phone, phoneLight);
     judgeHierarchy(query, phone, phoneLight);
     judgeReach(query, phone, phoneLight);
     judgeOverflow(query, phone, phoneLight);
+    judgeContrast(query, phone, phoneLight);
+    judgeContrast(query, await open(page, base, scenario, phoneDark, true), phoneDark);
   }
   await page.emulateMediaFeatures([{ name: "prefers-color-scheme", value: "light" }]);
-  await page.setViewport(DESKTOP);
+  await page.setViewport({ width: desktopLight.width, height: desktopLight.height });
 });
 
 for (const [message, views] of hierarchy) problems.push(message.replace("{views}", [...views].join(" and ")));
@@ -156,14 +159,14 @@ const primaryNote =
     ? "no page type has a primary slot"
     : `${primaryLabels.map((label) => `"${label}"`).join(" or ")} is in the first view in ${reached} views`;
 console.log(
-  `${LABEL}: ${queries.length} previews at ${desktopLight.label} and ${phoneLight.label}: section headings sit ${SECTION_STEPS_BELOW_TITLE} type-scale steps below the title (list items ${LIST_ITEM_STEPS_BELOW_TITLE}), ${primaryNote}, disclosures load closed${openedOnPurpose > 0 ? ` (${openedOnPurpose} opened by their state)` : ""}, ${runsRead} runs of text meet WCAG AA in light and dark${unknownRuns > 0 ? ` (${unknownRuns} over an image, not measured)` : ""}, and nothing scrolls sideways on a phone.`,
+  `${LABEL}: ${scenarios.length} scenarios at ${desktopLight.width} by ${desktopLight.height} and ${phoneLight.width} by ${phoneLight.height}: section headings sit ${SECTION_STEPS_BELOW_TITLE} type-scale steps below the title (list items ${LIST_ITEM_STEPS_BELOW_TITLE}), ${primaryNote}, disclosures load closed${openedOnPurpose > 0 ? ` (${openedOnPurpose} opened by their state)` : ""}, ${runsRead} runs of text meet WCAG AA in light and dark at both widths${unknownRuns > 0 ? ` (${unknownRuns} over an image, not measured)` : ""}, and nothing scrolls sideways on a phone.`,
 );
 
-async function open(page: Page, base: string, query: string, view: View, withRuns: boolean): Promise<Reading> {
+async function open(page: Page, base: string, scenario: LoadedScenario, view: View, withRuns: boolean): Promise<Reading> {
   await page.emulateMediaFeatures([{ name: "prefers-color-scheme", value: view.scheme }]);
   await page.setViewport({ width: view.width, height: view.height, isMobile: view.mobile, hasTouch: view.mobile });
   const url = new URL(base);
-  url.search = query;
+  url.search = scenario.search;
   await page.goto(url.href, { waitUntil: "networkidle0" });
   return page.evaluate(readPage, { primaryLabels, primaryPageTypes, withRuns, scaleTokens });
 }
@@ -205,16 +208,22 @@ function judgeHierarchy(query: string, reading: Reading, view: View): void {
   }
 }
 
-function note(message: string, view: View): void {
+/** A view as a message about layout says it, `390 by 844`: layout is judged in light only, so the scheme adds nothing. */
+function size(view: View): string {
+  return `${view.width} by ${view.height}`;
+}
+
+/** Records a problem once, with every view it shows in: the message's `{views}` lists them. Layout names a view by its size, contrast by its size and scheme. */
+function note(message: string, view: View, label = size(view)): void {
   const views = hierarchy.get(message) ?? new Set<string>();
-  views.add(view.label);
+  views.add(label);
   hierarchy.set(message, views);
 }
 
 function judgeReach(query: string, reading: Reading, view: View): void {
   for (const root of reading.roots) {
     if (!primaryPageTypes.includes(root.type)) continue;
-    const where = `${query}, ${root.type} page, at ${view.label}`;
+    const where = `${query}, ${root.type} page, at ${size(view)}`;
     if (root.actions.length === 0) {
       problems.push(`${where}: shows no ${primaryLabels.map((label) => `"${label}"`).join(" or ")}, the rank-1 action in priority, so its reach cannot be measured.`);
       continue;
@@ -239,8 +248,8 @@ function judgeReach(query: string, reading: Reading, view: View): void {
   }
 }
 
-function judgeDisclosures(query: string, search: string, reading: Reading, view: View): void {
-  const allowed = opened.get(search) ?? new Set<string>();
+function judgeDisclosures(query: string, id: string, reading: Reading, view: View): void {
+  const allowed = opened.get(id) ?? new Set<string>();
   for (const name of reading.open) {
     if (allowed.has(name)) {
       // Counted once, at desktop width.
@@ -248,7 +257,7 @@ function judgeDisclosures(query: string, search: string, reading: Reading, view:
       continue;
     }
     note(
-      `${query}: the disclosure "${name}" is open on load. Disclosures load closed unless the state opens them: declare it with expanded: true on this preview in the flow's accessible-names.ts if the state opens it on purpose. At {views}.`,
+      `${query}: the disclosure "${name}" is open on load. Disclosures load closed unless the state opens them: declare it with expanded: true on this scenario in the flow's accessible-names.ts if the state opens it on purpose. At {views}.`,
       view,
     );
   }
@@ -256,8 +265,8 @@ function judgeDisclosures(query: string, search: string, reading: Reading, view:
 
 function judgeContrast(query: string, reading: Reading, view: View): void {
   const failures = new Map<string, string>();
-  // Counted once, in the light reading; the dark one reads the same runs.
-  const count = view.scheme === "light";
+  // Counted once, in the first reading; the others read the same runs.
+  const count = view === desktopLight;
   for (const run of reading.runs) {
     if (run.unknownBackground) {
       if (count) unknownRuns += 1;
@@ -272,21 +281,23 @@ function judgeContrast(query: string, reading: Reading, view: View): void {
     }
   }
   if (reading.runs.length > 0 && reading.runs.every((run) => run.unknownBackground)) {
-    problems.push(
-      `${query}, ${view.scheme} colour scheme: every run of text sits over a background image or gradient, so no contrast was measured. Put the page's text on a background colour.`,
+    note(
+      `${query}, ${view.scheme} colour scheme: every run of text sits over a background image or gradient, so no contrast was measured. Put the page's text on a background colour. At {views}.`,
+      view,
+      size(view),
     );
   }
   if (failures.size === 0) return;
   const list = [...failures.values()];
   const shown = list.slice(0, 5).join("; ");
   const more = list.length > 5 ? `; and ${list.length - 5} more` : "";
-  problems.push(`${query}, ${view.scheme} colour scheme: text under WCAG AA contrast: ${shown}${more}.`);
+  note(`${query}, ${view.scheme} colour scheme: text under WCAG AA contrast: ${shown}${more}. At {views}.`, view);
 }
 
 function judgePhoneLayout(query: string, reading: Reading, view: View): void {
   if (reading.view.width <= view.width + 1) return;
   problems.push(
-    `${query}, at ${view.label}: the page lays out ${reading.view.width} CSS px wide on a ${view.width} px phone, so everything on it is shrunk. Add <meta name="viewport" content="width=device-width, initial-scale=1"> to its index.html.`,
+    `${query}, at ${size(view)}: the page lays out ${reading.view.width} CSS px wide on a ${view.width} px phone, so everything on it is shrunk. Add <meta name="viewport" content="width=device-width, initial-scale=1"> to its index.html.`,
   );
 }
 
@@ -298,7 +309,7 @@ function judgeOverflow(query: string, reading: Reading, view: View): void {
     container === null
       ? `the page scrolls sideways, ${scrollWidth} CSS px wide in a ${clientWidth} px view.`
       : `the page is wider than ${container}, which it lays out in: ${scrollWidth} CSS px in ${clientWidth}, so it scrolls sideways or is cut off.`;
-  problems.push(`${query}, at ${view.label}: ${what}${named}`);
+  problems.push(`${query}, at ${size(view)}: ${what}${named}`);
 }
 
 /**

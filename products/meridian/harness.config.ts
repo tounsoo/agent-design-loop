@@ -33,11 +33,6 @@ export default {
       tasks: {
         "approve-vendor-invoice": "products/meridian/flows/invoice-approval/graph.ts",
       },
-      previews: {
-        ready: ["page=collection", "route=invoices", "route=vendors", "page=detail", "page=detail&branch=request"],
-        "invoice-approved": ["page=detail"],
-        "changes-requested": ["page=detail"],
-      },
     },
   ],
 } satisfies HarnessConfig;

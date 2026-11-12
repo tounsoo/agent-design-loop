@@ -90,22 +90,22 @@ describe("auditPress", () => {
 });
 
 describe("parseKnownGaps", () => {
-  const previews = ["state=waitlist", "state=freed"];
+  const scenarios = ["waitlist", "freed"];
 
   it("reads no export as no gaps", () => {
-    expect(parseKnownGaps(undefined, FILE, previews)).toEqual({ gaps: [], problems: [] });
+    expect(parseKnownGaps(undefined, FILE, scenarios)).toEqual({ gaps: [], problems: [] });
   });
 
   const ISSUE = "https://github.com/acme/app/issues/12";
   const exists = (file: string) => file === "proposals/2026-11-12-retry.md";
 
-  it("accepts a gap with presses, a problem, a reason, where its fix is tracked and optional previews", () => {
+  it("accepts a gap with presses, a problem, a reason, where its fix is tracked and optional scenarios", () => {
     const value = [
-      { presses: ['button "Try again"'], problem: "focus lost", previews: ["state=freed"], why: "Waits for the loading status.", fixIn: ISSUE },
+      { presses: ['button "Try again"'], problem: "focus lost", scenarios: ["freed"], why: "Waits for the loading status.", fixIn: ISSUE },
       { presses: ['button "Retry"'], problem: "silent", why: "x", fixIn: "https://github.com/acme/app/pull/7" },
       { presses: ['button "Again"'], problem: "silent", why: "x", fixIn: "proposals/2026-11-12-retry.md" },
     ];
-    expect(parseKnownGaps(value, FILE, previews, exists)).toEqual({ gaps: value, problems: [] });
+    expect(parseKnownGaps(value, FILE, scenarios, exists)).toEqual({ gaps: value, problems: [] });
   });
 
   it("fails a gap that names no tracked fix: none, a missing proposal, or anything else", () => {
@@ -119,7 +119,7 @@ describe("parseKnownGaps", () => {
         { presses: ['button "A"'], problem: "silent", why: "x", fixIn: "proposals/README.md" },
       ],
       FILE,
-      previews,
+      scenarios,
       exists,
     );
     const how = "a GitHub issue or pull request URL, or the path of a proposal file under proposals/";
@@ -133,50 +133,50 @@ describe("parseKnownGaps", () => {
     ]);
   });
 
-  it("fails a gap with no reason, an unknown problem or key, or a preview the flow does not open", () => {
+  it("fails a gap with no reason, an unknown problem or key, or a scenario the flow does not open", () => {
     const { problems } = parseKnownGaps(
       [
         { presses: ['button "A"'], problem: "silent", fixIn: ISSUE },
         { presses: ['button "A"'], problem: "quiet", why: "x", fixIn: ISSUE },
         { presses: ['button "A"'], problem: "silent", why: "x", fixIn: ISSUE, when: "now" },
         { presses: [], problem: "silent", why: "x", fixIn: ISSUE },
-        { presses: ['button "A"'], problem: "silent", why: "x", fixIn: ISSUE, previews: ["state=done"] },
+        { presses: ['button "A"'], problem: "silent", why: "x", fixIn: ISSUE, scenarios: ["done"] },
       ],
       FILE,
-      previews,
+      scenarios,
       exists,
     );
     expect(problems).toEqual([
       `${FILE} knownGaps[0] needs why: what fixes it, and why it waits.`,
       `${FILE} knownGaps[1] needs problem: "focus lost" or "silent".`,
-      `${FILE} knownGaps[2] has unknown keys: when. It reads presses, problem, previews, why, fixIn.`,
+      `${FILE} knownGaps[2] has unknown keys: when. It reads presses, problem, scenarios, why, fixIn.`,
       `${FILE} knownGaps[3] needs presses: each press as a failure names it, such as 'button "Try again"'.`,
-      `${FILE} knownGaps[4] names "state=done", which is not a preview of this flow.`,
+      `${FILE} knownGaps[4] names "done", which is not a scenario of this flow.`,
     ]);
   });
 });
 
 describe("applyKnownGaps", () => {
-  const found = (preview: string, press: string, kind: FoundProblem["kind"] = "silent"): FoundProblem => ({ kind, press, preview, message: `${press} on ${preview}` });
+  const found = (scenario: string, press: string, kind: FoundProblem["kind"] = "silent"): FoundProblem => ({ kind, press, scenario, message: `${press} on ${scenario}` });
 
-  it("lists a problem a gap names, on any preview when the gap names none", () => {
-    const problems = [found("state=waitlist", 'button "A"'), found("state=freed", 'button "A"'), found("state=freed", 'button "B"')];
+  it("lists a problem a gap names, on any scenario when the gap names none", () => {
+    const problems = [found("waitlist", 'button "A"'), found("freed", 'button "A"'), found("freed", 'button "B"')];
     const result = applyKnownGaps(problems, [{ presses: ['button "A"'], problem: "silent", why: "x", fixIn: "https://github.com/acme/app/issues/1" }], FILE);
     expect(result.listed).toHaveLength(2);
     expect(result.unlisted.map((problem) => problem.press)).toEqual(['button "B"']);
     expect(result.stale).toEqual([]);
   });
 
-  it("does not list a problem of another kind or on a preview the gap leaves out", () => {
-    const problems = [found("state=waitlist", 'button "A"', "focus lost"), found("state=freed", 'button "A"')];
-    const result = applyKnownGaps(problems, [{ presses: ['button "A"'], problem: "silent", previews: ["state=waitlist"], why: "x", fixIn: "https://github.com/acme/app/issues/1" }], FILE);
+  it("does not list a problem of another kind or on a scenario the gap leaves out", () => {
+    const problems = [found("waitlist", 'button "A"', "focus lost"), found("freed", 'button "A"')];
+    const result = applyKnownGaps(problems, [{ presses: ['button "A"'], problem: "silent", scenarios: ["waitlist"], why: "x", fixIn: "https://github.com/acme/app/issues/1" }], FILE);
     expect(result.listed).toEqual([]);
-    expect(result.stale).toEqual([`${FILE} knownGaps lists button "A" as "silent", and pressing it on ?state=waitlist no longer has that problem. Take it off the list.`]);
+    expect(result.stale).toEqual([`${FILE} knownGaps lists button "A" as "silent", and pressing it on scenario waitlist no longer has that problem. Take it off the list.`]);
   });
 
   it("fails a gap whose press no longer has its problem anywhere", () => {
     expect(applyKnownGaps([], [{ presses: ['button "A"'], problem: "focus lost", why: "x", fixIn: "https://github.com/acme/app/issues/1" }], FILE).stale).toEqual([
-      `${FILE} knownGaps lists button "A" as "focus lost", and pressing it on any preview no longer has that problem. Take it off the list.`,
+      `${FILE} knownGaps lists button "A" as "focus lost", and pressing it on any scenario no longer has that problem. Take it off the list.`,
     ]);
   });
 });

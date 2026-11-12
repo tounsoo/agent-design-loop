@@ -5,6 +5,7 @@ import path from "node:path";
 import { build, preview } from "vite";
 import puppeteer, { type Page } from "puppeteer-core";
 import { findChrome } from "./chrome";
+import { DESKTOP } from "./views";
 
 /**
  * One built and served copy of a product's app, shared by every check that
@@ -33,10 +34,7 @@ export const APP_WEB_ENV = "HARNESS_APP_WEB";
  */
 export const APP_CHECKS: ReadonlySet<string> = new Set(["check:target-size", "check:accessible-names", "check:rendered-page"]);
 
-/** The desktop view every check opens a preview in, in CSS px. The screenshots use it too. */
-export const DESKTOP = { width: 1280, height: 900 } as const;
-/** The phone view check:rendered-page opens each preview in as well, in CSS px: a common phone's width and height. */
-export const PHONE = { width: 390, height: 844 } as const;
+export { DESKTOP, PHONE } from "./views";
 
 export type ServedApp = { readonly url: string; close(): Promise<void> };
 

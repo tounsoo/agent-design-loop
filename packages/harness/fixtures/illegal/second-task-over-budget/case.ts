@@ -12,9 +12,6 @@ export default {
           "send-reminder": "packages/harness/fixtures/two-tasks/flows/send-reminder.ts",
           "archive-note": "packages/harness/fixtures/illegal/second-task-over-budget/archive-note.ts",
         },
-        previews: {
-          reminded: ["page=detail"],
-        },
       },
     ],
   },

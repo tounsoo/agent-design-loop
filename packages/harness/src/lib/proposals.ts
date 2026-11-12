@@ -48,7 +48,10 @@ import path from "node:path";
  * proposal whose change shows on no screen writes the one item
  * `- None: <why>`. check:proposals requires the section from a proposal the
  * change adds and from one it moves to `decided`, so proposals approved
- * before the section existed keep their text.
+ * before the section existed keep their text. In a proposal the change adds,
+ * each edge case that is not out of scope names the scenario that renders it,
+ * as ``scenario `<id>` ``, and while a proposal is `adopted` every scenario it
+ * names exists in a product's scenarios.ts (proposal 2026-11-12-scenarios).
  *
  * A change the checks gate, an inventory change, a new opt-out or a retired
  * rule, adopts a proposal: the proposal must already be `decided` on the
@@ -70,7 +73,27 @@ export type ProposalStatus = (typeof STATUSES)[number];
 export const EDGE_STATES = ["Empty", "Loading", "Error", "Long content", "Permissions", "Over time"] as const;
 const NO_STATES = "None";
 
-export type ProposalState = { readonly name: string; readonly text: string; readonly outOfScope: boolean };
+export type ProposalState = {
+  readonly name: string;
+  readonly text: string;
+  readonly outOfScope: boolean;
+  /** The scenarios the item names, as ``scenario `<id>` `` in its text. */
+  readonly scenarios: readonly string[];
+};
+
+/**
+ * How a `## States` item names the scenarios that render it: ``scenario `booking-lantern` ``,
+ * or ``scenarios `booking-lantern` and `booking-quarry` ``. Only a lowercase slug counts, so a
+ * placeholder such as ``scenario `<id>` `` names nothing.
+ */
+const SLUG = "[a-z0-9]+(?:-[a-z0-9]+)*";
+const SCENARIO_MENTION = new RegExp(`\\b[Ss]cenarios? (\`${SLUG}\`(?:(?:,\\s*|,?\\s+(?:and|or)\\s+)\`${SLUG}\`)*)`, "g");
+const SCENARIO_ID = new RegExp(`\`(${SLUG})\``, "g");
+
+/** Every scenario id a `## States` item's text names. */
+function scenarioMentions(text: string): string[] {
+  return [...text.matchAll(SCENARIO_MENTION)].flatMap((mention) => [...(mention[1] ?? "").matchAll(SCENARIO_ID)].map((id) => id[1] ?? ""));
+}
 
 export type OptOutEntry = { readonly rule: string; readonly source: string };
 
@@ -241,7 +264,7 @@ function readStates(content: string): { states: ProposalState[]; problems: strin
     else if (outOfScope && text.replace(/^out of scope\b[\s:,.;\-\u2013\u2014]*/i, "") === "") {
       problems.push(`"## States" item "${name}" is out of scope with no reason. Write "Out of scope, <why>".`);
     }
-    states.push({ name, text, outOfScope });
+    states.push({ name, text, outOfScope, scenarios: scenarioMentions(text) });
   }
   if (states.length === 0) {
     problems.push(`"## States" lists no states. Write one "- <state>: <what the screen shows>" item for each, the edge cases ${EDGE_STATES.join(", ")} included.`);
@@ -545,6 +568,15 @@ export function transitionProblems(
         `${after.file} ${before === undefined ? "is new" : "moves open → decided"} and ${after.changes.length > 0 ? `changes ${after.changes.join(", ")}` : `adds ${after.adds.join(", ")}`}, but has no "## States" section. List every state the change shows before it is built, the edge cases ${EDGE_STATES.join(", ")} included, or "- None: <why>" when it shows on no screen.`,
       );
     }
+    // A new proposal names the scenario each edge case it shows renders in, so the case is built and checked, not only described.
+    if (before === undefined && after.states !== null && !after.states.some((state) => sameName(state.name, NO_STATES))) {
+      for (const state of after.states) {
+        if (!EDGE_STATES.some((edge) => sameName(edge, state.name)) || state.outOfScope || state.scenarios.length > 0) continue;
+        problems.push(
+          `${after.file} is new and its "## States" item "${state.name}" names no scenario. Name the scenario that renders it, as scenario \`<id>\` in its text, or write "Out of scope, <why>".`,
+        );
+      }
+    }
     // A base file with no fields predates them, so there is no status to move from. It cannot cover a change either: adopting() reads the base.
     if (legacy.has(key)) continue;
     const gated = after.changes.length > 0 || after.retires.length > 0 || after.optsOut.length > 0;
@@ -575,6 +607,27 @@ export function transitionProblems(
       if (!sameList(optsOut(before.optsOut), optsOut(after.optsOut))) changed.push("opts-out");
       if (changed.length > 0) {
         problems.push(`${after.file} is ${before.status} on the base, so its ${changed.join(", ")} cannot change: that is what was approved.`);
+      }
+    }
+  }
+  return problems;
+}
+
+/**
+ * The scenarios an adopted proposal's `## States` names that no product has.
+ * `ids` is every scenario id in every product's scenarios.ts. A proposal
+ * that is decided may name scenarios it will add; once adopted, they exist.
+ */
+export function missingScenarioProblems(head: ReadonlyMap<string, Proposal>, ids: ReadonlySet<string>): string[] {
+  const problems: string[] = [];
+  for (const proposal of [...head.values()].sort((left, right) => left.file.localeCompare(right.file))) {
+    if (proposal.status !== "adopted" || proposal.states === null) continue;
+    for (const state of proposal.states) {
+      for (const id of state.scenarios) {
+        if (ids.has(id)) continue;
+        problems.push(
+          `${proposal.file} is adopted and its "## States" item "${state.name}" names scenario \`${id}\`, which no product's scenarios.ts has. Add it back, or rename the scenario in the proposal's text only if it was renamed.`,
+        );
       }
     }
   }

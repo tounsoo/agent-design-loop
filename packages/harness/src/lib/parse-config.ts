@@ -17,13 +17,6 @@ export type FlowConfig = {
    * when the module exports one.
    */
   readonly tasks?: { readonly [taskId: string]: string };
-  /**
-   * How check:target-size and check:accessible-names open a modeled state, as
-   * query strings added to
-   * `?state=<state>`. Every modeled state is opened: once bare when it has no
-   * entry here, once per query string when it has one.
-   */
-  readonly previews?: { readonly [state: string]: readonly string[] };
 };
 
 /**
@@ -79,7 +72,7 @@ export type HarnessConfig = {
     readonly rules: string;
     /** Product stylesheet. */
     readonly styles: string;
-    /** Other product UI the off-catalog lint reads: entry files and preview code. */
+    /** Other product UI the off-catalog lint reads: entry files and the code that renders a scenario. */
     readonly app: readonly string[];
     /** The directory with the product's index.html, which check:target-size and check:accessible-names build and serve with Vite. */
     readonly web: string;
@@ -259,12 +252,13 @@ export function parseConfig(text: string, label: string): ParsedConfig {
     flows: value.flows.map((flow, index) => {
       const where = `config.flows[${index}]`;
       if (!isRecord(flow)) throw new Error(`${where} must be an object.`);
-      // tasks and previews are optional so a base written before them still parses.
+      // tasks is optional so a base written before it still parses. A base's
+      // previews, from before scenarios, are not read: scenarios.ts beside the
+      // states module lists what the checks open.
       return {
         states: requireString(flow, "states", where),
         views: requireString(flow, "views", where),
         tasks: stringRecord(flow, "tasks", where),
-        previews: stringListRecord(flow, "previews", where),
       };
     }),
     optOuts: stringRecord(value, "optOuts", "config"),

@@ -2,9 +2,9 @@ import { statSync } from "node:fs";
 import type { AxNode } from "./accessible-names";
 
 /**
- * What check:accessible-names holds each press to. On every preview it
+ * What check:accessible-names holds each press to. On every scenario it
  * presses each action a keyboard reaches, one at a time from a fresh load of
- * the preview, and reads the accessibility tree before and after. A press
+ * the scenario, and reads the accessibility tree before and after. A press
  * that changes what a screen reader could read must say so: a live region's
  * text changes, focus moves to another element, or the pressed control's own
  * state (expanded, checked, pressed, selected) changes while focus stays on
@@ -32,7 +32,7 @@ const SPACE_ROLES = new Set(["checkbox", "radio", "switch", "menuitemcheckbox", 
 /** Live nodes that say a value, not news, when they change. */
 const QUIET_ROLES = new Set(["progressbar", "meter"]);
 
-/** The actions on a preview, in document order: every enabled control a person presses. */
+/** The actions on a scenario, in document order: every enabled control a person presses. */
 export function actionsOf(tree: readonly AxNode[]): AxNode[] {
   return tree.filter((node) => ACTION_ROLES.has(node.role) && !node.disabled && node.backendId !== null);
 }
@@ -157,8 +157,8 @@ export type KnownGap = {
   /** Each press as a failure names it: its role and its quoted name, such as `button "Try again"`. */
   readonly presses: readonly string[];
   readonly problem: PressProblemKind;
-  /** The previews it happens on. Leave it out for every preview where the press has the problem. */
-  readonly previews?: readonly string[];
+  /** The scenarios it happens on. Leave it out for every scenario where the press has the problem. */
+  readonly scenarios?: readonly string[];
   /** Why it waits, and what fixes it. */
   readonly why: string;
   /**
@@ -171,7 +171,7 @@ export type KnownGap = {
 
 export type KnownGaps = readonly KnownGap[];
 
-const GAP_KEYS = new Set(["presses", "problem", "previews", "why", "fixIn"]);
+const GAP_KEYS = new Set(["presses", "problem", "scenarios", "why", "fixIn"]);
 
 const TRACKER = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/(issues|pull)\/[1-9]\d*$/;
 /** A relative path with no `.` or `..` segment, ending `proposals/<name>.md`, never the folder's README. */
@@ -201,13 +201,13 @@ function nonEmptyStrings(value: unknown): value is string[] {
 
 /**
  * Parses a declarations module's optional `knownGaps` export against the
- * previews its flow opens. `exists` says whether a proposal path in `fixIn`
+ * scenarios its flow opens. `exists` says whether a proposal path in `fixIn`
  * is a file, read from the repository root.
  */
 export function parseKnownGaps(
   value: unknown,
   file: string,
-  previews: readonly string[],
+  scenarios: readonly string[],
   exists: (file: string) => boolean = isFile,
 ): { gaps: KnownGap[]; problems: string[] } {
   if (value === undefined) return { gaps: [], problems: [] };
@@ -229,8 +229,8 @@ export function parseKnownGaps(
           ? 'needs presses: each press as a failure names it, such as \'button "Try again"\'.'
           : !KINDS.includes(record.problem as PressProblemKind)
             ? `needs problem: ${KINDS.map((kind) => `"${kind}"`).join(" or ")}.`
-            : record.previews !== undefined && !nonEmptyStrings(record.previews)
-              ? "previews must list at least one preview, or be left out for every preview."
+            : record.scenarios !== undefined && !nonEmptyStrings(record.scenarios)
+              ? "scenarios must list at least one scenario, or be left out for every scenario."
               : typeof record.why !== "string" || record.why.trim() === ""
                 ? "needs why: what fixes it, and why it waits."
                 : untracked(record.fixIn, exists);
@@ -238,9 +238,9 @@ export function parseKnownGaps(
       problems.push(`${where} ${problem}`);
       continue;
     }
-    const stale = ((record.previews as string[] | undefined) ?? []).filter((preview) => !previews.includes(preview));
+    const stale = ((record.scenarios as string[] | undefined) ?? []).filter((scenario) => !scenarios.includes(scenario));
     if (stale.length > 0) {
-      problems.push(`${where} names ${stale.map((preview) => `"${preview}"`).join(", ")}, which is not a preview of this flow.`);
+      problems.push(`${where} names ${stale.map((scenario) => `"${scenario}"`).join(", ")}, which is not a scenario of this flow.`);
       continue;
     }
     gaps.push(record as unknown as KnownGap);
@@ -248,8 +248,8 @@ export function parseKnownGaps(
   return { gaps, problems };
 }
 
-/** A press problem on one preview. */
-export type FoundProblem = PressProblem & { readonly preview: string };
+/** A press problem on one scenario. */
+export type FoundProblem = PressProblem & { readonly scenario: string };
 
 /**
  * Splits the problems the presses found into those a known gap lists and
@@ -258,17 +258,17 @@ export type FoundProblem = PressProblem & { readonly preview: string };
  */
 export function applyKnownGaps(found: readonly FoundProblem[], gaps: readonly KnownGap[], file: string): { unlisted: FoundProblem[]; listed: FoundProblem[]; stale: string[] } {
   const covers = (gap: KnownGap, problem: FoundProblem) =>
-    gap.problem === problem.kind && gap.presses.includes(problem.press) && (gap.previews === undefined || gap.previews.includes(problem.preview));
+    gap.problem === problem.kind && gap.presses.includes(problem.press) && (gap.scenarios === undefined || gap.scenarios.includes(problem.scenario));
   const unlisted = found.filter((problem) => !gaps.some((gap) => covers(gap, problem)));
   const listed = found.filter((problem) => gaps.some((gap) => covers(gap, problem)));
   const stale: string[] = [];
   for (const gap of gaps) {
     for (const press of gap.presses) {
-      const where = gap.previews ?? [undefined];
-      for (const preview of where) {
-        const happens = found.some((problem) => problem.kind === gap.problem && problem.press === press && (preview === undefined || problem.preview === preview));
+      const where = gap.scenarios ?? [undefined];
+      for (const scenario of where) {
+        const happens = found.some((problem) => problem.kind === gap.problem && problem.press === press && (scenario === undefined || problem.scenario === scenario));
         if (!happens) {
-          const on = preview === undefined ? "on any preview" : `on ?${preview}`;
+          const on = scenario === undefined ? "on any scenario" : `on scenario ${scenario}`;
           stale.push(`${file} knownGaps lists ${press} as "${gap.problem}", and pressing it ${on} no longer has that problem. Take it off the list.`);
         }
       }

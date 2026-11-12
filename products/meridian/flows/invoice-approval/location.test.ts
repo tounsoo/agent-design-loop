@@ -19,8 +19,8 @@ describe("flow from location", () => {
   });
 
   it("lets a modeled preview override the ledger", () => {
-    expect(flowFromLocation(readLocation("?state=loading&invoice=inv-1842"), sampleInvoices).status).toBe("loading");
-    expect(flowFromLocation(readLocation("?state=ready&page=collection&route=vendors"), sampleInvoices)).toEqual({
+    expect(flowFromLocation(readLocation("?scenario=loading&invoice=inv-1842"), sampleInvoices).status).toBe("loading");
+    expect(flowFromLocation(readLocation("?scenario=queue&route=vendors"), sampleInvoices)).toEqual({
       status: "ready",
       screen: "collection",
     });
@@ -28,7 +28,7 @@ describe("flow from location", () => {
   });
 
   it("opens the vendor-added preview on Vendors", () => {
-    const location = readLocation("?state=vendor-added");
+    const location = readLocation("?scenario=vendor-added");
     expect(location.route).toBe("vendors");
     expect(flowFromLocation(location, sampleInvoices).status).toBe("vendor-added");
   });
