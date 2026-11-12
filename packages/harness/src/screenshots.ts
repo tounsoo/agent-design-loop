@@ -3,12 +3,12 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpath
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { build, preview } from "vite";
 import puppeteer from "puppeteer-core";
 import { tryGit } from "./lib/base";
 import { findChrome } from "./lib/chrome";
 import { config, configName } from "./lib/config";
 import { previewQueries } from "./lib/previews";
+import { APP_URL_ENV, APP_WEB_ENV, serveApp, sharedAppUrl, type ServedApp } from "./lib/served-app";
 import { galleryMarkdown, pinGallery, pullRequestMarkdown, rawFolderUrl, screenshotName } from "./lib/screenshots";
 
 /**
@@ -128,34 +128,29 @@ function pin(dir: string): void {
   console.log(pullRequestMarkdown({ repository: `https://github.com/${repository.owner}/${repository.repo}`, commit: "<sha>", folder: relative, ...shots }));
 }
 
-/** Builds the product in the working directory, serves it, and saves one full-page PNG per preview. */
+/**
+ * Saves one full-page PNG per preview of the product in the working
+ * directory: the app check:product serves, when it serves this product, or
+ * one built and served here on a free port.
+ */
 async function capture(previews: readonly string[], dir: string, executablePath: string): Promise<void> {
-  const web = path.resolve(config.paths.web);
-  if (!existsSync(path.join(web, "index.html"))) fail(`${config.paths.web} has no index.html to build (paths.web).`);
   mkdirSync(dir, { recursive: true });
-  const viteConfig = {
-    root: web,
-    configFile: path.resolve("vite.config.ts"),
-    cacheDir: path.resolve("node_modules/.vite-screenshots"),
-    logLevel: "warn" as const,
-  };
-  await build(viteConfig);
-  let server: Awaited<ReturnType<typeof preview>>;
+  const shared = sharedAppUrl(config.paths.web);
+  let app: ServedApp;
   try {
-    server = await preview({ ...viteConfig, preview: { host: "127.0.0.1", port: 4173, strictPort: true } });
+    app = shared === null ? await serveApp(config.paths.web, { cacheDir: path.resolve("node_modules/.vite-screenshots") }) : { url: shared, close: async () => undefined };
   } catch (error) {
-    fail(`could not serve the built app on 127.0.0.1:4173: ${error instanceof Error ? error.message : String(error)}\nStop whatever holds port 4173, such as another npm run preview, and run it again.`);
+    fail(error instanceof Error ? error.message : String(error));
   }
-  const base = server.resolvedUrls?.local?.[0] ?? "http://127.0.0.1:4173/";
   const browser = await puppeteer.launch({ executablePath, headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] }).catch(async (error: unknown) => {
-    await server.close();
+    await app.close();
     fail(`${executablePath} did not start: ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
   });
   try {
     const page = await browser.newPage();
     await page.setViewport(VIEWPORT);
     for (const query of previews) {
-      const url = new URL(base);
+      const url = new URL(app.url);
       url.search = query;
       await page.goto(url.href, { waitUntil: "networkidle0" });
       await page.evaluate(() => document.fonts.ready.then(() => undefined));
@@ -163,7 +158,7 @@ async function capture(previews: readonly string[], dir: string, executablePath:
     }
   } finally {
     await browser.close();
-    await server.close();
+    await app.close();
   }
 }
 
@@ -206,11 +201,19 @@ function captureAtBase(ref: string, dir: string, executablePath: string): void {
   const run = spawnSync(path.resolve("node_modules/.bin/tsx"), args, {
     cwd: worktree,
     stdio: "inherit",
-    env: { ...process.env, CHROME_PATH: executablePath, SCREENSHOTS_BASE_RUN: "1" },
+    // The base builds its own app: the one check:product may serve here is this checkout's.
+    env: { ...withoutSharedApp(process.env), CHROME_PATH: executablePath, SCREENSHOTS_BASE_RUN: "1" },
   });
   if (run.status !== 0) fail(`capturing ${ref} failed. Its output is above.`);
   removeWorktree();
   process.off("exit", removeWorktree);
+}
+
+function withoutSharedApp(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const rest = { ...env };
+  delete rest[APP_URL_ENV];
+  delete rest[APP_WEB_ENV];
+  return rest;
 }
 
 /** The base as the gallery names it: the ref, with its short commit when the ref is a name. */
