@@ -8,7 +8,7 @@ import { tryGit } from "./lib/base";
 import { findChrome } from "./lib/chrome";
 import { config, configName } from "./lib/config";
 import { previewQueries } from "./lib/previews";
-import { APP_URL_ENV, APP_WEB_ENV, serveApp, sharedAppUrl, type ServedApp } from "./lib/served-app";
+import { APP_URL_ENV, APP_WEB_ENV, DESKTOP, serveApp, sharedAppUrl, type ServedApp } from "./lib/served-app";
 import { galleryMarkdown, pinGallery, pullRequestMarkdown, rawFolderUrl, screenshotName } from "./lib/screenshots";
 
 /**
@@ -26,7 +26,6 @@ import { galleryMarkdown, pinGallery, pullRequestMarkdown, rawFolderUrl, screens
  */
 
 const SCRIPT = fileURLToPath(import.meta.url);
-const VIEWPORT = { width: 1280, height: 900 };
 
 const pinDir = flag("--pin");
 if (pinDir) {
@@ -148,7 +147,7 @@ async function capture(previews: readonly string[], dir: string, executablePath:
   });
   try {
     const page = await browser.newPage();
-    await page.setViewport(VIEWPORT);
+    await page.setViewport(DESKTOP);
     for (const query of previews) {
       const url = new URL(app.url);
       url.search = query;

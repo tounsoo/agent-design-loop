@@ -1,12 +1,12 @@
 import { Button, Card, Stack, Text } from "../../catalog";
 import type { Room } from "../../flows/booking/states";
 
-/** The rooms page's ready body: one card per free room, each with its own Choose action. Not a table. */
+/** The rooms page's ready body: a list of cards, one per free room, each with its own Choose action. Not a table. */
 export function RoomCards({ rooms, onChoose }: { rooms: readonly Room[]; onChoose: (roomId: string) => void }) {
   return (
-    <div className="room-cards">
+    <div className="room-cards" role="list">
       {rooms.map((room) => (
-        <Card.Root key={room.id}>
+        <Card.Root key={room.id} role="listitem">
           <Card.Header>
             <Text.Root as="h2" weight="bold">
               {room.name}
