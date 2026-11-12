@@ -15,9 +15,45 @@ export function screenshotName(query: string): string {
   return parts.map((part) => part.replace(/[^A-Za-z0-9_-]+/g, "-")).join("--");
 }
 
-/** An image wrapped in a link to its own file, so a click opens it full size. */
+/**
+ * An image wrapped in a link to its own file. Until `--pin` points the link at
+ * the raw file, it opens GitHub's page for the file, which shows the image no
+ * larger than the gallery does on a phone.
+ */
 function linkedImage(alt: string, file: string): string {
   return `[![${alt}](${file})](${file})`;
+}
+
+/** What the gallery's header says a click does, before and after `--pin`. */
+const UNPINNED_CLICK = "Click an image to open its file.";
+const PINNED_CLICK = "Click an image to open it full size.";
+
+/** Every image in a gallery, wrapped in its link: the alt text and the image's path. */
+const LINKED_IMAGE = /\[!\[([^\]]*)\]\(([^)\s]+\.png)\)\]\([^)\s]+\)/g;
+
+/**
+ * The gallery with each image's link pointed at the raw PNG, at the commit
+ * that holds it, so a click opens the image itself, full size on any device,
+ * and the link still works once the branch is deleted. `raw` is the folder's
+ * address at that commit, such as
+ * https://raw.githubusercontent.com/o/r/<sha>/products/x/review/screenshots/change.
+ * A link `--pin` set before is replaced, so pinning again moves every link.
+ */
+export function pinGallery(markdown: string, raw: string): { markdown: string; files: string[] } {
+  const files: string[] = [];
+  const pinned = markdown
+    .replace(UNPINNED_CLICK, PINNED_CLICK)
+    .replace(LINKED_IMAGE, (_match, alt: string, file: string) => {
+      files.push(file);
+      return `[![${alt}](${file})](${raw}/${file})`;
+    });
+  return { markdown: pinned, files };
+}
+
+/** A folder's raw address at a commit, each path segment escaped. */
+export function rawFolderUrl({ owner, repo, commit, folder }: { readonly owner: string; readonly repo: string; readonly commit: string; readonly folder: string }): string {
+  const segments = folder.split("/").filter((segment) => segment !== "").map(encodeURIComponent);
+  return ["https://raw.githubusercontent.com", owner, repo, commit, ...segments].join("/");
 }
 
 export type Gallery = {
@@ -31,12 +67,12 @@ export type Gallery = {
   readonly after: readonly string[];
 };
 
-/** The gallery's README.md: one row or section per preview, each image linked to its full-size file. */
+/** The gallery's README.md: one row or section per preview, each image linked to its own file until `--pin` runs. */
 export function galleryMarkdown({ product, base, before, after }: Gallery): string {
   const lines = [
     "# Screenshots",
     "",
-    `Taken by \`npm run screenshots\` with \`${product}\`, at 1280 by 900 CSS px in headless Chrome, one per preview. Click an image to open it full size.`,
+    `Taken by \`npm run screenshots\` with \`${product}\`, at 1280 by 900 CSS px in headless Chrome, one per preview. ${UNPINNED_CLICK}`,
     "",
   ];
   if (base === null) {

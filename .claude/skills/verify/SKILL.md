@@ -95,7 +95,14 @@ npm run screenshots -- --config products/meridian/harness.config.ts \
   --out products/meridian/review/screenshots/<change> --base origin/main --state <state>
 ```
 
-Repeat `--state` for each state the change touches, or leave it out for every preview. It takes every preview of each state, so one state can give several shots. Each run replaces the whole folder, so a retake repeats every flag. It opens the previews `check:target-size` opens, at 1280 by 900 in the same Chrome, so it is `BLOCKED` when step 3 is. It writes `before/` and `after/` PNGs and a gallery `README.md` whose images each link to their full-size file. Look at the PNGs yourself before you commit them: a blank or half-loaded screen is a `FAIL`. Commit the folder, push, and put the line the script prints in the pull request description with `<sha>` replaced by the pushed commit's full SHA. Keep its whole `https://github.com/` address: a relative path breaks in the GitHub app and in email, and a branch link breaks once the branch is deleted. Then open the gallery link from the pull request page, in a browser that isn't signed in to GitHub when the repository is public, and click one image: every image must show, and the click must open it full size. Images in the description itself don't come through from an agent, so the description holds the link and no image.
+Repeat `--state` for each state the change touches, or leave it out for every preview. It takes every preview of each state, so one state can give several shots. Each run replaces the whole folder, so a retake repeats every flag. It opens the previews `check:target-size` opens, at 1280 by 900 in the same Chrome, so it is `BLOCKED` when step 3 is. It writes `before/` and `after/` PNGs and a gallery `README.md` whose images each link to their own file. Look at the PNGs yourself before you commit them: a blank or half-loaded screen is a `FAIL`. Commit the folder, then run the `--pin` line the script prints:
+
+```sh
+npm run screenshots -- --config products/meridian/harness.config.ts \
+  --pin products/meridian/review/screenshots/<change>
+```
+
+It points each image's link at the raw PNG at that commit, so a click opens the image itself, full size on a phone too, and refuses a folder with anything but its `README.md` uncommitted. Commit the `README.md` again, push, and put the line `--pin` prints in the pull request description with `<sha>` replaced by the pushed commit's full SHA. A retake writes an unpinned gallery, so pin again after each one. Keep its whole `https://github.com/` address: a relative path breaks in the GitHub app and in email, and a branch link breaks once the branch is deleted. Then open the gallery link from the pull request page, in a browser that isn't signed in to GitHub when the repository is public, and click one image: every image must show, and the click must open the PNG itself, at a `raw.githubusercontent.com` address with the commit's SHA, not GitHub's page for the file. Images in the description itself don't come through from an agent, so the description holds the link and no image.
 
 ### 4. Loop trace (every change, before you push)
 
