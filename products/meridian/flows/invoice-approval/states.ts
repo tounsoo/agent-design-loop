@@ -1,3 +1,5 @@
+import type { VendorId } from "./vendors";
+
 export const modeledStates = [
   "loading",
   "empty",
@@ -5,6 +7,7 @@ export const modeledStates = [
   "ready",
   "invoice-approved",
   "changes-requested",
+  "vendor-added",
 ] as const;
 
 export type ModeledState = (typeof modeledStates)[number];
@@ -193,6 +196,9 @@ export const sampleInvoices: readonly Invoice[] = [
 
 export const loadErrorMessage = "Couldn't load invoices.";
 
+/** Vendors is built from the same load, but its page names what it lists. */
+export const vendorsErrorMessage = "Couldn't load vendors.";
+
 export function formatMoney(cents: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
 }
@@ -221,7 +227,8 @@ export type FlowState =
       readonly reasonError: boolean;
     }
   | { readonly status: "invoice-approved"; readonly invoiceId: string }
-  | { readonly status: "changes-requested"; readonly invoiceId: string; readonly reason: string };
+  | { readonly status: "changes-requested"; readonly invoiceId: string; readonly reason: string }
+  | { readonly status: "vendor-added"; readonly vendorId: VendorId };
 
 export type FlowEvent =
   | { readonly type: "loaded"; readonly invoices: readonly Invoice[] }
@@ -233,7 +240,8 @@ export type FlowEvent =
   | { readonly type: "start-request" }
   | { readonly type: "set-reason"; readonly reason: string }
   | { readonly type: "submit-request" }
-  | { readonly type: "approve" };
+  | { readonly type: "approve" }
+  | { readonly type: "add-vendor"; readonly vendorId: VendorId };
 
 export function isModeledState(value: string): value is ModeledState {
   return (modeledStates as readonly string[]).includes(value);

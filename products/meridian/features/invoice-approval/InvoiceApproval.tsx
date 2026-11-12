@@ -1,12 +1,16 @@
 import { useState } from "react";
 import {
+  addVendor,
   flowFromLocation,
   locationKey,
   sampleInvoices,
   transition,
+  knownVendors,
+  previewVendors,
   type AppLocation,
   type FlowState,
   type Invoice,
+  type Vendor,
 } from "../../flows/invoice-approval";
 import { InvoiceApprovalView, type Actions } from "./views";
 
@@ -18,6 +22,8 @@ export function InvoiceApproval({
   onNavigate: (href: string) => void;
 }) {
   const [ledger, setLedger] = useState<Invoice[]>(() => sampleInvoices.map((invoice) => ({ ...invoice })));
+  // Only the vendors added in this session. previewVendors decides which of them each preview shows.
+  const [added, setAdded] = useState<readonly Vendor[]>([]);
   const key = locationKey(location);
   const [seen, setSeen] = useState(key);
   const [overlay, setOverlay] = useState<FlowState | null>(null);
@@ -26,6 +32,9 @@ export function InvoiceApproval({
     setOverlay(null);
   }
   const flow = overlay ?? flowFromLocation(location, ledger);
+  const shownVendors = previewVendors(location.preview.state, added);
+  // Empty means nothing loaded, so its vendor cards join no invoices.
+  const shownLedger = location.preview.state === "empty" ? [] : ledger;
 
   const actions: Actions = {
     retry: () => setOverlay(transition(flow, { type: "retry" })),
@@ -59,12 +68,19 @@ export function InvoiceApproval({
       setLedger((rows) => rows.map((row) => (row.id === invoiceId ? { ...row, status: "approved" } : row)));
       setOverlay(transition(flow, { type: "approve" }));
     },
+    addVendor: (vendor) => {
+      const { registry: next, id, added: isNew } = addVendor(shownVendors, vendor, knownVendors(added));
+      const created = next.find((entry) => entry.id === id);
+      if (isNew && created) setAdded((vendors) => [...vendors, created]);
+      setOverlay(transition(flow, { type: "add-vendor", vendorId: id }));
+    },
   };
 
   return (
     <InvoiceApprovalView
       actions={actions}
-      ledger={ledger}
+      ledger={shownLedger}
+      registry={shownVendors}
       route={location.route}
       state={flow}
       onNavigate={onNavigate}

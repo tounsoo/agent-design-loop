@@ -8,6 +8,7 @@ const links: readonly { href: string; label: string }[] = [
   { href: "?state=ready&page=detail", label: "Detail" },
   { href: "?state=invoice-approved&page=detail", label: "Invoice approved" },
   { href: "?state=changes-requested&page=detail", label: "Changes requested" },
+  { href: "?state=vendor-added", label: "Vendor added" },
 ];
 
 /** Discreet developer aid. The product nav is the app shell, not this menu. */

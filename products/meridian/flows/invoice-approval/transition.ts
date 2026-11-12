@@ -6,6 +6,7 @@ import {
   type ModeledState,
   type Screen,
 } from "./states";
+import { previewAddedVendorId } from "./vendors";
 
 function detailReady(
   invoiceId: string,
@@ -38,6 +39,7 @@ export function transition(state: FlowState, event: FlowEvent): FlowState {
       return state;
     case "empty":
       if (event.type === "retry") return { status: "loading" };
+      if (event.type === "add-vendor") return { status: "vendor-added", vendorId: event.vendorId };
       return state;
     case "error":
       if (event.type === "retry") return { status: "loading" };
@@ -45,6 +47,7 @@ export function transition(state: FlowState, event: FlowEvent): FlowState {
     case "ready":
       if (state.screen === "collection") {
         if (event.type === "open-invoice") return detailReady(event.invoiceId);
+        if (event.type === "add-vendor") return { status: "vendor-added", vendorId: event.vendorId };
         return state;
       }
       if (event.type === "open-line-items") return { ...state, lineItemsOpen: true };
@@ -65,6 +68,9 @@ export function transition(state: FlowState, event: FlowEvent): FlowState {
     case "invoice-approved":
       return state;
     case "changes-requested":
+      return state;
+    case "vendor-added":
+      if (event.type === "add-vendor") return { status: "vendor-added", vendorId: event.vendorId };
       return state;
     default: {
       const unreachable: never = state;
@@ -98,6 +104,8 @@ export function initialFlowState(preview: Preview, invoiceId?: string | null): F
         invoiceId: id,
         reason: "Quantity on toner does not match the packing slip.",
       };
+    case "vendor-added":
+      return { status: "vendor-added", vendorId: previewAddedVendorId };
     case "ready":
       if (preview.page === "detail") {
         return detailReady(id, { requestingChanges: preview.branch });
