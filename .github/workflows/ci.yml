@@ -17,7 +17,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      # check:target-size, check:accessible-names and the fixture cases that open a page run in the chrome-headless-shell build puppeteer-core pins, the same build npm run setup:chrome installs locally.
+      # check:target-size, check:accessible-names, check:rendered-page and the fixture cases that open a page run in the chrome-headless-shell build puppeteer-core pins, the same build npm run setup:chrome installs locally.
       - uses: actions/cache@v4
         with:
           path: .cache/chrome

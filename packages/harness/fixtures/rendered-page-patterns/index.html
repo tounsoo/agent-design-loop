@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Legal: what the rendered-page rules let through</title>
+    <style>
+      body { margin: 0; font-family: sans-serif; color: #1a1a1a; background: #ffffff; }
+      a { color: inherit; }
+      .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+      .wide-menu > summary { display: none; }
+      .actions { position: sticky; bottom: 0; padding: 12px; background: #ffffff; }
+      @media (prefers-color-scheme: dark) {
+        body { color: #eeeeee; background: #121212; }
+        .actions { background: #121212; }
+      }
+    </style>
+  </head>
+  <body>
+    <details class="wide-menu" open>
+      <summary>Navigation</summary>
+      <a href="#invoices">Invoices</a>
+    </details>
+    <main data-page="detail">
+      <h1 style="font-size: 30px">Northwind Office Supply</h1>
+      <span class="visually-hidden" style="color: #dddddd">Status, read by a screen reader only</span>
+      <ul>
+        <li><h2 style="font-size: 24px">Paper stock</h2></li>
+        <li><h2 style="font-size: 24px">Toner</h2></li>
+      </ul>
+      <details open>
+        <summary>Add a vendor</summary>
+        <p>The empty list opens this form on purpose.</p>
+      </details>
+      <p style="height: 1200px; background: linear-gradient(#336699, #224466); color: #6a8db0">A long note over a gradient.</p>
+      <div class="actions">
+        <button type="button" disabled style="color: #c8c8c8; background: #f0f0f0">Request changes</button>
+        <button type="button" style="width: 120px; height: 40px">Approve</button>
+      </div>
+    </main>
+  </body>
+</html>

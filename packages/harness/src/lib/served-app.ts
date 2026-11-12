@@ -31,7 +31,12 @@ export const APP_WEB_ENV = "HARNESS_APP_WEB";
  * serves the app once for all of them. One left out still passes or fails the
  * same way, building its own copy.
  */
-export const APP_CHECKS: ReadonlySet<string> = new Set(["check:target-size", "check:accessible-names"]);
+export const APP_CHECKS: ReadonlySet<string> = new Set(["check:target-size", "check:accessible-names", "check:rendered-page"]);
+
+/** The desktop view every check opens a preview in, in CSS px. The screenshots use it too. */
+export const DESKTOP = { width: 1280, height: 900 } as const;
+/** The phone view check:rendered-page opens each preview in as well, in CSS px: a common phone's width and height. */
+export const PHONE = { width: 390, height: 844 } as const;
 
 export type ServedApp = { readonly url: string; close(): Promise<void> };
 
@@ -122,10 +127,15 @@ export function sharedAppUrl(web: string, env: NodeJS.ProcessEnv = process.env):
 }
 
 /**
- * Hands `run` a headless Chrome page at 1280 by 900 and the address of the
- * product's app: the one check:product serves, or one built and served here
- * on a free port. Any setup failure prints a fix under the check's label and
- * exits 1.
+ * Hands `run` a headless Chrome page at 1280 by 900 (`DESKTOP`) and the
+ * address of the product's app: the one check:product serves, or one built
+ * and served here on a free port. Any setup failure prints a fix under the
+ * check's label and exits 1.
+ *
+ * Every document the page loads gets a `__name` that returns its argument.
+ * tsx compiles a named inner function as `__name(fn, "name")`, a helper that
+ * lives in Node, so without it a function passed to `page.evaluate` that
+ * names one of its own throws in Chrome.
  */
 export async function withServedApp(label: string, web: string, run: (page: Page, base: string) => Promise<void>): Promise<void> {
   const fail = (...lines: string[]): never => {
@@ -157,7 +167,8 @@ export async function withServedApp(label: string, web: string, run: (page: Page
 
   try {
     const page = await browser.newPage();
-    await page.setViewport({ width: 1280, height: 900 });
+    await page.evaluateOnNewDocument("globalThis.__name = (fn) => fn");
+    await page.setViewport(DESKTOP);
     await run(page, app.url);
   } finally {
     await browser.close();

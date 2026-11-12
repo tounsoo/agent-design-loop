@@ -14,7 +14,7 @@ The model sheet is [`.claude/pstack-models.md`](.claude/pstack-models.md), pstac
 
 ## Set up
 
-Node 22, the version CI runs (`engines` asks for 22 or newer). Install with `npm ci`, then `npm run setup:chrome` for the headless Chrome `check:target-size`, `check:accessible-names`, `screenshots` and the fixture cases that open a page run in. `.npmrc` sets `legacy-peer-deps`.
+Node 22, the version CI runs (`engines` asks for 22 or newer). Install with `npm ci`, then `npm run setup:chrome` for the headless Chrome `check:target-size`, `check:accessible-names`, `check:rendered-page`, `screenshots` and the fixture cases that open a page run in. `.npmrc` sets `legacy-peer-deps`.
 
 ## Commands
 
@@ -41,6 +41,7 @@ Every harness script, in one line each. [The check reference](packages/harness/d
 - [`check:state-coverage`](packages/harness/docs/checks.md#checkstate-coverage), rule, needs `--config`: Every modeled flow state has a view.
 - [`check:target-size`](packages/harness/docs/checks.md#checktarget-size), rule, needs `--config`: Every control on every preview is at least 24 CSS px, or meets the WCAG 2.5.8 spacing exception, measured in headless Chrome.
 - [`check:accessible-names`](packages/harness/docs/checks.md#checkaccessible-names), rule, needs `--config`: On every preview, what a screen reader hears matches the flow's `accessible-names.ts`, and every press either announces what changed or moves focus.
+- [`check:rendered-page`](packages/harness/docs/checks.md#checkrendered-page), rule, needs `--config`: Every preview, as Chrome paints it at desktop and phone width: section headings two type-scale steps below the title, the rank-1 action in the first view, disclosures closed unless the state opens them, AA contrast in light and dark, and no sideways scroll on a phone.
 - [`check:opt-outs`](packages/harness/docs/checks.md#checkopt-outs), product, needs `--config`: Every opt-out in a product's config stands on an adopted proposal that names the rule and the product.
 - [`check:products`](packages/harness/docs/checks.md#checkproducts), repository: Runs `check:product` on every product the registry finds, one after another, so a new product needs no script or CI job of its own.
 - [`check:proposals`](packages/harness/docs/checks.md#checkproposals), repository: Every proposal has its fields and sections, a new one has a dated name, and each status moves one step at a time from the base.
