@@ -72,9 +72,9 @@ A check reads its paths only from the config that `--config <file>` names. There
 
 Before you write one, check that it is the right kind of rule.
 
-- **A pattern, not a count.** A rule says something that holds on every page, such as section headings two type-scale steps below the title or the rank-1 action in the first view. It never sets a number per page or per page type, such as how many sections a page may hold, because then every page needs its own check. A number a rule does need, like a type-scale step, a contrast ratio or a product-wide cap, holds for every page alike.
+- **A pattern, not a count.** A rule says something that holds on every page, such as section headings two type-scale steps below the title or the rank-1 action in the first view. It never sets a number per page or per page type, such as a section count, because then every page needs its own check. A number a rule does need, like a type-scale step, a contrast ratio or a product-wide cap such as `MAX_DISCLOSURES_PER_PAGE`, holds for every page alike.
 - **Construction first.** If a type, a shell prop, a slot or a narrower catalog export can make the illegal state impossible to write, do that instead of a check. [The control ladder](docs/how-it-works.md#the-control-ladder) orders the options from strongest down. A check covers only what construction can't hold.
-- **Its own pull request.** A gap found while building a product is fixed at its root cause in a pull request of its own, not bolted onto the product's pull request. The product pull request names the gap and links that fix.
+- **Its own pull request.** A gap in a check found while building a product is fixed at its root cause in a pull request of its own, not bolted onto the product's pull request. The product pull request names the gap and links that fix. Tightening a product's own rule input through a `tightens` proposal stays one pull request.
 
 1. Write the script as `packages/harness/src/<name>.ts`, and load the product's config through `lib/config.ts` if it reads one.
 2. Beside it, write `packages/harness/src/<name>.meta.ts`, which exports `meta` typed `satisfies CheckMeta` from [`lib/check-meta.ts`](src/lib/check-meta.ts): a one-sentence summary, the flags it reads besides `--config`, what it fails, and how it works. A helper the gate does not run says `tool: true` and lists no failures.
