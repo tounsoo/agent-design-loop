@@ -64,6 +64,14 @@ npm run check:product -- --config products/nook/harness.config.ts
 
 A check reads its paths only from the config that `--config <file>` names. There is no config at the repository root, so a rule check run without `--config` exits with "give the product's config". A flag the script's meta does not list, and any `--name=<value>` form, is refused, so a stale invocation cannot pass on the wrong product.
 
+### Add a check
+
+1. Write the script as `packages/harness/src/<name>.ts`, and load the product's config through `lib/config.ts` if it reads one.
+2. Beside it, write `packages/harness/src/<name>.meta.ts`, which exports `meta` typed `satisfies CheckMeta` from [`lib/check-meta.ts`](src/lib/check-meta.ts): a one-sentence summary, the flags it reads besides `--config`, what it fails, and how it works. A helper the gate does not run says `tool: true` and lists no failures.
+3. Add its npm script to `package.json`, and to `check:rules` if every product must pass it.
+4. Add fixture cases under `fixtures/`: an illegal case it fails and a legal case it passes.
+5. Run `npm run docs:gen`. It writes the reference, the table above, and the generated parts of `CLAUDE.md` and the verify skill. `npm run check:docs` fails when a script has no meta, a meta has no script, or a generated doc is stale.
+
 ## Plug a product in
 
 A product keeps its inventories under `products/<name>/` and names them in its own `harness.config.ts`. [Meridian's config](../../products/meridian/harness.config.ts) and [Nook's config](../../products/nook/harness.config.ts) are the two working examples.

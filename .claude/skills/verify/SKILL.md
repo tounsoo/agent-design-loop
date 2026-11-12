@@ -45,7 +45,7 @@ The Chrome checks look for Chrome where [the check reference](../../../packages/
 npm run check:fixtures && npm run check
 ```
 
-This is the command `AGENTS.md` names. CI runs the same checks split into two jobs, one per product. `check:fixtures` runs every case folder under `packages/harness/fixtures/` against the checks its `case.ts` names, and passes only when every illegal case fails with its expected message and every legal case passes with its expected message. `check` then runs typecheck, ESLint and the Vitest suite on the whole repository, `check:product` on each product's config, and the repository checks; [the check reference](../../../packages/harness/docs/checks.md#the-build-gate) lists them in order and says what each fails. The Vitest suite drives Meridian with Testing Library and `user-event` in jsdom: it follows an invoice link, opens Line items and presses Approve, approves again with Line items closed, and requests changes with and without a reason.
+This is the command `AGENTS.md` names. CI runs the same checks in two jobs: one runs the fixtures, the repository-wide checks, Meridian's product checks and `check:trace`, and the other runs Nook's product checks. `check:fixtures` runs every case folder under `packages/harness/fixtures/` against the checks its `case.ts` names, and passes only when every illegal case fails with its expected message and every legal case passes with its expected message. `check` then runs typecheck, ESLint and the Vitest suite on the whole repository, `check:product` on each product's config, and the repository checks; [the check reference](../../../packages/harness/docs/checks.md#the-build-gate) lists them in order and says what each fails. The Vitest suite drives Meridian with Testing Library and `user-event` in jsdom: it follows an invoice link, opens Line items and presses Approve, approves again with Line items closed, and requests changes with and without a reason.
 
 Each product's rule checks end with `check:target-size` and `check:accessible-names`, so without Chrome `check` stops at Meridian's. Then run the rest by hand, one product at a time, and mark step 3 `BLOCKED`:
 
@@ -130,7 +130,7 @@ Every row also runs step 4.
 | `products/<name>/preview/` | 1, and 3 when a view changes |
 | `products/<name>/catalog/`, `layouts/`, `content-layouts/`, `page-types/`, `flows/` (the inventories, see `proposals/README.md`) | 1, 2 and 3 |
 | `products/<name>/inputs`, `rules`, `harness.config.ts`, `packages/adapter-todae/`, `package.json` and `package-lock.json` (the Todae version) | 1, 2 and 3 |
-| `packages/harness/` | 1 and 2. A change to a check updates its `.meta.ts` and runs `npm run docs:gen`, which rewrites the generated parts of `CLAUDE.md` and this skill; update their hand-written parts by hand. |
+| `packages/harness/` | 1 and 2. A change to a check updates its `.meta.ts` and runs `npm run docs:gen`, which rewrites `packages/harness/docs/checks.md` and the generated parts of `packages/harness/README.md`, `CLAUDE.md` and this skill; update their hand-written parts by hand. |
 | `*.test.ts(x)`, `vitest.setup.ts`, `tsconfig.json`, `eslint.config.js`, `.npmrc`, `.gitignore` | 1 |
 | `proposals/` | 1, including `check:proposals`. A proposal changes nothing until it is adopted. |
 | `.github/` | 1, then the pull request's CI run is the rest of the proof; link it |

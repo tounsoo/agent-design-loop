@@ -74,7 +74,7 @@ flowchart LR
 
 The Todae names below, such as `Button.Root` and its `variant`, `Disclosure.Root`, `Disclosure.Summary` and `Field.Root`, are not in the scripts. Each script reads them from the design system adapter that the product's `harness.config.ts` names. Meridian's and Nook's configs both name `packages/adapter-todae/index.ts`. `packages/harness/fixtures/fake-ds/` is UI for a stand-in design system with other names, and `check:fixtures` requires the checks to pass it under its own adapter.
 
-[The check reference](checks.md) says what each script fails, in the words the code implements, and lists the fixture cases that prove it, each with what it shows. `npm run docs:gen` writes it from the code, so it cannot drift from the checks the way a copy here would.
+[The check reference](checks.md) says what each script fails and lists the fixture cases that prove it, each with what it shows. `npm run docs:gen` writes it: the scripts, the gate's order, the flags, which checks compare with the base or open Chrome, and the fixture cases come from the code, and the words come from the `.meta.ts` beside each script, which review keeps true to the script. `check:docs` fails when it is stale.
 
 `check:inventories` is not one of the six UX rules. It is the membership gate in the next sections. `check:rules` runs it between `check:one-thing` and `check:state-coverage`.
 
