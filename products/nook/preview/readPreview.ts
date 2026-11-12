@@ -36,6 +36,6 @@ export function readPreview(search: string): FlowState | null {
     case "waiting":
       return { status: "waiting", roomsFree: true, waitingFor: [first] };
     case "freed":
-      return { status: "freed", roomsFree: true, roomId: first, waitingFor: [second] };
+      return { status: "freed", roomsFree: true, roomId: first, left: null, waitingFor: [second] };
   }
 }

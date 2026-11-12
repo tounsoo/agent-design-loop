@@ -47,18 +47,18 @@ export function transition(state: FlowState, event: FlowEvent): FlowState {
       if (state.status === "freed" && state.roomId === event.roomId) return state;
       const joined = [...waitingFor, event.roomId];
       // A freed room stays offered while the person joins another.
-      return state.status === "freed" ? { ...state, waitingFor: joined } : { status: "waiting", roomsFree: state.roomsFree, waitingFor: joined };
+      return state.status === "freed" ? { ...state, left: null, waitingFor: joined } : { status: "waiting", roomsFree: state.roomsFree, waitingFor: joined };
     }
     case "leave-waitlist": {
       if (!onWaitlist || !waitingFor.includes(event.roomId)) return state;
       const rest = waitingFor.filter((id) => id !== event.roomId);
-      if (state.status === "freed") return { ...state, waitingFor: rest };
+      if (state.status === "freed") return { ...state, left: event.roomId, waitingFor: rest };
       return rest.length > 0 ? { status: "waiting", roomsFree: state.roomsFree, waitingFor: rest } : { status: "waitlist", roomsFree: state.roomsFree, left: event.roomId, waitingFor: rest };
     }
     case "room-freed":
       // Only on the Waitlist page: a room the person waits for frees up, and leaves the list they wait on.
       return state.status === "waiting" && waitingFor.includes(event.roomId) && roomById(event.roomId)
-        ? { status: "freed", roomsFree: state.roomsFree, roomId: event.roomId, waitingFor: waitingFor.filter((id) => id !== event.roomId) }
+        ? { status: "freed", roomsFree: state.roomsFree, roomId: event.roomId, left: null, waitingFor: waitingFor.filter((id) => id !== event.roomId) }
         : state;
   }
 }

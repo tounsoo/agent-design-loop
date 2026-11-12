@@ -77,8 +77,8 @@ type Screen =
   | { readonly status: "waitlist"; readonly roomsFree: boolean; readonly left: string | null }
   /** The Waitlist page while the person waits for at least one room. */
   | { readonly status: "waiting"; readonly roomsFree: boolean }
-  /** The Waitlist page after `roomId`, which the person waited for, freed up. */
-  | { readonly status: "freed"; readonly roomsFree: boolean; readonly roomId: string };
+  /** The Waitlist page after `roomId`, which the person waited for, freed up. `left` is the room they last left the waitlist for since then. */
+  | { readonly status: "freed"; readonly roomsFree: boolean; readonly roomId: string; readonly left: string | null };
 
 /** Every state carries the full rooms the person waits for, so leaving the Waitlist page keeps their place. */
 export type FlowState = Screen & { readonly waitingFor: readonly string[] };

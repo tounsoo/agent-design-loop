@@ -112,6 +112,7 @@ function Waitlist({ state, actions }: { state: WaitlistState; actions: Actions }
               <Alert.Title>{nameOf(state.roomId)} is free now.</Alert.Title>
               <Alert.Description>
                 Choose it to book it.
+                {state.left !== null ? ` You left the waitlist for ${nameOf(state.left)}.` : null}
                 {state.waitingFor.length > 0 ? ` You're still on the waitlist for ${spoken(state.waitingFor.map(nameOf))}.` : null}
               </Alert.Description>
             </Alert.Root>
