@@ -37,7 +37,8 @@ export function App() {
     window.history.pushState(null, "", target);
     setSearch(window.location.search);
   };
-  const url = `${window.location.pathname}${search}${window.location.hash}`;
+  // The page, not where on it: a hash, such as the skip link's, is no page change.
+  const url = `${window.location.pathname}${search}`;
 
   return (
     <ThemeProvider appearance="system">
