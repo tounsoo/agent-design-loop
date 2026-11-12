@@ -12,4 +12,12 @@
 - Whether a pinned row reads as part of the invoice or as chrome. It sits on the canvas colour with a hairline above it, so content scrolls under it rather than beside it.
 - Whether the row should pin at desktop width too. It does, because the rule is the same on any page; on a short invoice it simply sits where it always did.
 
+## Critique
+
+Round 1, by Sonnet, passed with three notes, each already on main and none made worse by this change, so each waits for its own change:
+
+- The invoice page shows the vendor's name as its title and again as the Vendor field, and the invoice number in the breadcrumb and the Invoice field.
+- On Vendors, each card's name is near the title's weight, so the page reads as a wall of like blocks. The names sit inside a list, where one step under the title is allowed; whether they should be quieter is for a designer.
+- The invoice tables' captions repeat the page title and sit slightly left of the table's edge.
+
 ## Screenshots

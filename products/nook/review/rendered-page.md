@@ -13,5 +13,10 @@
 ## What the checks cannot decide
 
 - Whether the room name should be smaller anyway. One step under the title is allowed for a record name; whether the cards read as a list of equals or as competing headlines is for the screenshots.
+- A page that shows only one free room holds its name to the section rule, since one item is not a list of records. No preview shows one room today.
+
+## Critique
+
+Round 1, by Sonnet, passed with one note, already on main: the booking page's All rooms link sits indented from the title's left edge. It waits for its own change.
 
 ## Screenshots
