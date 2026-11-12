@@ -2,11 +2,16 @@ import { useEffect, useState } from "react";
 import { DensityProvider, Stack, Text, ThemeProvider } from "./catalog";
 import { InvoiceApproval } from "./features/invoice-approval";
 import { meridianNav, navCopy } from "./features/invoice-approval/navigation";
-import { invoiceById, type AppLocation } from "./flows/invoice-approval";
+import { invoiceById, sampleVendors, type AppLocation } from "./flows/invoice-approval";
 import { readLocation, StatePreviewMenu } from "./preview";
 import { AppShell } from "./layouts/app-shell";
 
 function pageTitle(location: AppLocation): string {
+  // A vendor page is titled with its vendor. A vendor Meridian does not have opens Vendors.
+  if (location.vendorId != null && location.route === "vendors" && location.invoiceId == null) {
+    const vendor = sampleVendors.find((entry) => entry.id === location.vendorId);
+    if (vendor) return vendor.name;
+  }
   const detail =
     location.invoiceId != null ||
     location.preview.page === "detail" ||

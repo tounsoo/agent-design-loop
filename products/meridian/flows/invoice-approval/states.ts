@@ -12,7 +12,8 @@ export const modeledStates = [
 
 export type ModeledState = (typeof modeledStates)[number];
 
-export type Screen = "collection" | "detail";
+/** The pages a modeled state can show: the list, one invoice, or one vendor. */
+export type Screen = "collection" | "detail" | "vendor";
 
 export type LineItem = {
   readonly description: string;
@@ -228,7 +229,9 @@ export type FlowState =
     }
   | { readonly status: "invoice-approved"; readonly invoiceId: string }
   | { readonly status: "changes-requested"; readonly invoiceId: string; readonly reason: string }
-  | { readonly status: "vendor-added"; readonly vendorId: VendorId };
+  | { readonly status: "vendor-added"; readonly vendorId: VendorId }
+  /** One vendor's page. The id is what the URL names, which may be a vendor Meridian does not have. */
+  | { readonly status: "ready"; readonly screen: "vendor"; readonly vendorId: string };
 
 export type FlowEvent =
   | { readonly type: "loaded"; readonly invoices: readonly Invoice[] }
@@ -248,5 +251,5 @@ export function isModeledState(value: string): value is ModeledState {
 }
 
 export function isScreen(value: string): value is Screen {
-  return value === "collection" || value === "detail";
+  return value === "collection" || value === "detail" || value === "vendor";
 }

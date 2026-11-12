@@ -14,6 +14,7 @@ import {
   Form,
   Grid,
   Label,
+  Link,
   Stack,
   Text,
   useAnnouncer,
@@ -47,13 +48,17 @@ export type DirectoryProps = {
   readonly justAdded: VendorId | null;
   /** Called only with a draft that passed checkVendorDraft against the rows' vendors. */
   readonly onAdd: (vendor: NewVendor) => void;
+  /** Where each vendor's page is, for its card's link. */
+  readonly vendorHref: (vendorId: VendorId) => string;
+  /** Opens a vendor's page in place. */
+  readonly onOpenVendor: (vendorId: VendorId) => void;
 };
 
 function noun(count: number): string {
   return count === 1 ? "vendor" : "vendors";
 }
 
-export function Directory({ rows, justAdded, onAdd }: DirectoryProps): ReactElement {
+export function Directory({ rows, justAdded, onAdd, vendorHref, onOpenVendor }: DirectoryProps): ReactElement {
   const searchId = useId();
   const nameId = useId();
   const emailId = useId();
@@ -191,7 +196,18 @@ export function Directory({ rows, justAdded, onAdd }: DirectoryProps): ReactElem
           {visible.map((row) => (
             <Card.Root key={row.vendor.id} className="directory-card" role="listitem">
               <Card.Header>
-                <Text.Root as="h2">{row.vendor.name}</Text.Root>
+                <Text.Root as="h2">
+                  <Link.Root
+                    href={vendorHref(row.vendor.id)}
+                    onClick={(event) => {
+                      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                      event.preventDefault();
+                      onOpenVendor(row.vendor.id);
+                    }}
+                  >
+                    {row.vendor.name}
+                  </Link.Root>
+                </Text.Root>
               </Card.Header>
               <Card.Body>
                 <DataList.Root orientation="vertical">

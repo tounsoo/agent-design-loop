@@ -1,7 +1,10 @@
-import { useId, type ReactElement } from "react";
+import { useId, type ReactElement, type ReactNode } from "react";
 import {
   Alert,
+  Badge,
+  type BadgeTone,
   Breadcrumbs,
+  ScrollArea,
   Button,
   DataList,
   Disclosure,
@@ -21,9 +24,13 @@ import {
 } from "../../catalog";
 import {
   formatMoney,
+  invoiceHref,
   lineTotal,
   routeHref,
   statusLabel,
+  termsLabel,
+  vendorHref,
+  vendorProfile,
   vendorRows,
   vendorsErrorMessage,
   type CollectionRoute,
@@ -33,11 +40,16 @@ import {
   type ModeledState,
   type NewVendor,
   type Vendor,
+  type VendorProfile,
 } from "../../flows/invoice-approval";
-import { DataTable, useCollectionBrowser } from "../../content-layouts/data-table";
+import {
+  DataTable,
+  useCollectionBrowser,
+} from "../../content-layouts/data-table";
 import { Directory } from "../../content-layouts/directory";
 import { CollectionPage } from "../../page-types/collection";
 import { DetailPage } from "../../page-types/detail";
+import { ProfilePage } from "../../page-types/profile";
 import { navCopy } from "./navigation";
 
 export type Actions = {
@@ -69,7 +81,9 @@ function lookup(ledger: readonly Invoice[], id: string): Invoice | undefined {
   return ledger.find((invoice) => invoice.id === id) ?? ledger[0];
 }
 
-function showsDetail(state: FlowState): state is Extract<FlowState, { invoiceId: string }> {
+function showsDetail(
+  state: FlowState,
+): state is Extract<FlowState, { invoiceId: string }> {
   return (
     state.status === "invoice-approved" ||
     state.status === "changes-requested" ||
@@ -101,7 +115,10 @@ function EmptyBody({ route }: { route: InvoiceRoute }) {
   const copy =
     route === "invoices"
       ? { title: "No invoices", description: "The ledger has no invoices." }
-      : { title: "No invoices waiting", description: "Nothing needs approval right now." };
+      : {
+          title: "No invoices waiting",
+          description: "Nothing needs approval right now.",
+        };
   return (
     <EmptyState.Root>
       <EmptyState.Title as="h2">{copy.title}</EmptyState.Title>
@@ -110,7 +127,13 @@ function EmptyBody({ route }: { route: InvoiceRoute }) {
   );
 }
 
-function ErrorBody({ message, onRetry }: { message: string; onRetry: () => void }) {
+function ErrorBody({
+  message,
+  onRetry,
+}: {
+  message: string;
+  onRetry: () => void;
+}) {
   return (
     <Stack.Root align="start" gap="normal">
       <Alert.Root role="alert" tone="critical">
@@ -123,7 +146,13 @@ function ErrorBody({ message, onRetry }: { message: string; onRetry: () => void 
   );
 }
 
-function InvoiceFacts({ invoice, status }: { invoice: Invoice; status: Invoice["status"] }) {
+function InvoiceFacts({
+  invoice,
+  status,
+}: {
+  invoice: Invoice;
+  status: Invoice["status"];
+}) {
   return (
     <DataList.Root orientation="horizontal">
       <DataList.Item>
@@ -152,21 +181,36 @@ function InvoiceFacts({ invoice, status }: { invoice: Invoice; status: Invoice["
 
 type StageStatus = "done" | "current" | "pending" | "error";
 
-const stagesByStatus: Record<Invoice["status"], readonly [StageStatus, StageStatus, StageStatus]> = {
+const stagesByStatus: Record<
+  Invoice["status"],
+  readonly [StageStatus, StageStatus, StageStatus]
+> = {
   pending: ["done", "current", "pending"],
   approved: ["done", "done", "current"],
   "changes-requested": ["done", "error", "pending"],
 };
 
-function InvoiceProgress({ invoice, status }: { invoice: Invoice; status: Invoice["status"] }) {
+function InvoiceProgress({
+  invoice,
+  status,
+}: {
+  invoice: Invoice;
+  status: Invoice["status"];
+}) {
   const [received, approval, payment] = stagesByStatus[status];
   return (
     <Steps.Root aria-label="Invoice progress" variant="progress">
       <Steps.Item status={received}>Received</Steps.Item>
-      <Steps.Item status={approval} statusLabel={approval === "error" ? "Changes requested" : undefined}>
+      <Steps.Item
+        status={approval}
+        statusLabel={approval === "error" ? "Changes requested" : undefined}
+      >
         Approval
       </Steps.Item>
-      <Steps.Item status={payment} statusLabel={payment === "current" ? "Next" : undefined}>
+      <Steps.Item
+        status={payment}
+        statusLabel={payment === "current" ? "Next" : undefined}
+      >
         Payment due {invoice.due}
       </Steps.Item>
     </Steps.Root>
@@ -239,7 +283,9 @@ function ReasonField({
         />
       </Field.Root>
       {reasonError ? (
-        <ErrorMessage.Root id={errorId}>Enter what the vendor should change.</ErrorMessage.Root>
+        <ErrorMessage.Root id={errorId}>
+          Enter what the vendor should change.
+        </ErrorMessage.Root>
       ) : (
         <Text.Root tone="muted">Required before the request is sent.</Text.Root>
       )}
@@ -272,14 +318,30 @@ function InvoicesCollection({
   const showTable = ready && browser.total > 0;
   return (
     <CollectionPage state={state.status}>
-      <CollectionPage.Heading>{ready ? browser.heading : copy.label}</CollectionPage.Heading>
-      {ready ? <CollectionPage.Description>{browser.description}</CollectionPage.Description> : null}
+      <CollectionPage.Heading>
+        {ready ? browser.heading : copy.label}
+      </CollectionPage.Heading>
+      {ready ? (
+        <CollectionPage.Description>
+          {browser.description}
+        </CollectionPage.Description>
+      ) : null}
       <CollectionPage.Body>
-        {state.status === "loading" ? <LoadingBody label="Loading invoices" /> : null}
-        {state.status === "empty" || (ready && browser.total === 0) ? <EmptyBody route={route} /> : null}
-        {state.status === "error" ? <ErrorBody message={state.message} onRetry={actions.retry} /> : null}
+        {state.status === "loading" ? (
+          <LoadingBody label="Loading invoices" />
+        ) : null}
+        {state.status === "empty" || (ready && browser.total === 0) ? (
+          <EmptyBody route={route} />
+        ) : null}
+        {state.status === "error" ? (
+          <ErrorBody message={state.message} onRetry={actions.retry} />
+        ) : null}
         {showTable ? (
-          <DataTable pagination={browser.pagination} table={browser.table} toolbar={browser.toolbar} />
+          <DataTable
+            pagination={browser.pagination}
+            table={browser.table}
+            toolbar={browser.toolbar}
+          />
         ) : null}
       </CollectionPage.Body>
     </CollectionPage>
@@ -291,30 +353,203 @@ function VendorsCollection({
   registry,
   ledger,
   actions,
+  onNavigate,
 }: {
   state: ListState;
   registry: readonly Vendor[];
   ledger: readonly Invoice[];
   actions: Actions;
+  onNavigate: (href: string) => void;
 }) {
   const copy = navCopy("vendors");
-  const listed = state.status === "ready" || state.status === "empty" || state.status === "vendor-added";
+  const listed =
+    state.status === "ready" ||
+    state.status === "empty" ||
+    state.status === "vendor-added";
   return (
     <CollectionPage state={state.status}>
       <CollectionPage.Heading>{copy.label}</CollectionPage.Heading>
-      {listed ? <CollectionPage.Description>{copy.description}</CollectionPage.Description> : null}
+      {listed ? (
+        <CollectionPage.Description>
+          {copy.description}
+        </CollectionPage.Description>
+      ) : null}
       <CollectionPage.Body>
-        {state.status === "loading" ? <LoadingBody label="Loading vendors" /> : null}
-        {state.status === "error" ? <ErrorBody message={vendorsErrorMessage} onRetry={actions.retry} /> : null}
+        {state.status === "loading" ? (
+          <LoadingBody label="Loading vendors" />
+        ) : null}
+        {state.status === "error" ? (
+          <ErrorBody message={vendorsErrorMessage} onRetry={actions.retry} />
+        ) : null}
         {listed ? (
           <Directory
             justAdded={state.status === "vendor-added" ? state.vendorId : null}
             rows={vendorRows(registry, ledger)}
+            vendorHref={vendorHref}
             onAdd={actions.addVendor}
+            onOpenVendor={(vendorId) => onNavigate(vendorHref(vendorId))}
           />
         ) : null}
       </CollectionPage.Body>
     </CollectionPage>
+  );
+}
+
+/** A link that changes the page in place, unless the person asks for a new tab or window. */
+function PageLink({
+  href,
+  onNavigate,
+  children,
+}: {
+  href: string;
+  onNavigate: (href: string) => void;
+  children: ReactNode;
+}) {
+  return (
+    <Link.Root
+      href={href}
+      onClick={(event) => {
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
+          return;
+        event.preventDefault();
+        onNavigate(href);
+      }}
+    >
+      {children}
+    </Link.Root>
+  );
+}
+
+const statusTone: Record<Invoice["status"], BadgeTone> = {
+  pending: "warning",
+  approved: "success",
+  "changes-requested": "info",
+};
+
+function VendorInvoices({
+  label,
+  invoices,
+  withStatus,
+  onNavigate,
+}: {
+  label: string;
+  invoices: readonly Invoice[];
+  withStatus: boolean;
+  onNavigate: (href: string) => void;
+}) {
+  // A phone is narrower than four columns, so the table scrolls inside its own frame and the page does not.
+  return (
+    <ScrollArea.Root aria-label={`${label} table`} axis="inline" focusable>
+      <Table.Root aria-label={label}>
+        <Table.Head>
+          <Table.Row>
+            <Table.HeaderCell scope="col">Invoice</Table.HeaderCell>
+            {withStatus ? (
+              <Table.HeaderCell scope="col">Status</Table.HeaderCell>
+            ) : null}
+            <Table.HeaderCell className="num" scope="col">
+              Amount
+            </Table.HeaderCell>
+            <Table.HeaderCell scope="col">Due</Table.HeaderCell>
+          </Table.Row>
+        </Table.Head>
+        <Table.Body>
+          {invoices.map((invoice) => (
+            <Table.Row key={invoice.id}>
+              <Table.HeaderCell scope="row">
+                <PageLink
+                  href={invoiceHref("vendors", invoice.id)}
+                  onNavigate={onNavigate}
+                >
+                  {invoice.number}
+                </PageLink>
+              </Table.HeaderCell>
+              {withStatus ? (
+                <Table.Cell>
+                  <Badge.Root tone={statusTone[invoice.status]}>
+                    {statusLabel[invoice.status]}
+                  </Badge.Root>
+                </Table.Cell>
+              ) : null}
+              <Table.Cell className="num">
+                {formatMoney(invoice.amountCents)}
+              </Table.Cell>
+              <Table.Cell>{invoice.due}</Table.Cell>
+            </Table.Row>
+          ))}
+        </Table.Body>
+      </Table.Root>
+    </ScrollArea.Root>
+  );
+}
+
+/** One vendor: where its money goes, what is still open, and what is approved. A section with nothing in it is left out. */
+function VendorPage({
+  profile,
+  onNavigate,
+}: {
+  profile: VendorProfile;
+  onNavigate: (href: string) => void;
+}) {
+  const { vendor, open, approved } = profile;
+  const vendors = navCopy("vendors");
+  return (
+    <ProfilePage state="ready">
+      <ProfilePage.Breadcrumbs>
+        <Breadcrumbs.Root>
+          <Breadcrumbs.Item>
+            <PageLink href={vendors.href} onNavigate={onNavigate}>
+              {vendors.label}
+            </PageLink>
+          </Breadcrumbs.Item>
+          <Breadcrumbs.Item current>{vendor.name}</Breadcrumbs.Item>
+        </Breadcrumbs.Root>
+      </ProfilePage.Breadcrumbs>
+      <ProfilePage.Heading>{vendor.name}</ProfilePage.Heading>
+      <ProfilePage.Meta>
+        <DataList.Root orientation="horizontal">
+          <DataList.Item>
+            <DataList.Term>Remittance</DataList.Term>
+            <DataList.Details>{vendor.remitEmail}</DataList.Details>
+          </DataList.Item>
+          <DataList.Item>
+            <DataList.Term>Terms</DataList.Term>
+            <DataList.Details>{termsLabel[vendor.terms]}</DataList.Details>
+          </DataList.Item>
+          <DataList.Item>
+            <DataList.Term>Open total</DataList.Term>
+            <DataList.Details>
+              {formatMoney(profile.openTotalCents)}
+            </DataList.Details>
+          </DataList.Item>
+        </DataList.Root>
+      </ProfilePage.Meta>
+      <ProfilePage.Body>
+        {open.length > 0 ? (
+          <ProfilePage.Section title="Open invoices">
+            <VendorInvoices
+              invoices={open}
+              label="Open invoices"
+              withStatus
+              onNavigate={onNavigate}
+            />
+          </ProfilePage.Section>
+        ) : null}
+        {approved.length > 0 ? (
+          <ProfilePage.Section title="Approved">
+            <VendorInvoices
+              invoices={approved}
+              label="Approved"
+              withStatus={false}
+              onNavigate={onNavigate}
+            />
+          </ProfilePage.Section>
+        ) : null}
+        {open.length === 0 && approved.length === 0 ? (
+          <Text.Root tone="muted">No invoices from this vendor yet.</Text.Root>
+        ) : null}
+      </ProfilePage.Body>
+    </ProfilePage>
   );
 }
 
@@ -348,20 +583,65 @@ export function InvoiceApprovalView({
     }
   }
 
+  if (state.status === "ready" && state.screen === "vendor") {
+    const profile = vendorProfile(registry, ledger, state.vendorId);
+    // A link to a vendor Meridian does not have opens the Vendors page.
+    if (profile === null) {
+      return (
+        <VendorsCollection
+          actions={actions}
+          ledger={ledger}
+          registry={registry}
+          state={{ status: "ready", screen: "collection" }}
+          onNavigate={onNavigate}
+        />
+      );
+    }
+    return <VendorPage profile={profile} onNavigate={onNavigate} />;
+  }
+
   if (!showsDetail(state)) {
     if (state.status === "vendor-added" || route === "vendors") {
-      return <VendorsCollection actions={actions} ledger={ledger} registry={registry} state={state} />;
+      return (
+        <VendorsCollection
+          actions={actions}
+          ledger={ledger}
+          registry={registry}
+          state={state}
+          onNavigate={onNavigate}
+        />
+      );
     }
-    return <InvoicesCollection actions={actions} ledger={ledger} route={route} state={state} />;
+    return (
+      <InvoicesCollection
+        actions={actions}
+        ledger={ledger}
+        route={route}
+        state={state}
+      />
+    );
   }
 
   const invoice = lookup(ledger, state.invoiceId);
   if (!invoice) throw new Error("The approval queue has no sample invoice.");
   const detail = state.status === "ready" ? state : null;
-  const outcome = state.status === "invoice-approved" ? "approved" : state.status === "changes-requested" ? "changes" : null;
-  const shownStatus = outcome === "approved" ? "approved" : outcome === "changes" ? "changes-requested" : invoice.status;
+  const outcome =
+    state.status === "invoice-approved"
+      ? "approved"
+      : state.status === "changes-requested"
+        ? "changes"
+        : null;
+  const shownStatus =
+    outcome === "approved"
+      ? "approved"
+      : outcome === "changes"
+        ? "changes-requested"
+        : invoice.status;
   const canAct = detail !== null && shownStatus === "pending";
-  const reason = state.status === "changes-requested" ? state.reason : (detail?.reason ?? "");
+  const reason =
+    state.status === "changes-requested"
+      ? state.reason
+      : (detail?.reason ?? "");
   const crumb = crumbFor(route);
 
   return (
@@ -372,7 +652,13 @@ export function InvoiceApprovalView({
             <Link.Root
               href={crumb.href}
               onClick={(event) => {
-                if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                if (
+                  event.metaKey ||
+                  event.ctrlKey ||
+                  event.shiftKey ||
+                  event.altKey
+                )
+                  return;
                 event.preventDefault();
                 onNavigate(crumb.href);
               }}
@@ -394,7 +680,8 @@ export function InvoiceApprovalView({
             <Alert.Root role="none" tone="success">
               <Alert.Title>Invoice approved</Alert.Title>
               <Alert.Description>
-                {invoice.vendor} · {formatMoney(invoice.amountCents)} is approved.
+                {invoice.vendor} · {formatMoney(invoice.amountCents)} is
+                approved.
               </Alert.Description>
             </Alert.Root>
           ) : null}
@@ -405,18 +692,35 @@ export function InvoiceApprovalView({
             </Alert.Root>
           ) : null}
         </Stack.Root>
-        <LineItems invoice={invoice} open={detail?.lineItemsOpen ?? false} onToggle={actions.setLineItemsOpen} />
+        <LineItems
+          invoice={invoice}
+          open={detail?.lineItemsOpen ?? false}
+          onToggle={actions.setLineItemsOpen}
+        />
         {detail?.requestingChanges && outcome === null ? (
-          <ReasonField reason={reason} reasonError={detail.reasonError} onReason={actions.setReason} />
+          <ReasonField
+            reason={reason}
+            reasonError={detail.reasonError}
+            onReason={actions.setReason}
+          />
         ) : null}
       </DetailPage.Body>
       <DetailPage.Secondary>
-        <Button.Root {...submitOff(!canAct)} type="button" variant="secondary" onClick={actions.requestChanges}>
+        <Button.Root
+          {...submitOff(!canAct)}
+          type="button"
+          variant="secondary"
+          onClick={actions.requestChanges}
+        >
           Request changes
         </Button.Root>
       </DetailPage.Secondary>
       <DetailPage.Primary>
-        <Button.Root {...submitOff(!canAct)} type="button" onClick={actions.approve}>
+        <Button.Root
+          {...submitOff(!canAct)}
+          type="button"
+          onClick={actions.approve}
+        >
           Approve
         </Button.Root>
       </DetailPage.Primary>

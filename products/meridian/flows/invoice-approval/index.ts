@@ -20,6 +20,7 @@ export {
   isCollectionRoute,
   locationKey,
   routeHref,
+  vendorHref,
 } from "./location";
 export type { AppLocation, CollectionRoute, InvoiceRoute } from "./location";
 export { flowStart, isTaskSuccess, taskEdges, taskHappyPath, taskId, taskStart, userEvents } from "./graph";
@@ -36,5 +37,6 @@ export {
   vendorRows,
   knownVendors,
   previewVendors,
+  vendorProfile,
 } from "./vendors";
-export type { NewVendor, Vendor, VendorDraft, VendorId, VendorRow } from "./vendors";
+export type { NewVendor, Vendor, VendorDraft, VendorId, VendorProfile, VendorRow } from "./vendors";

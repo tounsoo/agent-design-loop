@@ -13,6 +13,10 @@ const vendors = here("Vendors");
 const invoice = [queue, { role: "generic", text: "INV-1842", current: "page" }, { role: "heading", name: "Northwind Office Supply" }];
 const received = { role: "listitem", text: "Done: Received" };
 const paymentNotStarted = { role: "listitem", text: "Not started: Payment due Nov 18, 2026" };
+/** A vendor page: Vendors stays current in the navigation, the breadcrumb's last item and the title name the vendor. */
+const vendorPage = (name: string) => [vendors, { role: "link", name: "Vendors" }, { role: "generic", text: name, current: "page" }, { role: "heading", name }];
+const openInvoices = [{ role: "heading", name: "Open invoices" }, { role: "table", name: "Open invoices" }];
+const approvedInvoices = [{ role: "heading", name: "Approved" }, { role: "table", name: "Approved" }];
 /** Invoice progress while the invoice waits for approval: the reviewer's step is the one under way. */
 const awaitingApproval = [received, { role: "listitem", text: "In progress: Approval", current: "step" }, paymentNotStarted];
 
@@ -70,6 +74,17 @@ export const accessibleNames = {
     { role: "button", name: "Add vendor" },
     { role: "heading", name: "Ridgeway Janitorial" },
   ],
+  "vendor-helios-freight": [
+    ...vendorPage("Helios Freight"),
+    ...openInvoices,
+    { role: "link", name: "INV-1907" },
+    ...approvedInvoices,
+    { role: "link", name: "INV-1694" },
+  ],
+  "vendor-harbor-and-pine": [...vendorPage("Harbor & Pine Catering"), ...openInvoices, { role: "link", name: "INV-1770" }, { role: "link", name: "INV-1888" }],
+  "vendor-nothing-open": [...vendorPage("Kite Analytics"), ...approvedInvoices, { role: "link", name: "INV-1802" }],
+  "vendor-no-invoices": [...vendorPage("Okafor & Lindqvist Commercial Facilities Maintenance Cooperative")],
+  "vendor-unknown": [vendors, { role: "heading", name: "Vendors" }, { role: "searchbox", name: "Search vendors" }, { role: "list", name: "Vendors" }],
 } satisfies AccessibleNames;
 
 /**

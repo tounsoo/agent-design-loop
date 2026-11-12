@@ -12,7 +12,7 @@ An agent designs inside layers the repo already recorded. From the outside of th
 | --- | --- | --- |
 | Component catalog | The only UI entry. Product code imports these names. | `products/meridian/catalog/index.ts` re-exports `@tounsoo/todae` |
 | Chrome layout | The frame around the page. One id, `app-shell`. | `allowed_layouts` in `products/meridian/inputs/product.ts`, directory `products/meridian/layouts/app-shell` |
-| Page type | The job of one page. `collection` and `detail`. | `allowed_page_types`, directories under `products/meridian/page-types` |
+| Page type | The job of one page. `collection`, `detail` and `profile`. | `allowed_page_types`, directories under `products/meridian/page-types` |
 | Content layout | The composition that fills a page type's body. Two ids, `data-table` and `directory`. | `allowed_content_layouts`, directories under `products/meridian/content-layouts` |
 | Flow | The modeled states of the task, and the legal moves between them. | `products/meridian/flows/invoice-approval` |
 | UX rules | A check, a product-owned input, and a review question for each rule. | `products/meridian/rules/ux-rules.ts`, inputs in `products/meridian/inputs/product.ts` and the caps beside the rules |
@@ -58,15 +58,19 @@ Arrows in that diagram follow the regions down the page. `loading`, `empty`, and
 
 The collection shell's slots are `Heading`, an optional `Description`, and `Body`. It has no primary-action slot. Approve is not on the queue. On To approve and All invoices the invoice number is a `Link` into the detail page.
 
-Vendors is the same shell with another content layout, `directory`, and its own `CollectionPage` element in the views, so its one visible question and its one disclosure count against its own page. The body is a search field, an **Add a vendor** disclosure that holds the whole form, and a grid of cards: remittance email, payment terms, open invoices, and the last invoice with its due date, with no link. The form's three fields sit inside the disclosure, so the search stays the page's one visible question. Add vendor is secondary. Validation rules and their copy live in `checkVendorDraft` in `products/meridian/flows/invoice-approval/vendors.ts`. Loading and error render in the shell, as on the other routes. Empty is the directory's own, with the form open, because the next step is in it. A successful add clears the search, so the new card shows. Vendors' load error reads "Couldn't load vendors.".
+Vendors is the same shell with another content layout, `directory`, and its own `CollectionPage` element in the views, so its one visible question and its one disclosure count against its own page. The body is a search field, an **Add a vendor** disclosure that holds the whole form, and a grid of cards: remittance email, payment terms, open invoices, and the last invoice with its due date. Each card's vendor name links to the vendor's page. The form's three fields sit inside the disclosure, so the search stays the page's one visible question. Add vendor is secondary. Validation rules and their copy live in `checkVendorDraft` in `products/meridian/flows/invoice-approval/vendors.ts`. Loading and error render in the shell, as on the other routes. Empty is the directory's own, with the form open, because the next step is in it. A successful add clears the search, so the new card shows. Vendors' load error reads "Couldn't load vendors.".
 
 Search, filters, sort, and paging live in the data table, and search in the directory. The task graph does not count them as steps. The default invoice sort is due date, ascending.
 
 `loading`, `empty`, and `error` render in the collection body and are not content layouts. The ready body, when the filtered queue has rows, is `<DataTable />` with a toolbar, a table, and pagination. An empty ready queue uses `EmptyState` in the shell instead.
 
+### One vendor
+
+A vendor's name on its card opens the vendor's page, `?route=vendors&vendor=<id>`, page type `profile`, which the config names under `shells.content`: it shows information and holds no primary action. Breadcrumbs lead back to Vendors, the title is the vendor's name, and a horizontal DataList gives the remittance email, terms and open total. Under it, `ProfilePage.Section` renders Open invoices and Approved, each with its own `h2` and a table of invoice links that scrolls inside its frame on a phone. A section with no rows is left out, and a vendor with no invoices says so. A vendor id Meridian does not have opens Vendors. The vendor page reads the session's ledger, so an invoice approved in the session is under Approved the next time it opens.
+
 ### One invoice
 
-Choosing an invoice number opens the detail page inside the same app shell. The URL is `?invoice=inv-1842` from To approve, and it keeps `route=invoices` when you came from All invoices. Vendor cards have no link.
+Choosing an invoice number opens the detail page inside the same app shell. The URL is `?invoice=inv-1842` from To approve, and it keeps `route=invoices` when you came from All invoices, and `route=vendors` from a vendor's page.
 
 ```mermaid
 flowchart TB
@@ -129,7 +133,7 @@ The rules read numbers and names the product owns, so a check can fail without a
 | --- | --- | --- |
 | Step budget | `approve-vendor-invoice` has `max_steps` 3 and `success_state` `invoice-approved` | `tasks` in `products/meridian/inputs/product.ts` |
 | Priority | Approve, rank 1, primary. Request changes, rank 2, secondary. | `priority` in `products/meridian/inputs/product.ts` |
-| Page types | `collection`, `detail` | `allowed_page_types` |
+| Page types | `collection`, `detail`, `profile` | `allowed_page_types` |
 | Disclosure depth | 1. Line items are the one disclosure. Nothing nests under them. | `MAX_DISCLOSURE_DEPTH` in `products/meridian/rules/ux-rules.ts` |
 | Disclosed sections | `Line items` sit behind a disclosure | `disclosed_sections` in `products/meridian/inputs/product.ts` |
 | Disclosures per page | 1 | `MAX_DISCLOSURES_PER_PAGE` |

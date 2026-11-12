@@ -95,7 +95,7 @@ describe("invoice approval views", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Vendors" })).toBeInTheDocument();
     expect(document.querySelector("[data-content-layout='directory']")).not.toBeNull();
     expect(document.querySelector("[data-content-layout='data-table']")).toBeNull();
-    expect(screen.getByText("8 vendors")).toBeInTheDocument();
+    expect(screen.getByText("9 vendors")).toBeInTheDocument();
     const kite = vendorCard("Kite Analytics");
     expect(kite).toHaveTextContent("Open invoices0");
     expect(kite).toHaveTextContent("INV-1802 · Nov 12, 2026");
@@ -214,7 +214,7 @@ describe("invoice approval views", () => {
     expect(card).toHaveTextContent("ap@ridgeway.example");
     expect(card).toHaveTextContent("Net 15");
     expect(card).toHaveTextContent("No invoices yet");
-    expect(screen.getByText("9 vendors")).toBeInTheDocument();
+    expect(screen.getByText("10 vendors")).toBeInTheDocument();
     const cleared = screen.getByRole("textbox", { name: "Vendor name" });
     expect(cleared).toHaveValue("");
     expect(cleared).toHaveFocus();
@@ -245,7 +245,7 @@ describe("invoice approval views", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Added Quarry Stone Works.");
     expect(search).toHaveValue("");
     expect(vendorCard("Quarry Stone Works")).toHaveTextContent("No invoices yet");
-    expect(screen.getByText("9 vendors")).toBeInTheDocument();
+    expect(screen.getByText("10 vendors")).toBeInTheDocument();
   });
 
   it("previews a vendor just added, on Vendors", () => {
@@ -280,5 +280,45 @@ describe("invoice approval views", () => {
     renderApproval("?scenario=error&route=vendors");
     expect(screen.getByText("Couldn't load vendors.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+  });
+
+  it("opens a vendor's page from its card, with its facts and invoices and no button", async () => {
+    const user = userEvent.setup();
+    renderApproval("?route=vendors");
+    await user.click(within(vendorCard("Helios Freight")).getByRole("link", { name: "Helios Freight" }));
+    expect(screen.getByRole("heading", { level: 1, name: "Helios Freight" })).toBeInTheDocument();
+    expect(screen.getByText("Net 45")).toBeInTheDocument();
+    expect(screen.getByText("Open total").nextElementSibling).toHaveTextContent("$12,640.50");
+    expect(screen.getByRole("heading", { level: 2, name: "Open invoices" })).toBeInTheDocument();
+    expect(within(screen.getByRole("table", { name: "Open invoices" })).getByRole("link", { name: "INV-1907" })).toBeInTheDocument();
+    expect(within(screen.getByRole("table", { name: "Approved" })).getByRole("link", { name: "INV-1694" })).toBeInTheDocument();
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("leaves out an empty section, says when a vendor has no invoices, and opens Vendors for an unknown vendor", () => {
+    const { unmount } = renderApproval("?scenario=vendor-nothing-open");
+    expect(screen.queryByRole("heading", { name: "Open invoices" })).toBeNull();
+    expect(screen.getByRole("heading", { level: 2, name: "Approved" })).toBeInTheDocument();
+    unmount();
+
+    const second = renderApproval("?scenario=vendor-no-invoices");
+    expect(screen.getByText("No invoices from this vendor yet.")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 2 })).toBeNull();
+    second.unmount();
+
+    renderApproval("?scenario=vendor-unknown");
+    expect(screen.getByRole("heading", { level: 1, name: "Vendors" })).toBeInTheDocument();
+  });
+
+  it("shows an invoice approved in the session under Approved the next time the vendor's page opens", async () => {
+    const user = userEvent.setup();
+    renderApproval("?route=vendors&vendor=helios-freight");
+    await user.click(screen.getByRole("link", { name: "INV-1907" }));
+    await user.click(screen.getByRole("button", { name: "Approve" }));
+    await user.click(screen.getByRole("link", { name: "Vendors" }));
+    await user.click(within(vendorCard("Helios Freight")).getByRole("link", { name: "Helios Freight" }));
+    expect(screen.queryByRole("table", { name: "Open invoices" })).toBeNull();
+    expect(within(screen.getByRole("table", { name: "Approved" })).getByRole("link", { name: "INV-1907" })).toBeInTheDocument();
+    expect(screen.getByText("Open total").nextElementSibling).toHaveTextContent("$0.00");
   });
 });
