@@ -121,6 +121,10 @@ function shellEntries(shells: ShellRules | null): Map<string, ShellEntry[]> {
       entries.set(pageType, [...(entries.get(pageType) ?? []), { rule, value: JSON.stringify(value) }]);
     }
   }
+  // content is a list of page types, so its order is not an entry.
+  for (const pageType of new Set(shells?.content ?? [])) {
+    entries.set(pageType, [...(entries.get(pageType) ?? []), { rule: "content", value: "true" }]);
+  }
   return entries;
 }
 
@@ -128,6 +132,7 @@ function shellEntries(shells: ShellRules | null): Map<string, ShellEntry[]> {
 function joins(pageType: string, shells: ShellRules): string {
   const primary = shells.primarySlots[pageType];
   if (primary !== undefined) return `${pageType} joins shells.primarySlots: primary slot ${primary}`;
+  if ((shells.content ?? []).includes(pageType)) return `${pageType} joins shells.content: no primary action`;
   const chrome = shells.collections[pageType] ?? [];
   return `${pageType} joins shells.collections: chrome ${chrome.length > 0 ? chrome.join(", ") : "none"}`;
 }
@@ -333,14 +338,14 @@ function configChanges(base: Inventory, head: Inventory, before: ParsedConfig, a
   // shells, entry by entry: a new page type's own new entry is part of adding it.
   if (json(before.shells) !== json(after.shells)) {
     const newPageTypes = head.pageTypes.filter((pageType) => !base.pageTypes.includes(pageType));
-    const fields = (["primarySlots", "collections"] as const).filter((field) => json(before.shells?.[field]) !== json(after.shells?.[field])).map((field) => `shells.${field}`);
+    const fields = (["primarySlots", "collections", "content"] as const).filter((field) => json(before.shells?.[field]) !== json(after.shells?.[field])).map((field) => `shells.${field}`);
     const verdict = shellAdditions(before.shells, after.shells, newPageTypes);
-    const added = Object.keys({ ...after.shells?.primarySlots, ...after.shells?.collections }).filter(
-      (pageType) => !Object.hasOwn(before.shells?.primarySlots ?? {}, pageType) && !Object.hasOwn(before.shells?.collections ?? {}, pageType),
-    );
+    const beforeEntries = shellEntries(before.shells);
+    const afterEntries = shellEntries(after.shells);
+    const added = [...afterEntries.keys()].filter((pageType) => !beforeEntries.has(pageType));
     if (verdict.ok && after.shells) {
       for (const pageType of added.sort()) {
-        const field = Object.hasOwn(after.shells.primarySlots, pageType) ? "shells.primarySlots" : "shells.collections";
+        const field = `shells.${afterEntries.get(pageType)?.[0]?.rule ?? "collections"}`;
         push({
           text: `${configName} shells adds ${pageType}, the page type this change adds: ${joins(pageType, after.shells)}.`,
           terms: [field],
