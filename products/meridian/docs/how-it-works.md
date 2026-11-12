@@ -13,13 +13,13 @@ An agent designs inside layers the repo already recorded. From the outside of th
 | Component catalog | The only UI entry. Product code imports these names. | `products/meridian/catalog/index.ts` re-exports `@tounsoo/todae` |
 | Chrome layout | The frame around the page. One id, `app-shell`. | `allowed_layouts` in `products/meridian/inputs/product.ts`, directory `products/meridian/layouts/app-shell` |
 | Page type | The job of one page. `collection` and `detail`. | `allowed_page_types`, directories under `products/meridian/page-types` |
-| Content layout | The composition that fills a page type's body. One id, `data-table`. | `allowed_content_layouts`, directory `products/meridian/content-layouts/data-table` |
+| Content layout | The composition that fills a page type's body. Two ids, `data-table` and `directory`. | `allowed_content_layouts`, directories under `products/meridian/content-layouts` |
 | Flow | The modeled states of the task, and the legal moves between them. | `products/meridian/flows/invoice-approval` |
 | UX rules | A check, a product-owned input, and a review question for each rule. | `products/meridian/rules/ux-rules.ts`, inputs in `products/meridian/inputs/product.ts` and the caps beside the rules |
 
 Chrome layouts and content layouts are different lists. `allowed_layouts` is the frame. `allowed_content_layouts` is the body. A different body is a new content layout. It is not a new entry in `allowed_layouts`, and the app shell is not a third page type.
 
-The shells are product-owned glue, encoded from [Todae](https://github.com/tounsoo/todae) recipes. Recipes are copyable glue, not package namespaces. `@tounsoo/todae` has no `AppShell` or `DataTable` export, and this repo does not fork Todae. The app shell follows the [app shell recipe](https://todae.omsoo.design/recipes/app-shell). The data table follows the [filter bar](https://todae.omsoo.design/recipes/filter-bar) and [data table](https://todae.omsoo.design/recipes/data-table) recipes. Icons come from Lucide. Todae ships no icons.
+The shells are product-owned glue, encoded from [Todae](https://github.com/tounsoo/todae) recipes. Recipes are copyable glue, not package namespaces. `@tounsoo/todae` has no `AppShell`, `DataTable` or `Directory` export, and this repo does not fork Todae. The app shell follows the [app shell recipe](https://todae.omsoo.design/recipes/app-shell). The data table follows the [filter bar](https://todae.omsoo.design/recipes/filter-bar) and [data table](https://todae.omsoo.design/recipes/data-table) recipes. Icons come from Lucide. Todae ships no icons.
 
 ### To approve, the default screen
 
@@ -56,15 +56,17 @@ flowchart TB
 
 Arrows in that diagram follow the regions down the page. `loading`, `empty`, and `error` replace the data table. They are not a step that happens before it.
 
-The collection shell's slots are `Heading`, an optional `Description`, and `Body`. It has no primary-action slot. Approve is not on the queue. On To approve and All invoices the invoice number is a `Link` into the detail page. Vendors is the same shell and the same content layout, with columns Vendor, Open invoices, and Last invoice, and no row link.
+The collection shell's slots are `Heading`, an optional `Description`, and `Body`. It has no primary-action slot. Approve is not on the queue. On To approve and All invoices the invoice number is a `Link` into the detail page.
 
-Search, filters, sort, and paging live in the data table. The task graph does not count them as steps. The default invoice sort is due date, ascending.
+Vendors is the same shell with another content layout, `directory`, and its own `CollectionPage` element in the views, so its one visible question and its one disclosure count against its own page. The body is a search field, an **Add a vendor** disclosure that holds the whole form, and a grid of cards: remittance email, payment terms, open invoices, and the last invoice with its due date, with no link. The form's three fields sit inside the disclosure, so the search stays the page's one visible question. Add vendor is secondary. Validation rules and their copy live in `checkVendorDraft` in `products/meridian/flows/invoice-approval/vendors.ts`. Loading and error render in the shell, as on the other routes. Empty is the directory's own, with the form open, because the next step is in it.
+
+Search, filters, sort, and paging live in the data table, and search in the directory. The task graph does not count them as steps. The default invoice sort is due date, ascending.
 
 `loading`, `empty`, and `error` render in the collection body and are not content layouts. The ready body, when the filtered queue has rows, is `<DataTable />` with a toolbar, a table, and pagination. An empty ready queue uses `EmptyState` in the shell instead.
 
 ### One invoice
 
-Choosing an invoice number opens the detail page inside the same app shell. The URL is `?invoice=inv-1842` from To approve, and it keeps `route=invoices` when you came from All invoices. Vendors rows have no link.
+Choosing an invoice number opens the detail page inside the same app shell. The URL is `?invoice=inv-1842` from To approve, and it keeps `route=invoices` when you came from All invoices. Vendor cards have no link.
 
 ```mermaid
 flowchart TB
@@ -93,11 +95,11 @@ Detail slots are optional breadcrumbs, a heading, optional meta, a body, one pri
 
 ### Flow states
 
-Six names are modeled, in `modeledStates`:
+Seven names are modeled, in `modeledStates`:
 
-`loading`, `empty`, `error`, `ready`, `invoice-approved`, `changes-requested`.
+`loading`, `empty`, `error`, `ready`, `invoice-approved`, `changes-requested`, `vendor-added`.
 
-`ready` covers both screens. Opening an invoice stays in `ready` and sets `screen` to `detail`. The shell stays up in every modeled state. Loading, empty, and error render inside `main`. A `?state=` value that is not one of those six names is ignored. An unknown `?route=` falls through to To approve. The **Preview** menu in the header is a developer aid for opening the modeled states. The default URL does not depend on it.
+`ready` covers both screens. Opening an invoice stays in `ready` and sets `screen` to `detail`. The shell stays up in every modeled state. Loading, empty, and error render inside `main`. `vendor-added` is the vendor list after an add, and it belongs to Vendors: `routeOfState` in `location.ts` gives it that route, so `?state=vendor-added` opens Vendors whatever `?route=` says. A `?state=` value that is not one of those seven names is ignored. An unknown `?route=` falls through to To approve. The **Preview** menu in the header is a developer aid for opening the modeled states. The default URL does not depend on it.
 
 ```mermaid
 flowchart TB
@@ -107,14 +109,17 @@ flowchart TB
   ready["ready. Collection or detail."]
   approved["invoice-approved"]
   changes["changes-requested"]
+  vendorAdded["vendor-added. The next add stays here."]
   loading -->|"loaded, no invoices"| empty
   loading -->|"loaded, with invoices"| ready
   loading -->|"failed"| error
   ready -->|"approve on the detail screen"| approved
   ready -->|"submit a non-empty reason"| changes
+  ready -->|"add a vendor on the collection screen"| vendorAdded
+  vendorAdded -->|"open an invoice"| ready
 ```
 
-`transition` ignores `approve` on the collection screen and in `error`. An empty reason cannot reach `changes-requested`. `invoice-approved` and `changes-requested` have no further moves. Approve in the transition function does not require the line-item disclosure to be open, by decision. The step budget measures both this reducer and a separate task graph, below.
+`transition` ignores `approve` on the collection screen and in `error`. An empty reason cannot reach `changes-requested`. `invoice-approved` and `changes-requested` have no further moves. `add-vendor` is a person's event, so the task graph lists it among its user events, but no task names it, so the step budget never counts it. Approve in the transition function does not require the line-item disclosure to be open, by decision. The step budget measures both this reducer and a separate task graph, below.
 
 ### Product-owned inputs
 
@@ -149,7 +154,7 @@ The modeled path length is 2, and `max_steps` is 3. Success is the state `invoic
 
 ## Worked example: the tracking board
 
-This is the loop under a real gap, as it stood when [pull request 8](https://github.com/tounsoo/agent-design-loop/pull/8) merged as `4a473ed`. [Pull request 7](https://github.com/tounsoo/agent-design-loop/pull/7) was open then. It was closed on November 11, 2026 (UTC) without merging, so main's only content layout is still `data-table`, the board never shipped, and proposal 0002 is not on main. The example is history: it shows the gate firing, not something main contains. Meridian lived under `src/` then, and the fixtures under `fixtures/`, so the paths below are the paths of that time.
+This is the loop under a real gap, as it stood when [pull request 8](https://github.com/tounsoo/agent-design-loop/pull/8) merged as `4a473ed`. [Pull request 7](https://github.com/tounsoo/agent-design-loop/pull/7) was open then. It was closed on November 11, 2026 (UTC) without merging, so the board never shipped and proposal 0002 is not on main. The example is history: it shows the gate firing, not something main contains. Meridian lived under `src/` then, and the fixtures under `fixtures/`, so the paths below are the paths of that time.
 
 ```mermaid
 flowchart TB
