@@ -10,11 +10,11 @@ Every script the harness runs: what it is for, what it reads and what it fails. 
 npm run check:fixtures && npm run check
 ```
 
-`npm run check` runs `typecheck`, `lint`, `test`, `check:products`, `check:proposals`, `check:retirement`, `check:loop` and `check:docs`, in that order, and stops at the first failure. `check:products` runs `check:product` on every product's config, which runs `check:opt-outs`, `lint:product-ui`, `lint:slots`, `check:step-budget`, `check:disclosure`, `check:priority`, `check:one-thing`, `check:inventories`, `check:state-coverage`, `check:target-size` and `check:accessible-names`, in that order, and skips a rule the config opts out of.
+`npm run check` runs `typecheck`, `lint`, `test`, `check:products`, `check:proposals`, `check:retirement`, `check:loop` and `check:docs`, in that order, and stops at the first failure. `check:products` runs `check:product` on every product's config, which runs `check:opt-outs`, `lint:product-ui`, `lint:slots`, `check:step-budget`, `check:disclosure`, `check:priority`, `check:one-thing`, `check:inventories`, `check:state-coverage`, `check:target-size`, `check:accessible-names` and `check:rendered-page`, in that order, and skips a rule the config opts out of.
 
 **Base.** `check:inventories`, `check:proposals`, `check:retirement` and `check:trace` compare the change with its base. The base is `INVENTORY_BASE` when it is set: CI sets it to the pull request base, or on a push to `main` to `github.event.before`, the tip of `main` before the push. A base missing from the clone fails the check. Unset, empty, `true`, `false` or all zeros, it is the merge base with `origin/main`, or with a local `main`. Without either, the check fails.
 
-**Chrome.** `check:target-size`, `check:accessible-names`, `check:products`, `check:product` and `screenshots` need headless Chrome, because they open pages in it or run a check that does, and so do the fixture cases that run a Chrome check without `--list`. They find Chrome at `CHROME_PATH`, then the chrome-headless-shell build that `puppeteer-core` pins, which `npm run setup:chrome` installs into `.cache/chrome` (CI runs the same script), then the usual `/usr/bin` paths. A `CHROME_PATH` that names no file fails on its own. With no Chrome, the check fails, naming each place it looked and both fixes.
+**Chrome.** `check:target-size`, `check:accessible-names`, `check:rendered-page`, `check:products`, `check:product` and `screenshots` need headless Chrome, because they open pages in it or run a check that does, and so do the fixture cases that run a Chrome check without `--list`. They find Chrome at `CHROME_PATH`, then the chrome-headless-shell build that `puppeteer-core` pins, which `npm run setup:chrome` installs into `.cache/chrome` (CI runs the same script), then the usual `/usr/bin` paths. A `CHROME_PATH` that names no file fails on its own. With no Chrome, the check fails, naming each place it looked and both fixes.
 
 | Script | Kind | Flags | Base | Chrome | Fixture cases |
 | --- | --- | --- | --- | --- | --- |
@@ -28,6 +28,7 @@ npm run check:fixtures && npm run check
 | [`check:state-coverage`](#checkstate-coverage) | Rule | `--config <file>` (required) |  |  | 1 illegal, 1 legal |
 | [`check:target-size`](#checktarget-size) | Rule | `--config <file>` (required) and `--list` |  | Yes | 4 illegal, 3 legal |
 | [`check:accessible-names`](#checkaccessible-names) | Rule | `--config <file>` (required) and `--list` |  | Yes | 10 illegal, 5 legal |
+| [`check:rendered-page`](#checkrendered-page) | Rule | `--config <file>` (required) |  | Yes | 7 illegal, 2 legal |
 | [`check:opt-outs`](#checkopt-outs) | Product | `--config <file>` (required) |  |  | 6 illegal, 2 legal |
 | [`check:products`](#checkproducts) | Repository | `--json` |  | Yes |  |
 | [`check:proposals`](#checkproposals) | Repository | none | Yes |  |  |
@@ -423,6 +424,45 @@ Fixture cases, under `packages/harness/fixtures/`, that run it:
 - `illegal/unnamed-control`: Illegal: an icon-only button with no label. Every declaration holds, and a screen reader still announces the button as only "button". It fails with "button <button type="button" class="more-actions"> has no accessible name".
 - `illegal/untracked-press-gap`: Illegal: knownGaps lists the silent leave from listed-press-gap without fixIn, so nothing tracks its fix. Every gap names the issue, pull request or proposal its fix waits on. It fails with "knownGaps[0] needs fixIn: where its fix is tracked" (with --list).
 - `illegal/waitlist-row-loses-focus`: Illegal: Nook's Waitlist rows from pull request 42 before its fix. Joining swaps the row's Join waitlist button for a new Leave waitlist button, and focus falls to the page body. The status region says the right thing, and the check still fails. It fails with "pressing button "Join waitlist for Cedar" removes it from the page, and focus falls to the page body".
+
+## `check:rendered-page`
+
+Every preview, as Chrome paints it at desktop and phone width: section headings two type-scale steps below the title, the rank-1 action in the first view, disclosures closed unless the state opens them, AA contrast in light and dark, and no sideways scroll on a phone.
+
+A rule check: `check:rules` runs it, and `check:product` runs it on each product. Run it as `npm run check:rendered-page`, from the repository root, defined in `packages/harness/src/check-rendered-page.ts`. It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it. It needs headless Chrome.
+
+It fails:
+
+- A heading on a page, a disclosure summary included, that sits fewer than two steps below the page's title on the design system's type scale, or fewer than one step when it is inside a list item or table row. The title is the first visible h1, or `role="heading"` at level 1, in each `[data-page]` element. Measured at 1280 by 900 and 390 by 844.
+- A page with no visible title, and a preview with no `[data-page]` element.
+- On a page type with a primary slot, a rank-1 action from `priority` that is not whole inside the first view, or whose centre something else covers, at 1280 by 900 or 390 by 844, before any scroll; and such a page that shows no rank-1 action at all.
+- A disclosure, a `<details>` whose summary a person can see, that is open on load, unless the flow's `accessible-names.ts` declares it with `expanded: true` on that preview.
+- A run of text under WCAG AA contrast, 4.5:1, or 3:1 for large text, against what is painted under it, in the light or the dark colour scheme, anywhere in the document.
+- A document wider than the view at 390 by 844, so the page scrolls sideways. The message names the first elements past the edge.
+- A design system stylesheet with no type scale: no family of at least three tokens named `--<prefix>font-size-<n>`.
+- A `previews` entry that cannot be listed, a `paths.web` that does not build or serve, and no Chrome found, as `check:target-size` fails them.
+
+It builds and serves the app as `check:target-size` does, or uses the build `check:product` serves, and opens the same previews three times: at 1280 by 900 in the light colour scheme, at 1280 by 900 in the dark one, and at 390 by 844 as a phone, light. It reads each as it loads and presses nothing. Every rule is a pattern that holds on any page: no number is set per page or per page type, and the steps, the views and the AA ratios are the harness's, not a product input. [Proposal 2026-11-12-rendered-page](../../../proposals/2026-11-12-rendered-page.md) records the rule.
+
+The type scale is the numbered font-size tokens in the stylesheet the adapter names, read the way `check:target-size` reads its button tokens: Todae's `--todae-font-size-1` to `-6`, 12 to 30 px. A size between two steps counts as the lower one. With Todae's 30 px title, section headings are 20 px or smaller and record names in a list 24 px or smaller. Only size counts, so a heading set apart by weight or colour alone passes.
+
+The rank-1 action is found by its accessible name, the `action` of each `priority` item at rank 1, among the page's buttons and links. One copy whole in view with nothing over its centre passes, so a pinned action row passes by design. Content and collection pages hold no primary, so they are not measured.
+
+Contrast reads every text node a person can see, the chrome's included, against the background colours of its element and its ancestors, down to the first opaque one, over the canvas Chrome paints for the root's colour scheme. Text over a background image or gradient is skipped and counted in the last line. Text in a control that is turned off is exempt, as WCAG allows. It emulates `prefers-color-scheme`, so a product whose tokens follow the system scheme is read in both. A field's own value and placeholder are not text nodes, so they are not read.
+
+It sees only what each preview shows as it loads: a state a press reveals, data no preview renders, and a long page with correct hierarchy pass. The critique of the screenshots judges those.
+
+Fixture cases, under `packages/harness/fixtures/`, that run it:
+
+- `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes, and npm run new:product starts a product from a copy that passes. It passes with "7 previews at 1280 by 900 and 390 by 844: section headings sit 2 type-scale steps below the title (list items 1), "Approve" is in the first view in".
+- `rendered-page-patterns`: Legal: record names one step below the title inside a list, a disclosure the state opens and declares expanded, a menu whose summary is hidden, an action row pinned under a long page, visually hidden text, a turned-off button's faint text, and text over a gradient, which is skipped and counted. It passes with "disclosures load closed (1 opened by their state)" and passes with "(2 over an image, not measured)".
+- `illegal/dark-scheme-contrast`: Illegal: the text follows the dark scheme and the page's white ground does not, as Nook's did on main before its ground took the canvas token. Light passes; dark fails. It fails with "dark colour scheme: text under WCAG AA contrast: "Northwind Office Supply" is #eeeeee on #ffffff".
+- `illegal/disclosure-open-on-load`: Illegal: Line items loads open, and the flow's accessible-names.ts declares it closed on every preview, so no state opens it. It fails with "the disclosure "Line items" is open on load".
+- `illegal/page-without-a-title`: Illegal: the page's name is bold text, not an h1, so the check has no title to hold its headings to, and a screen reader has none to land on. It fails with "detail page: no visible title".
+- `illegal/primary-below-the-fold`: Illegal: Approve, the rank-1 action, sits under 1000 px of content, below the first view at desktop and phone width, as PR 49's was before it pinned its action row. It fails with "at 1280 by 900: "Approve" is at" and fails with "at 390 by 844: "Approve" is at".
+- `illegal/primary-covered`: Illegal: Approve sits in the first view, but a fixed banner lies over it, so a person cannot reach it without dismissing something first. It fails with "but div.cookie-banner "We use cookies." covers its centre".
+- `illegal/section-heading-near-title`: Illegal: a 24 px section heading under a 30 px title, one step of Todae's type scale. Sections sit at least two steps below the title, as PR 48 and PR 49's Later today, Amenities, Vendor and Activity did not. It fails with "section heading h2 "Vendor" is 24px, 1 type-scale step below the title".
+- `illegal/sideways-scroll-on-a-phone`: Illegal: a 640 px block fits a desktop view and pushes the page past a 390 px phone's edge. It fails with "at 390 by 844: the page scrolls sideways, 640 CSS px wide in a 390 px view. Past the edge: div.line-items".
 
 ## `check:opt-outs`
 

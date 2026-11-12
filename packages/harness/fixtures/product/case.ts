@@ -13,6 +13,7 @@ export default {
     { run: "check:target-size", args: ["--list"], passes: "7 previews from modeledStates" },
     { run: "check:accessible-names", args: ["--list"], passes: "7 previews declare 7 announcements" },
     { run: "check:target-size", passes: "controls on 7 previews meet 24 CSS px" },
+    { run: "check:rendered-page", passes: '7 previews at 1280 by 900 and 390 by 844: section headings sit 2 type-scale steps below the title (list items 1), "Approve" is in the first view in' },
     { run: "check:accessible-names", passes: "7 previews announce the 7 things their flows declare, and every control has a name. 9 of 9 presses" },
   ],
 };
