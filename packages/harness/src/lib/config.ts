@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import type { CheckMeta } from "./check-meta";
 import { parseConfig, type LoadedConfig, type ProductInputs, type UxRules } from "./parse-config";
 
 export * from "./parse-config";
@@ -16,24 +17,23 @@ export * from "./parse-config";
  */
 
 /**
- * The flags a check reads besides `--config`. A flag no check reads is an
- * error, not ignored, so a stale invocation cannot pass on the wrong product.
+ * The flags the running script reads besides `--config`: the `flags` its
+ * meta, `<script>.meta.ts` beside it, lists. A flag no meta lists is an
+ * error, not ignored, so a stale invocation cannot pass on the wrong product,
+ * and the check reference cannot list a flag the script does not read.
  */
-const CHECK_FLAGS: Record<string, readonly string[]> = {
-  "check-inventories.ts": ["--base", "--proposals", "--base-proposals"],
-  "check-target-size.ts": ["--list"],
-  "check-accessible-names.ts": ["--list"],
-  "screenshots.ts": ["--out", "--state", "--base", "--pin"],
-};
+const script = process.argv[1] ?? "";
+const metaFile = script.replace(/\.ts$/, ".meta.ts");
+const scriptMeta = metaFile !== script && existsSync(metaFile) ? ((await import(pathToFileURL(path.resolve(metaFile)).href)) as { meta?: CheckMeta }).meta : undefined;
 
 function rejectUnknownFlags(): void {
-  const script = path.basename(process.argv[1] ?? "");
-  const known = new Set(["--config", ...(CHECK_FLAGS[script] ?? [])]);
+  const name = path.basename(script);
+  const known = new Set(["--config", ...(scriptMeta?.flags ?? []).map((flag) => flag.name)]);
   for (const arg of process.argv.slice(2)) {
     if (!arg.startsWith("--")) continue;
-    const name = arg.split("=")[0] ?? arg;
-    if (!known.has(name)) throw new Error(`${script} does not read ${name}. It reads ${[...known].join(", ")}.`);
-    if (arg.includes("=")) throw new Error(`write ${name} <value>, not ${name}=<value>.`);
+    const flag = arg.split("=")[0] ?? arg;
+    if (!known.has(flag)) throw new Error(`${name} does not read ${flag}. It reads ${[...known].join(", ")}.`);
+    if (arg.includes("=")) throw new Error(`write ${flag} <value>, not ${flag}=<value>.`);
   }
 }
 
@@ -72,7 +72,7 @@ function loadConfig(): { name: string; config: LoadedConfig } {
 
 const loaded = loadConfig();
 
-/** The product's config, read from the working directory or from `--config`. */
+/** The product's config, read from the file `--config` names. */
 export const config: LoadedConfig = loaded.config;
 
 /** The config file this run read, as `--config` names it. */

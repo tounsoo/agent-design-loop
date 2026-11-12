@@ -27,7 +27,9 @@ Screenshots: at the loop's `screenshots` node, after the gate passes, run `npm r
 
 Checks: `npm run check:fixtures && npm run check`
 
-A pull request that adds or changes a check in `packages/harness/` also updates `CLAUDE.md` and the verify skill, `.claude/skills/verify/SKILL.md`, in the same pull request.
+What each check fails, the flags it reads and the fixture cases that prove it: [the check reference](packages/harness/docs/checks.md), written from the code by `npm run docs:gen`.
+
+A pull request that adds or changes a check in `packages/harness/` also updates `CLAUDE.md` and the verify skill, `.claude/skills/verify/SKILL.md`, in the same pull request: it changes the check's `.meta.ts` and runs `npm run docs:gen`, which rewrites their generated parts, and `npm run check:docs` fails when it didn't.
 
 If the work needs a catalog export, layout, content layout, page type, flow state, or rule input that is not in those inventories, open a proposal, `status: open`, that lists under `changes` exactly what the inventory gains or loses, as `proposals/README.md` describes. Do not invent the missing piece, and do not edit an inventory to sneak the change through. The change itself waits for a later pull request, after a designer has moved the proposal to `status: decided`; that pull request marks it `status: adopted`. The checks fail a proposal adopted in the pull request that adds it, with one exception: when the change only adds members to the catalog exports, `allowed_layouts`, `allowed_content_layouts` or the flow states, the proposal may list them under `adds`, with nothing else, and be adopted in the same pull request as the change. A designer reviews that pull request. Removals, renames, rule inputs, config, opt-outs and retirements keep two pull requests, and so does a new page type, which is never an addition because it also needs an entry under `shells` in the product's config ([proposal 2026-11-12-page-types-take-two-pull-requests](proposals/2026-11-12-page-types-take-two-pull-requests.md)).
 
