@@ -1,8 +1,8 @@
 # Screenshots
 
-Taken by `npm run screenshots` with `products/nook/harness.config.ts`, at 1280 by 900 CSS px in headless Chrome, one per preview. Click an image to open it full size.
+Taken by `npm run screenshots` with `products/nook/harness.config.ts`, at 1280 by 900 CSS px in headless Chrome, one per preview. Click an image to open its file.
 
-Before is `origin/main (3b75a5f)`. After is the change.
+Before is `origin/main (13505d8)`. After is the change.
 
 | Preview | Before | After |
 | --- | --- | --- |
