@@ -23,4 +23,4 @@ A room's booking page gains two sections between How long? and Room details: Lat
 
 ## Screenshots
 
-The [screenshot gallery](screenshots/room-detail-sections/README.md) shows each booking preview at 1280 by 900, before and after.
+The [screenshot gallery](screenshots/room-detail-sections/README.md) shows the four booking previews and the Rooms page at 1280 by 900, before and after. The Rooms page does not change.

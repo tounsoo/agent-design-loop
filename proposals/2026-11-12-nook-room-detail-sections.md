@@ -52,10 +52,10 @@ Shown twice: the facts line already says the floor and the seats, so Amenities l
 The first line `check:inventories` prints on the pull request that adds it:
 
 ```
-inventory: catalog exports changed from [...] to [...,"Badge",...]. Adopts proposals/2026-11-12-nook-room-detail-sections.md (only adds, so it is adopted in the pull request that adds it, which a designer reviews).
+inventory: catalog exports changed from ["Alert","Button","Card","Disclosure","EmptyState","Field","Label","Loader","Nav","Stack","Text","ThemeProvider"] to ["Alert","Badge","Button","Card","Disclosure","EmptyState","Field","Label","Loader","Nav","Stack","Text","ThemeProvider"]. Adopts proposals/2026-11-12-nook-room-detail-sections.md (only adds, so it is adopted in the pull request that adds it, which a designer reviews).
 ```
 
-The gallery at `products/nook/review/screenshots/room-detail-sections/` shows each booking preview before and after.
+The gallery at `products/nook/review/screenshots/room-detail-sections/` shows the four booking previews (choosing, held, booked and hold ended) and the Rooms page, before and after.
 
 ## Adoption
 
