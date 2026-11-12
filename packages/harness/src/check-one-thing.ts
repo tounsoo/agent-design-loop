@@ -4,7 +4,7 @@ import ts from "typescript";
 import { adapter, isPrimaryVariant } from "./lib/adapter";
 import { config, loadRules, memberOf } from "./lib/config";
 import { attributeValue, jsxTagName, lineOf, listSourceFiles, parseFile, walk } from "./lib/jsx";
-import { canonicalTag, discoverShells, missingCatalogParts, openingOf, collectionShells as collectionShellsOf, pagesIn, tagsInScope, unreachedTags } from "./lib/page-scope";
+import { canonicalTag, contentShells as contentShellsOf, discoverShells, missingCatalogParts, openingOf, collectionShells as collectionShellsOf, pagesIn, tagsInScope, unreachedTags } from "./lib/page-scope";
 
 /**
  * One job per page. Page-type membership lives in allowed_page_types and
@@ -13,7 +13,8 @@ import { canonicalTag, discoverShells, missingCatalogParts, openingOf, collectio
  *
  * A collection page holds no primary action: it chooses a record, and the
  * record's page acts on it. Which page types are collections is the config's
- * shells.collections.
+ * shells.collections. A content page, one the config names under
+ * shells.content, holds no primary action either: it shows information.
  *
  * A page is one rendered page-type shell (see lib/page-scope.ts). The
  * rules hold per page, not per product: a product may render as many pages of
@@ -78,6 +79,31 @@ for (const file of listSourceFiles(featuresRoot)) {
 
 const pages = pagesIn(featuresRoot, shells);
 const shellNames = new Set(shells.map((shell) => shell.name));
+
+// Content pages are the page types the config names under shells.content. Every scope a page reaches counts, its components, disclosures and page type included, except the chrome layouts every page shares, which check:priority reads.
+const { content, problems: contentProblems } = contentShellsOf(shells);
+for (const problem of contentProblems) if (!ruleProblems.includes(problem)) violations.push(`one thing: ${problem}`);
+const contentShells = new Set(content.map((shell) => shell.name));
+const chromeLayouts = path.resolve(config.paths.layouts) + path.sep;
+const contentViolations = new Set<string>();
+for (const page of pages) {
+  if (!contentShells.has(page.shell.name)) continue;
+  for (const scope of page.scopes) {
+    if (path.resolve(scope.source.fileName).startsWith(chromeLayouts)) continue;
+    for (const found of tagsInScope(scope, adapter.action.tag)) {
+      const opening = openingOf(found.node);
+      if (!opening) continue;
+      const variant = attributeValue(opening, adapter.action.variantProp);
+      const where = `${path.relative(process.cwd(), scope.source.fileName)}:${lineOf(scope.source, opening)}`;
+      if (variant === "dynamic") {
+        contentViolations.add(`one thing: ${where} gives a button on the ${page.shell.name} content page a computed variant, so the check cannot tell it is not primary. Write the variant as a string.`);
+      } else if (isPrimaryVariant(variant)) {
+        contentViolations.add(`one thing: ${where} puts a primary button on the ${page.shell.name} content page. A content page shows information; an action that needs a primary button belongs on a page type with a primary slot.`);
+      }
+    }
+  }
+}
+violations.push(...contentViolations);
 
 for (const page of pages) {
   for (const scope of page.scopes) {
@@ -169,5 +195,5 @@ if (violations.length > 0) {
 }
 
 console.log(
-  `one thing: one job per page on ${pages.length} pages: no page inside another, no primary on a collection page, at most ${MAX_VISIBLE_QUESTIONS} question outside a disclosure per page.`,
+  `one thing: one job per page on ${pages.length} pages: no page inside another, no primary on a collection or content page, at most ${MAX_VISIBLE_QUESTIONS} question outside a disclosure per page.`,
 );

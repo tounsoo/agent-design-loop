@@ -11,10 +11,17 @@ export function Collection({ status }: { status: Status }) {
       <CollectionPage.Heading>Invoices</CollectionPage.Heading>
       <CollectionPage.Body>
         {status === "loading" ? <Loader.Root aria-label="Loading invoices" /> : null}
-        {status === "empty" ? <EmptyState.Root>No invoices waiting</EmptyState.Root> : null}
+        {status === "empty" ? (
+          <EmptyState.Root>
+            <EmptyState.Title as="h2">No invoices waiting</EmptyState.Title>
+          </EmptyState.Root>
+        ) : null}
         {status === "error" ? (
           <Alert.Root>
-            <Button.Root variant="secondary">Try again</Button.Root>
+            <Alert.Title>Invoices did not load</Alert.Title>
+            <Alert.Actions>
+              <Button.Root variant="secondary">Try again</Button.Root>
+            </Alert.Actions>
           </Alert.Root>
         ) : null}
         {status === "ready" ? <DataTable /> : null}

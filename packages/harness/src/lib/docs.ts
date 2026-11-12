@@ -44,11 +44,16 @@ export type Script = {
   readonly config: boolean;
   /** Compares the change with its base. */
   readonly base: boolean;
-  /** Opens a page in headless Chrome. */
+  /** Needs headless Chrome: it opens pages, or runs a script that does. */
   readonly chrome: boolean;
 };
 
-export type GateStep = { readonly script: string; readonly config: string | null };
+/**
+ * A step of the build gate. `configs` is set on a step that runs `check:product`
+ * on products: one config's path, or a shell expression that lists every
+ * product's config, for a step that runs it on each product the registry finds.
+ */
+export type GateStep = { readonly script: string; readonly configs: string | null };
 
 export type Model = {
   readonly scripts: readonly Script[];
@@ -80,11 +85,17 @@ export function reached(file: string, read: Sources): Set<string> {
   const visit = (current: string): void => {
     if (seen.has(current)) return;
     seen.add(current);
-    for (const match of read(current).matchAll(/^(?:import|export) (?!type )[^;]*?from "(\.{1,2}\/[^"]+)";/gms)) {
-      const base = path.posix.normalize(path.posix.join(path.posix.dirname(current), match[1] ?? ""));
+    const text = read(current);
+    const specifiers = [
+      ...[...text.matchAll(/^(?:import|export) (?!type )[^;]*?from "(\.{1,2}\/[^"]+)";/gms)].map((match) => match[1]),
+      // A script it spawns, named as `new URL("./check-product.ts", import.meta.url)`, runs as part of it.
+      ...[...text.matchAll(/^(?!\s*(?:\/\/|\*)).*?new URL\("(\.{1,2}\/[^"]+\.ts)", import\.meta\.url\)/gm)].map((match) => match[1]),
+    ];
+    for (const specifier of specifiers) {
+      const base = path.posix.normalize(path.posix.join(path.posix.dirname(current), specifier ?? ""));
       const stem = base.replace(/\.(?:js|ts|tsx)$/, "");
       const target = [`${stem}.ts`, `${stem}.tsx`, `${stem}/index.ts`, `${stem}/index.tsx`].find(readable);
-      if (!target) throw new Error(`${current} imports ${match[1]}, which is not a .ts or .tsx file under the harness src folder.`);
+      if (!target) throw new Error(`${current} imports ${specifier}, which is not a .ts or .tsx file under the harness src folder.`);
       visit(target);
     }
   };
@@ -102,15 +113,25 @@ export function facts(file: string, read: Sources): Pick<Script, "config" | "bas
   };
 }
 
-/** What `name` runs, in order, following `npm run` steps that pass no flags but `--config`. */
-export function gateSteps(scripts: Readonly<Record<string, string>>, name = "check"): GateStep[] {
+/**
+ * What `name` runs, in order. A step is a product step when its script is
+ * `npm run check:product -- --config <file>`, or runs a harness file that
+ * spawns check-product.ts once per product and prints their configs with
+ * `--json`, as check:products does: `source` gives a step's harness source.
+ */
+export function gateSteps(scripts: Readonly<Record<string, string>>, name = "check", source: (script: string) => string = () => ""): GateStep[] {
   const command = scripts[name];
   if (command === undefined) throw new Error(`package.json has no script "${name}".`);
   return command.split("&&").map((part) => {
     const step = /^npm run ([\w:-]+)$/.exec(part.trim());
     if (!step?.[1]) throw new Error(`package.json script "${name}" has a step that is not \`npm run <script>\`: ${part.trim()}.`);
     const product = /^npm run check:product -- --config (\S+)$/.exec(scripts[step[1]] ?? "");
-    return { script: step[1], config: product?.[1] ?? null };
+    if (product?.[1]) return { script: step[1], configs: product[1] };
+    const text = source(step[1]);
+    if (/check-product\.ts/.test(text) && /"--json"/.test(text)) {
+      return { script: step[1], configs: `$(npm run --silent ${step[1]} -- --json | node -e 'for (const c of JSON.parse(require("fs").readFileSync(0, "utf8"))) console.log(c)')` };
+    }
+    return { script: step[1], configs: null };
   });
 }
 
@@ -223,7 +244,10 @@ export function buildModel(input: {
   }
   if (problems.length > 0) return { problems };
   // Rule checks in check:rules' order, then the repository checks in the order the build gate runs them, then the rest, then the tools.
-  const steps = gateSteps(input.scripts);
+  const steps = gateSteps(input.scripts, "check", (name) => {
+    const file = input.files.get(name);
+    return file ? input.read(file) : "";
+  });
   const gate = ["check:opt-outs", ...steps.map((step) => step.script)];
   const order = (script: Script): number =>
     script.rule ? rules.indexOf(script.name) : script.meta.tool ? 3000 : gate.includes(script.name) ? 1000 + gate.indexOf(script.name) : 2000;
@@ -270,13 +294,15 @@ function flagsLine(script: Script): string {
 
 function gateSentence(model: Model): string {
   const steps = model.gate.map((step) => code(step.script));
-  const products = model.gate.filter((step) => step.config !== null);
+  const products = model.gate.filter((step) => step.configs !== null);
+  const fixed = products.filter((step) => !step.configs?.startsWith("$("));
+  const each = products.filter((step) => step.configs?.startsWith("$("));
   const checks = ["check:opt-outs", ...model.rules].map(code);
+  const runs = `which runs ${list(checks)}, in that order, and skips a rule the config opts out of.`;
   return [
     `\`npm run check\` runs ${list(steps)}, in that order, and stops at the first failure.`,
-    products.length > 0
-      ? `${list(products.map((step) => code(step.script)))} each run \`check:product\` on one product's config (${list(products.map((step) => code(step.config ?? "")))}), which runs ${list(checks)}, in that order, and skips a rule the config opts out of.`
-      : "",
+    fixed.length > 0 ? `${list(fixed.map((step) => code(step.script)))} each run \`check:product\` on one product's config (${list(fixed.map((step) => code(step.configs ?? "")))}), ${runs}` : "",
+    each.length > 0 ? `${list(each.map((step) => code(step.script)))} ${each.length === 1 ? "runs" : "each run"} \`check:product\` on every product's config, ${runs}` : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -301,7 +327,7 @@ export function renderReference(model: Model): string {
     "",
     `**Base.** ${list(model.scripts.filter((script) => script.base).map((script) => code(script.name)))} compare the change with its base. ${BASE_DOC}`,
     "",
-    `**Chrome.** ${list(model.scripts.filter((script) => script.chrome).map((script) => code(script.name)))} open pages in headless Chrome, and so do the fixture cases that run them without \`--list\`. ${CHROME_DOC}`,
+    `**Chrome.** ${list(model.scripts.filter((script) => script.chrome).map((script) => code(script.name)))} need headless Chrome, because they open pages in it or run a check that does, and so do the fixture cases that run a Chrome check without \`--list\`. ${CHROME_DOC}`,
     "",
     "| Script | Kind | Flags | Base | Chrome | Fixture cases |",
     "| --- | --- | --- | --- | --- | --- |",
@@ -326,7 +352,7 @@ export function renderReference(model: Model): string {
       `Run it as \`npm run ${script.name}\`, from the repository root, defined in \`packages/harness/src/${script.file}\`.`,
       script.config ? "It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it." : "It takes no `--config`.",
       script.base ? "It compares the change with its base." : "",
-      script.chrome ? "It opens pages in headless Chrome." : "",
+      script.chrome ? "It needs headless Chrome." : "",
     ];
     lines.push(about.filter(Boolean).join(" "));
     const flags = (script.meta.flags ?? []).filter((flag) => flag.name !== "--config");
@@ -377,14 +403,14 @@ export function renderNoChrome(model: Model): string {
   const runs: GateStep[][] = [];
   for (const step of model.gate) {
     const current = runs.at(-1);
-    if (current && (current[0]?.config === null) === (step.config === null)) current.push(step);
+    if (current && (current[0]?.configs === null) === (step.configs === null)) current.push(step);
     else runs.push([step]);
   }
   const lines = runs.flatMap((run) =>
-    run[0]?.config === null
+    run[0]?.configs === null
       ? [run.map((step) => `npm run ${step.script}`).join(" && ")]
       : [
-          `for config in ${run.map((step) => step.config).join(" ")}; do`,
+          `for config in ${run.map((step) => step.configs).join(" ")}; do`,
           `  for check in ${checks.join(" ")}; do`,
           '    npm run "$check" -- --config "$config" || break 2',
           "  done",

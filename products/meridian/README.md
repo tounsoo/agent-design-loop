@@ -26,7 +26,7 @@ npm run dev
 
 Open the URL Vite prints. The default screen is the Meridian workspace on **To approve**: a full-height shell, sidebar navigation, and a searchable invoice table. Opening an invoice is a link in the table, not a primary button. Approve is not on the queue.
 
-`npm run build` and `npm run preview` build and serve Meridian. `npm run check:meridian` runs every rule check on Meridian's config.
+`npm run build` and `npm run preview` build and serve Meridian. `npm run check:product -- --config products/meridian/harness.config.ts` runs every rule check on Meridian's config, and `npm run check:products` runs them on every product.
 
 ## Navigation
 

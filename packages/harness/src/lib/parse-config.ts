@@ -48,6 +48,13 @@ export type ShellRules = {
    * slot named must be one the shell defines, as in primarySlots.
    */
   readonly collections: { readonly [pageType: string]: readonly string[] };
+  /**
+   * Page types whose pages are content: they show information, such as a
+   * help, overview or settings summary page. No page of a content page type
+   * holds a primary button, outside the shared chrome layouts (check:one-thing).
+   * Optional: a product with no content page type leaves it out.
+   */
+  readonly content?: readonly string[];
 };
 
 export type HarnessConfig = {
@@ -217,12 +224,13 @@ export const DEFAULT_PROPOSALS = "proposals";
 function parseShells(value: unknown, where: string): ShellRules | null {
   if (value === undefined) return null;
   if (!isRecord(value)) throw new Error(`${where} must be an object.`);
-  const unknown = Object.keys(value).filter((key) => key !== "primarySlots" && key !== "collections");
+  const unknown = Object.keys(value).filter((key) => key !== "primarySlots" && key !== "collections" && key !== "content");
   if (unknown.length > 0) throw new Error(`${where} has unknown keys: ${unknown.join(", ")}.`);
-  // Both are required, so a product says it has no collection rather than leaving it out.
+  // Both are required, so a product says it has no collection rather than leaving it out. content came later, so a config without it still reads.
   if (!isRecord(value.primarySlots)) throw new Error(`${where}.primarySlots must be an object.`);
   if (!isRecord(value.collections)) throw new Error(`${where}.collections must be an object.`);
-  return { primarySlots: stringRecord(value, "primarySlots", where), collections: stringListRecord(value, "collections", where) };
+  const rules = { primarySlots: stringRecord(value, "primarySlots", where), collections: stringListRecord(value, "collections", where) };
+  return value.content === undefined ? rules : { ...rules, content: requireStrings(value, "content", where) };
 }
 
 /** Parses a harness config's source text. Throws when it is not plain literals or misses a field. */

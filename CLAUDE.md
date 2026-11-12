@@ -25,7 +25,7 @@ npm run check:fixtures && npm run check
 ```
 
 - `check:fixtures` runs the harness's own tests: every illegal case under `packages/harness/fixtures/` must fail with its expected message and every legal case pass with its. `npm run check:fixtures -- illegal/two-primaries` runs one case.
-- `check` runs typecheck, ESLint and the Vitest suite on the whole repository, then `check:product` on each product's config, which runs `check:opt-outs` and every rule check in `check:rules`, then the repository checks. [The check reference](packages/harness/docs/checks.md) lists the exact order.
+- `check` runs typecheck, ESLint and the Vitest suite on the whole repository, then `check:products`, which runs `check:product` on every product's config, `check:opt-outs` and every rule check in `check:rules`, then the repository checks. A product is any `harness.config.ts` git knows of outside `packages/harness/`, so nothing lists products by hand. [The check reference](packages/harness/docs/checks.md) lists the exact order.
 - `check:trace` is not in `check`, because the gate runs in the middle of the design loop's walk: CI runs it after the gate, and an agent runs it before pushing.
 
 Every harness script, in one line each. [The check reference](packages/harness/docs/checks.md) says what each one fails, the flags it reads, whether it compares with the base (`INVENTORY_BASE`) or opens Chrome, and the fixture cases that prove it. `npm run docs:gen` writes this list and the reference from the code and each script's `packages/harness/src/<script>.meta.ts`, and `npm run check:docs` fails when either is stale. Don't edit the list by hand.
@@ -36,12 +36,13 @@ Every harness script, in one line each. [The check reference](packages/harness/d
 - [`check:step-budget`](packages/harness/docs/checks.md#checkstep-budget), rule, needs `--config`: Every route that finishes a task, not only the shortest, fits that task's `max_steps`, in the task graph and in the shipped reducer.
 - [`check:disclosure`](packages/harness/docs/checks.md#checkdisclosure), rule, needs `--config`: Each page holds at most `MAX_DISCLOSURES_PER_PAGE` disclosures, nested at most `MAX_DISCLOSURE_DEPTH` deep.
 - [`check:priority`](packages/harness/docs/checks.md#checkpriority), rule, needs `--config`: Each page holds at most one primary action, and it is the product's rank-1 action; the rank-2 action is secondary; `disclosed_sections` stay behind disclosures.
-- [`check:one-thing`](packages/harness/docs/checks.md#checkone-thing), rule, needs `--config`: One job per page: no page inside a page, no primary on a collection page, and at most `MAX_VISIBLE_QUESTIONS` questions outside a disclosure.
+- [`check:one-thing`](packages/harness/docs/checks.md#checkone-thing), rule, needs `--config`: One job per page: no page inside a page, no primary on a collection or content page, and at most `MAX_VISIBLE_QUESTIONS` questions outside a disclosure.
 - [`check:inventories`](packages/harness/docs/checks.md#checkinventories), rule, needs `--config`: Inventory membership changes only by adopting a proposal, and each inventory's folders, barrels and uses match its list.
 - [`check:state-coverage`](packages/harness/docs/checks.md#checkstate-coverage), rule, needs `--config`: Every modeled flow state has a view.
 - [`check:target-size`](packages/harness/docs/checks.md#checktarget-size), rule, needs `--config`: Every control on every preview is at least 24 CSS px, or meets the WCAG 2.5.8 spacing exception, measured in headless Chrome.
 - [`check:accessible-names`](packages/harness/docs/checks.md#checkaccessible-names), rule, needs `--config`: On every preview, what a screen reader hears matches the flow's `accessible-names.ts`, and every press either announces what changed or moves focus.
 - [`check:opt-outs`](packages/harness/docs/checks.md#checkopt-outs), product, needs `--config`: Every opt-out in a product's config stands on an adopted proposal that names the rule and the product.
+- [`check:products`](packages/harness/docs/checks.md#checkproducts), repository: Runs `check:product` on every product the registry finds, one after another, so a new product needs no script or CI job of its own.
 - [`check:proposals`](packages/harness/docs/checks.md#checkproposals), repository: Every proposal has its fields and sections, a new one has a dated name, and each status moves one step at a time from the base.
 - [`check:retirement`](packages/harness/docs/checks.md#checkretirement), repository: A rule most products opt out of is flagged for retirement, and a rule leaves `check:rules`, or a product opts out, only by adopting a proposal.
 - [`check:loop`](packages/harness/docs/checks.md#checkloop), repository: The design loop graph in `packages/harness/design-loop.ts` is one an agent can follow, and the diagram in `how-it-works.md` is the one it draws.
@@ -50,11 +51,16 @@ Every harness script, in one line each. [The check reference](packages/harness/d
 - [`check:product`](packages/harness/docs/checks.md#checkproduct), product, needs `--config`: Runs `check:opt-outs`, then every rule check in `check:rules`, on one product, skipping a rule the product opts out of.
 - [`check:trace`](packages/harness/docs/checks.md#checktrace), repository: A change that touches a product carries a loop trace, and every trace it adds or edits is a walk the design loop graph allows.
 - [`loop:step`](packages/harness/docs/checks.md#loopstep), tool: Appends one step to a change's loop trace, and refuses a step the design loop graph does not allow.
+- [`new:product`](packages/harness/docs/checks.md#newproduct), tool: Starts a product: copies the harness's fixture product, which passes every check, to `products/<name>/` and points its config there.
 - [`screenshots`](packages/harness/docs/checks.md#screenshots), tool, needs `--config`: The design loop's `screenshots` step: captures each preview before and after a change into a gallery the pull request links.
 - [`setup:chrome`](packages/harness/docs/checks.md#setupchrome), tool: Installs the chrome-headless-shell build `puppeteer-core` pins into `.cache/chrome`, where the Chrome checks look for it.
 <!-- docs:gen scripts end -->
 
 `npm run screenshots` is the design loop's `screenshots` step, not a check: `AGENTS.md` says when to run it and how to pin and link the gallery, and its entry in the reference gives its flags.
+
+`npm run new:product -- <name>` starts a product: it copies the fixture product to `products/<name>/` and points its config there. Nothing else needs an edit for the checks and CI to pick it up, but a new product is an inventory change, so it lands with a proposal decided on the base that lists `products/<name>` under `changes`.
+
+A page type is one of three kinds in the config's `shells`: `primarySlots` (one primary action in a named slot), `collections` (no primary, a registered content layout in the body) or the optional `content` (a page that shows information and holds no primary button outside the shared chrome layouts). `lint:slots`, `check:one-thing` and `check:inventories` fail a page type in none of them or in two.
 
 Others: `npm run dev` starts Meridian on Vite's port and `npm run dev:nook` starts Nook; `npm run build` and `npm run preview` serve Meridian's built app.
 

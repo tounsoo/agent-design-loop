@@ -36,12 +36,13 @@ The harness's own scripts, written by `npm run docs:gen`:
 | [`npm run check:step-budget`](docs/checks.md#checkstep-budget) | Rule | Every route that finishes a task, not only the shortest, fits that task's `max_steps`, in the task graph and in the shipped reducer. |
 | [`npm run check:disclosure`](docs/checks.md#checkdisclosure) | Rule | Each page holds at most `MAX_DISCLOSURES_PER_PAGE` disclosures, nested at most `MAX_DISCLOSURE_DEPTH` deep. |
 | [`npm run check:priority`](docs/checks.md#checkpriority) | Rule | Each page holds at most one primary action, and it is the product's rank-1 action; the rank-2 action is secondary; `disclosed_sections` stay behind disclosures. |
-| [`npm run check:one-thing`](docs/checks.md#checkone-thing) | Rule | One job per page: no page inside a page, no primary on a collection page, and at most `MAX_VISIBLE_QUESTIONS` questions outside a disclosure. |
+| [`npm run check:one-thing`](docs/checks.md#checkone-thing) | Rule | One job per page: no page inside a page, no primary on a collection or content page, and at most `MAX_VISIBLE_QUESTIONS` questions outside a disclosure. |
 | [`npm run check:inventories`](docs/checks.md#checkinventories) | Rule | Inventory membership changes only by adopting a proposal, and each inventory's folders, barrels and uses match its list. |
 | [`npm run check:state-coverage`](docs/checks.md#checkstate-coverage) | Rule | Every modeled flow state has a view. |
 | [`npm run check:target-size`](docs/checks.md#checktarget-size) | Rule | Every control on every preview is at least 24 CSS px, or meets the WCAG 2.5.8 spacing exception, measured in headless Chrome. |
 | [`npm run check:accessible-names`](docs/checks.md#checkaccessible-names) | Rule | On every preview, what a screen reader hears matches the flow's `accessible-names.ts`, and every press either announces what changed or moves focus. |
 | [`npm run check:opt-outs`](docs/checks.md#checkopt-outs) | Product | Every opt-out in a product's config stands on an adopted proposal that names the rule and the product. |
+| [`npm run check:products`](docs/checks.md#checkproducts) | Repository | Runs `check:product` on every product the registry finds, one after another, so a new product needs no script or CI job of its own. |
 | [`npm run check:proposals`](docs/checks.md#checkproposals) | Repository | Every proposal has its fields and sections, a new one has a dated name, and each status moves one step at a time from the base. |
 | [`npm run check:retirement`](docs/checks.md#checkretirement) | Repository | A rule most products opt out of is flagged for retirement, and a rule leaves `check:rules`, or a product opts out, only by adopting a proposal. |
 | [`npm run check:loop`](docs/checks.md#checkloop) | Repository | The design loop graph in `packages/harness/design-loop.ts` is one an agent can follow, and the diagram in `how-it-works.md` is the one it draws. |
@@ -50,6 +51,7 @@ The harness's own scripts, written by `npm run docs:gen`:
 | [`npm run check:product`](docs/checks.md#checkproduct) | Product | Runs `check:opt-outs`, then every rule check in `check:rules`, on one product, skipping a rule the product opts out of. |
 | [`npm run check:trace`](docs/checks.md#checktrace) | Repository | A change that touches a product carries a loop trace, and every trace it adds or edits is a walk the design loop graph allows. |
 | [`npm run loop:step`](docs/checks.md#loopstep) | Tool | Appends one step to a change's loop trace, and refuses a step the design loop graph does not allow. |
+| [`npm run new:product`](docs/checks.md#newproduct) | Tool | Starts a product: copies the harness's fixture product, which passes every check, to `products/<name>/` and points its config there. |
 | [`npm run screenshots`](docs/checks.md#screenshots) | Tool | The design loop's `screenshots` step: captures each preview before and after a change into a gallery the pull request links. |
 | [`npm run setup:chrome`](docs/checks.md#setupchrome) | Tool | Installs the chrome-headless-shell build `puppeteer-core` pins into `.cache/chrome`, where the Chrome checks look for it. |
 <!-- docs:gen scripts end -->
@@ -80,8 +82,8 @@ A product keeps its inventories under `products/<name>/` and names them in its o
 2. Write `products/<name>/harness.config.ts`. Keep it plain literals, because `check:inventories` reads it at the pull request base with `git show`, where it cannot run imports. Paths in it are relative to the repository root. Type it with `satisfies HarnessConfig`, imported from `@agent-design-loop/harness`.
 3. Name the design system adapter in the config's `adapter` field. A Todae product names `packages/adapter-todae/index.ts`.
 4. First merge a proposal under `proposals/` that lists the product's directory under `changes`, such as `products/nook`, and get it approved as `status: decided`. The pull request that adds the product marks it `status: adopted`. The base has neither the product's config nor its inputs, so `check:inventories` reads it as a new product, and a new product needs an adopted proposal like any other membership change. Nook's first pull request added proposal 0005, before a proposal had to be decided first.
-5. Add a `check:<name>` script that runs `npm run check:product -- --config products/<name>/harness.config.ts`, and add it to `check`, as `check:meridian` and `check:nook` are.
-6. Add a CI job that runs `check:product` on the config and sets `INVENTORY_BASE`, as the `nook` job in `.github/workflows/ci.yml` does.
+
+Nothing else names the product: `npm run check`, `check:retirement` and CI find it by its config. `npm run new:product -- <name>` does steps 1 to 3 by copying `fixtures/product/`, which passes every check, to `products/<name>/` and pointing its paths at the new folder. Step 4 is still yours.
 
 The config has four parts, and an optional fifth. `HarnessConfig` in `src/lib/parse-config.ts` documents each field.
 
@@ -89,7 +91,7 @@ The config has four parts, and an optional fifth. `HarnessConfig` in `src/lib/pa
 | --- | --- |
 | `adapter` | The design system adapter module |
 | `paths` | `source`, `features`, `layouts`, `contentLayouts`, `pageTypes`, `catalog`, `inputs`, `rules`, `styles`, `app`, and `web`: where each inventory and the product UI live |
-| `shells` | `primarySlots`, the page types whose shell holds one primary action, and `collections`, the page types that are collections, with their chrome slots. Every slot named must be one the shell defines as `Object.assign(Root, { ... })` |
+| `shells` | `primarySlots`, the page types whose shell holds one primary action, `collections`, the page types that are collections, with their chrome slots, and, optionally, `content`, the page types that show information and hold no primary button outside the shared chrome layouts, such as a help or policy page. Every allowed page type is in exactly one of them. Every slot named must be one the shell defines as `Object.assign(Root, { ... })` |
 | `flows` | Each flow's `states` and `views` modules, its `tasks` mapped to task graph modules, and its `previews` |
 | `optOuts` | Optional. The harness rules this product does not follow, each mapped to the decided proposal that says why. `paths.proposals`, also optional, is the folder an opt-out's proposal must sit in, `proposals` by default. Changing it is a config path change, so `check:inventories` asks for a proposal, and that check reads proposals from this folder |
 

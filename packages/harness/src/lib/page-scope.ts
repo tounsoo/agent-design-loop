@@ -7,6 +7,7 @@ import { jsxTagName, listSourceFiles, parseFile, walk } from "./jsx";
 import {
   collectionShellsOf,
   primarySlotsOf,
+  contentShellsOf,
   shellsOf,
   valueExports,
   type CollectionShell,
@@ -69,6 +70,11 @@ export function primarySlots(shells: readonly Shell[]): { slots: PrimarySlot[]; 
 /** The collection shells the config's shells.collections names. */
 export function collectionShells(shells: readonly Shell[]): { collections: CollectionShell[]; problems: string[] } {
   return collectionShellsOf(config.shells, shells, allowed_page_types);
+}
+
+/** The content shells the config's shells.content names. */
+export function contentShells(shells: readonly Shell[]): { content: Shell[]; problems: string[] } {
+  return contentShellsOf(config.shells, shells, allowed_page_types);
 }
 
 /** Fails when a part a check counts is not a catalog export, so the cap cannot go quiet. */

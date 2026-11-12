@@ -78,10 +78,14 @@ describe("reached", () => {
 describe("gateSteps", () => {
   it("lists the steps in order and names the config a product step passes", () => {
     expect(gateSteps(scripts)).toEqual([
-      { script: "lint", config: null },
-      { script: "check:one", config: "products/one/harness.config.ts" },
-      { script: "check:c", config: null },
+      { script: "lint", configs: null },
+      { script: "check:one", configs: "products/one/harness.config.ts" },
+      { script: "check:c", configs: null },
     ]);
+  });
+  it("lists every product's config for a step that runs check-product.ts on the registry", () => {
+    const steps = gateSteps({ check: "npm run check:all", "check:all": "tsx src/check-products.ts" }, "check", () => 'spawn("check-product.ts"); if (arg === "--json") {}');
+    expect(steps[0]?.configs).toContain("npm run --silent check:all -- --json");
   });
   it("refuses a step that is not npm run", () => {
     expect(() => gateSteps({ check: "npm run lint && tsc" })).toThrow("not `npm run <script>`");

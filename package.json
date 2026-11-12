@@ -39,10 +39,10 @@
     "test": "vitest run",
     "check:rules": "npm run lint:product-ui && npm run lint:slots && npm run check:step-budget && npm run check:disclosure && npm run check:priority && npm run check:one-thing && npm run check:inventories && npm run check:state-coverage && npm run check:target-size && npm run check:accessible-names",
     "check:product": "tsx packages/harness/src/check-product.ts",
-    "check:meridian": "npm run check:product -- --config products/meridian/harness.config.ts",
-    "check:nook": "npm run check:product -- --config products/nook/harness.config.ts",
-    "check": "npm run typecheck && npm run lint && npm run test && npm run check:meridian && npm run check:nook && npm run check:proposals && npm run check:retirement && npm run check:loop && npm run check:docs",
-    "check:fixtures": "tsx packages/harness/src/check-fixtures.ts"
+    "check:products": "tsx packages/harness/src/check-products.ts",
+    "check": "npm run typecheck && npm run lint && npm run test && npm run check:products && npm run check:proposals && npm run check:retirement && npm run check:loop && npm run check:docs",
+    "check:fixtures": "tsx packages/harness/src/check-fixtures.ts",
+    "new:product": "tsx packages/harness/src/new-product.ts"
   },
   "dependencies": {
     "@tounsoo/todae": "0.10.1",

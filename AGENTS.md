@@ -2,18 +2,18 @@
 
 This file is a pointer. The checks enforce the rules. Inventories are data. This file does not list what they contain. A walkthrough for people new to the repo is `packages/harness/docs/how-it-works.md`, and Meridian's own is `products/meridian/docs/how-it-works.md`.
 
-Each product's `harness.config.ts` names where its inventories live. For **Meridian**, an accounts-payable workspace, that is `products/meridian/harness.config.ts`. Read, in order:
+Every product lives under `products/<name>/`, and its `harness.config.ts` names where its inventories live. The checks find each product by that file, so nothing else lists the products. Before changing a product's UI, read what its config names, in order:
 
-1. Product inputs: `products/meridian/inputs/product.ts`
-2. UX rules: `products/meridian/rules/ux-rules.ts`
-3. Catalog, the only UI entry: `products/meridian/catalog/index.ts`
-4. Layouts: `products/meridian/layouts`
-5. Content layouts: `products/meridian/content-layouts`
-6. Page types: `products/meridian/page-types`
-7. Flow model: `products/meridian/flows/invoice-approval`
+1. Product inputs: `paths.inputs`
+2. UX rules: `paths.rules`
+3. Catalog, the only UI entry: `paths.catalog`
+4. Layouts: `paths.layouts`
+5. Content layouts: `paths.contentLayouts`
+6. Page types: `paths.pageTypes`, with `shells` saying which kind each page type is: a page with a primary slot, a collection, or a content page
+7. Flow model: each entry under `flows`
 8. Proposals: `proposals/README.md`
 
-The named task is in the product inputs. A second product, **Nook**, lives under `products/nook/` with its own `products/nook/harness.config.ts`, which lists its inventories the same way; work on Nook reads those. The checks themselves live in `packages/harness/`; product code does not edit them.
+For **Meridian**, an accounts-payable workspace, the config is `products/meridian/harness.config.ts`, and its inputs are `products/meridian/inputs/product.ts`. **Nook** is the second product, under `products/nook/`. The named task is in the product inputs. `npm run new:product -- <name>` starts a product from the harness's fixture product, which passes every check; the new product passes `check:inventories` once a proposal that lists `products/<name>` is decided on the base and adopted with it. The checks themselves live in `packages/harness/`; product code does not edit them.
 
 Layouts are product-owned shells with named slots, encoded from Todae recipes. Recipes are copyable glue, not package namespaces. Do not invent component names or props. Do not fork [Todae](https://github.com/tounsoo/todae). Import UI only from the catalog.
 

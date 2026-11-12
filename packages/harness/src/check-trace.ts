@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import designLoop from "../design-loop";
 import { resolveBaseRev, tryGit } from "./lib/base";
+import { isProductConfig, productConfigs } from "./lib/products";
 import { changedTraces, touchedProducts, traceProblems, TRACE_DIR, type ChangedFile } from "./lib/trace";
 
 /**
@@ -20,8 +20,6 @@ if (process.argv.length > 2) {
   console.error("check:trace takes no arguments. It reads the change against INVENTORY_BASE, or the merge base with main.");
   process.exit(1);
 }
-
-const harnessDir = path.relative(process.cwd(), path.dirname(path.dirname(fileURLToPath(import.meta.url)))).split(path.sep).join("/");
 
 const base = resolveBaseRev("trace");
 if ("problem" in base) {
@@ -56,12 +54,8 @@ function changedFiles(rev: string): ChangedFile[] {
 
 /** Each product's directory: the folder of every harness.config.ts git knows of outside the harness package, at the head or the base. */
 function productDirs(rev: string): string[] {
-  const head = tryGit(["ls-files", "-z", "--cached", "--others", "--exclude-standard"]) ?? "";
-  const atBase = tryGit(["ls-tree", "-z", "-r", "--name-only", rev]) ?? "";
-  const configs = `${head}\0${atBase}`
-    .split("\0")
-    .filter((file) => path.posix.basename(file) === "harness.config.ts" && !file.startsWith(`${harnessDir}/`));
-  return [...new Set(configs.map((file) => path.posix.dirname(file)))].sort();
+  const atBase = (tryGit(["ls-tree", "-z", "-r", "--name-only", rev]) ?? "").split("\0").filter(isProductConfig);
+  return [...new Set([...productConfigs(), ...atBase].map((file) => path.posix.dirname(file)))].sort();
 }
 
 const files = changedFiles(base.rev);

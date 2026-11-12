@@ -10,33 +10,35 @@ Every script the harness runs: what it is for, what it reads and what it fails. 
 npm run check:fixtures && npm run check
 ```
 
-`npm run check` runs `typecheck`, `lint`, `test`, `check:meridian`, `check:nook`, `check:proposals`, `check:retirement`, `check:loop` and `check:docs`, in that order, and stops at the first failure. `check:meridian` and `check:nook` each run `check:product` on one product's config (`products/meridian/harness.config.ts` and `products/nook/harness.config.ts`), which runs `check:opt-outs`, `lint:product-ui`, `lint:slots`, `check:step-budget`, `check:disclosure`, `check:priority`, `check:one-thing`, `check:inventories`, `check:state-coverage`, `check:target-size` and `check:accessible-names`, in that order, and skips a rule the config opts out of.
+`npm run check` runs `typecheck`, `lint`, `test`, `check:products`, `check:proposals`, `check:retirement`, `check:loop` and `check:docs`, in that order, and stops at the first failure. `check:products` runs `check:product` on every product's config, which runs `check:opt-outs`, `lint:product-ui`, `lint:slots`, `check:step-budget`, `check:disclosure`, `check:priority`, `check:one-thing`, `check:inventories`, `check:state-coverage`, `check:target-size` and `check:accessible-names`, in that order, and skips a rule the config opts out of.
 
 **Base.** `check:inventories`, `check:proposals`, `check:retirement` and `check:trace` compare the change with its base. The base is `INVENTORY_BASE` when it is set: CI sets it to the pull request base, or on a push to `main` to `github.event.before`, the tip of `main` before the push. A base missing from the clone fails the check. Unset, empty, `true`, `false` or all zeros, it is the merge base with `origin/main`, or with a local `main`. Without either, the check fails.
 
-**Chrome.** `check:target-size`, `check:accessible-names` and `screenshots` open pages in headless Chrome, and so do the fixture cases that run them without `--list`. They find Chrome at `CHROME_PATH`, then the chrome-headless-shell build that `puppeteer-core` pins, which `npm run setup:chrome` installs into `.cache/chrome` (CI runs the same script), then the usual `/usr/bin` paths. A `CHROME_PATH` that names no file fails on its own. With no Chrome, the check fails, naming each place it looked and both fixes.
+**Chrome.** `check:target-size`, `check:accessible-names`, `check:products`, `check:product` and `screenshots` need headless Chrome, because they open pages in it or run a check that does, and so do the fixture cases that run a Chrome check without `--list`. They find Chrome at `CHROME_PATH`, then the chrome-headless-shell build that `puppeteer-core` pins, which `npm run setup:chrome` installs into `.cache/chrome` (CI runs the same script), then the usual `/usr/bin` paths. A `CHROME_PATH` that names no file fails on its own. With no Chrome, the check fails, naming each place it looked and both fixes.
 
 | Script | Kind | Flags | Base | Chrome | Fixture cases |
 | --- | --- | --- | --- | --- | --- |
 | [`lint:product-ui`](#lintproduct-ui) | Rule | `--config <file>` (required) |  |  | 6 illegal, 3 legal |
-| [`lint:slots`](#lintslots) | Rule | `--config <file>` (required) |  |  | 8 illegal, 4 legal |
+| [`lint:slots`](#lintslots) | Rule | `--config <file>` (required) |  |  | 9 illegal, 5 legal |
 | [`check:step-budget`](#checkstep-budget) | Rule | `--config <file>` (required) |  |  | 9 illegal, 4 legal |
 | [`check:disclosure`](#checkdisclosure) | Rule | `--config <file>` (required) |  |  | 4 illegal, 3 legal |
 | [`check:priority`](#checkpriority) | Rule | `--config <file>` (required) |  |  | 8 illegal, 5 legal |
-| [`check:one-thing`](#checkone-thing) | Rule | `--config <file>` (required) |  |  | 12 illegal, 4 legal |
-| [`check:inventories`](#checkinventories) | Rule | `--config <file>` (required), `--base <file>`, `--proposals <dir>` and `--base-proposals <dir>` | Yes |  | 28 illegal, 6 legal |
+| [`check:one-thing`](#checkone-thing) | Rule | `--config <file>` (required) |  |  | 16 illegal, 5 legal |
+| [`check:inventories`](#checkinventories) | Rule | `--config <file>` (required), `--base <file>`, `--proposals <dir>` and `--base-proposals <dir>` | Yes |  | 29 illegal, 7 legal |
 | [`check:state-coverage`](#checkstate-coverage) | Rule | `--config <file>` (required) |  |  | 1 illegal, 1 legal |
 | [`check:target-size`](#checktarget-size) | Rule | `--config <file>` (required) and `--list` |  | Yes | 4 illegal, 3 legal |
 | [`check:accessible-names`](#checkaccessible-names) | Rule | `--config <file>` (required) and `--list` |  | Yes | 10 illegal, 5 legal |
 | [`check:opt-outs`](#checkopt-outs) | Product | `--config <file>` (required) |  |  | 6 illegal, 2 legal |
+| [`check:products`](#checkproducts) | Repository | `--json` |  | Yes |  |
 | [`check:proposals`](#checkproposals) | Repository | none | Yes |  |  |
 | [`check:retirement`](#checkretirement) | Repository | none | Yes |  |  |
 | [`check:loop`](#checkloop) | Repository | `--write` |  |  |  |
 | [`check:docs`](#checkdocs) | Repository | `--write` |  |  |  |
 | [`check:fixtures`](#checkfixtures) | Repository | none |  |  |  |
-| [`check:product`](#checkproduct) | Product | `--config <file>` (required) |  |  |  |
+| [`check:product`](#checkproduct) | Product | `--config <file>` (required) |  | Yes |  |
 | [`check:trace`](#checktrace) | Repository | none | Yes |  |  |
 | [`loop:step`](#loopstep) | Tool | none |  |  |  |
+| [`new:product`](#newproduct) | Tool | none |  |  |  |
 | [`screenshots`](#screenshots) | Tool | `--config <file>` (required), `--out <dir>`, `--state <state>`, `--base <ref>` and `--pin <dir>` |  | Yes |  |
 | [`setup:chrome`](#setupchrome) | Tool | none |  |  |  |
 
@@ -59,7 +61,7 @@ Fixture cases, under `packages/harness/fixtures/`, that run it:
 
 - `catalog-loads`: Legal: re-exports and dynamic imports of the product's own catalog pass the off-catalog lint. It passes with "off-catalog: clean".
 - `fake-ds`: Legal under the stand-in adapter, which shares no name with Todae. Run on the Todae adapter, every check here but the off-catalog lint fails these pages, so passing shows a check reads its names from the adapter. It passes with "off-catalog: clean".
-- `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes. It passes with "off-catalog: clean".
+- `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes, and npm run new:product starts a product from a copy that passes. It passes with "off-catalog: clean".
 - `illegal/dynamic-design-system-import`: Illegal: `import()` of the design system outside the catalog, and an `import()` the lint cannot read. It fails with "off-catalog: import "@tounsoo/todae" directly" and fails with "with a computed specifier cannot be checked".
 - `illegal/fake-ds-off-catalog`: Illegal under the stand-in adapter: its package imported outside the catalog. It fails with "off-catalog: import "@fake/ds" directly".
 - `illegal/indirect-require`: Illegal: `globalThis.require(...)`, `(0, require)(...)` and `require` held under another name load the design system outside the catalog. It fails with "off-catalog: import "@tounsoo/todae" directly", fails with "off-catalog: import "@tounsoo/todae/styles.css" directly" and fails with "require is held under another name".
@@ -77,7 +79,7 @@ It fails:
 
 - A page whose primary slot is missing, as when the shell is self-closed (`<Shell />`), or that renders the slot more than once; a slot that does not hold exactly one action control, or holds one that is not primary.
 - A slot name the page type's shell does not define as `Object.assign(Root, { ... })`, in its module or a module it re-exports from, so a misspelled slot fails instead of matching nothing.
-- A page type named there that renders no page, or that is not in `allowed_page_types`, and a config that names no page type, so the rule cannot go quiet.
+- A page type named there that renders no page, or that is not in `allowed_page_types`, and a config that names no page type, so the rule cannot go quiet. A page type in none or more than one of `shells.primarySlots`, `shells.collections` and `shells.content` fails here too.
 - A page type in `allowed_page_types` with no shell module under `paths.pageTypes`, or whose module exports no shell.
 
 The check does not name `DetailPage`: `shells.primarySlots` maps a page type to its slot, Meridian's `{ detail: "Primary" }`, and the shell's name comes from that page type's module. A second primary outside the slot is `check:priority`'s to catch.
@@ -86,14 +88,16 @@ A variant computed from an expression, such as `variant={tone}`, counts as neith
 
 Fixture cases, under `packages/harness/fixtures/`, that run it:
 
+- `content-page`: Legal: a third kind of page, help, which the config names under shells.content. It shows information and holds no primary action, so it is neither a primary-slot page nor a collection. It passes with "exactly one primary button on 1 detail page".
 - `fake-ds`: Legal under the stand-in adapter, which shares no name with Todae. Run on the Todae adapter, every check here but the off-catalog lint fails these pages, so passing shows a check reads its names from the adapter. It passes with "exactly one primary button on 1 detail page".
-- `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes. It passes with "exactly one primary button on 1 detail page".
+- `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes, and npm run new:product starts a product from a copy that passes. It passes with "exactly one primary button on 1 detail page".
 - `shell-imported-then-exported`: Legal: the detail page type's index.ts imports its shell and then exports it. The slot names are read through that import. It passes with "exactly one primary button on 1 detail page".
 - `two-detail-pages`: Legal: two detail pages, each with one primary Approve. Priority holds per page, so a product may render the rank-1 action on as many pages as it needs. It passes with "exactly one primary button on 2 detail page".
 - `illegal/fake-ds-two-primaries`: Illegal under the stand-in adapter: two strong actions in the primary slot. It fails with "found 2 primary and 2 Action".
 - `illegal/misspelled-primary-slot`: Illegal: the config names the detail shell's primary slot "Primry". DetailPage has no such slot. It fails with "names slot "Primry" for page type "detail", but DetailPage has no such slot".
 - `illegal/no-primary-slot`: Illegal: no page type has a primary slot, so lint:slots would check nothing. It fails with "shells.primarySlots names no page type, so no primary slot is checked".
 - `illegal/page-type-in-both-rules`: Illegal: the config names detail as a primary-slot page and a collection, which ask for one primary action and none. It fails with "page type "detail" in both primarySlots and collections".
+- `illegal/page-type-in-primary-and-content`: Illegal: the config names detail as a primary-slot page and a content page, which ask for one primary action and none. It fails with "page type "detail" in both primarySlots and content, but a content page has no primary action".
 - `illegal/primary-slot-from-config`: Illegal: the config names the detail shell's Secondary slot as its primary slot, so lint:slots reads that slot and finds no primary action in it. It fails with "accepts exactly one primary button, found 0 primary and 1 Button.Root".
 - `illegal/shell-rule-unknown-page-type`: Illegal: the shells rules name page types the product does not allow, so a rule would have no shell to read. It fails with "shells.primarySlots names page type "form", which is not in allowed_page_types".
 - `illegal/two-primaries`: Illegal: two buttons in the detail page's primary slot. It fails with "accepts exactly one primary button, found 2 primary".
@@ -125,7 +129,7 @@ Fixture cases, under `packages/harness/fixtures/`, that run it:
 
 - `flow-status`: Legal: a flow whose states keep their name in phase, read through the graph module's flowStatus. It passes with "step budget: within budget.".
 - `longer-route`: Legal: a second, longer route to a task's success that fits its budget, measured and printed. It passes with "longest shipped flow route (3): open-note → send-reminder → archive".
-- `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes. It passes with "step budget: within budget.".
+- `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes, and npm run new:product starts a product from a copy that passes. It passes with "step budget: within budget.".
 - `two-tasks`: Legal: a notes inbox with two tasks, each mapped to its own task graph, and a preview query for one modeled state only. It passes with "step budget: archive-note (max_steps 2)".
 - `illegal/flow-state-without-status`: Illegal: a flow whose states have no status field and a graph module with no flowStatus. It fails with "which has no status field".
 - `illegal/graph-flow-drift`: Illegal: a 3-step task graph whose shipped reducer needs 2 steps. It fails with "does not match the modeled path".
@@ -158,7 +162,7 @@ Fixture cases, under `packages/harness/fixtures/`, that run it:
 
 - `fake-ds`: Legal under the stand-in adapter, which shares no name with Todae. Run on the Todae adapter, every check here but the off-catalog lint fails these pages, so passing shows a check reads its names from the adapter. It passes with "across 2 pages".
 - `imported-page-parts`: Legal: the page's actions and disclosure come in under an alias, as a default export, and through an `export *` barrel. The page scope follows each, so priority sees them on the page. It passes with "at most 1 per page, across 1 pages".
-- `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes. It passes with "across 2 pages".
+- `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes, and npm run new:product starts a product from a copy that passes. It passes with "across 2 pages".
 - `illegal/disclosures-per-page`: Illegal: one disclosure in each of two component files on one page. It fails with "more than 1 per page".
 - `illegal/fake-ds-hoisted`: Illegal under the stand-in adapter: a disclosure and a question held outside any page. It fails with "Reveal.Root is not reached from any page".
 - `illegal/fake-ds-nested-reveal`: Illegal under the stand-in adapter: a disclosure inside a disclosure. It fails with "disclosure depth 2 exceeds 1".
@@ -189,7 +193,7 @@ Fixture cases, under `packages/harness/fixtures/`, that run it:
 - `fake-ds`: Legal under the stand-in adapter, which shares no name with Todae. Run on the Todae adapter, every check here but the off-catalog lint fails these pages, so passing shows a check reads its names from the adapter. It passes with ""Approve" is the primary button".
 - `imported-page-parts`: Legal: the page's actions and disclosure come in under an alias, as a default export, and through an `export *` barrel. The page scope follows each, so priority sees them on the page. It passes with ""Approve" is the primary button on 1 of 1 pages".
 - `own-sections`: Legal: inputs that disclose "Attachments", and pages that put it behind a disclosure. It passes with "disclosed: "Attachments"".
-- `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes. It passes with ""Approve" is the primary button".
+- `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes, and npm run new:product starts a product from a copy that passes. It passes with ""Approve" is the primary button".
 - `two-detail-pages`: Legal: two detail pages, each with one primary Approve. Priority holds per page, so a product may render the rank-1 action on as many pages as it needs. It passes with ""Approve" is the primary button on 2 of 2 pages".
 - `illegal/aliased-second-primary`: Illegal: two primary buttons on one page, one of them imported under another name. It fails with "page has 2 primary buttons".
 - `illegal/computed-variant`: Illegal: a button whose variant is computed. The check cannot tell whether it is a second primary, so it fails it. It fails with "has a computed variant, so the check cannot tell whether it is primary".
@@ -202,7 +206,7 @@ Fixture cases, under `packages/harness/fixtures/`, that run it:
 
 ## `check:one-thing`
 
-One job per page: no page inside a page, no primary on a collection page, and at most `MAX_VISIBLE_QUESTIONS` questions outside a disclosure.
+One job per page: no page inside a page, no primary on a collection or content page, and at most `MAX_VISIBLE_QUESTIONS` questions outside a disclosure.
 
 A rule check: `check:rules` runs it, and `check:product` runs it on each product. Run it as `npm run check:one-thing`, from the repository root, defined in `packages/harness/src/check-one-thing.ts`. It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it.
 
@@ -211,10 +215,13 @@ It fails:
 - A page rendered inside another page, in its own JSX or through a component it renders, including one imported under another name.
 - A page type in `allowed_page_types` that renders no page.
 - A primary button on a collection page, including inside a content layout that page uses.
+- A primary button on a content page, one whose page type is under `shells.content`, anywhere it reaches but the chrome layouts every page shares, and a button there whose variant is computed, so the check cannot tell it is not primary.
 - More questions outside a disclosure on one page than `MAX_VISIBLE_QUESTIONS`. A question is the adapter's question part, Todae's `Field.Root`.
-- A chrome slot in `shells.collections` that the collection's shell does not define, or that it names for a shell not defined as `Object.assign(Root, { ... })`; a page type there that is not in `allowed_page_types`; and an allowed page type named in neither or both of `shells.primarySlots` and `shells.collections`.
+- A chrome slot in `shells.collections` that the collection's shell does not define, or that it names for a shell not defined as `Object.assign(Root, { ... })`; a page type there that is not in `allowed_page_types`; and an allowed page type named in none or more than one of `shells.primarySlots`, `shells.collections` and `shells.content`, or a page type under `shells.content` that is not in `allowed_page_types`.
 - A page type in `allowed_page_types` with no shell module under `paths.pageTypes`, or whose module exports no shell.
 - A catalog that stops exporting the question part, so the cap cannot go quiet.
+
+A page type is one of three kinds in the config's `shells`: `primarySlots`, one primary action in a named slot; `collections`, no primary and a registered content layout in the body; or the optional `content`, a page that shows information, such as a help or policy page, and holds no primary button outside the shared chrome layouts.
 
 `allowed_page_types` decides which shells exist, and this check reads that inventory rather than a second list. The rules hold per page, not per product: a product may render a page type as often as it needs, from as many files. Which page types are collections, and which of their slots are chrome rather than body, comes from `shells.collections`, Meridian's `{ collection: ["Heading", "Description"] }`.
 
@@ -222,11 +229,14 @@ The check reads code, not runtime state. A field shown only on a branch still co
 
 Fixture cases, under `packages/harness/fixtures/`, that run it:
 
+- `content-page`: Legal: a third kind of page, help, which the config names under shells.content. It shows information and holds no primary action, so it is neither a primary-slot page nor a collection. It passes with "one job per page on 3 pages".
 - `fake-ds`: Legal under the stand-in adapter, which shares no name with Todae. Run on the Todae adapter, every check here but the off-catalog lint fails these pages, so passing shows a check reads its names from the adapter. It passes with "one job per page".
-- `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes. It passes with "one job per page on 2 pages".
+- `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes, and npm run new:product starts a product from a copy that passes. It passes with "one job per page on 2 pages".
 - `shell-imported-then-exported`: Legal: the detail page type's index.ts imports its shell and then exports it. The slot names are read through that import. It passes with "one job per page on 2 pages".
 - `two-collection-pages`: Legal: two collection pages in two files, and one detail page. It passes with "one job per page on 3 pages".
 - `illegal/aliased-nested-page`: Illegal: a detail page, imported under another name, rendered inside a collection page. It fails with "CollectionPage page renders a DetailPage page inside it".
+- `illegal/computed-variant-on-content-page`: Illegal: the help page, a content page under shells.content, renders a button whose variant is computed. The check cannot tell it is not primary, so it fails. It fails with "Steps.tsx:8 gives a button on the HelpPage content page a computed variant".
+- `illegal/content-rule-unknown-page-type`: Illegal: shells.content names a page type the product does not allow, so the rule would read no page. It fails with "shells.content names page type "help", which is not in allowed_page_types".
 - `illegal/dead-question-part`: Illegal: a catalog that no longer exports the question part, so the question cap could go quiet. It fails with "not exported by the catalog".
 - `illegal/fake-ds-collection-primary`: Illegal under the stand-in adapter: a strong action on the collection page. It fails with "puts a primary button on the collection page".
 - `illegal/fake-ds-hoisted`: Illegal under the stand-in adapter: a disclosure and a question held outside any page. It fails with "Ask is not reached from any page".
@@ -235,6 +245,8 @@ Fixture cases, under `packages/harness/fixtures/`, that run it:
 - `illegal/misspelled-chrome-slot`: Illegal: the config names the collection shell's chrome slot "Heding". CollectionPage has no such slot, so its Heading would be read as body. It fails with "names slot "Heding" for page type "collection", but CollectionPage has no such slot".
 - `illegal/nested-page`: Illegal: a collection page rendered inside a detail page. It fails with "DetailPage page renders a CollectionPage page inside it".
 - `illegal/page-type-in-both-rules`: Illegal: the config names detail as a primary-slot page and a collection, which ask for one primary action and none. It fails with "page type "detail" in both primarySlots and collections".
+- `illegal/page-type-in-primary-and-content`: Illegal: the config names detail as a primary-slot page and a content page, which ask for one primary action and none. It fails with "page type "detail" in both primarySlots and content".
+- `illegal/primary-on-content-page`: Illegal: the help page, a content page under shells.content, renders a component with a primary action. A content page shows information, so it holds none. It fails with "Steps.tsx:8 puts a primary button on the HelpPage content page".
 - `illegal/shell-rule-unknown-page-type`: Illegal: the shells rules name page types the product does not allow, so a rule would have no shell to read. It fails with "shells.collections names page type "wizard", which is not in allowed_page_types".
 - `illegal/two-questions`: Illegal: two questions in the open on one page. It fails with "questions outside a disclosure".
 - `illegal/unclassified-page-type`: Illegal: the config names no collection, though the product has a collection page type, so the collection rules would read none of its pages. It fails with "page type "collection" in neither primarySlots nor collections".
@@ -256,7 +268,7 @@ It fails:
 - A chrome layout, content layout or page type outside its allowlist, a directory under `paths.layouts`, `paths.contentLayouts` or `paths.pageTypes` with no list entry, or a list entry with no directory, and any other file directly in those directories besides `index.ts`.
 - An import of a layout, content layout or page type under `paths.source` that is not on its list, a `pageTypes` export that does not match `allowed_page_types`, and a page-type barrel that re-exports an id not on it.
 - A collection's ready body that is not one registered content layout, or that the feature passes ad-hoc children into, and a collection whose pages fill no slot outside its chrome, so no body is checked.
-- The `shells.collections` problems `check:one-thing` names, and a collection page type with no shell module or no shell, since the body check reads the same shells.
+- The `shells` problems `check:one-thing` names, a page type in none or more than one of its three kinds, and a collection page type with no shell module or no shell, since the body check reads the same shells.
 - Page CSS for a class the feature uses that no content layout, chrome layout or page type uses.
 - A membership change against the base that no adopted proposal covers. A proposal covers a change when it is `status: decided` on the base, `status: adopted` in the change, and its `changes` on the base list, exactly, what changed: the member added or removed, the constant, the config field or its new value, each changed string in `flows`, `adapter.<field>` for an adapter field, the new adapter path, or the product's directory.
 - A proposal the change adds, used to cover anything but additions. A change that only adds members to the catalog exports, `allowed_layouts`, `allowed_content_layouts` or the flow states passes with a proposal the change adds as `status: adopted` that lists them under `adds` and nothing else. It covers nothing when it is on the base, when a base proposal already lists one of its `adds` under `adds`, or when one of its `adds` is a name the change removes or changes otherwise.
@@ -275,9 +287,10 @@ Proposals are read from the config's `paths.proposals` folder, `proposals/` by d
 Fixture cases, under `packages/harness/fixtures/`, that run it:
 
 - `adds-in-one-pull-request`: Legal: the inputs add the side-panel layout, and the proposal the change adds lists only side-panel under adds, already adopted. A proposal that only adds is adopted in the pull request that adds it. It passes with "0106-side-panel.md (only adds, so it is adopted in the pull request that adds it, which a designer reviews)".
+- `content-page`: Legal: a third kind of page, help, which the config names under shells.content. It shows information and holds no primary action, so it is neither a primary-slot page nor a collection. It passes with "membership matches".
 - `fake-ds`: Legal under the stand-in adapter, which shares no name with Todae. Run on the Todae adapter, every check here but the off-catalog lint fails these pages, so passing shows a check reads its names from the adapter. It passes with "collection bodies use a registered content layout".
 - `page-type-in-two-pull-requests`: Legal: the change adds the board page type with its shells entry, and adopts a proposal decided on the base that lists board and shells.collections under changes. This is the second of the two pull requests a new page type takes. A fixture's base is not a git revision, so check:inventories does not compare shells here: the case proves the page type is covered, and the shells half rests on the same lists rule, compared on a real pull request base. It passes with "Adopts packages/harness/fixtures/page-type-in-two-pull-requests/proposals/2026-11-12-board.md".
-- `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes. It passes with "membership matches".
+- `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes, and npm run new:product starts a product from a copy that passes. It passes with "membership matches".
 - `proposal-covers-change`: Legal: the inputs add the side-panel layout, and the change adopts a proposal that was decided on the base and lists side-panel under changes. It passes with "Adopts packages/harness/fixtures/proposal-covers-change/proposals/0102-side-panel.md".
 - `re-exported-inputs`: Legal: the base exports allowed_layouts, allowed_content_layouts and disclosed_sections through export clauses, and the change keeps the same members as plain exports. It passes with "membership matches".
 - `illegal/ad-hoc-content`: Illegal: a status board with page CSS as a collection's ready body, which is not a registered content layout. It fails with "not a registered content layout".
@@ -299,6 +312,7 @@ Fixture cases, under `packages/harness/fixtures/`, that run it:
 - `illegal/let-exported-base-list`: Illegal: the base exports allowed_layouts from a reassigned `let`, so the check cannot read the exported list from its initializer. It fails with "allowed_layouts is not a string array".
 - `illegal/misspelled-chrome-slot`: Illegal: the config names the collection shell's chrome slot "Heding". CollectionPage has no such slot, so its Heading would be read as body. It fails with "names slot "Heding" for page type "collection", but CollectionPage has no such slot".
 - `illegal/page-type-in-both-rules`: Illegal: the config names detail as a primary-slot page and a collection, which ask for one primary action and none. It fails with "page type "detail" in both primarySlots and collections".
+- `illegal/page-type-in-primary-and-content`: Illegal: the config names detail as a primary-slot page and a content page, which ask for one primary action and none. It fails with "page type "detail" in both primarySlots and content".
 - `illegal/proposal-for-another-adapter-change`: Illegal: the adapter makes "ghost" a primary variant, and the one adopted proposal is about a Toast. It names neither adapter.action nor the new adapter path. It fails with "a decided proposal must list "adapter.action"".
 - `illegal/proposal-for-another-change`: Illegal: the inputs add the side-panel layout, and the one adopted proposal is about a catalog export. A proposal covers only the change it lists. It fails with "a decided proposal must list "side-panel" under changes".
 - `illegal/proposal-names-path`: Illegal: the change adopts a decided proposal whose changes list `layouts/side-panel/`, a path, not the member side-panel. A proposal lists each name exactly. It fails with "a decided proposal must list "side-panel" under changes, and no adopted proposal lists".
@@ -324,14 +338,14 @@ It matches strings, so it does not see whether the case renders anything distinc
 
 Fixture cases, under `packages/harness/fixtures/`, that run it:
 
-- `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes. It passes with "6 modeled states have views".
+- `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes, and npm run new:product starts a product from a copy that passes. It passes with "6 modeled states have views".
 - `illegal/missing-view`: Illegal: invoice-approved is modeled and has no view. It fails with "has no view".
 
 ## `check:target-size`
 
 Every control on every preview is at least 24 CSS px, or meets the WCAG 2.5.8 spacing exception, measured in headless Chrome.
 
-A rule check: `check:rules` runs it, and `check:product` runs it on each product. Run it as `npm run check:target-size`, from the repository root, defined in `packages/harness/src/check-target-size.ts`. It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it. It opens pages in headless Chrome.
+A rule check: `check:rules` runs it, and `check:product` runs it on each product. Run it as `npm run check:target-size`, from the repository root, defined in `packages/harness/src/check-target-size.ts`. It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it. It needs headless Chrome.
 
 Flags:
 
@@ -342,16 +356,16 @@ It fails:
 - A control under 24 CSS px on a side that misses the WCAG 2.5.8 spacing exception, anywhere in the document: the page and the chrome around it, with each closed disclosure opened on its own.
 - A button token floor under 24: the font size plus twice the vertical padding of the design system the adapter names.
 - A `previews` entry for a state that is not modeled, or one that sets `state` itself, and a flow whose states file does not export `modeledStates` as a list of strings.
-- A `paths.web` outside the repository or with no `index.html`, and a built app that cannot be served on port 4173, as when another check holds it.
+- A `paths.web` outside the repository or with no `index.html`, an app that does not build, and a built app that cannot be served.
 - No Chrome found.
 
-It builds the directory in `paths.web`, serves it with `vite preview` on port 4173, and opens every state in each flow's `modeledStates` at 1280 by 900: bare, or once per query string that flow's `previews` in the config lists for it, such as `page=detail`. A state added later is opened without editing the script. A state that renders no `[data-page]` element is measured too. It clicks a disclosure summary on the page when one is present and measures, then opens every other closed disclosure in the document, such as a menu in the chrome, one at a time, measures what it shows, and closes it again.
+It builds the directory in `paths.web`, serves it with `vite preview` on a free port of 127.0.0.1, or uses the build `check:product` already serves for this product, and opens every state in each flow's `modeledStates` at 1280 by 900: bare, or once per query string that flow's `previews` in the config lists for it, such as `page=detail`. A state added later is opened without editing the script. A state that renders no `[data-page]` element is measured too. It clicks a disclosure summary on the page when one is present and measures, then opens every other closed disclosure in the document, such as a menu in the chrome, one at a time, measures what it shows, and closes it again.
 
 It measures each preview on load and after a disclosure opens, at one width. The floor is `TARGET_MIN_PX` in the product's rules module. It closes the server and the browser itself.
 
 Fixture cases, under `packages/harness/fixtures/`, that run it:
 
-- `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes. It passes with "7 previews from modeledStates" (with --list).
+- `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes, and npm run new:product starts a product from a copy that passes. It passes with "7 previews from modeledStates" (with --list) and passes with "controls on 7 previews meet 24 CSS px".
 - `target-size-whole-document`: Legal: the page, the chrome around it, and a closed menu in the chrome have controls of at least 24 CSS px. check:target-size builds this folder's index.html. It passes with "controls on 7 previews meet 24 CSS px".
 - `two-tasks`: Legal: a notes inbox with two tasks, each mapped to its own task graph, and a preview query for one modeled state only. It passes with "target size: preview ?state=archived" (with --list).
 - `illegal/preview-sets-state`: Illegal: the preview query for "reminded" sets state=archived itself, so it would open another state than its key names. It fails with "sets state itself" (with --list).
@@ -363,7 +377,7 @@ Fixture cases, under `packages/harness/fixtures/`, that run it:
 
 On every preview, what a screen reader hears matches the flow's `accessible-names.ts`, and every press either announces what changed or moves focus.
 
-A rule check: `check:rules` runs it, and `check:product` runs it on each product. Run it as `npm run check:accessible-names`, from the repository root, defined in `packages/harness/src/check-accessible-names.ts`. It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it. It opens pages in headless Chrome.
+A rule check: `check:rules` runs it, and `check:product` runs it on each product. Run it as `npm run check:accessible-names`, from the repository root, defined in `packages/harness/src/check-accessible-names.ts`. It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it. It needs headless Chrome.
 
 Flags:
 
@@ -398,7 +412,7 @@ Fixture cases, under `packages/harness/fixtures/`, that run it:
 - `announced-sort`: Legal: a sort that says its new order through Todae's announcer, which writes its live region 100 ms after announce(). check:accessible-names reads each press after that, so the press is heard. It passes with "1 of 1 presses tell a screen reader what changed and keep focus on the page".
 - `announced-waitlist`: Legal: Nook's Waitlist rows as pull request 42 fixed them. Each press keeps focus on the row's one button and says in the status region what changed. check:accessible-names presses every button on every preview. It passes with "6 of 6 presses tell a screen reader what changed and keep focus on the page".
 - `listed-press-gap`: Legal: the silent leave from illegal/silent-waitlist-leave, listed in knownGaps while its fix waits for its own pull request. The check passes and counts it as known. It passes with "5 of 6 presses tell a screen reader what changed and keep focus on the page, and the other 1 has a problem its flow lists in knownGaps".
-- `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes. It passes with "7 previews declare 7 announcements" (with --list).
+- `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes, and npm run new:product starts a product from a copy that passes. It passes with "7 previews declare 7 announcements" (with --list) and passes with "7 previews announce the 7 things their flows declare, and every control has a name. 9 of 9 presses".
 - `illegal/no-declarations`: Illegal: the flow has no accessible-names.ts beside its views module. It fails with "accessible-names.ts is missing. Beside the flow's views module" (with --list).
 - `illegal/silent-waitlist-leave`: Illegal: Nook's Waitlist from pull request 42 after its first fix and before its second. Leaving Birch's waitlist while Cedar is free turns the row's button into Join waitlist, keeps focus on it, and leaves the status region as it was, so a screen reader hears nothing. It fails with "pressing button "Leave waitlist for Birch" changes the page, and a screen reader hears nothing".
 - `illegal/stale-declaration`: Illegal: the declarations name a preview the flow does not open, so they would compare nothing there. It fails with ""state=ready" is not a preview of this flow" (with --list).
@@ -426,13 +440,31 @@ It fails:
 Fixture cases, under `packages/harness/fixtures/`, that run it:
 
 - `opt-out`: Legal: the fixture product opts out of check:disclosure on an adopted proposal that names the rule and the product. It passes with "opts out of check:disclosure, each on an adopted proposal".
-- `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes. It passes with "has no opt-outs, so every harness rule applies".
+- `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes, and npm run new:product starts a product from a copy that passes. It passes with "has no opt-outs, so every harness rule applies".
 - `illegal/opt-out-core-rule`: Illegal: an opt-out of check:inventories, a core rule, even on an adopted proposal that names it. It fails with "cannot be opted out".
 - `illegal/opt-out-missing-proposal`: Illegal: an opt-out that names a proposal file that is not there. It fails with "does not exist".
 - `illegal/opt-out-open-proposal`: Illegal: an opt-out whose proposal is an open request, not an adopted decision. It fails with "is open, not adopted".
 - `illegal/opt-out-other-product`: Illegal: an opt-out that borrows a proposal written for another product. It fails with "does not opt out check:disclosure for".
 - `illegal/opt-out-outside-proposals`: Illegal: an opt-out whose proposal sits outside the config's proposals directory, where CODEOWNERS does not ask for review. It fails with "is not a proposal file directly in".
 - `illegal/opt-out-unknown-rule`: Illegal: an opt-out of a rule check:rules does not run. It fails with "is not a rule in check:rules".
+
+## `check:products`
+
+Runs `check:product` on every product the registry finds, one after another, so a new product needs no script or CI job of its own.
+
+A repository check: it reads the repository, not one product. Run it as `npm run check:products`, from the repository root, defined in `packages/harness/src/check-products.ts`. It takes no `--config`. It needs headless Chrome.
+
+Flags:
+
+- `--json`: Prints the product configs as a JSON array and runs nothing. CI reads it to give each product its own job.
+
+It fails:
+
+- Any product whose `check:product` run fails. It runs the rest first, then names every product that failed.
+- No product: no `harness.config.ts` outside the harness package.
+- An argument other than `--json`.
+
+A product is any `harness.config.ts` git knows of, tracked or new and not ignored, outside `packages/harness/` (`lib/products.ts`), and still in the working tree. Nothing lists products by hand: `check:proposals`, `check:retirement`, `check:trace` and CI read the same registry.
 
 ## `check:proposals`
 
@@ -534,14 +566,17 @@ Name cases to run only those: `npm run check:fixtures -- illegal/two-primaries`.
 
 Runs `check:opt-outs`, then every rule check in `check:rules`, on one product, skipping a rule the product opts out of.
 
-A product check: it reads one product's config, and is not one of `check:rules`. Run it as `npm run check:product`, from the repository root, defined in `packages/harness/src/check-product.ts`. It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it.
+A product check: it reads one product's config, and is not one of `check:rules`. Run it as `npm run check:product`, from the repository root, defined in `packages/harness/src/check-product.ts`. It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it. It needs headless Chrome.
 
 It fails:
 
 - No `--config <file>`, or any other argument beside it.
 - The first check that fails on that product. It stops there.
+- An app in `paths.web` that does not build or serve, when a check that opens it is next.
 
-It reads the rule checks from `check:rules` in `package.json`, in its order, so the two cannot drift, and says which rules it skips. Typecheck, ESLint and the Vitest suite read the whole repository, so `npm run check` runs them once and this once per product.
+It reads the rule checks from `check:rules` in `package.json`, in its order, so the two cannot drift, and says which rules it skips. Typecheck, ESLint and the Vitest suite read the whole repository, so `npm run check` runs them once and `check:products` runs this once per product.
+
+The checks that open the app in Chrome, `check:target-size` and `check:accessible-names`, share one build of it: just before the first of them it builds `paths.web` and serves it with `vite preview` on a free port, then hands each the address. Run on its own, either check builds and serves its own copy the same way.
 
 ## `check:trace`
 
@@ -567,11 +602,19 @@ A tool: the build gate does not run it. Run it as `npm run loop:step`, from the 
 
 Run it as `npm run loop:step -- traces/<change>.jsonl <node> [when]`, with the `when` of the edge taken out of a router, eval or human node. It writes only a `.jsonl` file under `traces/`, so a wrong edge shows up at the step that takes it, not at `check:trace`. `traces/README.md` has the format.
 
+## `new:product`
+
+Starts a product: copies the harness's fixture product, which passes every check, to `products/<name>/` and points its config there.
+
+A tool: the build gate does not run it. Run it as `npm run new:product`, from the repository root, defined in `packages/harness/src/new-product.ts`. It takes no `--config`.
+
+Run it as `npm run new:product -- <name>`, with a lowercase slug. It refuses a folder that already exists. The registry finds the new product from its config, so `npm run check` and CI check it with nothing else to edit. A new product is a whole inventory added at once, so `check:inventories` passes it only with an adopted proposal that lists `products/<name>` under `changes`, decided on the base. The copy is the fixture's invoice approval: rename and reshape it from there, one proposal at a time.
+
 ## `screenshots`
 
 The design loop's `screenshots` step: captures each preview before and after a change into a gallery the pull request links.
 
-A tool: the build gate does not run it. Run it as `npm run screenshots`, from the repository root, defined in `packages/harness/src/screenshots.ts`. It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it. It opens pages in headless Chrome.
+A tool: the build gate does not run it. Run it as `npm run screenshots`, from the repository root, defined in `packages/harness/src/screenshots.ts`. It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it. It needs headless Chrome.
 
 Flags:
 
@@ -580,7 +623,7 @@ Flags:
 - `--base <ref>`: Also captures the previews at that commit, so the folder holds `before/` and `after/`.
 - `--pin <dir>`: Takes only `--config`. Points each image's link in a committed gallery at the raw PNG at that commit, and prints the line for the pull request description. It refuses a folder with anything but its `README.md` uncommitted.
 
-It opens the previews `check:target-size` opens, at 1280 by 900 in the same Chrome, and writes `before/` and `after/` PNGs and a gallery `README.md` whose images each link to their own file. Commit the folder, run `--pin`, commit the `README.md` again, and put the line `--pin` prints in the pull request description with `<sha>` replaced by the pushed commit's full SHA, with its whole `https://github.com/` address: a relative path breaks in the GitHub app and in email, and a branch link breaks once the branch is deleted. Images in the description itself don't come through from an agent. [Proposal 2026-11-11-screenshot-gallery](../../../proposals/2026-11-11-screenshot-gallery.md) records it.
+It opens the previews `check:target-size` opens, at 1280 by 900 in the same Chrome, from the app `check:product` serves for this product or one it builds and serves on a free port, and writes `before/` and `after/` PNGs and a gallery `README.md` whose images each link to their own file. Commit the folder, run `--pin`, commit the `README.md` again, and put the line `--pin` prints in the pull request description with `<sha>` replaced by the pushed commit's full SHA, with its whole `https://github.com/` address: a relative path breaks in the GitHub app and in email, and a branch link breaks once the branch is deleted. Images in the description itself don't come through from an agent. [Proposal 2026-11-11-screenshot-gallery](../../../proposals/2026-11-11-screenshot-gallery.md) records it.
 
 ## `setup:chrome`
 

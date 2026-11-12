@@ -32,7 +32,7 @@ npm run setup:chrome             # the chrome-headless-shell build puppeteer-cor
 A wrong Node major or a dirty tree is `BLOCKED` until fixed. With no base, run `git fetch origin main`.
 
 <!-- docs:gen blockers start -->
-Without a Chrome that starts, `check:target-size` and `check:accessible-names` are `BLOCKED`, and so are `screenshots` and the 13 fixture cases that open a page: `announced-progress`, `announced-sort`, `announced-waitlist`, `listed-press-gap`, `target-size-whole-document`, `illegal/silent-waitlist-leave`, `illegal/small-control-in-closed-menu`, `illegal/small-control-outside-page`, `illegal/stale-press-gap`, `illegal/step-read-as-in-progress`, `illegal/undeclared-current-step`, `illegal/unnamed-control` and `illegal/waitlist-row-loses-focus`. Without a base, `check:inventories`, `check:proposals`, `check:retirement` and `check:trace` are `BLOCKED`.
+Without a Chrome that starts, `check:target-size`, `check:accessible-names`, `check:products` and `check:product` are `BLOCKED`, and so are `screenshots` and the 14 fixture cases that open a page: `announced-progress`, `announced-sort`, `announced-waitlist`, `listed-press-gap`, `product`, `target-size-whole-document`, `illegal/silent-waitlist-leave`, `illegal/small-control-in-closed-menu`, `illegal/small-control-outside-page`, `illegal/stale-press-gap`, `illegal/step-read-as-in-progress`, `illegal/undeclared-current-step`, `illegal/unnamed-control` and `illegal/waitlist-row-loses-focus`. Without a base, `check:inventories`, `check:proposals`, `check:retirement` and `check:trace` are `BLOCKED`.
 <!-- docs:gen blockers end -->
 
 The Chrome checks look for Chrome where [the check reference](../../../packages/harness/docs/checks.md#the-build-gate) says, and with none they name each place they looked. When `setup:chrome` cannot download and there is no other Chrome, step 3 is `BLOCKED`. `/usr/bin/chromium-browser` on Ubuntu is often only a snap shim, so check that `--version` prints a version.
@@ -45,14 +45,14 @@ The Chrome checks look for Chrome where [the check reference](../../../packages/
 npm run check:fixtures && npm run check
 ```
 
-This is the command `AGENTS.md` names. CI runs the same checks in two jobs: one runs the fixtures, the repository-wide checks, Meridian's product checks and `check:trace`, and the other runs Nook's product checks. `check:fixtures` runs every case folder under `packages/harness/fixtures/` against the checks its `case.ts` names, and passes only when every illegal case fails with its expected message and every legal case passes with its expected message. `check` then runs typecheck, ESLint and the Vitest suite on the whole repository, `check:product` on each product's config, and the repository checks; [the check reference](../../../packages/harness/docs/checks.md#the-build-gate) lists them in order and says what each fails. The Vitest suite drives Meridian with Testing Library and `user-event` in jsdom: it follows an invoice link, opens Line items and presses Approve, approves again with Line items closed, and requests changes with and without a reason.
+This is the command `AGENTS.md` names. CI runs the same checks split into jobs: one runs the fixtures, the repository-wide checks and `check:trace`, and one runs `check:product` for each product in the list `npm run check:products -- --json` prints. `check:fixtures` runs every case folder under `packages/harness/fixtures/` against the checks its `case.ts` names, and passes only when every illegal case fails with its expected message and every legal case passes with its expected message. `check` then runs typecheck, ESLint and the Vitest suite on the whole repository, `check:product` on each product's config, and the repository checks; [the check reference](../../../packages/harness/docs/checks.md#the-build-gate) lists them in order and says what each fails. The Vitest suite drives Meridian with Testing Library and `user-event` in jsdom: it follows an invoice link, opens Line items and presses Approve, approves again with Line items closed, and requests changes with and without a reason.
 
-Each product's rule checks end with `check:target-size` and `check:accessible-names`, so without Chrome `check` stops at Meridian's. Then run the rest by hand, one product at a time, and mark step 3 `BLOCKED`:
+Each product's rule checks end with `check:target-size` and `check:accessible-names`, which share one build of the app that `check:product` serves on a free port, so without Chrome `check` stops at the first product's. Then run the rest by hand, one product at a time, and mark step 3 `BLOCKED`:
 
 <!-- docs:gen no-chrome start -->
 ```sh
 npm run typecheck && npm run lint && npm run test
-for config in products/meridian/harness.config.ts products/nook/harness.config.ts; do
+for config in $(npm run --silent check:products -- --json | node -e 'for (const c of JSON.parse(require("fs").readFileSync(0, "utf8"))) console.log(c)'); do
   for check in check:opt-outs lint:product-ui lint:slots check:step-budget check:disclosure check:priority check:one-thing check:inventories check:state-coverage; do
     npm run "$check" -- --config "$config" || break 2
   done
@@ -82,7 +82,7 @@ npm run check:target-size -- --config products/meridian/harness.config.ts
 npm run check:accessible-names -- --config products/meridian/harness.config.ts
 ```
 
-Use `products/nook/harness.config.ts` for Nook.
+Use `products/nook/harness.config.ts` for Nook, and any other product's own config the same way. Each builds and serves its own copy of the app on a free port, so two runs at once do not collide, though a Chrome per run is slow; `check:product` builds once for both.
 
 Before building, list the screen's states, the edge cases included, and look for information it would show twice; a proposal keeps that list in `## States` (`proposals/README.md`). Once built, open each state the list names, out-of-scope ones aside, and check that the screen shows what its line says and says nothing twice. Name any state you could not open in the pull request.
 
