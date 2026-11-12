@@ -1,5 +1,5 @@
 ---
-status: decided
+status: adopted
 changes: []
 ---
 # Check heading structure, not heading sizes

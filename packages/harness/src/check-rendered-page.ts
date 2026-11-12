@@ -1,24 +1,19 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Page } from "puppeteer-core";
-import { adapter } from "./lib/adapter";
 import { declarationsFile, parseDeclarations } from "./lib/accessible-names";
 import { config, loadInputs } from "./lib/config";
 import { loadScenarios, scenariosFile, type LoadedScenario } from "./lib/scenarios";
 import {
-  LIST_ITEM_STEPS_BELOW_TITLE,
-  SECTION_STEPS_BELOW_TITLE,
+  headingStructure,
   hex,
-  largestAllowed,
   runContrast,
-  sitsBelow,
-  stepOf,
+  type HeadingNode,
   type Rgba,
   type TextRun,
 } from "./lib/rendered-page";
 import { withServedApp } from "./lib/served-app";
-import { resolveLength, scaleFrom, typeScaleTokens, type ScaleStep } from "./lib/tokens";
 import { viewNamed, type View } from "./lib/views";
 
 /**
@@ -26,12 +21,10 @@ import { viewNamed, type View } from "./lib/views";
  * holds it to five patterns that hold on any page. None is a number set per
  * page or per page type.
  *
- * 1. Hierarchy. Each page's title, its h1, sits on the design system's type
- *    scale, and every other heading on the page, a disclosure's summary
- *    included, sits at least two steps below it. A heading inside a list item
- *    or table row names a record, not a section, and sits at least one step
- *    below. The steps are the numbered font-size tokens in the adapter's
- *    stylesheet. Measured at desktop and phone width, in light.
+ * 1. Headings. Each page has one h1, its title, visible and first, and no
+ *    heading skips a level going down, the outline a screen reader announces.
+ *    Sizes are the design system's and the product's theme's, so none is read.
+ *    Read at desktop and phone width, in light.
  * 2. Reach. On a page type with a primary slot, the rank-1 action in the
  *    product's `priority` is whole inside the first view, and nothing covers
  *    its centre, at desktop and phone width, before any scroll.
@@ -58,25 +51,6 @@ function fail(lines: readonly string[]): never {
 const { scenarios, problems: scenarioProblems } = await loadScenarios(config.flows);
 if (scenarioProblems.length > 0) fail(scenarioProblems);
 
-// The names come from the stylesheet; their sizes come from Chrome, per view, so clamp(), calc() and media queries count as painted.
-let scaleTokens: string[];
-const tokensCss = readFileSync(adapter.tokens.css, "utf8");
-try {
-  scaleTokens = typeScaleTokens(tokensCss, adapter.tokens.privatePrefix);
-} catch (error) {
-  fail([`${adapter.tokens.css} ${error instanceof Error ? error.message : String(error)}.`]);
-}
-/** Each token's value as the stylesheet writes it, for a page that does not load the stylesheet, or 0 when it is not a plain length. */
-const written = new Map(
-  scaleTokens.map((name) => {
-    try {
-      return [name, resolveLength(tokensCss, name, adapter.tokens.privatePrefix)];
-    } catch {
-      return [name, 0];
-    }
-  }),
-);
-
 const { priority } = await loadInputs();
 const primaryLabels = priority.filter((item) => item.rank === 1).map((item) => item.action);
 const primaryPageTypes = Object.keys(config.shells.primarySlots);
@@ -102,9 +76,8 @@ for (const flow of config.flows) {
   }
 }
 
-type Heading = { text: string; tag: string; px: number; listItem: boolean };
 type Action = { name: string; top: number; bottom: number; left: number; right: number; coveredBy: string | null };
-type Root = { type: string; title: { text: string; px: number } | null; headings: Heading[]; actions: Action[] };
+type Root = { type: string; headings: HeadingNode[]; actions: Action[] };
 type Reading = {
   roots: Root[];
   open: string[];
@@ -113,8 +86,6 @@ type Reading = {
   overflow: { scrollWidth: number; clientWidth: number; container: string | null; offenders: string[] };
   runs: (Omit<TextRun, "canvas"> & { unknownBackground: boolean })[];
   canvas: Rgba;
-  /** Each type-scale token's font size as Chrome computes it in this view. */
-  measured: { name: string; px: number }[];
 };
 
 const desktopLight = viewNamed("desktop-light");
@@ -159,7 +130,7 @@ const primaryNote =
     ? "no page type has a primary slot"
     : `${primaryLabels.map((label) => `"${label}"`).join(" or ")} is in the first view in ${reached} views`;
 console.log(
-  `${LABEL}: ${scenarios.length} scenarios at ${desktopLight.width} by ${desktopLight.height} and ${phoneLight.width} by ${phoneLight.height}: section headings sit ${SECTION_STEPS_BELOW_TITLE} type-scale steps below the title (list items ${LIST_ITEM_STEPS_BELOW_TITLE}), ${primaryNote}, disclosures load closed${openedOnPurpose > 0 ? ` (${openedOnPurpose} opened by their state)` : ""}, ${runsRead} runs of text meet WCAG AA in light and dark at both widths${unknownRuns > 0 ? ` (${unknownRuns} over an image, not measured)` : ""}, and nothing scrolls sideways on a phone.`,
+  `${LABEL}: ${scenarios.length} scenarios at ${desktopLight.width} by ${desktopLight.height} and ${phoneLight.width} by ${phoneLight.height}: each page has one h1 and its headings skip no level, ${primaryNote}, disclosures load closed${openedOnPurpose > 0 ? ` (${openedOnPurpose} opened by their state)` : ""}, ${runsRead} runs of text meet WCAG AA in light and dark at both widths${unknownRuns > 0 ? ` (${unknownRuns} over an image, not measured)` : ""}, and nothing scrolls sideways on a phone.`,
 );
 
 async function open(page: Page, base: string, scenario: LoadedScenario, view: View, withRuns: boolean): Promise<Reading> {
@@ -168,43 +139,18 @@ async function open(page: Page, base: string, scenario: LoadedScenario, view: Vi
   const url = new URL(base);
   url.search = scenario.search;
   await page.goto(url.href, { waitUntil: "networkidle0" });
-  return page.evaluate(readPage, { primaryLabels, primaryPageTypes, withRuns, scaleTokens });
+  return page.evaluate(readPage, { primaryLabels, primaryPageTypes, withRuns });
 }
 
 function judgeHierarchy(query: string, reading: Reading, view: View): void {
   if (reading.roots.length === 0) {
-    note(`${query} shows no [data-page] element, so nothing on it is a page to measure. At {views}.`, view);
-    return;
-  }
-  let scale: ScaleStep[];
-  try {
-    scale = scaleFrom(reading.measured.map((step) => (step.px > 0 ? step : { name: step.name, px: written.get(step.name) ?? 0 })));
-  } catch (error) {
-    note(`${query}: ${adapter.tokens.css} ${error instanceof Error ? error.message : String(error)}, as Chrome computes the tokens on this page. At {views}.`, view);
+    note(`${query} shows no [data-page] element, so nothing on it is a page to read. At {views}.`, view);
     return;
   }
   for (const root of reading.roots) {
     const where = `${query}, ${root.type} page`;
-    if (root.title === null) {
-      note(`${where}: no visible title. The page type renders one h1 (or role="heading" at level 1), and the other headings are measured against it. At {views}.`, view);
-      continue;
-    }
-    const title = root.title;
-    for (const heading of root.headings) {
-      const stepsBelow = heading.listItem ? LIST_ITEM_STEPS_BELOW_TITLE : SECTION_STEPS_BELOW_TITLE;
-      if (sitsBelow(heading.px, title.px, scale, stepsBelow)) continue;
-      const allowed = largestAllowed(title.px, scale, stepsBelow);
-      const gap = stepOf(title.px, scale) - stepOf(heading.px, scale);
-      const kind = heading.listItem ? "list item heading" : "section heading";
-      const fix =
-        allowed === null
-          ? `the title is too low on the scale for anything to sit ${stepsBelow} steps below it`
-          : `${heading.listItem ? "A heading in a list item" : "A section heading"} sits at least ${stepsBelow} ${stepsBelow === 1 ? "step" : "steps"} below the title, at ${allowed.name} (${allowed.px}px) or smaller`;
-      note(
-        `${where}: ${kind} ${heading.tag} "${heading.text}" is ${heading.px}px, ${gap} type-scale ${gap === 1 ? "step" : "steps"} below the title "${title.text}" (${title.px}px). ${fix}. At {views}.`,
-        view,
-      );
-    }
+    const { problems: structure } = headingStructure(root.headings);
+    for (const problem of structure) note(`${where}: ${problem} At {views}.`, view);
   }
 }
 
@@ -317,7 +263,7 @@ function judgeOverflow(query: string, reading: Reading, view: View): void {
  * the open disclosures, how wide the document is, and, with `withRuns`, every
  * run of text with the colours under it.
  */
-function readPage(options: { primaryLabels: string[]; primaryPageTypes: string[]; withRuns: boolean; scaleTokens: string[] }): Reading {
+function readPage(options: { primaryLabels: string[]; primaryPageTypes: string[]; withRuns: boolean }): Reading {
   const collapse = (value: string | null | undefined): string => (value ?? "").replace(/\s+/g, " ").trim();
   const short = (value: string): string => (value.length > 60 ? `${value.slice(0, 57)}...` : value);
 
@@ -363,12 +309,33 @@ function readPage(options: { primaryLabels: string[]; primaryPageTypes: string[]
     return [r, g, b, a / 255];
   };
 
+  /** The level a screen reader announces: `aria-level` when it is a whole number of 1 or more, as Chrome reads it, else the tag's number, else 2. */
   const headingLevel = (element: Element): number => {
+    const aria = Number(element.getAttribute("aria-level"));
+    if (Number.isInteger(aria) && aria >= 1) return aria;
     const tag = /^H([1-6])$/.exec(element.tagName);
-    if (tag?.[1]) return Number(tag[1]);
-    if (element.tagName === "SUMMARY") return 0;
-    return Number(element.getAttribute("aria-level") ?? "2") || 2;
+    return tag?.[1] ? Number(tag[1]) : 2;
   };
+
+  /** False for an h1 to h6 whose `role` makes it something else, such as `role="none"`, since a screen reader does not announce it as a heading. */
+  const isHeading = (element: Element): boolean => {
+    const role = element.getAttribute("role")?.trim().split(/\s+/)[0];
+    return !role || role === "heading";
+  };
+
+  /** False for a heading moved off the page, above or left of where it can scroll, a way to hide it visually. */
+  const onPage = (element: Element): boolean => {
+    const box = element.getBoundingClientRect();
+    return box.right + window.scrollX > 0 && box.bottom + window.scrollY > 0;
+  };
+
+  /** False for an element no screen reader reaches: not rendered, hidden, aria-hidden, or inside a closed disclosure. A visually hidden element is reached. */
+  const exposed = (element: Element): boolean => {
+    if (!element.checkVisibility({ visibilityProperty: true })) return false;
+    return element.closest("[aria-hidden='true']") === null;
+  };
+
+  const HEADINGS = "h1, h2, h3, h4, h5, h6, [role='heading']";
 
   const roots = [...document.querySelectorAll("[data-page]")].filter((element) => !element.parentElement?.closest("[data-page]"));
   const viewWidth = document.documentElement.clientWidth;
@@ -387,21 +354,14 @@ function readPage(options: { primaryLabels: string[]; primaryPageTypes: string[]
 
   const readRoot = (root: Element): Root => {
     const type = root.getAttribute("data-page") ?? "";
-    let title: Root["title"] = null;
-    const headings: Heading[] = [];
-    for (const element of root.querySelectorAll("h1, h2, h3, h4, h5, h6, [role='heading'], summary")) {
-      if (!shown(element)) continue;
-      const px = Number.parseFloat(getComputedStyle(element).fontSize);
-      const text = short(collapse(element.textContent));
-      if (title === null && headingLevel(element) === 1) {
-        title = { text, px };
-        continue;
-      }
-      // A heading names a record when it sits in an item of a list or table that holds two or more: one item is a section in disguise.
-      const item = element.closest("li, [role='listitem'], tr, [role='row']");
-      const siblings = item?.parentElement ? [...item.parentElement.children].filter((child) => child.matches("li, [role='listitem'], tr, [role='row']")).length : 0;
-      headings.push({ text, tag: element.tagName === "SUMMARY" ? "summary" : element.tagName.toLowerCase(), px, listItem: item !== null && root.contains(item) && item !== root && siblings >= 2 });
-    }
+    const elements = [...root.querySelectorAll(HEADINGS)].filter((element) => isHeading(element) && exposed(element));
+    const headings: HeadingNode[] = elements.map((element) => {
+      const name = element.tagName.toLowerCase();
+      const level = headingLevel(element);
+      const numbered = /^h[1-6]$/.test(name);
+      const tag = numbered && name === `h${level}` ? name : numbered ? `${name} aria-level=${level}` : `${name} role="heading" aria-level=${level}`;
+      return { text: short(collapse(element.textContent)), tag, level, shown: shown(element) && onPage(element) };
+    });
     const actions: Action[] = [];
     if (options.primaryPageTypes.includes(type)) {
       const candidates = root.querySelectorAll("button, a, [role='button'], [role='link'], input[type='submit'], input[type='button']");
@@ -417,7 +377,7 @@ function readPage(options: { primaryLabels: string[]; primaryPageTypes: string[]
         actions.push({ name, top: box.top, bottom: box.bottom, left: box.left, right: box.right, coveredBy });
       }
     }
-    return { type, title, headings, actions };
+    return { type, headings, actions };
   };
 
   const open: string[] = [];
@@ -513,20 +473,7 @@ function readPage(options: { primaryLabels: string[]; primaryPageTypes: string[]
   const dark = /\bdark\b/.test(scheme) && (prefersDark || !/\blight\b/.test(scheme));
   const page: Rgba = dark ? [18, 18, 18, 1] : [255, 255, 255, 1];
 
-  // Each token's size as painted here: a probe inside the first page root, where a theme's tokens apply.
-  const host = roots[0] ?? document.body;
-  const measured = options.scaleTokens.map((name) => {
-    const probe = document.createElement("span");
-    probe.style.fontSize = `var(${name}, 0px)`;
-    probe.style.position = "absolute";
-    host.append(probe);
-    const px = Number.parseFloat(getComputedStyle(probe).fontSize);
-    probe.remove();
-    return { name, px };
-  });
-
   return {
-    measured,
     roots: roots.map(readRoot),
     open,
     view: { width: viewWidth, height: viewHeight },

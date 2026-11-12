@@ -13,7 +13,7 @@ export default {
     { run: "check:target-size", args: ["--list"], passes: "target size: 7 scenarios cover 6 modeled states." },
     { run: "check:accessible-names", args: ["--list"], passes: "7 scenarios declare 7 announcements" },
     { run: "check:target-size", passes: "controls on 7 scenarios at 1280 by 900 and 390 by 844, in light, meet 24 CSS px" },
-    { run: "check:rendered-page", passes: '7 scenarios at 1280 by 900 and 390 by 844: section headings sit 2 type-scale steps below the title (list items 1), "Approve" is in the first view in' },
+    { run: "check:rendered-page", passes: '7 scenarios at 1280 by 900 and 390 by 844: each page has one h1 and its headings skip no level, "Approve" is in the first view in' },
     { run: "check:accessible-names", passes: "7 scenarios announce the 7 things their flows declare, and every control has a name at 1280 by 900 and at 390 by 844. 9 of 9 presses" },
   ],
 };
