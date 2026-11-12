@@ -77,8 +77,8 @@ flowchart TB
       crumbs["Breadcrumbs back to the collection you came from."]
       heading["Heading. The vendor name."]
       meta["Meta. A DataList: Invoice, Vendor, Status, Amount, Due."]
-      body["Body. Invoice progress as Steps: Received, Approval, Payment. Line items behind one Disclosure. The reason field appears after Request changes."]
-      subgraph actions ["Action row. Secondary on the left, primary on the right."]
+      body["Body. Invoice progress as Steps: Received, Approval, Payment. Line items behind one Disclosure, with quantity, unit price and amount. A Vendor card: remittance email, payment terms, open invoices, approved to date. An Activity card: a dated table of what happened. The reason field appears after Request changes."]
+      subgraph actions ["Action row, held at the bottom of the view as the page scrolls. Secondary on the left, primary on the right."]
         direction LR
         secondary["Secondary slot. Request changes."]
         primary["Primary slot. Approve. One primary button."]

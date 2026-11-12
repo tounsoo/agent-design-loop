@@ -133,6 +133,39 @@ describe("invoice approval views", () => {
     expect(total).toHaveTextContent("$4,280.00");
   });
 
+  it("prices each line by quantity and unit", () => {
+    renderApproval("?state=ready&page=detail");
+    const toner = screen.getByRole("row", { name: /Printer toner/ });
+    expect(toner).toHaveTextContent("4");
+    expect(toner).toHaveTextContent("$215.00");
+    expect(toner).toHaveTextContent("$860.00");
+  });
+
+  it("shows the vendor and the invoice's activity, and moves both on Approve", async () => {
+    const user = userEvent.setup();
+    renderApproval("?state=ready&page=detail");
+    const vendor = screen.getByRole("region", { name: "Vendor" });
+    expect(within(vendor).getByText("ar@northwindoffice.example")).toBeInTheDocument();
+    expect(within(vendor).getByText("Net 30")).toBeInTheDocument();
+    expect(within(vendor).getByText("$980.00")).toBeInTheDocument();
+    const activity = screen.getByRole("table", { name: "Activity" });
+    expect(within(activity).getAllByRole("row").map((row) => row.textContent)).toEqual([
+      "DateWhat happened",
+      "Oct 19, 2026Received",
+      "Oct 20, 2026Sent for approval",
+    ]);
+
+    await user.click(screen.getByRole("button", { name: "Approve" }));
+    expect(within(activity).getAllByRole("row").at(-1)).toHaveTextContent("TodayApproved");
+    expect(within(vendor).getByText("$5,260.00")).toBeInTheDocument();
+  });
+
+  it("keeps an earlier decision's date in the activity", () => {
+    renderApproval("?invoice=inv-1744");
+    const activity = screen.getByRole("table", { name: "Activity" });
+    expect(within(activity).getAllByRole("row").at(-1)).toHaveTextContent("Oct 24, 2026Changes requested");
+  });
+
   it("approves in two steps, with Line items left closed", async () => {
     const user = userEvent.setup();
     renderApproval();

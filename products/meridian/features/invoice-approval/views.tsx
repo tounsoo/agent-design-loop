@@ -3,6 +3,7 @@ import {
   Alert,
   Breadcrumbs,
   Button,
+  Card,
   DataList,
   Disclosure,
   EmptyState,
@@ -19,10 +20,15 @@ import {
   VisuallyHidden,
 } from "../../catalog";
 import {
+  activityLabel,
   formatMoney,
   lineTotal,
   routeHref,
+  shownActivity,
   statusLabel,
+  termsLabel,
+  unitPrice,
+  vendorSummary,
   vendorRows,
   vendorsErrorMessage,
   type CollectionRoute,
@@ -189,29 +195,126 @@ function LineItems({
       }}
     >
       <Disclosure.Summary>Line items</Disclosure.Summary>
-      <Table.Root>
-        <Table.Head>
-          <Table.Row>
-            <Table.HeaderCell scope="col">Description</Table.HeaderCell>
-            <Table.HeaderCell scope="col">Amount</Table.HeaderCell>
-          </Table.Row>
-        </Table.Head>
-        <Table.Body>
-          {invoice.lines.map((line) => (
-            <Table.Row key={line.description}>
-              <Table.Cell>{line.description}</Table.Cell>
-              <Table.Cell>{formatMoney(line.amountCents)}</Table.Cell>
+      {invoice.lines.length === 0 ? (
+        <Text.Root tone="muted">This invoice has no line items.</Text.Root>
+      ) : (
+        <Table.Root>
+          <Table.Head>
+            <Table.Row>
+              <Table.HeaderCell scope="col">Description</Table.HeaderCell>
+              <Table.HeaderCell className="num" scope="col">
+                Quantity
+              </Table.HeaderCell>
+              <Table.HeaderCell className="num" scope="col">
+                Unit price
+              </Table.HeaderCell>
+              <Table.HeaderCell className="num" scope="col">
+                Amount
+              </Table.HeaderCell>
             </Table.Row>
-          ))}
-        </Table.Body>
-        <Table.Foot>
-          <Table.Row>
-            <Table.HeaderCell scope="row">Total</Table.HeaderCell>
-            <Table.Cell>{formatMoney(lineTotal(invoice))}</Table.Cell>
-          </Table.Row>
-        </Table.Foot>
-      </Table.Root>
+          </Table.Head>
+          <Table.Body>
+            {invoice.lines.map((line) => (
+              <Table.Row key={line.description}>
+                <Table.Cell>{line.description}</Table.Cell>
+                <Table.Cell className="num">{line.quantity}</Table.Cell>
+                <Table.Cell className="num">{formatMoney(unitPrice(line))}</Table.Cell>
+                <Table.Cell className="num">{formatMoney(line.amountCents)}</Table.Cell>
+              </Table.Row>
+            ))}
+          </Table.Body>
+          <Table.Foot>
+            <Table.Row>
+              <Table.HeaderCell colSpan={3} scope="row">
+                Total
+              </Table.HeaderCell>
+              <Table.Cell className="num">{formatMoney(lineTotal(invoice))}</Table.Cell>
+            </Table.Row>
+          </Table.Foot>
+        </Table.Root>
+      )}
     </Disclosure.Root>
+  );
+}
+
+function VendorSummary({
+  invoice,
+  status,
+  registry,
+  ledger,
+}: {
+  invoice: Invoice;
+  status: Invoice["status"];
+  registry: readonly Vendor[];
+  ledger: readonly Invoice[];
+}) {
+  const headingId = useId();
+  const summary = vendorSummary(invoice, status, registry, ledger);
+  return (
+    <Card.Root aria-labelledby={headingId} role="region">
+      <Card.Header>
+        <Text.Root as="h2" id={headingId}>
+          Vendor
+        </Text.Root>
+      </Card.Header>
+      <Card.Body>
+        {summary.vendor === null ? (
+          <Text.Root tone="muted">
+            {invoice.vendor} has no vendor record, so its remittance email and payment terms are not on file.
+          </Text.Root>
+        ) : (
+          <DataList.Root orientation="horizontal">
+            <DataList.Item>
+              <DataList.Term>Remittance email</DataList.Term>
+              <DataList.Details>{summary.vendor.remitEmail}</DataList.Details>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Term>Payment terms</DataList.Term>
+              <DataList.Details>{termsLabel[summary.vendor.terms]}</DataList.Details>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Term>Open invoices</DataList.Term>
+              <DataList.Details>{summary.openCount}</DataList.Details>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Term>Approved to date</DataList.Term>
+              <DataList.Details>{formatMoney(summary.approvedCents)}</DataList.Details>
+            </DataList.Item>
+          </DataList.Root>
+        )}
+      </Card.Body>
+    </Card.Root>
+  );
+}
+
+function ActivityHistory({ invoice, status }: { invoice: Invoice; status: Invoice["status"] }) {
+  const headingId = useId();
+  return (
+    <Card.Root>
+      <Card.Header>
+        <Text.Root as="h2" id={headingId}>
+          Activity
+        </Text.Root>
+      </Card.Header>
+      <Card.Body>
+        <Table.Root aria-labelledby={headingId}>
+          <Table.Head>
+            <Table.Row>
+              <Table.HeaderCell scope="col">Date</Table.HeaderCell>
+              <Table.HeaderCell scope="col">What happened</Table.HeaderCell>
+            </Table.Row>
+          </Table.Head>
+          <Table.Body>
+            {shownActivity(invoice, status).map((entry) => (
+              <Table.Row key={`${entry.kind}-${entry.on}`}>
+                <Table.Cell>{entry.on}</Table.Cell>
+                <Table.Cell>{activityLabel[entry.kind]}</Table.Cell>
+              </Table.Row>
+            ))}
+          </Table.Body>
+        </Table.Root>
+      </Card.Body>
+    </Card.Root>
   );
 }
 
@@ -405,6 +508,8 @@ export function InvoiceApprovalView({
           ) : null}
         </Stack.Root>
         <LineItems invoice={invoice} open={detail?.lineItemsOpen ?? false} onToggle={actions.setLineItemsOpen} />
+        <VendorSummary invoice={invoice} ledger={ledger} registry={registry} status={shownStatus} />
+        <ActivityHistory invoice={invoice} status={shownStatus} />
         {detail?.requestingChanges && outcome === null ? (
           <ReasonField reason={reason} reasonError={detail.reasonError} onReason={actions.setReason} />
         ) : null}

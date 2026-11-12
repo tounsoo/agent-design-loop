@@ -16,7 +16,25 @@ export type Screen = "collection" | "detail";
 
 export type LineItem = {
   readonly description: string;
+  readonly quantity: number;
+  /** The line's total. Its unit price is this over `quantity`, in whole cents. */
   readonly amountCents: number;
+};
+
+/** What happened to an invoice, oldest first. The latest decision, if any, is last. */
+export type ActivityKind = "received" | "sent" | "approved" | "changes-requested";
+
+export type ActivityEntry = {
+  readonly kind: ActivityKind;
+  /** Display date, such as "Oct 19, 2026", or "Today" for a decision made in this session. */
+  readonly on: string;
+};
+
+export const activityLabel: Record<ActivityKind, string> = {
+  received: "Received",
+  sent: "Sent for approval",
+  approved: "Approved",
+  "changes-requested": "Changes requested",
 };
 
 export type InvoiceStatus = "pending" | "approved" | "changes-requested";
@@ -38,6 +56,7 @@ export type Invoice = {
   readonly status: InvoiceStatus;
   readonly changeReason?: string;
   readonly lines: readonly LineItem[];
+  readonly activity: readonly ActivityEntry[];
 };
 
 export const sampleInvoices: readonly Invoice[] = [
@@ -50,9 +69,13 @@ export const sampleInvoices: readonly Invoice[] = [
     due: "Nov 18, 2026",
     status: "pending",
     lines: [
-      { description: "Paper stock", amountCents: 124_000 },
-      { description: "Printer toner", amountCents: 86_000 },
-      { description: "Desk chairs", amountCents: 218_000 },
+      { description: "Paper stock", quantity: 40, amountCents: 124_000 },
+      { description: "Printer toner", quantity: 4, amountCents: 86_000 },
+      { description: "Desk chairs", quantity: 2, amountCents: 218_000 },
+    ],
+    activity: [
+      { kind: "received", on: "Oct 19, 2026" },
+      { kind: "sent", on: "Oct 20, 2026" },
     ],
   },
   {
@@ -64,9 +87,13 @@ export const sampleInvoices: readonly Invoice[] = [
     due: "Nov 24, 2026",
     status: "pending",
     lines: [
-      { description: "LTL freight", amountCents: 940_000 },
-      { description: "Fuel surcharge", amountCents: 124_050 },
-      { description: "Pallet exchange", amountCents: 200_000 },
+      { description: "LTL freight", quantity: 1, amountCents: 940_000 },
+      { description: "Fuel surcharge", quantity: 1, amountCents: 124_050 },
+      { description: "Pallet exchange", quantity: 20, amountCents: 200_000 },
+    ],
+    activity: [
+      { kind: "received", on: "Oct 10, 2026" },
+      { kind: "sent", on: "Oct 13, 2026" },
     ],
   },
   {
@@ -78,8 +105,12 @@ export const sampleInvoices: readonly Invoice[] = [
     due: "Dec 1, 2026",
     status: "pending",
     lines: [
-      { description: "Workspace seats", amountCents: 75_000 },
-      { description: "Support add-on", amountCents: 14_000 },
+      { description: "Workspace seats", quantity: 25, amountCents: 75_000 },
+      { description: "Support add-on", quantity: 1, amountCents: 14_000 },
+    ],
+    activity: [
+      { kind: "received", on: "Nov 1, 2026" },
+      { kind: "sent", on: "Nov 3, 2026" },
     ],
   },
   {
@@ -91,8 +122,12 @@ export const sampleInvoices: readonly Invoice[] = [
     due: "Nov 28, 2026",
     status: "pending",
     lines: [
-      { description: "Recycled bond", amountCents: 140_000 },
-      { description: "Envelopes", amountCents: 75_000 },
+      { description: "Recycled bond", quantity: 50, amountCents: 140_000 },
+      { description: "Envelopes", quantity: 30, amountCents: 75_000 },
+    ],
+    activity: [
+      { kind: "received", on: "Oct 29, 2026" },
+      { kind: "sent", on: "Oct 30, 2026" },
     ],
   },
   {
@@ -104,8 +139,12 @@ export const sampleInvoices: readonly Invoice[] = [
     due: "Dec 3, 2026",
     status: "pending",
     lines: [
-      { description: "Staff lunch", amountCents: 48_000 },
-      { description: "Beverage service", amountCents: 16_075 },
+      { description: "Staff lunch", quantity: 40, amountCents: 48_000 },
+      { description: "Beverage service", quantity: 1, amountCents: 16_075 },
+    ],
+    activity: [
+      { kind: "received", on: "Nov 3, 2026" },
+      { kind: "sent", on: "Nov 4, 2026" },
     ],
   },
   {
@@ -117,8 +156,12 @@ export const sampleInvoices: readonly Invoice[] = [
     due: "Dec 8, 2026",
     status: "pending",
     lines: [
-      { description: "Badge readers", amountCents: 220_000 },
-      { description: "Monitoring", amountCents: 128_000 },
+      { description: "Badge readers", quantity: 8, amountCents: 220_000 },
+      { description: "Monitoring", quantity: 1, amountCents: 128_000 },
+    ],
+    activity: [
+      { kind: "received", on: "Oct 9, 2026" },
+      { kind: "sent", on: "Oct 12, 2026" },
     ],
   },
   {
@@ -130,8 +173,12 @@ export const sampleInvoices: readonly Invoice[] = [
     due: "Nov 21, 2026",
     status: "pending",
     lines: [
-      { description: "Annual report", amountCents: 90_000 },
-      { description: "Color proofs", amountCents: 22_500 },
+      { description: "Annual report", quantity: 300, amountCents: 90_000 },
+      { description: "Color proofs", quantity: 5, amountCents: 22_500 },
+    ],
+    activity: [
+      { kind: "received", on: "Nov 6, 2026" },
+      { kind: "sent", on: "Nov 7, 2026" },
     ],
   },
   {
@@ -142,7 +189,12 @@ export const sampleInvoices: readonly Invoice[] = [
     dueOn: "2026-10-30",
     due: "Oct 30, 2026",
     status: "approved",
-    lines: [{ description: "Copy paper", amountCents: 98_000 }],
+    lines: [{ description: "Copy paper", quantity: 35, amountCents: 98_000 }],
+    activity: [
+      { kind: "received", on: "Sep 30, 2026" },
+      { kind: "sent", on: "Oct 1, 2026" },
+      { kind: "approved", on: "Oct 6, 2026" },
+    ],
   },
   {
     id: "inv-1694",
@@ -153,8 +205,13 @@ export const sampleInvoices: readonly Invoice[] = [
     due: "Oct 22, 2026",
     status: "approved",
     lines: [
-      { description: "Westbound freight", amountCents: 700_000 },
-      { description: "Liftgate", amountCents: 121_000 },
+      { description: "Westbound freight", quantity: 1, amountCents: 700_000 },
+      { description: "Liftgate", quantity: 1, amountCents: 121_000 },
+    ],
+    activity: [
+      { kind: "received", on: "Sep 7, 2026" },
+      { kind: "sent", on: "Sep 9, 2026" },
+      { kind: "approved", on: "Sep 15, 2026" },
     ],
   },
   {
@@ -166,8 +223,13 @@ export const sampleInvoices: readonly Invoice[] = [
     due: "Nov 12, 2026",
     status: "approved",
     lines: [
-      { description: "Analytics seats", amountCents: 520_000 },
-      { description: "Audit export", amountCents: 120_000 },
+      { description: "Analytics seats", quantity: 40, amountCents: 520_000 },
+      { description: "Audit export", quantity: 1, amountCents: 120_000 },
+    ],
+    activity: [
+      { kind: "received", on: "Oct 13, 2026" },
+      { kind: "sent", on: "Oct 14, 2026" },
+      { kind: "approved", on: "Oct 21, 2026" },
     ],
   },
   {
@@ -179,7 +241,12 @@ export const sampleInvoices: readonly Invoice[] = [
     due: "Nov 15, 2026",
     status: "changes-requested",
     changeReason: "Seat count is higher than the contract.",
-    lines: [{ description: "Extra seats", amountCents: 276_000 }],
+    lines: [{ description: "Extra seats", quantity: 92, amountCents: 276_000 }],
+    activity: [
+      { kind: "received", on: "Oct 16, 2026" },
+      { kind: "sent", on: "Oct 17, 2026" },
+      { kind: "changes-requested", on: "Oct 24, 2026" },
+    ],
   },
   {
     id: "inv-1770",
@@ -190,7 +257,12 @@ export const sampleInvoices: readonly Invoice[] = [
     due: "Nov 9, 2026",
     status: "changes-requested",
     changeReason: "The reception date on the invoice does not match the event order.",
-    lines: [{ description: "Reception coffee", amountCents: 41_000 }],
+    lines: [{ description: "Reception coffee", quantity: 1, amountCents: 41_000 }],
+    activity: [
+      { kind: "received", on: "Oct 10, 2026" },
+      { kind: "sent", on: "Oct 12, 2026" },
+      { kind: "changes-requested", on: "Oct 16, 2026" },
+    ],
   },
 ];
 
@@ -206,6 +278,22 @@ export function formatMoney(cents: number): string {
 /** The sum of an invoice's lines, so a reviewer can hold it against the amount. */
 export function lineTotal(invoice: Invoice): number {
   return invoice.lines.reduce((sum, line) => sum + line.amountCents, 0);
+}
+
+/** One unit's price, which a line's quantity divides into whole cents. A test holds every sample line to that. */
+export function unitPrice(line: LineItem): number {
+  return line.amountCents / line.quantity;
+}
+
+/**
+ * The activity the page shows for an invoice. A decision this session made, or
+ * a preview forced, is not in the sample data yet, so it is added as "Today".
+ */
+export function shownActivity(invoice: Invoice, shownStatus: InvoiceStatus): readonly ActivityEntry[] {
+  if (shownStatus === "pending") return invoice.activity;
+  const last = invoice.activity[invoice.activity.length - 1];
+  if (last?.kind === shownStatus) return invoice.activity;
+  return [...invoice.activity, { kind: shownStatus, on: "Today" }];
 }
 
 export function invoiceById(id: string): Invoice | undefined {

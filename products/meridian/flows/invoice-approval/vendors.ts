@@ -1,4 +1,4 @@
-import type { Invoice, ModeledState } from "./states";
+import type { Invoice, InvoiceStatus, ModeledState } from "./states";
 
 export const paymentTerms = ["due-on-receipt", "net-15", "net-30", "net-45", "net-60"] as const;
 
@@ -143,6 +143,39 @@ export function vendorRows(registry: readonly Vendor[], ledger: readonly Invoice
     .sort((a, b) => a.vendor.name.localeCompare(b.vendor.name));
 }
 
+export type VendorSummary = {
+  /** The registry's record, or null when the invoice names a vendor the registry does not hold. */
+  readonly vendor: Vendor | null;
+  /** Pending invoices from this vendor, this one included while it waits. */
+  readonly openCount: number;
+  /** The sum of this vendor's approved invoices. */
+  readonly approvedCents: number;
+};
+
+/**
+ * What the invoice page says about its vendor. The invoice counts with the
+ * status the page shows, so a previewed or just-made decision moves the
+ * counts the same way the facts above them move.
+ */
+export function vendorSummary(
+  invoice: Invoice,
+  shownStatus: InvoiceStatus,
+  registry: readonly Vendor[],
+  ledger: readonly Invoice[],
+): VendorSummary {
+  const key = vendorKey(invoice.vendor);
+  const vendor = registry.find((entry) => vendorKey(entry.name) === key) ?? null;
+  const theirs = [
+    ...ledger.filter((entry) => entry.id !== invoice.id && vendorKey(entry.vendor) === key),
+    { ...invoice, status: shownStatus },
+  ];
+  return {
+    vendor,
+    openCount: theirs.filter((entry) => entry.status === "pending").length,
+    approvedCents: theirs.filter((entry) => entry.status === "approved").reduce((sum, entry) => sum + entry.amountCents, 0),
+  };
+}
+
 export function searchVendors(rows: readonly VendorRow[], query: string): readonly VendorRow[] {
   const needle = vendorKey(query);
   if (needle === "") return rows;
@@ -157,7 +190,7 @@ function sample(name: string, remitEmail: string, terms: PaymentTerms): Vendor {
 export const sampleVendors: readonly Vendor[] = [
   sample("Brightline Paper Co", "ap@brightlinepaper.example", "net-30"),
   sample("Fieldnote Print", "billing@fieldnoteprint.example", "net-15"),
-  sample("Harbor & Pine Catering", "accounts@harborandpine.example", "due-on-receipt"),
+  sample("Harbor & Pine Catering", "accounts@harborandpine.example", "net-30"),
   sample("Helios Freight", "remit@heliosfreight.example", "net-45"),
   sample("Kite Analytics", "finance@kiteanalytics.example", "net-30"),
   sample("Lumen Cloud Services", "billing@lumencloud.example", "net-30"),

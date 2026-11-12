@@ -13,6 +13,8 @@ const vendors = here("Vendors");
 const invoice = [queue, { role: "generic", text: "INV-1842", current: "page" }, { role: "heading", name: "Northwind Office Supply" }];
 const received = { role: "listitem", text: "Done: Received" };
 const paymentNotStarted = { role: "listitem", text: "Not started: Payment due Nov 18, 2026" };
+/** The vendor and activity sections every invoice page shows, after its line items. */
+const sections = [{ role: "region", name: "Vendor" }, { role: "table", name: "Activity" }];
 /** Invoice progress while the invoice waits for approval: the reviewer's step is the one under way. */
 const awaitingApproval = [received, { role: "listitem", text: "In progress: Approval", current: "step" }, paymentNotStarted];
 
@@ -38,6 +40,8 @@ export const accessibleNames = {
     ...invoice,
     ...awaitingApproval,
     { role: "DisclosureTriangle", name: "Line items", expanded: false },
+    ...sections,
+    { role: "row", text: "Oct 20, 2026 Sent for approval" },
     { role: "button", name: "Approve", disabled: false },
     { role: "button", name: "Request changes", disabled: false },
   ],
@@ -49,6 +53,9 @@ export const accessibleNames = {
     // Approved hands the invoice to payment, which waits for its due date: next, not in progress.
     { role: "listitem", text: "Next: Payment due Nov 18, 2026", current: "step" },
     { role: "status", text: "Invoice approved Northwind Office Supply · $4,280.00 is approved." },
+    ...sections,
+    // The decision this preview shows is not in the sample data, so the activity dates it today.
+    { role: "row", text: "Today Approved" },
     { role: "button", name: "Approve", disabled: true },
   ],
   "state=changes-requested&page=detail": [
@@ -57,6 +64,8 @@ export const accessibleNames = {
     { role: "listitem", text: "Changes requested: Approval" },
     paymentNotStarted,
     { role: "status", text: "Changes requested Quantity on toner does not match the packing slip." },
+    ...sections,
+    { role: "row", text: "Today Changes requested" },
     { role: "button", name: "Approve", disabled: true },
   ],
   "state=vendor-added": [

@@ -40,7 +40,10 @@ On an invoice (`?invoice=inv-1842`):
 - Identity and amounts are a DataList.
 - **Invoice progress** is a read-only list of three stages: Received, Approval, and Payment with its due date. It follows the invoice's status. [Proposal 2026-11-11-invoice-progress-steps](../../proposals/2026-11-11-invoice-progress-steps.md) added `Steps` to the catalog for it.
 - **Approve** is the only primary action.
-- **Line items** sit behind one disclosure.
+- **Line items** sit behind one disclosure, each with its quantity, unit price and amount.
+- A **Vendor** card gives the vendor's remittance email, payment terms, open invoices and approved total, counted with the status the page shows.
+- An **Activity** card lists what happened to the invoice, with dates: received, sent for approval, and any decision. A decision made in this session reads Today. [Proposal 2026-11-12-invoice-detail-sections](../../proposals/2026-11-12-invoice-detail-sections.md) records both cards.
+- The action row stays at the bottom of the view while the page scrolls, so Approve is never below the fold.
 - **Request changes** is secondary. Choosing it reveals a required reason. Sending that request is a branch, not the happy path.
 
 Search, filters, sort, and paging are available on the invoice collections, and search on Vendors. They are not steps on the happy path.

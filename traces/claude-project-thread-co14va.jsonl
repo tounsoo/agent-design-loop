@@ -1,0 +1,8 @@
+{"node":"read","at":"2026-11-12T07:07:56.080Z"}
+{"node":"route","when":"fits","at":"2026-11-12T07:07:56.400Z"}
+{"node":"build","at":"2026-11-12T07:07:56.682Z"}
+{"node":"checks","when":"fail","at":"2026-11-12T07:07:56.989Z"}
+{"node":"triage","when":"inside","at":"2026-11-12T07:07:57.338Z"}
+{"node":"build","at":"2026-11-12T07:07:57.703Z"}
+{"node":"checks","when":"pass","at":"2026-11-12T07:07:58.042Z"}
+{"node":"screenshots","at":"2026-11-12T07:07:58.370Z"}

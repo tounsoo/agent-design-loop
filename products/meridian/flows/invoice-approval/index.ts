@@ -1,4 +1,5 @@
 export {
+  activityLabel,
   formatMoney,
   invoiceById,
   isModeledState,
@@ -8,9 +9,11 @@ export {
   vendorsErrorMessage,
   modeledStates,
   sampleInvoices,
+  shownActivity,
   statusLabel,
+  unitPrice,
 } from "./states";
-export type { FlowEvent, FlowState, Invoice, InvoiceStatus, LineItem, ModeledState, Screen } from "./states";
+export type { ActivityEntry, ActivityKind, FlowEvent, FlowState, Invoice, InvoiceStatus, LineItem, ModeledState, Screen } from "./states";
 export { initialFlowState, transition } from "./transition";
 export type { Preview } from "./transition";
 export {
@@ -34,7 +37,8 @@ export {
   searchVendors,
   termsLabel,
   vendorRows,
+  vendorSummary,
   knownVendors,
   previewVendors,
 } from "./vendors";
-export type { NewVendor, Vendor, VendorDraft, VendorId, VendorRow } from "./vendors";
+export type { NewVendor, Vendor, VendorDraft, VendorId, VendorRow, VendorSummary } from "./vendors";

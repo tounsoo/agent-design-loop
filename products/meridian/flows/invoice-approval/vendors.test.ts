@@ -10,6 +10,7 @@ import {
   searchVendors,
   vendorKey,
   vendorRows,
+  vendorSummary,
   knownVendors,
   previewVendors,
   type NewVendor,
@@ -165,5 +166,41 @@ describe("the vendors a preview shows", () => {
     const added = first.registry;
     const second = addVendor(previewVendors("ready", added), valid("Northwind Office Supply 2"), knownVendors(added));
     expect(second.id).not.toBe(first.id);
+  });
+});
+
+describe("vendor summary", () => {
+  const invoice = sampleInvoices.find((entry) => entry.id === "inv-1842");
+  if (!invoice) throw new Error("INV-1842 is missing from the sample ledger.");
+
+  it("counts the vendor's open and approved invoices, this one included", () => {
+    const summary = vendorSummary(invoice, "pending", sampleVendors, sampleInvoices);
+    expect(summary.vendor?.terms).toBe("net-30");
+    expect(summary.openCount).toBe(1);
+    expect(summary.approvedCents).toBe(98_000);
+  });
+
+  it("counts this invoice with the status the page shows", () => {
+    const summary = vendorSummary(invoice, "approved", sampleVendors, sampleInvoices);
+    expect(summary.openCount).toBe(0);
+    expect(summary.approvedCents).toBe(98_000 + invoice.amountCents);
+  });
+
+  it("has no record for a vendor the registry does not hold", () => {
+    expect(vendorSummary(invoice, "pending", [], sampleInvoices).vendor).toBeNull();
+  });
+});
+
+describe("sample terms", () => {
+  const days: Record<string, number> = { "due-on-receipt": 0, "net-15": 15, "net-30": 30, "net-45": 45, "net-60": 60 };
+
+  it("falls each invoice due its vendor's terms after it was received", () => {
+    for (const invoice of sampleInvoices) {
+      const vendor = sampleVendors.find((entry) => vendorKey(entry.name) === vendorKey(invoice.vendor));
+      const received = invoice.activity.find((entry) => entry.kind === "received");
+      if (!vendor || !received) throw new Error(`${invoice.number} has no vendor or no receipt.`);
+      const gap = (Date.parse(`${invoice.dueOn}T00:00:00Z`) - Date.parse(`${received.on} UTC`)) / 86_400_000;
+      expect(gap, invoice.number).toBe(days[vendor.terms]);
+    }
   });
 });

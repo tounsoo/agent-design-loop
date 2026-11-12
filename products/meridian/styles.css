@@ -47,7 +47,9 @@
     min-block-size: 0;
   }
 
+  /* Room for the invoice page's pinned action row, so a focused field never scrolls under it. */
   .app-shell-pad {
+    scroll-padding-block-end: 5rem;
     padding: var(--todae-space-4);
   }
 
@@ -64,9 +66,15 @@
     max-inline-size: 46rem;
   }
 
+  /* A long invoice page scrolls, so its actions stay at the bottom of the view. The
+     negative inset and the extra padding cover the panel's own padding, so content
+     never shows below the row. */
   .detail-actions {
-    padding-block-start: var(--todae-space-3);
+    position: sticky;
+    inset-block-end: calc(-1 * var(--todae-space-4));
+    padding-block: var(--todae-space-3) calc(var(--todae-space-3) + var(--todae-space-4));
     border-block-start: 1px solid var(--todae-color-border-subtle);
+    background: var(--todae-color-bg-canvas);
   }
 
   .collection-search {
