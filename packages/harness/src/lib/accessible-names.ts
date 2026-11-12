@@ -51,6 +51,8 @@ export type AxNode = {
   readonly live: boolean;
   /** The DOM element behind it, as a short tag for messages. */
   readonly html: string;
+  /** Chrome's backend id for that element, which stays the same while the element stays in the document. */
+  readonly backendId: number | null;
 };
 
 /** The node shape Chrome's `Accessibility.getFullAXTree` returns, as far as the check reads it. */
@@ -248,6 +250,7 @@ export function flattenAxTree(nodes: readonly CdpAxNode[], elements: ReadonlyMap
         selected: properties.has("selected") ? properties.get("selected") === true : null,
         live: LIVE_ROLES.has(role) || live === "polite" || live === "assertive",
         html: shortTag(element),
+        backendId: node.backendDOMNodeId ?? null,
       });
     }
     for (const id of node.childIds ?? []) {

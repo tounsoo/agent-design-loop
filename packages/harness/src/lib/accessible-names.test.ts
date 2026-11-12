@@ -5,7 +5,7 @@ const FILE = "flows/accessible-names.ts";
 
 function node(role: string, fields: Partial<AxNode> = {}): AxNode {
   const live = ["status", "alert", "log", "timer", "marquee", "progressbar", "meter"].includes(role);
-  return { role, name: "", text: "", current: null, disabled: false, expanded: null, checked: null, pressed: null, selected: null, live, html: `<${role}>`, ...fields };
+  return { role, name: "", text: "", current: null, disabled: false, expanded: null, checked: null, pressed: null, selected: null, live, html: `<${role}>`, backendId: null, ...fields };
 }
 
 describe("flattenAxTree", () => {

@@ -1,4 +1,4 @@
-import type { AccessibleNames } from "@agent-design-loop/harness";
+import type { AccessibleNames, KnownGaps } from "@agent-design-loop/harness";
 
 /**
  * What a screen reader hears on each preview of the booking flow.
@@ -37,3 +37,27 @@ export const accessibleNames = {
     { role: "button", name: "All rooms", disabled: false },
   ],
 } satisfies AccessibleNames;
+
+/**
+ * Presses that change the page without telling a screen reader, found when
+ * check:accessible-names began pressing every action. Each waits for a fix in
+ * its own pull request, and the check fails an entry once its press is fixed,
+ * so this list only shrinks.
+ */
+export const knownGaps = [
+  {
+    presses: ['button "Choose Harbor"', 'button "Choose Lantern"', 'button "Choose Quarry"', 'button "All rooms"'],
+    problem: "focus lost",
+    why: "Going between the rooms page and a room's booking page replaces the page around the button, and nothing moves focus to the new page. Move focus to the new page's title.",
+  },
+  {
+    presses: ['button "Hold room"', 'button "Book room"'],
+    problem: "focus lost",
+    why: "The button turns itself off, and Chrome drops focus to the page body; the status region does say what happened. Move focus to that status, or to the next action.",
+  },
+  {
+    presses: ['button "Try again"'],
+    problem: "focus lost",
+    why: "Try again replaces the error with the loader, which says nothing. Announce loading in a status region and keep focus on the page.",
+  },
+] satisfies KnownGaps;
