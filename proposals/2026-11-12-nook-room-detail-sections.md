@@ -38,7 +38,7 @@ Why Later today holds the waitlist count: the people who wait are waiting for th
 
 ## Preview
 
-The booking page at `?state=choosing&page=booking`, top to bottom:
+The booking page at `?scenario=booking-harbor`, top to bottom:
 
 - All rooms, the title Harbor and the facts "Floor 2 · Seats 4", as now.
 - The status region, empty while choosing, and How long?, as now.

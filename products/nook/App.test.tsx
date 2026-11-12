@@ -253,7 +253,7 @@ describe("Nook", () => {
     expect(pages[0]).toHaveAttribute("data-state", state);
   });
   it("shows a room's later bookings, who waits for them and its amenities", () => {
-    window.history.replaceState(null, "", "/?state=choosing&page=booking");
+    window.history.replaceState(null, "", "/?scenario=booking-harbor");
     render(<App />);
     const later = screen.getByRole("heading", { name: "Later today" }).closest("section");
     expect(later).not.toBeNull();
@@ -283,7 +283,7 @@ describe("Nook", () => {
 
   it("shows a freed room's own later bookings when it is chosen from the waitlist", async () => {
     const user = userEvent.setup();
-    window.history.replaceState(null, "", "/?state=freed");
+    window.history.replaceState(null, "", "/?scenario=freed");
     render(<App />);
     await user.click(screen.getByRole("button", { name: "Choose Cedar" }));
     expect(screen.getByText("2:00 PM to 3:00 PM")).toBeInTheDocument();
@@ -292,7 +292,7 @@ describe("Nook", () => {
   });
 
   it("keeps a room's later bookings and amenities once it is booked", () => {
-    window.history.replaceState(null, "", "/?state=booked");
+    window.history.replaceState(null, "", "/?scenario=booked");
     render(<App />);
     expect(screen.getByRole("heading", { name: "Later today" })).toBeInTheDocument();
     expect(screen.getByText("Step-free access")).toBeInTheDocument();
