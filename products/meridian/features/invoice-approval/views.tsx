@@ -13,6 +13,7 @@ import {
   Loader,
   Skeleton,
   Stack,
+  Steps,
   Table,
   Text,
   VisuallyHidden,
@@ -136,6 +137,29 @@ function InvoiceFacts({ invoice, status }: { invoice: Invoice; status: Invoice["
         <DataList.Details>{invoice.due}</DataList.Details>
       </DataList.Item>
     </DataList.Root>
+  );
+}
+
+type StageStatus = "done" | "current" | "pending" | "error";
+
+const stagesByStatus: Record<Invoice["status"], readonly [StageStatus, StageStatus, StageStatus]> = {
+  pending: ["done", "current", "pending"],
+  approved: ["done", "done", "current"],
+  "changes-requested": ["done", "error", "pending"],
+};
+
+function InvoiceProgress({ invoice, status }: { invoice: Invoice; status: Invoice["status"] }) {
+  const [received, approval, payment] = stagesByStatus[status];
+  return (
+    <Steps.Root aria-label="Invoice progress" variant="progress">
+      <Steps.Item status={received}>Received</Steps.Item>
+      <Steps.Item status={approval} statusLabel={approval === "error" ? "Changes requested" : undefined}>
+        Approval
+      </Steps.Item>
+      <Steps.Item status={payment} statusLabel={payment === "current" ? "Next" : undefined}>
+        Payment due {invoice.due}
+      </Steps.Item>
+    </Steps.Root>
   );
 }
 
@@ -303,6 +327,7 @@ export function InvoiceApprovalView({
         <InvoiceFacts invoice={invoice} status={shownStatus} />
       </DetailPage.Meta>
       <DetailPage.Body>
+        <InvoiceProgress invoice={invoice} status={shownStatus} />
         <Stack.Root gap="normal" role="status">
           {outcome === "approved" ? (
             <Alert.Root role="none" tone="success">
