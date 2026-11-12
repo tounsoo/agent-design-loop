@@ -1,5 +1,7 @@
 # Proposals change the rules the next run is constrained by.
-# Review is required. Merging a proposal does not apply it.
+# GitHub requests this review on a pull request someone else opens. It blocks
+# a merge only once branch protection on main requires code owner review.
+# Merging a proposal does not apply it.
 /proposals/ @tounsoo
 # A proposal that only adds is adopted in the pull request that adds it, so
 # this review is its only approval. This line covers any folder named
