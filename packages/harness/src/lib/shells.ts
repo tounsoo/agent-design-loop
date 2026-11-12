@@ -157,20 +157,28 @@ function unknownSlots(rule: keyof ShellRules, shell: Shell, named: readonly stri
     .map((slot) => `${configName} shells.${rule} names slot "${slot}" for page type "${shell.pageType}", but ${shell.name} has no such slot. Its slots are ${[...slots].join(", ")}.`);
 }
 
+/** The shells rules that name a page type, in the order the config gives them. */
+const KINDS = ["primarySlots", "collections", "content"] as const;
+
+function kindsOf(rules: ShellRules, pageType: string): (typeof KINDS)[number][] {
+  return KINDS.filter((kind) => (kind === "content" ? (rules.content ?? []).includes(pageType) : Object.hasOwn(rules[kind], pageType)));
+}
+
 /**
- * Every allowed page type is either a primary-slot page or a collection, never
- * both and never neither. A page type in neither would be read by no shell rule,
- * so leaving it out of the config would switch its rules off.
+ * Every allowed page type is exactly one kind: a primary-slot page, a
+ * collection or a content page. A page type in none would be read by no shell
+ * rule, so leaving it out of the config would switch its rules off, and one
+ * in two would be held to rules that contradict each other.
  */
 function unclassifiedPageTypes(rules: ShellRules, allowed: readonly string[]): string[] {
   return allowed.flatMap((pageType) => {
-    const primary = Object.hasOwn(rules.primarySlots, pageType);
-    const collection = Object.hasOwn(rules.collections, pageType);
-    if (primary && collection) {
-      return [`${configName} shells names page type "${pageType}" in both primarySlots and collections, but a collection has no primary action.`];
+    const kinds = kindsOf(rules, pageType);
+    if (kinds.length > 1) {
+      const why = kinds.includes("primarySlots") ? `a ${kinds.includes("collections") ? "collection" : "content page"} has no primary action` : "a page type follows one kind's rules";
+      return [`${configName} shells names page type "${pageType}" in both ${kinds.join(" and ")}, but ${why}.`];
     }
-    if (!primary && !collection) {
-      return [`${configName} shells names page type "${pageType}" in neither primarySlots nor collections, so no shell rule reads its pages. Add it to shells.primarySlots with the slot that holds its one primary action, or to shells.collections with its chrome slots. That is a config change, so a proposal decided on the base lists the page type and that shells rule under changes, and a new page type takes two pull requests.`];
+    if (kinds.length === 0) {
+      return [`${configName} shells names page type "${pageType}" in neither primarySlots nor collections nor content, so no shell rule reads its pages. Add it to shells.primarySlots with the slot that holds its one primary action, to shells.collections with its chrome slots, or to shells.content when its pages show information with no primary action. That is a config change, so a proposal decided on the base lists the page type and that shells rule under changes, and a new page type takes two pull requests.`];
     }
     return [];
   });
@@ -208,4 +216,11 @@ export function collectionShellsOf(
     return [{ shell, chrome: new Set(chrome.map((slot) => `${shell.name}.${slot}`)) }];
   });
   return { collections, problems };
+}
+
+/** Every shell whose page type the config names as content: its pages show information and hold no primary action. */
+export function contentShellsOf(rules: ShellRules, shells: readonly Shell[], allowed: readonly string[]): { content: Shell[]; problems: string[] } {
+  const named = rules.content ?? [];
+  const problems = [...unknownPageTypes("content", named, allowed), ...unclassifiedPageTypes(rules, allowed)];
+  return { content: shells.filter((shell) => named.includes(shell.pageType)), problems };
 }

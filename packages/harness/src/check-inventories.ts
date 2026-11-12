@@ -389,7 +389,7 @@ type Change = { readonly text: string; readonly terms: readonly Term[]; readonly
  * takes two pull requests (proposal 2026-11-12-page-types-take-two-pull-requests).
  */
 const ADDABLE_LISTS = ["catalog exports", "allowed_layouts", "allowed_content_layouts", "flow states"] as const;
-const PAGE_TYPE_NOTE = ` A page type is never added in one pull request: it also needs an entry under shells in ${configName}, so one proposal decided on the base lists the page type and the shells rule it joins, shells.primarySlots or shells.collections, under changes, and a later pull request adds the page type.`;
+const PAGE_TYPE_NOTE = ` A page type is never added in one pull request: it also needs an entry under shells in ${configName}, so one proposal decided on the base lists the page type and the shells rule it joins, shells.primarySlots, shells.collections or shells.content, under changes, and a later pull request adds the page type.`;
 const addableText = `${ADDABLE_LISTS.slice(0, -1).join(", ")} or ${ADDABLE_LISTS.at(-1)}`;
 
 function differingMembers(before: readonly string[], after: readonly string[]): string[] {
@@ -448,7 +448,7 @@ function membershipChanges(base: Inventory, head: Inventory, compareConfig: bool
         const values = after === null || after === undefined ? [] : typeof after === "string" ? [after] : [];
         compare(`${configName} paths.${key}`, base.config.paths[key as keyof HarnessConfig["paths"]], after, [[`paths.${key}`, ...values]]);
       }
-      const shellFields = (["primarySlots", "collections"] as const).filter(
+      const shellFields = (["primarySlots", "collections", "content"] as const).filter(
         (field) => JSON.stringify(base.config?.shells?.[field]) !== JSON.stringify(head.config?.shells?.[field]),
       );
       compare(`${configName} shells`, base.config.shells, head.config.shells, shellFields.map((field) => `shells.${field}`));

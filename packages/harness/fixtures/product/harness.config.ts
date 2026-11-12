@@ -1,10 +1,11 @@
-import type { HarnessConfig } from "../../src/lib/parse-config";
+import type { HarnessConfig } from "@agent-design-loop/harness";
 
 /**
- * The fixture product: a small Todae product that passes every check. Each
- * case under fixtures/ runs the checks on this config with the paths its own
- * case.ts replaces, so a case fails for what it changes. Plain literals
- * only, like a product's config.
+ * The fixture product: a small Todae product that passes every check, the
+ * ones that open its app in Chrome included. Each case under fixtures/ runs
+ * the checks on this config with the paths its own case.ts replaces, so a
+ * case fails for what it changes. `npm run new:product <name>` copies it to
+ * start a product. Plain literals only, like a product's config.
  */
 export default {
   adapter: "packages/adapter-todae/index.ts",
@@ -18,7 +19,7 @@ export default {
     inputs: "packages/harness/fixtures/product/inputs.ts",
     rules: "packages/harness/fixtures/product/rules.ts",
     styles: "packages/harness/fixtures/product/styles.css",
-    app: [],
+    app: ["packages/harness/fixtures/product/main.tsx"],
     web: "packages/harness/fixtures/product",
   },
   shells: {

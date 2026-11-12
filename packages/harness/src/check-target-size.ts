@@ -32,7 +32,7 @@ assertButtonTokens();
 
 const failures: string[] = [];
 
-await withServedApp("target size", async (page, base) => {
+await withServedApp("target size", config.paths.web, async (page, base) => {
   for (const state of states) {
     const url = new URL(base);
     url.search = state;

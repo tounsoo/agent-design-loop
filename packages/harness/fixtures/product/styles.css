@@ -1,1 +1,8 @@
-/* The fixture product has no page CSS. A case that tests page CSS brings its own stylesheet. */
+/*
+ * Todae's sheet, after the product's own layer so the app cannot override
+ * component paint. The fixture product has no page CSS of its own. A case
+ * that tests page CSS brings its own stylesheet.
+ */
+@layer app, todae;
+
+@import "@tounsoo/todae/todae.css";

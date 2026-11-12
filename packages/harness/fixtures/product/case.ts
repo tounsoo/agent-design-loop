@@ -1,4 +1,4 @@
-/** Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes. */
+/** Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes, and npm run new:product starts a product from a copy that passes. */
 export default {
   checks: [
     { run: "check:opt-outs", passes: "has no opt-outs, so every harness rule applies" },
@@ -12,5 +12,7 @@ export default {
     { run: "check:state-coverage", passes: "6 modeled states have views" },
     { run: "check:target-size", args: ["--list"], passes: "7 previews from modeledStates" },
     { run: "check:accessible-names", args: ["--list"], passes: "7 previews declare 7 announcements" },
+    { run: "check:target-size", passes: "controls on 7 previews meet 24 CSS px" },
+    { run: "check:accessible-names", passes: "7 previews announce the 7 things their flows declare, and every control has a name. 9 of 9 presses" },
   ],
 };

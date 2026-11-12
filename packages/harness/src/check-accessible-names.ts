@@ -95,7 +95,7 @@ const failures: string[] = [];
 const pressProblems: FoundProblem[] = [];
 let pressCount = 0;
 
-await withServedApp("accessible names", async (page, base) => {
+await withServedApp("accessible names", config.paths.web, async (page, base) => {
   const session = await page.createCDPSession();
   await session.send("Page.enable");
   const origin = new URL(base).origin;
