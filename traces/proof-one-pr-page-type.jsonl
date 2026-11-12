@@ -1,0 +1,10 @@
+{"node":"read","at":"2026-11-12T10:04:30.638Z"}
+{"node":"route","when":"needs a new pattern","at":"2026-11-12T10:04:30.902Z"}
+{"node":"propose","at":"2026-11-12T10:04:31.190Z"}
+{"node":"scope","when":"only adds","at":"2026-11-12T10:04:31.456Z"}
+{"node":"adopt","at":"2026-11-12T10:04:31.745Z"}
+{"node":"build","at":"2026-11-12T10:04:32.082Z"}
+{"node":"checks","when":"pass","at":"2026-11-12T10:05:26.402Z"}
+{"node":"screenshots","at":"2026-11-12T10:06:03.785Z"}
+{"node":"note","at":"2026-11-12T10:06:04.046Z"}
+{"node":"pull-request","at":"2026-11-12T10:06:04.332Z"}

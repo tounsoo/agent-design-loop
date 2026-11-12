@@ -33,7 +33,7 @@ export const priority = [
 /** Sections behind a disclosure, by the disclosure's summary text. */
 export const disclosed_sections = ["Room details"] as const;
 
-export const allowed_page_types = ["booking", "rooms"] as const;
+export const allowed_page_types = ["booking", "guide", "rooms"] as const;
 
 /** Chrome around the page. */
 export const allowed_layouts = ["top-bar"] as const;
