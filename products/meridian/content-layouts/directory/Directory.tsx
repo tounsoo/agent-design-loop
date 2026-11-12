@@ -93,7 +93,10 @@ export function Directory({ rows, justAdded, onAdd }: DirectoryProps): ReactElem
     const result = checkVendorDraft(draft, registry);
     if (!result.ok) return;
     onAdd(result.vendor);
+    // The search clears so the new card shows; the confirmation is the only announcement.
+    announced.current = "";
     flushSync(() => {
+      setQuery("");
       setDraft(emptyDraft);
       setFormKey((key) => key + 1);
     });

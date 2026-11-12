@@ -231,6 +231,23 @@ describe("invoice approval views", () => {
     expect(screen.getByRole("textbox", { name: "Remittance email" })).toHaveFocus();
   });
 
+  it("clears the search after an add, so the new vendor's card shows", async () => {
+    const user = userEvent.setup();
+    renderApproval("?route=vendors");
+    const search = screen.getByRole("searchbox", { name: "Search vendors" });
+    await user.type(search, "Ridge");
+    await user.click(screen.getByRole("button", { name: "Add “Ridge”" }));
+    const name = screen.getByRole("textbox", { name: "Vendor name" });
+    await user.clear(name);
+    await user.type(name, "Quarry Stone Works");
+    await user.type(screen.getByRole("textbox", { name: "Remittance email" }), "ap@quarrystone.example");
+    await user.click(screen.getByRole("button", { name: "Add vendor" }));
+    expect(screen.getByRole("status")).toHaveTextContent("Added Quarry Stone Works.");
+    expect(search).toHaveValue("");
+    expect(vendorCard("Quarry Stone Works")).toHaveTextContent("No invoices yet");
+    expect(screen.getByText("9 vendors")).toBeInTheDocument();
+  });
+
   it("previews a vendor just added, on Vendors", () => {
     renderApproval("?state=vendor-added");
     expect(screen.getByRole("heading", { level: 1, name: "Vendors" })).toBeInTheDocument();
@@ -244,5 +261,23 @@ describe("invoice approval views", () => {
     expect(screen.getByRole("heading", { name: "No vendors yet" })).toBeInTheDocument();
     expect(document.querySelector("details")?.open).toBe(true);
     expect(screen.getByText("0 vendors")).toBeInTheDocument();
+  });
+
+  it("adds the first vendor from an empty vendor list", async () => {
+    const user = userEvent.setup();
+    renderApproval("?state=empty&route=vendors");
+    await user.type(screen.getByRole("textbox", { name: "Vendor name" }), "Ridgeway Janitorial");
+    await user.type(screen.getByRole("textbox", { name: "Remittance email" }), "ap@ridgeway.example");
+    await user.click(screen.getByRole("button", { name: "Add vendor" }));
+    expect(screen.getByRole("status")).toHaveTextContent("Added Ridgeway Janitorial.");
+    expect(vendorCard("Ridgeway Janitorial")).toHaveTextContent("No invoices yet");
+    expect(screen.getByText("1 vendor")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "No vendors yet" })).toBeNull();
+  });
+
+  it("names vendors in the Vendors load error", () => {
+    renderApproval("?state=error&route=vendors");
+    expect(screen.getByText("Couldn't load vendors.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
   });
 });

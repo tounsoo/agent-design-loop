@@ -4,9 +4,8 @@ import {
   flowFromLocation,
   locationKey,
   sampleInvoices,
-  sampleVendors,
   transition,
-  withPreviewVendor,
+  previewVendors,
   type AppLocation,
   type FlowState,
   type Invoice,
@@ -22,7 +21,8 @@ export function InvoiceApproval({
   onNavigate: (href: string) => void;
 }) {
   const [ledger, setLedger] = useState<Invoice[]>(() => sampleInvoices.map((invoice) => ({ ...invoice })));
-  const [registry, setRegistry] = useState<readonly Vendor[]>(sampleVendors);
+  // Only the vendors added in this session; the preview decides what they join.
+  const [added, setAdded] = useState<readonly Vendor[]>([]);
   const key = locationKey(location);
   const [seen, setSeen] = useState(key);
   const [overlay, setOverlay] = useState<FlowState | null>(null);
@@ -31,7 +31,7 @@ export function InvoiceApproval({
     setOverlay(null);
   }
   const flow = overlay ?? flowFromLocation(location, ledger);
-  const shownVendors = withPreviewVendor(registry, location.preview.state);
+  const shownVendors = previewVendors(location.preview.state, added);
 
   const actions: Actions = {
     retry: () => setOverlay(transition(flow, { type: "retry" })),
@@ -66,8 +66,9 @@ export function InvoiceApproval({
       setOverlay(transition(flow, { type: "approve" }));
     },
     addVendor: (vendor) => {
-      const { registry: next, id } = addVendor(shownVendors, vendor);
-      setRegistry(next);
+      const { registry: next, id, added: isNew } = addVendor(shownVendors, vendor);
+      const created = next.find((entry) => entry.id === id);
+      if (isNew && created) setAdded((vendors) => [...vendors, created]);
       setOverlay(transition(flow, { type: "add-vendor", vendorId: id }));
     },
   };

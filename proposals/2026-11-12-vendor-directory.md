@@ -27,17 +27,19 @@ The flow gains `vendor-added`, the state after a vendor is added, on purpose. Th
 
 Nothing here adds a primary button: Add vendor is secondary, and a collection page holds no primary.
 
+Empty and Vendor added open the disclosure on load, so those two states show the search and all three fields at once. `check:one-thing` passes them, because it counts a field as hidden when `Disclosure.Root` is its ancestor in the code, whether or not it starts open. The form is open there on purpose: on Empty it is the only next step, and after an add it stays open for the next one.
+
 ## States
 
 - **Browsing:** the search field, a count such as "8 vendors", the closed "Add a vendor" disclosure, and one card per vendor in name order, each with its remittance email, payment terms, open invoices, and its latest invoice with that invoice's due date.
 - **Adding:** the disclosure is open on an empty form, with Net 30 chosen.
 - **Invalid:** a failed submit moves focus to the form's summary, which lists each problem as a link to its field, and each field shows its own message under it. The messages are "Enter the vendor's name.", "Use 80 characters or fewer.", "Enter the email that gets remittance advice." and "Enter an email like ap@vendor.com.".
 - **Duplicate:** a name already on the list, whatever its spacing or case, reads "Northwind Office Supply is already a vendor.", in the list's spelling.
-- **Vendor added:** the confirmation says "Added Ridgeway Janitorial.", the form clears and stays open with focus back on Vendor name, and the vendor's card takes its place in name order, with no open invoices and "No invoices yet".
+- **Vendor added:** the confirmation says "Added Ridgeway Janitorial.", the form clears and stays open with focus back on Vendor name, the search clears so nothing hides the new card, and the vendor's card takes its place in name order, with no open invoices and "No invoices yet".
 - **No search match:** "No vendors found", with Clear search and Add "{search}", which opens the form with the name filled in.
-- **Empty:** the directory shows "No vendors yet" in place of the cards, with the form open, since adding is the only next step. It is the directory's own empty state, not the collection shell's, because the form is in the directory. `?state=empty&route=vendors` shows it; the empty preview the checks open is To approve's.
+- **Empty:** the directory shows "No vendors yet" in place of the cards, with the form open, since adding is the only next step. Adding the first vendor moves to Vendor added, with its card in place of "No vendors yet". It is the directory's own empty state, not the collection shell's, because the form is in the directory. `?state=empty&route=vendors` shows it; the empty preview the checks open is To approve's.
 - **Loading:** the collection shell's loader, "Loading vendors", with no form, because the duplicate check needs the registry.
-- **Error:** the collection shell's alert and Try again, with no form, for the same reason.
+- **Error:** the collection shell's alert, "Couldn't load vendors.", and Try again, with no form, for the same reason.
 - **Long content:** a long name wraps in its card's heading, and a long email breaks anywhere inside its card. Nothing truncates, because people copy these values. A long list grows the page under the search. There is no paging, so a vendor just added is never on a page out of view.
 - **Permissions:** Out of scope, Meridian has no sign-in or roles, so everyone who opens Vendors may add one.
 - **Over time:** an added vendor lasts until the page reloads, because there is no backend. The confirmation lasts until the person leaves Vendors, or the next add replaces it. A card's latest invoice shows its due date, not a countdown.

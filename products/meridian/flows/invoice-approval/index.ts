@@ -5,6 +5,7 @@ export {
   isScreen,
   lineTotal,
   loadErrorMessage,
+  vendorsErrorMessage,
   modeledStates,
   sampleInvoices,
   statusLabel,
@@ -33,6 +34,6 @@ export {
   searchVendors,
   termsLabel,
   vendorRows,
-  withPreviewVendor,
+  previewVendors,
 } from "./vendors";
 export type { NewVendor, Vendor, VendorDraft, VendorId, VendorRow } from "./vendors";

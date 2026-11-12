@@ -58,7 +58,7 @@ Arrows in that diagram follow the regions down the page. `loading`, `empty`, and
 
 The collection shell's slots are `Heading`, an optional `Description`, and `Body`. It has no primary-action slot. Approve is not on the queue. On To approve and All invoices the invoice number is a `Link` into the detail page.
 
-Vendors is the same shell with another content layout, `directory`, and its own `CollectionPage` element in the views, so its one visible question and its one disclosure count against its own page. The body is a search field, an **Add a vendor** disclosure that holds the whole form, and a grid of cards: remittance email, payment terms, open invoices, and the last invoice with its due date, with no link. The form's three fields sit inside the disclosure, so the search stays the page's one visible question. Add vendor is secondary. Validation rules and their copy live in `checkVendorDraft` in `products/meridian/flows/invoice-approval/vendors.ts`. Loading and error render in the shell, as on the other routes. Empty is the directory's own, with the form open, because the next step is in it.
+Vendors is the same shell with another content layout, `directory`, and its own `CollectionPage` element in the views, so its one visible question and its one disclosure count against its own page. The body is a search field, an **Add a vendor** disclosure that holds the whole form, and a grid of cards: remittance email, payment terms, open invoices, and the last invoice with its due date, with no link. The form's three fields sit inside the disclosure, so the search stays the page's one visible question. Add vendor is secondary. Validation rules and their copy live in `checkVendorDraft` in `products/meridian/flows/invoice-approval/vendors.ts`. Loading and error render in the shell, as on the other routes. Empty is the directory's own, with the form open, because the next step is in it. A successful add clears the search, so the new card shows. Vendors' load error reads "Couldn't load vendors.".
 
 Search, filters, sort, and paging live in the data table, and search in the directory. The task graph does not count them as steps. The default invoice sort is due date, ascending.
 
@@ -116,10 +116,10 @@ flowchart TB
   ready -->|"approve on the detail screen"| approved
   ready -->|"submit a non-empty reason"| changes
   ready -->|"add a vendor on the collection screen"| vendorAdded
-  vendorAdded -->|"open an invoice"| ready
+  empty -->|"add the first vendor"| vendorAdded
 ```
 
-`transition` ignores `approve` on the collection screen and in `error`. An empty reason cannot reach `changes-requested`. `invoice-approved` and `changes-requested` have no further moves. `add-vendor` is a person's event, so the task graph lists it among its user events, but no task names it, so the step budget never counts it. Approve in the transition function does not require the line-item disclosure to be open, by decision. The step budget measures both this reducer and a separate task graph, below.
+`transition` ignores `approve` on the collection screen and in `error`. An empty reason cannot reach `changes-requested`. `invoice-approved` and `changes-requested` have no further moves. Leaving `vendor-added` is a change of route, which starts again from the URL. `add-vendor` is a person's event, so the task graph lists it among its user events, but no task names it, so the step budget never counts it. Approve in the transition function does not require the line-item disclosure to be open, by decision. The step budget measures both this reducer and a separate task graph, below.
 
 ### Product-owned inputs
 

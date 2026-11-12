@@ -24,6 +24,7 @@ import {
   routeHref,
   statusLabel,
   vendorRows,
+  vendorsErrorMessage,
   type CollectionRoute,
   type FlowState,
   type Invoice,
@@ -303,11 +304,11 @@ function VendorsCollection({
       {listed ? <CollectionPage.Description>{copy.description}</CollectionPage.Description> : null}
       <CollectionPage.Body>
         {state.status === "loading" ? <LoadingBody label="Loading vendors" /> : null}
-        {state.status === "error" ? <ErrorBody message={state.message} onRetry={actions.retry} /> : null}
+        {state.status === "error" ? <ErrorBody message={vendorsErrorMessage} onRetry={actions.retry} /> : null}
         {listed ? (
           <Directory
             justAdded={state.status === "vendor-added" ? state.vendorId : null}
-            rows={vendorRows(state.status === "empty" ? [] : registry, ledger)}
+            rows={vendorRows(registry, ledger)}
             onAdd={actions.addVendor}
           />
         ) : null}

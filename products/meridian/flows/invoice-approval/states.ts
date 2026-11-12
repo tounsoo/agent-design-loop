@@ -196,6 +196,9 @@ export const sampleInvoices: readonly Invoice[] = [
 
 export const loadErrorMessage = "Couldn't load invoices.";
 
+/** Vendors is built from the same load, but its page names what it lists. */
+export const vendorsErrorMessage = "Couldn't load vendors.";
+
 export function formatMoney(cents: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
 }

@@ -96,7 +96,8 @@ function slug(name: string): string {
 }
 
 function mintId(registry: readonly Vendor[], name: string): VendorId {
-  const taken = new Set<string>(registry.map((vendor) => vendor.id));
+  // Sample ids stay reserved, so a vendor added on the Empty preview never shares one.
+  const taken = new Set<string>([...registry, ...sampleVendors].map((vendor) => vendor.id));
   const base = slug(name);
   let id = base;
   for (let n = 2; taken.has(id); n += 1) id = `${base}-${n}`;
@@ -178,6 +179,18 @@ export const previewAddedVendor: NewVendor = checked({
 
 export const previewAddedVendorId: VendorId = addVendor(sampleVendors, previewAddedVendor).id;
 
-export function withPreviewVendor(registry: readonly Vendor[], previewState: ModeledState | null): readonly Vendor[] {
-  return previewState === "vendor-added" ? addVendor(registry, previewAddedVendor).registry : registry;
+/**
+ * The vendors a preview shows: none on Empty, the sample vendors elsewhere, plus
+ * the preview's own vendor on vendor-added. Vendors added in this session follow,
+ * minus any whose name the preview already has.
+ */
+export function previewVendors(previewState: ModeledState | null, added: readonly Vendor[]): readonly Vendor[] {
+  const base =
+    previewState === "empty"
+      ? []
+      : previewState === "vendor-added"
+        ? addVendor(sampleVendors, previewAddedVendor).registry
+        : sampleVendors;
+  if (added.length === 0) return base;
+  return added.reduce<readonly Vendor[]>((registry, vendor) => (sameVendor(registry, vendor.name) ? registry : [...registry, vendor]), base);
 }

@@ -39,6 +39,7 @@ export function transition(state: FlowState, event: FlowEvent): FlowState {
       return state;
     case "empty":
       if (event.type === "retry") return { status: "loading" };
+      if (event.type === "add-vendor") return { status: "vendor-added", vendorId: event.vendorId };
       return state;
     case "error":
       if (event.type === "retry") return { status: "loading" };
@@ -69,7 +70,6 @@ export function transition(state: FlowState, event: FlowEvent): FlowState {
     case "changes-requested":
       return state;
     case "vendor-added":
-      if (event.type === "open-invoice") return detailReady(event.invoiceId);
       if (event.type === "add-vendor") return { status: "vendor-added", vendorId: event.vendorId };
       return state;
     default: {

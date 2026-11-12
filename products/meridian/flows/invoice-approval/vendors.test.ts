@@ -10,7 +10,7 @@ import {
   searchVendors,
   vendorKey,
   vendorRows,
-  withPreviewVendor,
+  previewVendors,
   type NewVendor,
 } from "./vendors";
 
@@ -126,11 +126,31 @@ describe("searchVendors", () => {
   });
 });
 
-describe("the vendor-added preview", () => {
-  it("adds its vendor to the registry only on that preview", () => {
-    expect(withPreviewVendor(sampleVendors, "ready")).toBe(sampleVendors);
-    const shown = withPreviewVendor(sampleVendors, "vendor-added");
+describe("the vendors a preview shows", () => {
+  it("adds the preview's vendor only on vendor-added", () => {
+    expect(previewVendors("ready", [])).toBe(sampleVendors);
+    const shown = previewVendors("vendor-added", []);
     expect(shown.find((vendor) => vendor.id === previewAddedVendorId)?.name).toBe(previewAddedVendor.name);
-    expect(withPreviewVendor(shown, "vendor-added")).toBe(shown);
+    expect(shown).toHaveLength(sampleVendors.length + 1);
+  });
+
+  it("shows no vendors on Empty, then the ones added there", () => {
+    expect(previewVendors("empty", [])).toEqual([]);
+    const { registry } = addVendor([], valid("Ridgeway Janitorial"));
+    expect(previewVendors("empty", registry)).toEqual(registry);
+  });
+
+  it("follows the preview with vendors added this session, minus names it already has", () => {
+    const fromEmpty = checkVendorDraft({ name: "northwind office supply", remitEmail: "ap@northwind.example", terms: "net-30" }, []);
+    if (!fromEmpty.ok) throw new Error("expected the draft to pass against an empty list");
+    const { registry } = addVendor([], fromEmpty.vendor);
+    expect(previewVendors("ready", registry)).toBe(sampleVendors);
+    const quarry = addVendor(sampleVendors, valid("Quarry Lane Movers")).registry.slice(-1);
+    expect(previewVendors("ready", quarry)).toEqual([...sampleVendors, ...quarry]);
+  });
+
+  it("never mints a sample vendor's id, even for a list without the samples", () => {
+    const { id } = addVendor([], valid("Harbor and Pine Catering"));
+    expect(sampleVendors.map((vendor) => vendor.id)).not.toContain(id);
   });
 });

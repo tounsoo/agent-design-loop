@@ -9,10 +9,12 @@ Vendors is a directory of cards with an **Add a vendor** form behind the page's 
 - Add vendor, Clear search and Add "{search}" are secondary, so the collection page holds no primary and Approve stays the product's only primary action.
 - `vendor-added` has a view, and its bare preview, `?state=vendor-added`, opens Vendors. `check:target-size` measures its controls, and `check:accessible-names` holds it to the confirmation "Added Ridgeway Janitorial.", the open disclosure, the three fields and the new vendor's card.
 - `add-vendor` is a user event of the flow, so the step budget explores it, and no route to `invoice-approved` grows: the longest is still open an invoice, then Approve.
+- A test adds the first vendor from Empty and sees its confirmation and card, and another adds one while a search is set and sees the search clear and the card show.
 - The validation rules and their copy are one function, `checkVendorDraft`. Tests cover an empty form, a duplicate in any spacing or case, a bad email, an 80-character cap and unknown terms, and a journey that fails each before it adds a vendor and hears the confirmation.
 
 ## What the checks cannot decide
 
+- Empty and Vendor added open the disclosure on load, so four fields show at once there, and `check:one-thing` passes them because it reads the code, not the open state. Is an open form on those two states one question or four? The proposal says why it is open.
 - Does the form belong behind a disclosure? The cap of one visible question puts it there. Whether people find "Add a vendor" where it is, and whether the one-question rule should count a form whose fields answer one request, is research, not a check.
 - Should "Add a vendor" join `disclosed_sections`? `check:priority` requires the listed sections to exist and does not fail one that is not listed. Adding it is a rule input, so it takes a proposal decided on the base.
 - Should adding a vendor be a task with a `max_steps`? Opening the disclosure, typing a name and an email, then Add vendor is four actions. No task names it, so nothing measures it. That is a rule input too.
