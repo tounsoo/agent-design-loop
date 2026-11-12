@@ -174,8 +174,8 @@ export type KnownGaps = readonly KnownGap[];
 const GAP_KEYS = new Set(["presses", "problem", "previews", "why", "fixIn"]);
 
 const TRACKER = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/(issues|pull)\/[1-9]\d*$/;
-/** A relative path with no `.` or `..` segment, ending `proposals/<name>.md`. */
-const PROPOSAL = /^(?:(?!\.\.?\/)[\w.-]+\/)*proposals\/(?!\.)[\w.-]+\.md$/;
+/** A relative path with no `.` or `..` segment, ending `proposals/<name>.md`, never the folder's README. */
+const PROPOSAL = /^(?:(?!\.\.?\/)[\w.-]+\/)*proposals\/(?!\.|README\.md$)[\w.-]+\.md$/;
 
 function isFile(path: string): boolean {
   try {

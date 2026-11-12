@@ -116,6 +116,7 @@ describe("parseKnownGaps", () => {
         { presses: ['button "A"'], problem: "silent", why: "x", fixIn: "later" },
         { presses: ['button "A"'], problem: "silent", why: "x", fixIn: "https://github.com/acme/app/issues" },
         { presses: ['button "A"'], problem: "silent", why: "x", fixIn: "../elsewhere/proposals/2026-11-12-retry.md" },
+        { presses: ['button "A"'], problem: "silent", why: "x", fixIn: "proposals/README.md" },
       ],
       FILE,
       previews,
@@ -128,6 +129,7 @@ describe("parseKnownGaps", () => {
       `${FILE} knownGaps[2] fixIn must be ${how}, not "later".`,
       `${FILE} knownGaps[3] fixIn must be ${how}, not "https://github.com/acme/app/issues".`,
       `${FILE} knownGaps[4] fixIn must be ${how}, not "../elsewhere/proposals/2026-11-12-retry.md".`,
+      `${FILE} knownGaps[5] fixIn must be ${how}, not "proposals/README.md".`,
     ]);
   });
 

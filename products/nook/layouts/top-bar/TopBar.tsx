@@ -12,8 +12,8 @@ const places: readonly { readonly place: Place; readonly label: string }[] = [
  * Waitlist, over one centered page. `current` is marked for a screen reader;
  * `locked` turns both off where the flow keeps the person on the page.
  *
- * The bar also owns what a page change tells a screen reader, so no page can
- * skip it: when `page` changes, focus moves to the new page's h1, which reads
+ * The bar also owns what a page change tells a screen reader, so a page does
+ * not opt in: when `page` changes, focus moves to the new page's h1, which reads
  * its title. A change inside one page, such as a retry or a hold, keeps its
  * own focus. `page` names the page shown, such as "rooms" or "room:harbor".
  */

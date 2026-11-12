@@ -9,8 +9,8 @@ import { Button, Drawer, Link, Nav, Splitter, Stack, useAnnouncer, useFocusHando
  * There is no AppShell export in `@tounsoo/todae`. This shell owns the chrome.
  * Callers fill `brand`, the nav items, optional `headerActions`, and `main`.
  *
- * The shell also owns what a page change tells a screen reader, so no page
- * can skip it: when `url` changes, focus moves to the new page's h1, which
+ * The shell also owns what a page change tells a screen reader, so a page
+ * does not opt in: when `url` changes, focus moves to the new page's h1, which
  * reads its title. A page with no h1 gets focus on `main` and its title
  * announced instead. Only a page change does this, so a change inside one
  * page, such as a retry or a submit, keeps its own focus.
@@ -91,7 +91,7 @@ export function AppShell({
     document.title = `${pageTitle} · Meridian`;
   }, [pageTitle]);
 
-  // Every commit: the drawer hands focus back to the current page's heading.
+  // Each render of the shell, which a page change always is: the drawer hands focus back to the page's heading.
   useLayoutEffect(() => {
     heading.current = pageHeading(main.current);
   });
@@ -184,7 +184,7 @@ export function AppShell({
       </Splitter.Root>
       <Drawer.Root
         open={drawerOpen}
-        restoreFocusRef={navigated ? heading : navButton}
+        restoreFocusRef={navigated ? (heading.current ? heading : main) : navButton}
         side="start"
         onOpenChange={setDrawerOpen}
       >
