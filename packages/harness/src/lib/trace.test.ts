@@ -61,6 +61,7 @@ describe("traceProblems", () => {
       { node: "build" },
       { node: "checks", when: "pass" },
       { node: "screenshots" },
+      { node: "critique", when: "pass" },
       { node: "note" },
       { node: "pull-request" },
     );
@@ -77,12 +78,35 @@ describe("traceProblems", () => {
       { node: "build" },
       { node: "checks", when: "pass" },
       { node: "screenshots" },
+      { node: "critique", when: "pass" },
       { node: "note" },
       { node: "pull-request" },
     );
     expect(traceProblems(designLoop, oneRun)).toEqual([]);
     const skips = lines({ node: "read" }, { node: "route", when: "needs a new pattern" }, { node: "propose" }, { node: "adopt" });
     expect(traceProblems(designLoop, skips).join("\n")).toContain("propose");
+  });
+
+  it("passes a critique that sends the change back to build, and fails a revision that skips the gate", () => {
+    const revised = lines(
+      { node: "read" },
+      { node: "route", when: "fits" },
+      { node: "build" },
+      { node: "checks", when: "pass" },
+      { node: "screenshots" },
+      { node: "critique", when: "revise" },
+      { node: "build" },
+      { node: "checks", when: "pass" },
+      { node: "screenshots" },
+      { node: "critique", when: "pass" },
+      { node: "note" },
+      { node: "pull-request" },
+    );
+    expect(traceProblems(designLoop, revised)).toEqual([]);
+    const skips = lines({ node: "read" }, { node: "route", when: "fits" }, { node: "build" }, { node: "checks", when: "pass" }, { node: "screenshots" }, { node: "critique", when: "revise" }, { node: "note" });
+    expect(traceProblems(designLoop, skips).join("\n")).toContain("goes from critique when revise to note, an edge the graph does not have. It goes to build.");
+    const skipped = lines({ node: "read" }, { node: "route", when: "fits" }, { node: "build" }, { node: "checks", when: "pass" }, { node: "screenshots" }, { node: "note" });
+    expect(traceProblems(designLoop, skipped).join("\n")).toContain("goes from screenshots to note, an edge the graph does not have. It goes to critique.");
   });
 
   it("fails an empty trace", () => {
@@ -155,7 +179,7 @@ describe("traceProblems", () => {
       { node: "proposal-pull-request" },
     );
     expect(traceProblems(designLoop, paused)).toEqual([]);
-    const next = lines({ node: "read" }, { node: "route", when: "fits" }, { node: "build" }, { node: "checks", when: "pass" }, { node: "screenshots" }, { node: "note" }, { node: "pull-request" });
+    const next = lines({ node: "read" }, { node: "route", when: "fits" }, { node: "build" }, { node: "checks", when: "pass" }, { node: "screenshots" }, { node: "critique", when: "pass" }, { node: "note" }, { node: "pull-request" });
     expect(traceProblems(designLoop, `${paused}${next}`)).toEqual([]);
   });
 

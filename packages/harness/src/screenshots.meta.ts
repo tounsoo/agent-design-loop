@@ -4,7 +4,7 @@ export const meta = {
   summary: "The design loop's `screenshots` step: captures each preview before and after a change into a gallery the pull request links.",
   tool: true,
   flags: [
-    { name: "--out", value: "<dir>", what: "The gallery folder, `products/<name>/review/screenshots/<change>`. Each run replaces it whole." },
+    { name: "--out", value: "<dir>", what: "The gallery folder, `products/<name>/review/screenshots/<change>`. Each run replaces it whole, with the `CRITIQUE.md` the `critique` step wrote of the old screenshots." },
     { name: "--state", value: "<state>", what: "Keeps the previews of that state. Repeat it for each state the change touches, or leave it out for every preview." },
     { name: "--base", value: "<ref>", what: "Also captures the previews at that commit, so the folder holds `before/` and `after/`." },
     { name: "--pin", value: "<dir>", what: "Takes only `--config`. Points each image's link in a committed gallery at the raw PNG at that commit, and prints the line for the pull request description. It refuses a folder with anything but its `README.md` uncommitted." },

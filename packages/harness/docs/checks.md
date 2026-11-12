@@ -37,6 +37,7 @@ npm run check:fixtures && npm run check
 | [`check:fixtures`](#checkfixtures) | Repository | none |  |  |  |
 | [`check:product`](#checkproduct) | Product | `--config <file>` (required) |  | Yes |  |
 | [`check:trace`](#checktrace) | Repository | none | Yes |  |  |
+| [`critique`](#critique) | Tool | `--config <file>` (required), `--gallery <dir>`, `--brief <file>`, `--findings <file>` and `--trace <file>` |  |  |  |
 | [`loop:step`](#loopstep) | Tool | none |  |  |  |
 | [`new:product`](#newproduct) | Tool | none |  |  |  |
 | [`screenshots`](#screenshots) | Tool | `--config <file>` (required), `--out <dir>`, `--state <state>`, `--base <ref>` and `--pin <dir>` |  | Yes |  |
@@ -594,6 +595,23 @@ It fails:
 
 It is not in `npm run check`, because the eval node runs the gate in the middle of the walk, before the trace ends at a checkpoint. CI runs it after the build gate, and an agent runs it before pushing. `npm run loop:step` writes a trace step by step. A trace is the agent's own record, so passing shows the record is a walk the graph allows, not that the work was done: [proposal 0010](../../../proposals/0010-loop-trace.md). Only traces the change adds or edits are read.
 
+## `critique`
+
+The design loop's `critique` step: writes the brief for a second model to judge the screenshots, then records its findings and the edge back to build or on to the note.
+
+A tool: the build gate does not run it. Run it as `npm run critique`, from the repository root, defined in `packages/harness/src/critique.ts`. It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it.
+
+Flags:
+
+- `--gallery <dir>`: The screenshots folder `npm run screenshots` wrote, `products/<name>/review/screenshots/<change>`.
+- `--brief <file>`: Writes the critic's brief there. Keep it out of the repository, such as in a scratch folder.
+- `--findings <file>`: The critic's answer, one JSON object. It is checked against the gallery, written into it as `CRITIQUE.md`, and the edge to take is printed with the block for the pull request description.
+- `--trace <file>`: Goes with `--findings`: the change's trace, `traces/<change>.jsonl`, whose `critique` steps that took `revise` count the rounds so far.
+
+The harness calls no model. Run `npm run critique -- --config <product config> --gallery <dir> --brief <file>` and give the brief it writes to a model other than the one that built the change, with the screenshots it names. The brief gives the product's tasks and ranked actions and a rubric of four patterns that hold on any page: hierarchy, the primary action, grouping and crowding. The critic judges relationships and weight, never counts. Each finding names its pattern, `revise` or `note`, the `after` screenshots it shows in, the problem and the fix.
+
+With `--findings` and `--trace`, a finding that calls for `revise` sends the loop back to `build`, until two rounds have: the third critique of a run prints `pass`, and what is left open goes in the review note with the `note` findings. A retake of the screenshots replaces the folder, `CRITIQUE.md` included, so the next round's critique is of the new screenshots. It is advisory: the build gate does not run it, and no check reads `CRITIQUE.md`. [Proposal 2026-11-12-critique-step](../../../proposals/2026-11-12-critique-step.md) records it.
+
 ## `loop:step`
 
 Appends one step to a change's loop trace, and refuses a step the design loop graph does not allow.
@@ -618,7 +636,7 @@ A tool: the build gate does not run it. Run it as `npm run screenshots`, from th
 
 Flags:
 
-- `--out <dir>`: The gallery folder, `products/<name>/review/screenshots/<change>`. Each run replaces it whole.
+- `--out <dir>`: The gallery folder, `products/<name>/review/screenshots/<change>`. Each run replaces it whole, with the `CRITIQUE.md` the `critique` step wrote of the old screenshots.
 - `--state <state>`: Keeps the previews of that state. Repeat it for each state the change touches, or leave it out for every preview.
 - `--base <ref>`: Also captures the previews at that commit, so the folder holds `before/` and `after/`.
 - `--pin <dir>`: Takes only `--config`. Points each image's link in a committed gallery at the raw PNG at that commit, and prints the line for the pull request description. It refuses a folder with anything but its `README.md` uncommitted.
