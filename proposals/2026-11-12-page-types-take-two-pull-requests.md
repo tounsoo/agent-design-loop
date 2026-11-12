@@ -21,7 +21,7 @@ The cost is the second pull request for every new page type. A page type is rare
 
 ## Preview
 
-`check:inventories` on a pull request that adds `board` to `allowed_page_types`, names it under `shells.collections`, and adds a proposal that lists `board` under `adds`:
+`check:inventories` on a pull request that adds `board` to `allowed_page_types`, names it under `shells.collections`, and adds a proposal that lists `board` under `adds`, the line for the page type (the check also prints why that proposal covers nothing, and that the `shells` change has no decided proposal):
 
 ```
 inventory: allowed_page_types changed from ["collection","detail"] to ["board","collection","detail"]. No adopted proposal covers it: a decided proposal must list "board" under changes. A page type is never added in one pull request: it also needs an entry under shells in products/meridian/harness.config.ts, so one proposal decided on the base lists the page type and the shells rule it joins, shells.primarySlots or shells.collections, under changes, and a later pull request adds the page type.
@@ -35,4 +35,4 @@ products/meridian/harness.config.ts shells names page type "board" in neither pr
 
 ## Adoption
 
-`packages/harness/src/check-inventories.ts` drops `allowed_page_types` from the lists that may grow in one pull request and adds the page-type line to its message. `packages/harness/src/lib/shells.ts` says how to fix a page type in neither rule. New fixtures: `illegal/adds-a-page-type` fails, and `page-type-in-two-pull-requests` passes with a decided proposal that lists the page type and `shells.collections`. `illegal/unclassified-page-type` still fails with the same phrase. `CLAUDE.md`, `AGENTS.md`, the verify skill, `proposals/README.md`, proposal 0012, the harness README and `how-it-works.md` say a page type takes two pull requests.
+`packages/harness/src/check-inventories.ts` drops `allowed_page_types` from the lists that may grow in one pull request and adds the page-type line to its message. `packages/harness/src/lib/shells.ts` says how to fix a page type in neither rule. New fixtures: `illegal/adds-a-page-type` fails, and `page-type-in-two-pull-requests` passes with a decided proposal that lists the page type and `shells.collections`. A fixture's base is not a git revision, so that case does not compare `shells`; a real pull request base does. `illegal/unclassified-page-type` still fails with the same phrase. `CLAUDE.md`, `AGENTS.md`, the verify skill, `proposals/README.md`, proposal 0012, the harness README and `how-it-works.md` say a page type takes two pull requests.

@@ -1,4 +1,4 @@
-/** Legal: the change adds the board page type with its shells entry, and adopts a proposal decided on the base that lists board and shells.collections under changes. This is the second of the two pull requests a new page type takes. */
+/** Legal: the change adds the board page type with its shells entry, and adopts a proposal decided on the base that lists board and shells.collections under changes. This is the second of the two pull requests a new page type takes. A fixture's base is not a git revision, so check:inventories does not compare shells here: the case proves the page type is covered, and the shells half rests on the same lists rule, compared on a real pull request base. */
 export default {
   config: {
     paths: {
