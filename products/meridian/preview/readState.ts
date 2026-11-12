@@ -1,4 +1,4 @@
-import { isCollectionRoute, type AppLocation, type CollectionRoute } from "../flows/invoice-approval/location";
+import { isCollectionRoute, routeOfState, type AppLocation, type CollectionRoute } from "../flows/invoice-approval/location";
 import { isModeledState, isScreen, type ModeledState, type Screen } from "../flows/invoice-approval/states";
 import type { Preview } from "../flows/invoice-approval/transition";
 
@@ -12,14 +12,19 @@ export function readPreview(search: string): Preview {
   return { state, page, branch: params.get("branch") === "request" };
 }
 
-/** Product route plus the preview override. Unknown routes fall through to To approve. */
+/**
+ * Product route plus the preview override. A previewed state that only one
+ * route shows opens that route. Unknown routes fall through to To approve.
+ */
 export function readLocation(search: string): AppLocation {
   const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
+  const preview = readPreview(search);
   const routeValue = params.get("route");
-  const route: CollectionRoute = routeValue != null && isCollectionRoute(routeValue) ? routeValue : "to-approve";
+  const asked: CollectionRoute = routeValue != null && isCollectionRoute(routeValue) ? routeValue : "to-approve";
+  const route = (preview.state ? routeOfState[preview.state] : undefined) ?? asked;
   const invoice = params.get("invoice");
   return {
-    preview: readPreview(search),
+    preview,
     route,
     invoiceId: invoice && invoice.length > 0 ? invoice : null,
   };

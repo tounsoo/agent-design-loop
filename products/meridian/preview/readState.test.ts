@@ -22,4 +22,12 @@ describe("state preview harness", () => {
     expect(readLocation("?route=invoices&invoice=inv-1711").invoiceId).toBe("inv-1711");
     expect(readLocation("?state=loading&invoice=inv-1842").preview.state).toBe("loading");
   });
+
+  it("opens the route a previewed state belongs to, over the one asked for", () => {
+    expect(readLocation("?state=vendor-added").route).toBe("vendors");
+    expect(readLocation("?state=vendor-added&route=invoices").route).toBe("vendors");
+    expect(readLocation("?state=empty&route=vendors").route).toBe("vendors");
+    expect(readLocation("?state=empty").route).toBe("to-approve");
+  });
 });
+

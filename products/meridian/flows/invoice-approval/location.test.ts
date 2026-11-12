@@ -26,4 +26,11 @@ describe("flow from location", () => {
     });
     expect(flowFromLocation(readLocation(""), sampleInvoices)).toEqual({ status: "ready", screen: "collection" });
   });
+
+  it("opens the vendor-added preview on Vendors", () => {
+    const location = readLocation("?state=vendor-added");
+    expect(location.route).toBe("vendors");
+    expect(flowFromLocation(location, sampleInvoices).status).toBe("vendor-added");
+  });
 });
+
