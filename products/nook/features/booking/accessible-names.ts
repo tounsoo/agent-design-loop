@@ -51,19 +51,19 @@ export const accessibleNames = {
   "state=waitlist": [
     ...topBar("Waitlist", false),
     { role: "heading", name: "Waitlist" },
-    { role: "button", name: "Join the waitlist for Cedar" },
-    { role: "button", name: "Join the waitlist for Birch" },
+    { role: "button", name: "Join waitlist for Cedar" },
+    { role: "button", name: "Join waitlist for Birch" },
   ],
   "state=waiting": [
     ...topBar("Waitlist", false),
     { role: "status", text: "You're on the waitlist for Cedar. If a room frees up, it shows here." },
-    { role: "button", name: "Leave the waitlist for Cedar" },
-    { role: "button", name: "Join the waitlist for Birch" },
+    { role: "button", name: "Leave waitlist for Cedar" },
+    { role: "button", name: "Join waitlist for Birch" },
   ],
   "state=freed": [
     ...topBar("Waitlist", false),
-    { role: "status", text: "Cedar is free now. Choose it to book it." },
+    { role: "status", text: "Cedar is free now. Choose it to book it. You're still on the waitlist for Birch." },
     { role: "button", name: "Choose Cedar" },
-    { role: "button", name: "Leave the waitlist for Birch" },
+    { role: "button", name: "Leave waitlist for Birch" },
   ],
 } satisfies AccessibleNames;

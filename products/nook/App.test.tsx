@@ -125,14 +125,15 @@ describe("Nook", () => {
     await user.click(screen.getByRole("button", { name: "Waitlist" }));
     expect(screen.getByRole("heading", { name: "Waitlist" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Waitlist" })).toHaveAttribute("aria-current", "page");
-    await user.click(screen.getByRole("button", { name: "Join the waitlist for Cedar" }));
-    await user.click(screen.getByRole("button", { name: "Join the waitlist for Birch" }));
+    await user.click(screen.getByRole("button", { name: "Join waitlist for Cedar" }));
+    expect(screen.getByRole("button", { name: "Leave waitlist for Cedar" })).toHaveFocus();
+    await user.click(screen.getByRole("button", { name: "Join waitlist for Birch" }));
     expect(screen.getByRole("status")).toHaveTextContent("You're on the waitlist for Cedar and Birch.");
-    await user.click(screen.getByRole("button", { name: "Leave the waitlist for Cedar" }));
+    await user.click(screen.getByRole("button", { name: "Leave waitlist for Cedar" }));
     expect(screen.getByRole("status")).toHaveTextContent("You're on the waitlist for Birch.");
-    await user.click(screen.getByRole("button", { name: "Leave the waitlist for Birch" }));
+    await user.click(screen.getByRole("button", { name: "Leave waitlist for Birch" }));
     expect(screen.getByRole("status")).toHaveTextContent("You left the waitlist for Birch.");
-    expect(screen.getByRole("button", { name: "Join the waitlist for Birch" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Join waitlist for Birch" })).toBeInTheDocument();
   });
 
   it("keeps the person's place on the waitlist when they go back to the rooms", async () => {
@@ -143,7 +144,7 @@ describe("Nook", () => {
     expect(screen.getByRole("heading", { name: "Book a room" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Choose Lantern" }));
     await user.click(screen.getByRole("button", { name: "Waitlist" }));
-    expect(screen.getByRole("button", { name: "Leave the waitlist for Cedar" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Leave waitlist for Cedar" })).toBeInTheDocument();
   });
 
   it("frees a room the person waits for, and books it from the waitlist", async () => {
@@ -151,11 +152,11 @@ describe("Nook", () => {
     const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
     window.history.replaceState(null, "", "/?state=waitlist");
     render(<App />);
-    await user.click(screen.getByRole("button", { name: "Join the waitlist for Cedar" }));
+    await user.click(screen.getByRole("button", { name: "Join waitlist for Cedar" }));
     act(() => {
       vi.advanceTimersByTime(FREE_UP_SECONDS * 1000 - 1_000);
     });
-    expect(screen.getByRole("button", { name: "Leave the waitlist for Cedar" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Leave waitlist for Cedar" })).toBeInTheDocument();
     act(() => {
       vi.advanceTimersByTime(1_000);
     });
