@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
@@ -26,6 +26,13 @@ function Harness({ search }: { search: string }) {
 
 function renderApproval(search = "") {
   return render(<Harness search={search} />);
+}
+
+function stageStatuses(): (string | null)[] {
+  const progress = screen.getByRole("list", { name: "Invoice progress" });
+  return within(progress)
+    .getAllByRole("listitem")
+    .map((item) => item.getAttribute("data-status"));
 }
 
 describe("invoice approval views", () => {
@@ -138,5 +145,27 @@ describe("invoice approval views", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Changes requested");
     expect(screen.getByText("Quantity on toner does not match the packing slip.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Approve" })).toBeDisabled();
+  });
+  it("shows where the invoice is on its way to payment, before and after Approve", async () => {
+    const user = userEvent.setup();
+    renderApproval();
+    await user.click(screen.getByRole("link", { name: /Northwind Office Supply/ }));
+    const progress = screen.getByRole("list", { name: "Invoice progress" });
+    expect(within(progress).getByText("Payment due Nov 18, 2026")).toBeInTheDocument();
+    expect(stageStatuses()).toEqual(["done", "current", "pending"]);
+    await user.click(screen.getByRole("button", { name: "Approve" }));
+    expect(stageStatuses()).toEqual(["done", "done", "current"]);
+    expect(within(progress).getAllByRole("listitem")[2]).toHaveTextContent("Next: Payment due Nov 18, 2026");
+  });
+
+  it("marks the approval stage when changes are requested", async () => {
+    const user = userEvent.setup();
+    renderApproval("?state=ready&page=detail");
+    await user.click(screen.getByRole("button", { name: "Request changes" }));
+    await user.type(screen.getByRole("textbox", { name: "What should change?" }), "Seat count is off.");
+    await user.click(screen.getByRole("button", { name: "Request changes" }));
+    expect(stageStatuses()).toEqual(["done", "error", "pending"]);
+    const progress = screen.getByRole("list", { name: "Invoice progress" });
+    expect(within(progress).getAllByRole("listitem")[1]).toHaveTextContent("Changes requested: Approval");
   });
 });
