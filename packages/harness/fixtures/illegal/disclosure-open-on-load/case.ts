@@ -1,4 +1,4 @@
-/** Illegal: Line items loads open, and the flow's accessible-names.ts declares it closed on every preview, so no state opens it. */
+/** Illegal: Line items loads open, and no accessible-names.ts declares it expanded, so no state opens it. */
 export default {
   config: {
     paths: {

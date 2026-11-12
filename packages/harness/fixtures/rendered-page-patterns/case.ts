@@ -13,6 +13,6 @@ export default {
   },
   checks: [
     { run: "check:rendered-page", passes: 'disclosures load closed (1 opened by their state)' },
-    { run: "check:rendered-page", passes: "(2 over an image, not measured)" },
+    { run: "check:rendered-page", passes: "(1 over an image, not measured)" },
   ],
 };

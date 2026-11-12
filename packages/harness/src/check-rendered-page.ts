@@ -18,7 +18,7 @@ import {
   type TextRun,
 } from "./lib/rendered-page";
 import { DESKTOP, PHONE, withServedApp } from "./lib/served-app";
-import { typeScale, type ScaleStep } from "./lib/tokens";
+import { resolveLength, scaleFrom, typeScaleTokens, type ScaleStep } from "./lib/tokens";
 
 /**
  * Reads every preview as Chrome paints it, the way a person sees it, and
@@ -36,8 +36,9 @@ import { typeScale, type ScaleStep } from "./lib/tokens";
  *    its centre, at desktop and phone width, before any scroll.
  * 3. Disclosures, `<details>` with a summary a person can see, load closed,
  *    unless the preview's state opens one: the flow's accessible-names.ts
- *    declares it `expanded: true` on that preview. A control that only
- *    shows and hides a panel, such as a sidebar toggle, is not measured.
+ *    declares it `expanded: true` on that preview. A `<details>` whose
+ *    summary is hidden, like a menu a wide view always shows, is not one.
+ *    A button with aria-expanded, such as a sidebar toggle, is not read.
  * 4. Contrast. Every run of text on the page, the chrome's included, meets
  *    WCAG AA against what is painted under it, in the light and the dark
  *    colour scheme. Text in a turned-off control is exempt, as WCAG allows.
@@ -55,12 +56,24 @@ function fail(lines: readonly string[]): never {
 const { queries, problems: previewProblems } = await previewQueries(config.flows);
 if (previewProblems.length > 0) fail(previewProblems);
 
-let scale: ScaleStep[];
+// The names come from the stylesheet; their sizes come from Chrome, per view, so clamp(), calc() and media queries count as painted.
+let scaleTokens: string[];
+const tokensCss = readFileSync(adapter.tokens.css, "utf8");
 try {
-  scale = typeScale(readFileSync(adapter.tokens.css, "utf8"), adapter.tokens.privatePrefix);
+  scaleTokens = typeScaleTokens(tokensCss, adapter.tokens.privatePrefix);
 } catch (error) {
   fail([`${adapter.tokens.css} ${error instanceof Error ? error.message : String(error)}.`]);
 }
+/** Each token's value as the stylesheet writes it, for a page that does not load the stylesheet, or 0 when it is not a plain length. */
+const written = new Map(
+  scaleTokens.map((name) => {
+    try {
+      return [name, resolveLength(tokensCss, name, adapter.tokens.privatePrefix)];
+    } catch {
+      return [name, 0];
+    }
+  }),
+);
 
 const { priority } = await loadInputs();
 const primaryLabels = priority.filter((item) => item.rank === 1).map((item) => item.action);
@@ -94,9 +107,12 @@ type Reading = {
   roots: Root[];
   open: string[];
   view: { width: number; height: number };
-  overflow: { scrollWidth: number; clientWidth: number; offenders: string[] };
+  /** The outermost box the page lays out in that is wider than itself, or the document's own widths; container is null for the document. */
+  overflow: { scrollWidth: number; clientWidth: number; container: string | null; offenders: string[] };
   runs: (Omit<TextRun, "canvas"> & { unknownBackground: boolean })[];
   canvas: Rgba;
+  /** Each type-scale token's font size as Chrome computes it in this view. */
+  measured: { name: string; px: number }[];
 };
 
 type View = { label: string; width: number; height: number; mobile: boolean; scheme: "light" | "dark" };
@@ -111,14 +127,18 @@ let runsRead = 0;
 let unknownRuns = 0;
 
 await withServedApp(LABEL, config.paths.web, async (page, base) => {
-  for (const query of queries) {
-    const desktop = await open(page, base, query, desktopLight, true);
+  for (const search of queries) {
+    // A preview with no query is the page itself.
+    const query = search || "the page with no query";
+    const desktop = await open(page, base, search, desktopLight, true);
     judgeHierarchy(query, desktop, desktopLight);
     judgeReach(query, desktop, desktopLight);
-    judgeDisclosures(query, desktop);
+    judgeDisclosures(query, search, desktop, desktopLight);
     judgeContrast(query, desktop, desktopLight);
-    judgeContrast(query, await open(page, base, query, desktopDark, true), desktopDark);
-    const phone = await open(page, base, query, phoneLight, false);
+    judgeContrast(query, await open(page, base, search, desktopDark, true), desktopDark);
+    const phone = await open(page, base, search, phoneLight, false);
+    judgePhoneLayout(query, phone, phoneLight);
+    judgeDisclosures(query, search, phone, phoneLight);
     judgeHierarchy(query, phone, phoneLight);
     judgeReach(query, phone, phoneLight);
     judgeOverflow(query, phone, phoneLight);
@@ -145,12 +165,19 @@ async function open(page: Page, base: string, query: string, view: View, withRun
   const url = new URL(base);
   url.search = query;
   await page.goto(url.href, { waitUntil: "networkidle0" });
-  return page.evaluate(readPage, { primaryLabels, primaryPageTypes, withRuns });
+  return page.evaluate(readPage, { primaryLabels, primaryPageTypes, withRuns, scaleTokens });
 }
 
 function judgeHierarchy(query: string, reading: Reading, view: View): void {
   if (reading.roots.length === 0) {
-    problems.push(`${query} shows no [data-page] element, so nothing on it is a page to measure.`);
+    note(`${query} shows no [data-page] element, so nothing on it is a page to measure. At {views}.`, view);
+    return;
+  }
+  let scale: ScaleStep[];
+  try {
+    scale = scaleFrom(reading.measured.map((step) => (step.px > 0 ? step : { name: step.name, px: written.get(step.name) ?? 0 })));
+  } catch (error) {
+    note(`${query}: ${adapter.tokens.css} ${error instanceof Error ? error.message : String(error)}, as Chrome computes the tokens on this page. At {views}.`, view);
     return;
   }
   for (const root of reading.roots) {
@@ -212,33 +239,42 @@ function judgeReach(query: string, reading: Reading, view: View): void {
   }
 }
 
-function judgeDisclosures(query: string, reading: Reading): void {
-  const allowed = opened.get(query) ?? new Set<string>();
+function judgeDisclosures(query: string, search: string, reading: Reading, view: View): void {
+  const allowed = opened.get(search) ?? new Set<string>();
   for (const name of reading.open) {
     if (allowed.has(name)) {
-      openedOnPurpose += 1;
+      // Counted once, at desktop width.
+      if (view === desktopLight) openedOnPurpose += 1;
       continue;
     }
-    problems.push(
-      `${query}: the disclosure "${name}" is open on load. Disclosures load closed unless the state opens them: declare it with expanded: true on this preview in the flow's accessible-names.ts if the state opens it on purpose.`,
+    note(
+      `${query}: the disclosure "${name}" is open on load. Disclosures load closed unless the state opens them: declare it with expanded: true on this preview in the flow's accessible-names.ts if the state opens it on purpose. At {views}.`,
+      view,
     );
   }
 }
 
 function judgeContrast(query: string, reading: Reading, view: View): void {
   const failures = new Map<string, string>();
+  // Counted once, in the light reading; the dark one reads the same runs.
+  const count = view.scheme === "light";
   for (const run of reading.runs) {
     if (run.unknownBackground) {
-      unknownRuns += 1;
+      if (count) unknownRuns += 1;
       continue;
     }
-    runsRead += 1;
+    if (count) runsRead += 1;
     const { ratio, needs, background } = runContrast({ ...run, canvas: reading.canvas });
     if (ratio >= needs) continue;
     const key = `${run.text}|${hex(run.color)}|${hex(background)}`;
     if (!failures.has(key)) {
       failures.set(key, `"${run.text}" is ${hex(run.color)} on ${hex(background)}, ${(Math.floor(ratio * 100) / 100).toFixed(2)}:1, under ${needs}:1`);
     }
+  }
+  if (reading.runs.length > 0 && reading.runs.every((run) => run.unknownBackground)) {
+    problems.push(
+      `${query}, ${view.scheme} colour scheme: every run of text sits over a background image or gradient, so no contrast was measured. Put the page's text on a background colour.`,
+    );
   }
   if (failures.size === 0) return;
   const list = [...failures.values()];
@@ -247,11 +283,22 @@ function judgeContrast(query: string, reading: Reading, view: View): void {
   problems.push(`${query}, ${view.scheme} colour scheme: text under WCAG AA contrast: ${shown}${more}.`);
 }
 
+function judgePhoneLayout(query: string, reading: Reading, view: View): void {
+  if (reading.view.width <= view.width + 1) return;
+  problems.push(
+    `${query}, at ${view.label}: the page lays out ${reading.view.width} CSS px wide on a ${view.width} px phone, so everything on it is shrunk. Add <meta name="viewport" content="width=device-width, initial-scale=1"> to its index.html.`,
+  );
+}
+
 function judgeOverflow(query: string, reading: Reading, view: View): void {
-  const { scrollWidth, clientWidth, offenders } = reading.overflow;
+  const { scrollWidth, clientWidth, container, offenders } = reading.overflow;
   if (scrollWidth <= clientWidth + 1) return;
   const named = offenders.length > 0 ? ` Past the edge: ${offenders.join(", ")}.` : "";
-  problems.push(`${query}, at ${view.label}: the page scrolls sideways, ${scrollWidth} CSS px wide in a ${clientWidth} px view.${named}`);
+  const what =
+    container === null
+      ? `the page scrolls sideways, ${scrollWidth} CSS px wide in a ${clientWidth} px view.`
+      : `the page is wider than ${container}, which it lays out in: ${scrollWidth} CSS px in ${clientWidth}, so it scrolls sideways or is cut off.`;
+  problems.push(`${query}, at ${view.label}: ${what}${named}`);
 }
 
 /**
@@ -259,7 +306,7 @@ function judgeOverflow(query: string, reading: Reading, view: View): void {
  * the open disclosures, how wide the document is, and, with `withRuns`, every
  * run of text with the colours under it.
  */
-function readPage(options: { primaryLabels: string[]; primaryPageTypes: string[]; withRuns: boolean }): Reading {
+function readPage(options: { primaryLabels: string[]; primaryPageTypes: string[]; withRuns: boolean; scaleTokens: string[] }): Reading {
   const collapse = (value: string | null | undefined): string => (value ?? "").replace(/\s+/g, " ").trim();
   const short = (value: string): string => (value.length > 60 ? `${value.slice(0, 57)}...` : value);
 
@@ -290,6 +337,12 @@ function readPage(options: { primaryLabels: string[]; primaryPageTypes: string[]
   canvas.height = 1;
   const context = canvas.getContext("2d", { willReadFrequently: true });
   const rgba = (color: string): Rgba => {
+    // Chrome computes most colours as rgb() or rgba() in sRGB: read the numbers as they are. A canvas rounds a faint tint.
+    const plain = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)(?:\s*[,/]\s*([\d.]+)(%?))?\s*\)$/.exec(color);
+    if (plain) {
+      const alpha = plain[4] === undefined ? 1 : Number(plain[4]) / (plain[5] ? 100 : 1);
+      return [Number(plain[1]), Number(plain[2]), Number(plain[3]), alpha];
+    }
     if (!context) return [0, 0, 0, 1];
     context.clearRect(0, 0, 1, 1);
     context.fillStyle = "#000";
@@ -308,7 +361,18 @@ function readPage(options: { primaryLabels: string[]; primaryPageTypes: string[]
 
   const roots = [...document.querySelectorAll("[data-page]")].filter((element) => !element.parentElement?.closest("[data-page]"));
   const viewWidth = document.documentElement.clientWidth;
-  const viewHeight = document.documentElement.clientHeight;
+  // Without a doctype, the root's client height is the document's, not the view's.
+  const viewHeight = document.compatMode === "CSS1Compat" ? document.documentElement.clientHeight : window.innerHeight;
+  /** What a press at a point lands on, through any open shadow roots. */
+  const hitAt = (x: number, y: number): Element | null => {
+    let hit = document.elementFromPoint(x, y);
+    while (hit?.shadowRoot) {
+      const inner = hit.shadowRoot.elementFromPoint(x, y);
+      if (!inner || inner === hit) break;
+      hit = inner;
+    }
+    return hit;
+  };
 
   const readRoot = (root: Element): Root => {
     const type = root.getAttribute("data-page") ?? "";
@@ -322,18 +386,22 @@ function readPage(options: { primaryLabels: string[]; primaryPageTypes: string[]
         title = { text, px };
         continue;
       }
+      // A heading names a record when it sits in an item of a list or table that holds two or more: one item is a section in disguise.
       const item = element.closest("li, [role='listitem'], tr, [role='row']");
-      headings.push({ text, tag: element.tagName === "SUMMARY" ? "summary" : element.tagName.toLowerCase(), px, listItem: item !== null && root.contains(item) && item !== root });
+      const siblings = item?.parentElement ? [...item.parentElement.children].filter((child) => child.matches("li, [role='listitem'], tr, [role='row']")).length : 0;
+      headings.push({ text, tag: element.tagName === "SUMMARY" ? "summary" : element.tagName.toLowerCase(), px, listItem: item !== null && root.contains(item) && item !== root && siblings >= 2 });
     }
     const actions: Action[] = [];
     if (options.primaryPageTypes.includes(type)) {
       const candidates = root.querySelectorAll("button, a, [role='button'], [role='link'], input[type='submit'], input[type='button']");
       for (const element of candidates) {
-        const name = collapse(element.getAttribute("aria-label") ?? (element instanceof HTMLInputElement ? element.value : element.textContent));
+        const labelledBy = element.getAttribute("aria-labelledby");
+        const fromIds = labelledBy ? labelledBy.split(/\s+/).map((id) => document.getElementById(id)?.textContent ?? "").join(" ") : null;
+        const name = collapse(fromIds ?? element.getAttribute("aria-label") ?? (element instanceof HTMLInputElement ? element.value : element.textContent));
         if (!options.primaryLabels.includes(name) || !shown(element)) continue;
         const box = element.getBoundingClientRect();
         const inView = box.top >= -0.5 && box.left >= -0.5 && box.bottom <= viewHeight + 0.5 && box.right <= viewWidth + 0.5;
-        const hit = inView ? document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2) : null;
+        const hit = inView ? hitAt(box.left + box.width / 2, box.top + box.height / 2) : null;
         const coveredBy = !inView || (hit !== null && (hit === element || element.contains(hit))) ? null : describe(hit);
         actions.push({ name, top: box.top, bottom: box.bottom, left: box.left, right: box.right, coveredBy });
       }
@@ -345,27 +413,43 @@ function readPage(options: { primaryLabels: string[]; primaryPageTypes: string[]
   for (const details of document.querySelectorAll("details[open]")) {
     // A details whose summary is hidden, like a menu a wide view always shows, is not a disclosure a person can close.
     const summary = details.querySelector(":scope > summary");
-    if (!summary || !shown(summary)) continue;
-    open.push(collapse(summary?.getAttribute("aria-label") ?? summary?.textContent ?? "details"));
+    // With no summary of its own, Chrome draws one that reads "Details".
+    if (!summary) {
+      if (shown(details)) open.push("Details");
+      continue;
+    }
+    if (!shown(summary)) continue;
+    open.push(collapse(summary.getAttribute("aria-label") ?? summary.textContent));
   }
 
-  const scrollWidth = document.documentElement.scrollWidth;
+  // The boxes a page lays out in: the document, and each page root with its ancestors. An app shell
+  // that clips or scrolls its own pane keeps the document narrow, so each is measured, outermost first.
+  // A box inside the page that scrolls sideways on purpose, such as a wide table's wrapper, is not one.
+  const containers: Element[] = [document.documentElement];
+  for (const root of roots) {
+    const chain: Element[] = [];
+    for (let node: Element | null = root; node && node !== document.documentElement; node = node.parentElement) chain.unshift(node);
+    for (const node of chain) if (!containers.includes(node)) containers.push(node);
+  }
+  const wide = containers.find((element) => element.scrollWidth > element.clientWidth + 1) ?? null;
   const offenders: string[] = [];
-  if (scrollWidth > viewWidth + 1) {
+  if (wide) {
+    const edge = wide === document.documentElement ? viewWidth : wide.getBoundingClientRect().left + wide.clientWidth;
     const past = (element: Element): boolean => {
       const box = element.getBoundingClientRect();
-      return box.width > 0 && (box.right > viewWidth + 1 || box.left < -1);
+      return box.width > 0 && box.right > edge + 1;
     };
+    // Something an inner box clips or scrolls is not past the edge; the wide container's own clipping is the problem.
     const clipped = (element: Element): boolean => {
-      for (let node = element.parentElement; node && node !== document.body; node = node.parentElement) {
+      for (let node = element.parentElement; node && node !== wide && node !== document.body; node = node.parentElement) {
         if (getComputedStyle(node).overflowX !== "visible") return true;
       }
       return false;
     };
-    for (const element of document.body.querySelectorAll("*")) {
+    for (const element of wide.querySelectorAll("*")) {
       if (offenders.length >= 3) break;
       if (!past(element) || clipped(element)) continue;
-      if (element.parentElement && element.parentElement !== document.body && past(element.parentElement)) continue;
+      if (element.parentElement && element.parentElement !== wide && element.parentElement !== document.body && past(element.parentElement)) continue;
       offenders.push(describe(element));
     }
   }
@@ -381,8 +465,13 @@ function readPage(options: { primaryLabels: string[]; primaryPageTypes: string[]
       if (!parent || !text || skip.has(parent.tagName)) continue;
       if (parent.closest(":disabled, [aria-disabled='true']") || !shown(parent)) continue;
       const style = getComputedStyle(parent);
-      let alpha = 1;
-      for (let element: Element | null = parent; element; element = element.parentElement) alpha *= Number(getComputedStyle(element).opacity);
+      // An element's opacity fades it and everything in it, its own background included.
+      const fade = (from: Element): number => {
+        let product = 1;
+        for (let element: Element | null = from; element; element = element.parentElement) product *= Number(getComputedStyle(element).opacity);
+        return product;
+      };
+      const alpha = fade(parent);
       const color = rgba(style.color);
       const backgrounds: Rgba[] = [];
       let unknownBackground = false;
@@ -392,7 +481,8 @@ function readPage(options: { primaryLabels: string[]; primaryPageTypes: string[]
           unknownBackground = true;
           break;
         }
-        const background = rgba(layer.backgroundColor);
+        const own = rgba(layer.backgroundColor);
+        const background: Rgba = [own[0], own[1], own[2], own[3] * fade(element)];
         if (background[3] > 0) backgrounds.push(background);
         if (background[3] >= 0.999) break;
       }
@@ -405,16 +495,36 @@ function readPage(options: { primaryLabels: string[]; primaryPageTypes: string[]
   }
 
   // The canvas under everything: Chrome paints it dark only when the root's used colour scheme is dark.
-  const scheme = getComputedStyle(document.documentElement).colorScheme;
+  const computed = getComputedStyle(document.documentElement).colorScheme;
+  // With no color-scheme on the root, Chrome takes the page's <meta name="color-scheme">.
+  const scheme = computed === "normal" ? (document.querySelector("meta[name='color-scheme']")?.getAttribute("content") ?? "normal") : computed;
   const prefersDark = matchMedia("(prefers-color-scheme: dark)").matches;
   const dark = /\bdark\b/.test(scheme) && (prefersDark || !/\blight\b/.test(scheme));
   const page: Rgba = dark ? [18, 18, 18, 1] : [255, 255, 255, 1];
 
+  // Each token's size as painted here: a probe inside the first page root, where a theme's tokens apply.
+  const host = roots[0] ?? document.body;
+  const measured = options.scaleTokens.map((name) => {
+    const probe = document.createElement("span");
+    probe.style.fontSize = `var(${name}, 0px)`;
+    probe.style.position = "absolute";
+    host.append(probe);
+    const px = Number.parseFloat(getComputedStyle(probe).fontSize);
+    probe.remove();
+    return { name, px };
+  });
+
   return {
+    measured,
     roots: roots.map(readRoot),
     open,
     view: { width: viewWidth, height: viewHeight },
-    overflow: { scrollWidth, clientWidth: viewWidth, offenders },
+    overflow: {
+      scrollWidth: wide?.scrollWidth ?? document.documentElement.scrollWidth,
+      clientWidth: wide?.clientWidth ?? viewWidth,
+      container: wide === null || wide === document.documentElement ? null : describe(wide).replace(/ ".*$/, ""),
+      offenders,
+    },
     runs,
     canvas: page,
   };

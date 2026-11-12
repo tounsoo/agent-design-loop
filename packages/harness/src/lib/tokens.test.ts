@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveLength, typeScale } from "./tokens";
+import { resolveLength, scaleFrom, typeScaleTokens } from "./tokens";
 
 const TODAE_LIKE = `
 :root {
@@ -34,27 +34,38 @@ describe("resolveLength", () => {
   });
 });
 
-describe("typeScale", () => {
-  it("reads the numbered font sizes, smallest first, and skips private tokens", () => {
-    expect(typeScale(TODAE_LIKE, "--_ds-").map((step) => step.px)).toEqual([12, 14, 16, 20, 24, 30]);
+describe("typeScaleTokens", () => {
+  it("names the numbered font sizes and skips private tokens", () => {
+    expect(typeScaleTokens(TODAE_LIKE, "--_ds-")).toEqual(["--ds-font-size-1", "--ds-font-size-2", "--ds-font-size-3", "--ds-font-size-4", "--ds-font-size-5", "--ds-font-size-6"]);
   });
+
+  it("picks the family with the most members", () => {
+    const css = "--a-font-size-1: 1px; --a-font-size-2: 2px; --a-font-size-3: 3px; --b-font-size-1: 10px; --b-font-size-2: 20px; --b-font-size-3: 30px; --b-font-size-4: 40px;";
+    expect(typeScaleTokens(css, "--_")).toHaveLength(4);
+  });
+
+  it("takes values it cannot parse, since Chrome sizes them", () => {
+    const css = "--x-font-size-1: clamp(1rem, 2vw, 2rem); --x-font-size-2: calc(1em + 2px); --x-font-size-3: 2em;";
+    expect(typeScaleTokens(css, "--_x-")).toHaveLength(3);
+  });
+
+  it("throws when no family has three members", () => {
+    expect(() => typeScaleTokens("--x-font-size-1: 12px; --x-font-size-2: 14px;", "--_x-")).toThrow("has no type scale");
+  });
+});
+
+describe("scaleFrom", () => {
+  const step = (name: string, px: number) => ({ name, px });
 
   it("sorts by size, not by number", () => {
-    const css = "--x-font-size-1: 30px; --x-font-size-2: 12px; --x-font-size-3: 20px;";
-    expect(typeScale(css, "--_x-").map((step) => step.name)).toEqual(["--x-font-size-2", "--x-font-size-3", "--x-font-size-1"]);
+    expect(scaleFrom([step("a1", 30), step("a2", 12), step("a3", 20)]).map((s) => s.name)).toEqual(["a2", "a3", "a1"]);
   });
 
-  it("counts two tokens of one size as one step", () => {
-    const css = "--x-font-size-1: 12px; --x-font-size-2: 12px; --x-font-size-3: 16px; --x-font-size-4: 20px;";
-    expect(typeScale(css, "--_x-").map((step) => step.px)).toEqual([12, 16, 20]);
+  it("counts two tokens of one size as one step, and leaves out tokens not set", () => {
+    expect(scaleFrom([step("a1", 12), step("a2", 12), step("a3", 16), step("a4", 0), step("a5", 20)]).map((s) => s.px)).toEqual([12, 16, 20]);
   });
 
-  it("picks the family with the most steps", () => {
-    const css = "--a-font-size-1: 1px; --a-font-size-2: 2px; --a-font-size-3: 3px; --b-font-size-1: 10px; --b-font-size-2: 20px; --b-font-size-3: 30px; --b-font-size-4: 40px;";
-    expect(typeScale(css, "--_").map((step) => step.px)).toEqual([10, 20, 30, 40]);
-  });
-
-  it("throws when no family has three steps", () => {
-    expect(() => typeScale("--x-font-size-1: 12px; --x-font-size-2: 14px;", "--_x-")).toThrow("has no type scale");
+  it("throws when fewer than three steps are set", () => {
+    expect(() => scaleFrom([step("a1", 12), step("a2", 0), step("a3", 12)])).toThrow("has no type scale on the page");
   });
 });

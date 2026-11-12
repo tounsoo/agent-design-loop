@@ -40,13 +40,15 @@ function escapeRegExp(value: string): string {
 export type ScaleStep = { readonly name: string; readonly px: number };
 
 /**
- * The design system's type scale: its numbered font-size tokens, such as
- * Todae's `--todae-font-size-1` to `--todae-font-size-6`, smallest first. A
- * token counts when its name ends in `font-size-<n>` and is not private. When
- * more than one family of names ends that way, the one with the most steps is
- * the scale. Throws when there is no family of at least three steps.
+ * The names of the design system's type scale: its numbered font-size tokens,
+ * such as Todae's `--todae-font-size-1` to `--todae-font-size-6`. A token
+ * counts when its name ends in `font-size-<n>` and is not private. When more
+ * than one family of names ends that way, the one with the most members is the
+ * scale. Throws when there is no family of at least three. The sizes are not
+ * read here: Chrome computes them on the page, so a size set with clamp(),
+ * calc() or a media query counts as painted.
  */
-export function typeScale(css: string, privatePrefix: string): ScaleStep[] {
+export function typeScaleTokens(css: string, privatePrefix: string): string[] {
   const families = new Map<string, Set<string>>();
   for (const match of css.matchAll(/(--[A-Za-z0-9_-]*font-size-)(\d+)\s*:/g)) {
     const [, stem, step] = match;
@@ -57,11 +59,20 @@ export function typeScale(css: string, privatePrefix: string): ScaleStep[] {
   }
   const ranked = [...families.entries()].sort((a, b) => b[1].size - a[1].size || a[0].localeCompare(b[0]));
   const best = ranked[0];
-  if (!best || best[1].size < 3) {
-    throw new Error("has no type scale: no family of at least three tokens named --<prefix>font-size-<n>");
-  }
-  const steps = [...best[1]].map((name) => ({ name, px: resolveLength(css, name, privatePrefix) }));
-  steps.sort((a, b) => a.px - b.px);
-  // Two tokens of one size are one step, not two.
-  return steps.filter((step, index) => index === 0 || Math.abs(step.px - (steps[index - 1]?.px ?? 0)) > 0.01);
+  if (!best || best[1].size < 3) throw new Error(NO_SCALE);
+  return [...best[1]];
+}
+
+const NO_SCALE = "has no type scale: no family of at least three tokens named --<prefix>font-size-<n>";
+
+/**
+ * The type scale from each token's measured size, smallest first. A token that
+ * measures 0 is not set on the page and is left out, and two tokens of one size
+ * are one step. Throws when fewer than three steps are left.
+ */
+export function scaleFrom(measured: readonly ScaleStep[]): ScaleStep[] {
+  const steps = measured.filter((step) => Number.isFinite(step.px) && step.px > 0).sort((a, b) => a.px - b.px);
+  const distinct = steps.filter((step, index) => index === 0 || Math.abs(step.px - (steps[index - 1]?.px ?? 0)) > 0.01);
+  if (distinct.length < 3) throw new Error("has no type scale on the page: fewer than three of its font-size tokens are set");
+  return distinct;
 }
