@@ -46,18 +46,33 @@ export const accessibleNames = {
  */
 export const knownGaps = [
   {
-    presses: ['button "Choose Harbor"', 'button "Choose Lantern"', 'button "Choose Quarry"', 'button "All rooms"'],
+    presses: ['button "Choose Harbor"', 'button "Choose Lantern"', 'button "Choose Quarry"'],
     problem: "focus lost",
-    why: "Going between the rooms page and a room's booking page replaces the page around the button, and nothing moves focus to the new page. Move focus to the new page's title.",
+    previews: ["state=choosing&page=rooms"],
+    why: "Choosing a room replaces the rooms page with its booking page, and nothing moves focus to the new page. Move focus to the new page's title.",
   },
   {
-    presses: ['button "Hold room"', 'button "Book room"'],
+    presses: ['button "All rooms"'],
     problem: "focus lost",
+    previews: ["state=choosing&page=booking", "state=expired"],
+    why: "All rooms replaces the booking page with the rooms page, and nothing moves focus to the new page. Move focus to the new page's title.",
+  },
+  {
+    presses: ['button "Hold room"'],
+    problem: "focus lost",
+    previews: ["state=choosing&page=booking"],
+    why: "The button turns itself off, and Chrome drops focus to the page body; the status region does say what happened. Move focus to that status, or to the next action.",
+  },
+  {
+    presses: ['button "Book room"'],
+    problem: "focus lost",
+    previews: ["state=choosing&page=booking", "state=held", "state=expired"],
     why: "The button turns itself off, and Chrome drops focus to the page body; the status region does say what happened. Move focus to that status, or to the next action.",
   },
   {
     presses: ['button "Try again"'],
     problem: "focus lost",
-    why: "Try again replaces the error with the loader, which says nothing. Announce loading in a status region and keep focus on the page.",
+    previews: ["state=error"],
+    why: "Try again replaces the error, and the button with it, with the loader, so focus falls to the page body. Move focus to the loader, or keep a focusable element in the button's place.",
   },
 ] satisfies KnownGaps;

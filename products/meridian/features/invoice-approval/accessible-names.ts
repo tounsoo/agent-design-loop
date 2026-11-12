@@ -57,23 +57,30 @@ export const accessibleNames = {
 /**
  * Presses that change the page without telling a screen reader, found when
  * check:accessible-names began pressing every action. Each waits for a fix in
- * its own pull request, and the check fails an entry once its press is fixed,
- * so this list only shrinks.
+ * its own pull request, and the check fails an entry once its press is fixed
+ * on a preview it names, so this list only shrinks.
  */
 export const knownGaps = [
   {
-    presses: ['link "To approve"', 'link "All invoices"', 'link "Vendors"'],
+    presses: ['link "To approve"'],
     problem: "silent",
-    why: "The side navigation swaps the main content and keeps focus on the link, where only aria-current moves. Move focus to the new page's heading, or say the page in a status region.",
+    previews: ["state=loading", "state=empty", "state=error"],
+    why: "These previews already show the To approve title, so going to To approve swaps in the queue and the shell's announcer, which speaks only when the title changes, says nothing. Announce every navigation, or move focus to the page heading.",
   },
   {
     presses: [
-      'link "To approve"',
       'link "INV-1842 , Northwind Office Supply"',
       'link "INV-1855 , Fieldnote Print"',
       'link "INV-1907 , Helios Freight"',
       'link "INV-1914 , Brightline Paper Co"',
       'link "INV-1760 , Lumen Cloud Services"',
+    ],
+    problem: "focus lost",
+    previews: ["state=ready&page=collection"],
+    why: "Opening an invoice from the queue replaces the table, and the link with it, with the invoice page, so focus falls to the page body. Move focus to the invoice page's heading.",
+  },
+  {
+    presses: [
       'link "INV-1694 , Helios Freight"',
       'link "INV-1711 , Northwind Office Supply"',
       'link "INV-1770 , Harbor & Pine Catering"',
@@ -81,31 +88,31 @@ export const knownGaps = [
       'link "INV-1744 , Lumen Cloud Services"',
     ],
     problem: "focus lost",
-    why: "Opening an invoice from a table, or going back to the queue from one, replaces the page around the link. Move focus to the new page's heading.",
+    previews: ["state=ready&route=invoices"],
+    why: "Opening an invoice from All invoices replaces the table, and the link with it, with the invoice page, so focus falls to the page body. Move focus to the invoice page's heading.",
   },
   {
-    presses: ['button "Invoice"', 'button "Vendor"', 'button "Status"', 'button "Amount"', 'button "Due"', 'button "Open invoices"', 'button "Last invoice"'],
-    problem: "silent",
-    why: "Sorting reorders the table and changes aria-sort on the column header, which a screen reader does not read out from the focused button. Say the new order in a status region beside the table.",
-  },
-  {
-    presses: ['button "2"', 'button "3"', 'button "Next"'],
-    problem: "silent",
-    why: "Paging swaps the table's rows and keeps focus on the page button. Say which rows show in a status region beside the table.",
+    presses: ['link "To approve"'],
+    problem: "focus lost",
+    previews: ["state=ready&page=detail", "state=ready&page=detail&branch=request", "state=invoice-approved&page=detail", "state=changes-requested&page=detail"],
+    why: "On an invoice page, going to To approve replaces the invoice with the queue, and the link pressed goes with it, so focus falls to the page body. Move focus to the queue's heading.",
   },
   {
     presses: ['button "Request changes"'],
     problem: "silent",
+    previews: ["state=ready&page=detail", "state=ready&page=detail&branch=request"],
     why: "Request changes opens the reason field below and leaves focus on the button. Move focus to the field.",
   },
   {
     presses: ['button "Approve"'],
     problem: "focus lost",
+    previews: ["state=ready&page=detail", "state=ready&page=detail&branch=request"],
     why: "Approve turns itself off, and Chrome drops focus to the page body; the status region does say the invoice was approved. Move focus to that status, or to the next action.",
   },
   {
     presses: ['button "Try again"'],
     problem: "focus lost",
-    why: "Try again replaces the error with the loading state, which says nothing (the known loading gap). Announce loading in a status region and keep focus on the page.",
+    previews: ["state=error"],
+    why: "Try again replaces the error, and the button with it, with the loading state, so focus falls to the page body. Move focus to the loading state's heading, or keep a focusable element in the button's place.",
   },
 ] satisfies KnownGaps;

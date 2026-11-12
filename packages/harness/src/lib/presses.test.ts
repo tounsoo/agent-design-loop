@@ -79,6 +79,14 @@ describe("auditPress", () => {
     const off = auditPress(press([heading, emptyStatus, { ...join, disabled: true }], { focus: { backendId: null, onBody: true } }));
     expect(off?.message).toContain("turns it off, and focus falls to the page body, so a screen reader starts again from the top. Nothing on the page says what changed either.");
   });
+
+  it("fails focus that falls to the page body when nothing else a screen reader reads changed", () => {
+    const blurred = auditPress(press([heading, emptyStatus, join], { focus: { backendId: null, onBody: true } }));
+    expect(blurred?.kind).toBe("focus lost");
+    expect(blurred?.message).toBe(
+      'pressing button "Join waitlist for Cedar" leaves it on the page, and focus falls to the page body, so a screen reader starts again from the top. Keep focus on the same element, or move it to what replaced it.',
+    );
+  });
 });
 
 describe("parseKnownGaps", () => {

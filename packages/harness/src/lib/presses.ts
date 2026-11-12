@@ -111,20 +111,23 @@ export type PressProblem = { readonly kind: PressProblemKind; readonly press: st
 
 /**
  * The problem with one press, or null. A press that changes nothing a screen
- * reader could read passes, whatever it does to the look of the page. Focus
- * that falls to the page body fails even when a live region spoke, since the
- * reader then starts again from the top.
+ * reader could read, and keeps focus off the page body, passes, whatever it
+ * does to the look of the page. Focus that falls to the page body fails even
+ * when nothing else changed or a live region spoke, since the reader then
+ * starts again from the top.
  */
 export function auditPress(press: Press): PressProblem | null {
   const { action, before, after, focus } = press;
-  if (before.map(signature).join("\n") === after.map(signature).join("\n")) return null;
+  const unchanged = before.map(signature).join("\n") === after.map(signature).join("\n");
+  if (unchanged && !focus.onBody) return null;
   const name = actionName(action);
   const pressed = after.find((node) => node.backendId === action.backendId);
   const spoke = liveRegionSpoke(before, after);
 
+  // Focus on the body sends the reader back to the top, whether or not anything else changed.
   if (focus.onBody) {
     const what = !press.inDocument ? "removes it from the page" : pressed === undefined ? "hides it" : pressed.disabled ? "turns it off" : "leaves it on the page";
-    const silent = spoke ? "" : " Nothing on the page says what changed either.";
+    const silent = spoke || unchanged ? "" : " Nothing on the page says what changed either.";
     return {
       kind: "focus lost",
       press: name,

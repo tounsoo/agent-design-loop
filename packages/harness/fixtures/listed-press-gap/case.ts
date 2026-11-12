@@ -12,6 +12,6 @@ export default {
     ],
   },
   checks: [
-    { run: "check:accessible-names", passes: "5 of 6 presses tell a screen reader what changed and keep focus on the page, besides 1 known gap" },
+    { run: "check:accessible-names", passes: "5 of 6 presses tell a screen reader what changed and keep focus on the page, and the other 1 has a problem its flow lists in knownGaps" },
   ],
 };

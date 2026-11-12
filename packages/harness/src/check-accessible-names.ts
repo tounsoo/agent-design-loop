@@ -83,6 +83,14 @@ if (process.argv.includes("--list")) {
   process.exit(0);
 }
 
+/**
+ * How long after a press the check reads the page: past the 100 ms Todae's
+ * announcer waits before it writes its live region on the page body. Inside
+ * an open Todae modal it writes about 100 ms later still, which this does not
+ * wait for; no product preview opens one today.
+ */
+const ANNOUNCER_WAIT_MS = 150;
+
 const failures: string[] = [];
 const pressProblems: FoundProblem[] = [];
 let pressCount = 0;
@@ -90,12 +98,35 @@ let pressCount = 0;
 await withServedApp("accessible names", async (page, base) => {
   const session = await page.createCDPSession();
   await session.send("Page.enable");
+  const origin = new URL(base).origin;
+  // A press that loads another document, noticed when the load is asked for, before it commits.
   let navigated = false;
+  const topFrame = (await session.send("Page.getFrameTree")) as { frameTree: { frame: { id: string } } };
+  const withoutHash = (href: string) => href.split("#")[0];
+  // Asked for: a link or script loads another URL in this tab. A move to a fragment of the same page is not a new document, and a new tab or a download leaves this page where it is.
+  session.on("Page.frameRequestedNavigation", (event: { frameId: string; url: string; disposition: string }) => {
+    if (event.frameId === topFrame.frameTree.frame.id && event.disposition === "currentTab" && withoutHash(event.url) !== withoutHash(page.url())) navigated = true;
+  });
+  // Committed: another document replaced this one, which a same-document change of history never does.
   session.on("Page.frameNavigated", (event: { frame: { parentId?: string } }) => {
     if (event.frame.parentId === undefined) navigated = true;
   });
+  // A dialog would stop the page; dismiss it and go on, as a press that opens one is still read.
+  page.on("dialog", (dialog) => void dialog.dismiss().catch(() => undefined));
 
   const settle = () => page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(resolve, 0)))));
+  // Todae's announcer writes its live region 100 ms after announce(), so a press is read only once that has passed.
+  const afterPress = async () => {
+    await settle();
+    await new Promise((resolve) => setTimeout(resolve, ANNOUNCER_WAIT_MS));
+    await settle();
+  };
+  // Each press starts from a fresh load with nothing stored, so one press cannot cause or hide another's problem.
+  const load = async (href: string, waitUntil: "load" | "networkidle0") => {
+    await session.send("Storage.clearDataForOrigin", { origin, storageTypes: "local_storage,session_storage,indexeddb" });
+    await page.goto(href, { waitUntil });
+    await settle();
+  };
   const read = async (): Promise<{ tree: AxNode[]; elements: Map<number, DomElement> }> => {
     const { root } = (await session.send("DOM.getDocument", { depth: -1, pierce: true })) as { root: DomNode };
     const { nodes } = (await session.send("Accessibility.getFullAXTree")) as { nodes: CdpAxNode[] };
@@ -113,16 +144,18 @@ await withServedApp("accessible names", async (page, base) => {
   for (const [query, entry] of declared) {
     const url = new URL(base);
     url.search = query;
-    await page.goto(url.href, { waitUntil: "networkidle0" });
-    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve(undefined))));
+    await load(url.href, "networkidle0");
     const { tree } = await read();
     for (const problem of auditPreview(tree, entry.announcements, entry.files.join(" and "))) failures.push(`?${query}: ${problem}`);
 
-    // Each press starts from a fresh load, so one press cannot hide or cause another's problem.
     for (const [index, action] of actionsOf(tree).entries()) {
-      await page.goto(url.href, { waitUntil: "load" });
-      await settle();
-      const fresh = actionsOf((await read()).tree)[index];
+      await load(url.href, "load");
+      let fresh = actionsOf((await read()).tree)[index];
+      // A preview still rendering at load gets the same wait as the first read before it counts as different.
+      if (fresh?.backendId == null || signature(fresh) !== signature(action)) {
+        await load(url.href, "networkidle0");
+        fresh = actionsOf((await read()).tree)[index];
+      }
       if (fresh?.backendId == null || signature(fresh) !== signature(action)) {
         failures.push(`?${query}: the preview does not render the same actions on every load, so ${actionName(action)} cannot be pressed on its own. Keep the preview the same from one load to the next.`);
         continue;
@@ -130,22 +163,28 @@ await withServedApp("accessible names", async (page, base) => {
       try {
         await session.send("DOM.focus", { backendNodeId: fresh.backendId });
       } catch {
-        failures.push(`?${query}: ${actionName(action)} is an action a person presses, and a keyboard cannot focus it. Use a native control from the catalog, or give it tabindex="0" and a key handler.`);
+        failures.push(`?${query}: ${actionName(action)} is an action a person presses, and the check cannot focus it, so a keyboard may not reach it either. Use a native control from the catalog, or give it tabindex="0" and a key handler.`);
         continue;
       }
       await settle();
+      if ((await focused()).backendId !== fresh.backendId) {
+        failures.push(`?${query}: focusing ${actionName(action)} moves focus somewhere else, so a keyboard cannot press it. Keep focus on a control once it has it.`);
+        continue;
+      }
       const before = await read();
       const target = before.tree.find((node) => node.backendId === fresh.backendId) ?? fresh;
       navigated = false;
-      pressCount += 1;
       try {
         await page.keyboard.press(keyFor(target));
-        await settle();
+        await afterPress();
       } catch (error) {
+        // The page's context goes away when a document loads; give the navigation events a moment to say so.
+        await new Promise((resolve) => setTimeout(resolve, 200));
         if (!navigated) throw error;
       }
-      // A press that loads another document hands the reader a new page, which a screen reader reads from the top.
+      // A press that loads another document hands the reader a new page, which a screen reader reads from the top. It is not counted.
       if (navigated) continue;
+      pressCount += 1;
       const after = await read();
       const problem = auditPress({ action: target, before: before.tree, after: after.tree, focus: await focused(), inDocument: after.elements.has(fresh.backendId) });
       if (problem !== null) pressProblems.push({ ...problem, preview: query });
@@ -167,7 +206,7 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-const known = listed.size > 0 ? `, besides ${listed.size} known gap${listed.size === 1 ? "" : "s"} their flows list in knownGaps` : "";
+const known = listed.size > 0 ? `, and the other ${listed.size} ha${listed.size === 1 ? "s a problem its flow lists" : "ve problems their flows list"} in knownGaps` : "";
 console.log(
   `accessible names: ${declared.size} previews announce the ${count} things their flows declare, and every control has a name. ${pressCount - listed.size} of ${pressCount} presses tell a screen reader what changed and keep focus on the page${known}.`,
 );
