@@ -2,6 +2,7 @@ import path from "node:path";
 import ts from "typescript";
 import { config } from "./lib/config";
 import { parseFile, walk } from "./lib/jsx";
+import { loadScenarios } from "./lib/scenarios";
 
 function exportedStringArray(file: string, name: string): string[] | null {
   const source = parseFile(path.resolve(file));
@@ -58,4 +59,11 @@ for (const { states: statesFile, views: viewsFile } of config.flows) {
   console.log(`state coverage: ${modeled.length} modeled states have views (${modeled.join(", ")}).`);
 }
 
+// Each modeled state also needs a scenario, the case the Chrome checks and the screenshots open it with.
+const { scenarios, problems } = await loadScenarios(config.flows);
+for (const problem of problems) console.error(`state coverage: ${problem}`);
+if (problems.length > 0) failed = true;
+
 if (failed) process.exit(1);
+
+console.log(`state coverage: ${scenarios.length} scenarios cover every modeled state, each id once.`);

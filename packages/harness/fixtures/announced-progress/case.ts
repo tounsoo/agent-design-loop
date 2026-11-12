@@ -12,6 +12,6 @@ export default {
     ],
   },
   checks: [
-    { run: "check:accessible-names", passes: "3 previews announce the 7 things their flows declare" },
+    { run: "check:accessible-names", passes: "3 scenarios announce the 7 things their flows declare" },
   ],
 };

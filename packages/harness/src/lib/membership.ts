@@ -12,10 +12,11 @@ import type { HarnessConfig, ParsedConfig, ShellRules } from "./parse-config";
  *
  * - An addition grows what a product has: a member of one of the four lists
  *   (catalog exports, `allowed_layouts`, `allowed_content_layouts` and flow
- *   states), a new page type with its own new `shells` entry, a new task with
- *   its graph module, or a new preview pair. A proposal this change adds may
- *   cover it under `adds`: the bare member for the four lists, and
- *   `page-type:<id>`, `task:<id>` or `preview:<state>?<query>` for the rest.
+ *   states), a new page type with its own new `shells` entry, or a new task
+ *   with its graph module. A proposal this change adds may cover it under
+ *   `adds`: the bare member for the four lists, and `page-type:<id>` or
+ *   `task:<id>` for the rest. Scenarios are product code, not an inventory,
+ *   so they are not compared.
  * - A tightening makes a rule input stricter: a task's `max_steps` lowered, a
  *   cap lowered, `TARGET_MIN_PX` raised, a section added to
  *   `disclosed_sections`. A proposal this change adds may cover it under
@@ -41,12 +42,6 @@ export type Inventory = {
   readonly disclosuresPerPage: number;
   readonly visibleQuestions: number;
   readonly targetMinPx: number;
-  /**
-   * Each modeled state's preview queries, as the flows in use name them: an
-   * empty list for a state opened once, bare. A state in two flows has the
-   * queries of both.
-   */
-  readonly previews: Readonly<Record<string, readonly string[]>>;
   /** The root's own harness config, or null when the root has none. */
   readonly config: ParsedConfig | null;
   /** The adapter the root's config names, or null when it names none. */
@@ -95,7 +90,7 @@ function differingMembers(before: readonly string[], after: readonly string[]): 
   return sortedUnique([...before.filter((item) => !after.includes(item)), ...after.filter((item) => !before.includes(item))]);
 }
 
-/** Every string inside a value, keys of records included, as in a flow's module paths and preview queries. */
+/** Every string inside a value, keys of records included, as in a flow's module paths. */
 export function stringLeaves(value: unknown): string[] {
   if (typeof value === "string") return [value];
   if (Array.isArray(value)) return value.flatMap(stringLeaves);
@@ -161,26 +156,14 @@ function shellAdditions(base: ShellRules | null, head: ShellRules | null, newPag
   return { ok: true };
 }
 
-/**
- * Each preview a state has, as `state?query`, or `state` for one opened
- * bare. Only states both sides model are compared: a new state's previews
- * come with the flow state it adds, and a removed state's go with it.
- */
-function previewPairs(previews: Readonly<Record<string, readonly string[]>>, states: readonly string[]): string[] {
-  return states.flatMap((state) => {
-    const queries = previews[state] ?? [];
-    return queries.length === 0 ? [state] : queries.map((query) => `${state}?${query}`);
-  });
-}
-
 /** Task id → graph module, across the flows a config names. */
 function taskGraphs(config: ParsedConfig): Map<string, string> {
   return new Map(config.flows.flatMap((flow) => Object.entries(flow.tasks ?? {})));
 }
 
-/** The flows with their task graphs and previews taken out, which the other comparisons judge item by item. */
+/** The flows with their task graphs taken out, which the other comparisons judge task by task. */
 function flowsRest(config: ParsedConfig): unknown {
-  return config.flows.map((flow) => ({ ...flow, tasks: undefined, previews: undefined }));
+  return config.flows.map((flow) => ({ ...flow, tasks: undefined }));
 }
 
 /**
@@ -362,7 +345,7 @@ function configChanges(base: Inventory, head: Inventory, before: ParsedConfig, a
     }
   }
 
-  // flows: task graphs per task, previews per (state, query) pair, and the rest whole.
+  // flows: task graphs per task, and the rest whole.
   const baseGraphs = taskGraphs(before);
   const headGraphs = taskGraphs(after);
   const newTasks = new Set(head.tasks.map((task) => task.id).filter((id) => !base.tasks.some((task) => task.id === id)));
@@ -374,17 +357,6 @@ function configChanges(base: Inventory, head: Inventory, before: ParsedConfig, a
     const terms = ["flows", ...leafDiff({ [id]: left }, { [id]: right })];
     if (left === undefined && newTasks.has(id)) push({ text, terms, kind: "adds", names: [`task:${id}`] });
     else push({ text, terms, names: [`task:${id}`], notAddition: left === undefined ? `"${id}" is not a task this change adds` : `the graph module of "${id}", a task the base had, ${right === undefined ? "is gone" : "moved"}` });
-  }
-  const common = base.flowStates.filter((state) => head.flowStates.includes(state));
-  const beforePairs = previewPairs(base.previews, common);
-  const afterPairs = previewPairs(head.previews, common);
-  if (json([...beforePairs].sort()) !== json([...afterPairs].sort())) {
-    const text = changedText(`${configName} flows previews`, beforePairs, afterPairs);
-    // Each pair may be listed as preview:<state>?<query>, or by its query alone, as flows strings were before.
-    const differing = differingMembers(beforePairs, afterPairs).map((pair): Term => (pair.includes("?") ? [`preview:${pair}`, pair.slice(pair.indexOf("?") + 1)] : `preview:${pair}`));
-    const added = afterPairs.filter((pair) => !beforePairs.includes(pair)).map((pair) => `preview:${pair}`);
-    const kept = beforePairs.every((pair) => afterPairs.includes(pair));
-    push(kept ? { text, terms: ["flows", ...differing], kind: "adds", names: added } : { text, terms: ["flows", ...differing], names: added, notAddition: "the change also drops a preview the base had" });
   }
   const restBefore = flowsRest(before);
   const restAfter = flowsRest(after);

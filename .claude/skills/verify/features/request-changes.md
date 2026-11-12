@@ -11,7 +11,7 @@ On an invoice, Request changes is the secondary action. Choosing it reveals a re
 ## How to get to it (user POV)
 
 - Open an invoice and choose `Request changes`.
-- Open `?state=ready&page=detail&branch=request` directly. The Preview menu has no entry for it.
+- Open `?scenario=invoice-requesting-changes` from the Preview menu.
 
 ## Driving it with Vitest and a browser
 

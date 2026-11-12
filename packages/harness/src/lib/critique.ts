@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import type { LoopGraph } from "./loop";
-import { VIEWPORT } from "./screenshots";
+import { VIEWS } from "./views";
 import { parseTrace, traceProblems, type TraceStep } from "./trace";
 
 /**
@@ -128,7 +128,7 @@ export function critiqueBrief({ product, gallery, shots }: { readonly product: P
     "",
     "## The screenshots",
     "",
-    `Each is a full page at ${VIEWPORT.width} CSS px wide, one per preview, in \`${gallery}\`. The window was ${VIEWPORT.height} CSS px tall, so the top ${VIEWPORT.height} CSS px of each is what a person sees before scrolling: that is the first view. A name is the preview's state, then any other part of its address. Open every one.`,
+    `Each is a full page, one per scenario in each view, in \`${gallery}\`. A name is the scenario, then the view: ${VIEWS.map((view) => `\`${view.name}\` is a window ${view.width} CSS px wide and ${view.height} tall in the ${view.scheme} colour scheme${view.mobile ? ", as a phone" : ""}`).join("; ")}. The top of each, as tall as its window, is what a person sees before scrolling: that is the first view. Open every one.`,
     "",
     ...(shots.before.length > 0
       ? ["Judge the `after/` screenshots. The `before/` ones are the base, for comparison only: a problem already there counts only when the change makes it worse.", ""]

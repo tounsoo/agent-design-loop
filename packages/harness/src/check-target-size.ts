@@ -2,21 +2,25 @@ import { readFileSync } from "node:fs";
 import { adapter } from "./lib/adapter";
 import { config, loadRules } from "./lib/config";
 import { resolveLength } from "./lib/tokens";
-import { previewQueries } from "./lib/previews";
+import { loadScenarios } from "./lib/scenarios";
 import { withServedApp } from "./lib/served-app";
+import { viewNamed, type View } from "./lib/views";
 
 const { TARGET_MIN_PX } = await loadRules();
 
-const { queries: states, problems } = await previewQueries(config.flows);
+const { scenarios, problems } = await loadScenarios(config.flows);
 if (problems.length > 0) {
   for (const problem of problems) console.error(`target size: ${problem}`);
   process.exit(1);
 }
 
-// `--list` prints the previews and stops before Chrome, so the fixtures can test the derivation.
+/** A target's size does not change with the colour scheme, so it is measured at both widths in light. */
+const views: readonly View[] = [viewNamed("desktop-light"), viewNamed("phone-light")];
+
+// `--list` prints the scenarios and stops before Chrome, so the fixtures can test them without a build.
 if (process.argv.includes("--list")) {
-  for (const state of states) console.log(`target size: preview ?${state}`);
-  console.log(`target size: ${states.length} previews from modeledStates.`);
+  for (const scenario of scenarios) console.log(`target size: scenario ${scenario.id} (${scenario.state})`);
+  console.log(`target size: ${scenarios.length} scenarios cover ${new Set(scenarios.map((scenario) => scenario.state)).size} modeled states.`);
   process.exit(0);
 }
 
@@ -34,36 +38,39 @@ assertButtonTokens();
 const failures: string[] = [];
 
 await withServedApp("target size", config.paths.web, async (page, base) => {
-  for (const state of states) {
-    const url = new URL(base);
-    url.search = state;
-    await page.goto(url.href, { waitUntil: "networkidle0" });
-    const nextFrame = () => page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve(undefined))));
-    const measure = async () => {
-      for (const problem of undersized(await page.evaluate(collectTargets))) {
-        const failure = `${state}: ${problem}`;
-        if (!failures.includes(failure)) failures.push(failure);
+  for (const view of views) {
+    await page.setViewport({ width: view.width, height: view.height, isMobile: view.mobile, hasTouch: view.mobile });
+    for (const scenario of scenarios) {
+      const url = new URL(base);
+      url.search = scenario.search;
+      await page.goto(url.href, { waitUntil: "networkidle0" });
+      const nextFrame = () => page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve(undefined))));
+      const measure = async () => {
+        for (const problem of undersized(await page.evaluate(collectTargets))) {
+          const failure = `${scenario.id} at ${view.label}: ${problem}`;
+          if (!failures.includes(failure)) failures.push(failure);
+        }
+      };
+      const summary = await page.$("[data-page] summary");
+      if (summary) {
+        await summary.click();
+        await nextFrame();
       }
-    };
-    const summary = await page.$("[data-page] summary");
-    if (summary) {
-      await summary.click();
-      await nextFrame();
-    }
-    await measure();
-    // Every other closed disclosure in the document, the chrome's included, is
-    // opened on its own, measured, and closed again, so its controls are
-    // measured without one open menu covering another's.
-    for (const other of await page.$$("summary")) {
-      const closed = await other.evaluate(
-        (element) => element.parentElement instanceof HTMLDetailsElement && !element.parentElement.open && element.getClientRects().length > 0,
-      );
-      if (!closed) continue;
-      await other.click();
-      await nextFrame();
       await measure();
-      await other.click();
-      await nextFrame();
+      // Every other closed disclosure in the document, the chrome's included, is
+      // opened on its own, measured, and closed again, so its controls are
+      // measured without one open menu covering another's.
+      for (const other of await page.$$("summary")) {
+        const closed = await other.evaluate(
+          (element) => element.parentElement instanceof HTMLDetailsElement && !element.parentElement.open && element.getClientRects().length > 0,
+        );
+        if (!closed) continue;
+        await other.click();
+        await nextFrame();
+        await measure();
+        await other.click();
+        await nextFrame();
+      }
     }
   }
 });
@@ -73,7 +80,9 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log(`target size: controls on ${states.length} previews meet ${TARGET_MIN_PX} CSS px (or the WCAG spacing exception).`);
+console.log(
+  `target size: controls on ${scenarios.length} scenarios at ${views.map((view) => `${view.width} by ${view.height}`).join(" and ")}, in light, meet ${TARGET_MIN_PX} CSS px (or the WCAG spacing exception).`,
+);
 
 function assertButtonTokens(): void {
   const css = readFileSync(adapter.tokens.css, "utf8");

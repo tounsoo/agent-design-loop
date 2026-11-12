@@ -5,9 +5,6 @@ export default {
       {
         states: "packages/harness/fixtures/product/flows/states.ts",
         views: "packages/harness/fixtures/illegal/no-declarations/views.ts",
-        previews: {
-          ready: ["page=collection", "page=detail"],
-        },
       },
     ],
   },

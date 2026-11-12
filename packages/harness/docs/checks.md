@@ -25,8 +25,8 @@ npm run check:fixtures && npm run check
 | [`check:priority`](#checkpriority) | Rule | `--config <file>` (required) |  |  | 8 illegal, 5 legal |
 | [`check:one-thing`](#checkone-thing) | Rule | `--config <file>` (required) |  |  | 16 illegal, 5 legal |
 | [`check:inventories`](#checkinventories) | Rule | `--config <file>` (required), `--base <file>`, `--proposals <dir>` and `--base-proposals <dir>` | Yes |  | 33 illegal, 9 legal |
-| [`check:state-coverage`](#checkstate-coverage) | Rule | `--config <file>` (required) |  |  | 1 illegal, 1 legal |
-| [`check:target-size`](#checktarget-size) | Rule | `--config <file>` (required) and `--list` |  | Yes | 4 illegal, 3 legal |
+| [`check:state-coverage`](#checkstate-coverage) | Rule | `--config <file>` (required) |  |  | 5 illegal, 1 legal |
+| [`check:target-size`](#checktarget-size) | Rule | `--config <file>` (required) and `--list` |  | Yes | 3 illegal, 3 legal |
 | [`check:accessible-names`](#checkaccessible-names) | Rule | `--config <file>` (required) and `--list` |  | Yes | 10 illegal, 5 legal |
 | [`check:rendered-page`](#checkrendered-page) | Rule | `--config <file>` (required) |  | Yes | 10 illegal, 2 legal |
 | [`check:opt-outs`](#checkopt-outs) | Product | `--config <file>` (required) |  |  | 6 illegal, 2 legal |
@@ -41,7 +41,7 @@ npm run check:fixtures && npm run check
 | [`critique`](#critique) | Tool | `--config <file>` (required), `--gallery <dir>`, `--brief <file>`, `--findings <file>` and `--trace <file>` |  |  |  |
 | [`loop:step`](#loopstep) | Tool | none |  |  |  |
 | [`new:product`](#newproduct) | Tool | none |  |  |  |
-| [`screenshots`](#screenshots) | Tool | `--config <file>` (required), `--out <dir>`, `--state <state>`, `--base <ref>` and `--pin <dir>` |  | Yes |  |
+| [`screenshots`](#screenshots) | Tool | `--config <file>` (required), `--out <dir>`, `--state <state>`, `--scenario <id>`, `--view <view>`, `--base <ref>` and `--pin <dir>` |  | Yes |  |
 | [`setup:chrome`](#setupchrome) | Tool | none |  |  |  |
 
 ## `lint:product-ui`
@@ -132,7 +132,7 @@ Fixture cases, under `packages/harness/fixtures/`, that run it:
 - `flow-status`: Legal: a flow whose states keep their name in phase, read through the graph module's flowStatus. It passes with "step budget: within budget.".
 - `longer-route`: Legal: a second, longer route to a task's success that fits its budget, measured and printed. It passes with "longest shipped flow route (3): open-note → send-reminder → archive".
 - `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes, and npm run new:product starts a product from a copy that passes. It passes with "step budget: within budget.".
-- `two-tasks`: Legal: a notes inbox with two tasks, each mapped to its own task graph, and a preview query for one modeled state only. It passes with "step budget: archive-note (max_steps 2)".
+- `two-tasks`: Legal: a notes inbox with two tasks, each mapped to its own task graph, and a scenario that opens one modeled state on its detail page. It passes with "step budget: archive-note (max_steps 2)".
 - `illegal/flow-state-without-status`: Illegal: a flow whose states have no status field and a graph module with no flowStatus. It fails with "which has no status field".
 - `illegal/graph-flow-drift`: Illegal: a 3-step task graph whose shipped reducer needs 2 steps. It fails with "does not match the modeled path".
 - `illegal/graph-without-task-id`: Illegal: the two-task product with archive-note mapped to a graph that exports no taskId, so the mapping alone says which task it models. It fails with "does not export a taskId".
@@ -272,13 +272,15 @@ It fails:
 - A collection's ready body that is not one registered content layout, or that the feature passes ad-hoc children into, and a collection whose pages fill no slot outside its chrome, so no body is checked.
 - The `shells` problems `check:one-thing` names, a page type in none or more than one of its three kinds, and a collection page type with no shell module or no shell, since the body check reads the same shells.
 - Page CSS for a class the feature uses that no content layout, chrome layout or page type uses.
-- A membership change against the base that no adopted proposal covers. A proposal covers a change when it is `status: decided` on the base, `status: adopted` in the change, and its `changes` on the base list, exactly, what changed: the member added or removed, the constant, the config field or its new value, each changed string in `flows` (a preview as `preview:<state>?<query>` or by its query alone, a bare one as `preview:<state>`; a state's first query drops its bare preview, so it is not an addition), `adapter.<field>` for an adapter field, the new adapter path, or the product's directory.
-- A proposal the change adds, used to cover anything but what only adds or tightens. A change that only adds or only tightens passes with a proposal the change adds as `status: adopted`, with nothing under `changes`, `retires` or `opts-out`, that lists under `adds` each new member of the catalog exports, `allowed_layouts`, `allowed_content_layouts` or the flow states by its bare name, `page-type:<id>` for a new page type with its own new `shells` entry, `task:<id>` for a new task with its graph module and `preview:<state>?<query>` for a new preview pair, and under `tightens` `max_steps:<task id>` lowered, a cap lowered, `TARGET_MIN_PX` raised or `disclosed_sections:<section>` added. It covers nothing when it is on the base, when a base proposal already lists one of its `adds` for the same list, when one of its `adds` is a name the change removes or changes otherwise, or when one of its `tightens` loosens; nothing under `tightens` counts when the change moves any tightenable input the other way.
+- A membership change against the base that no adopted proposal covers. A proposal covers a change when it is `status: decided` on the base, `status: adopted` in the change, and its `changes` on the base list, exactly, what changed: the member added or removed, the constant, the config field or its new value, each changed string in `flows`, `adapter.<field>` for an adapter field, the new adapter path, or the product's directory.
+- A proposal the change adds, used to cover anything but what only adds or tightens. A change that only adds or only tightens passes with a proposal the change adds as `status: adopted`, with nothing under `changes`, `retires` or `opts-out`, that lists under `adds` each new member of the catalog exports, `allowed_layouts`, `allowed_content_layouts` or the flow states by its bare name, `page-type:<id>` for a new page type with its own new `shells` entry and `task:<id>` for a new task with its graph module, and under `tightens` `max_steps:<task id>` lowered, a cap lowered, `TARGET_MIN_PX` raised or `disclosed_sections:<section>` added. It covers nothing when it is on the base, when a base proposal already lists one of its `adds` for the same list, when one of its `adds` is a name the change removes or changes otherwise, or when one of its `tightens` loosens; nothing under `tightens` counts when the change moves any tightenable input the other way.
 - A new page type whose change also alters a `shells` entry the base had, or that brings no entry of its own: that takes a decided proposal that lists the page type and the `shells` rules it touches under `changes`. A bare page type id under `adds` names nothing; it goes under `adds` as `page-type:<id>`.
 - A base file with `export *` or `export =` that does not export a list by name, so a re-export cannot pass for a missing list.
 - A config the base does not have at that path while the base has the product's inputs, so a renamed config needs a proposal.
 
-Compared values: `allowed_layouts`, `allowed_content_layouts` and `disclosed_sections` once the base exports them; `allowed_page_types`; the catalog's export names; `modeledStates`; each task's `max_steps`; each priority item's action, rank and level; the caps and `TARGET_MIN_PX` in the rules module; every path in the config, its `flows` and `shells`; and the design system adapter, field by field, once the base config names one. Lists, tasks, `shells` entries, task graphs and previews are compared item by item, and string lists are sorted and de-duplicated first, so reordering is not a change. A new page type's pass line prints the `shells` rule and slots it joins. Names are compared, not values behind them, so pointing an existing name at another component is not a change.
+Compared values: `allowed_layouts`, `allowed_content_layouts` and `disclosed_sections` once the base exports them; `allowed_page_types`; the catalog's export names; `modeledStates`; each task's `max_steps`; each priority item's action, rank and level; the caps and `TARGET_MIN_PX` in the rules module; every path in the config, its `flows` and `shells`; and the design system adapter, field by field, once the base config names one. Lists, tasks, `shells` entries and task graphs are compared item by item, and string lists are sorted and de-duplicated first, so reordering is not a change. A new page type's pass line prints the `shells` rule and slots it joins. Names are compared, not values behind them, so pointing an existing name at another component is not a change.
+
+Scenarios are not compared: they are product code, so adding or removing one needs no proposal. A config field the parser no longer reads, such as a base's `flows[].previews`, is read as absent on both sides, so dropping it is no change. [Proposal 2026-11-12-scenarios](../../../proposals/2026-11-12-scenarios.md) records it.
 
 A list the base does not export yet may be recorded once, without a proposal: `allowed_layouts`, `allowed_content_layouts` or `disclosed_sections`, and the design system adapter the config names. A base exports a list when it declares it with `export const` or names a local `const` in an export clause.
 
@@ -333,7 +335,7 @@ Fixture cases, under `packages/harness/fixtures/`, that run it:
 
 ## `check:state-coverage`
 
-Every modeled flow state has a view.
+Every modeled flow state has a view and a scenario.
 
 A rule check: `check:rules` runs it, and `check:product` runs it on each product. Run it as `npm run check:state-coverage`, from the repository root, defined in `packages/harness/src/check-state-coverage.ts`. It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it.
 
@@ -341,116 +343,122 @@ It fails:
 
 - A string in a flow's `modeledStates` that is not a `case` label in that flow's `views` module.
 - A flow's states file that does not export `modeledStates`, or exports an empty list.
+- A modeled state with no scenario in the `scenarios.ts` beside its flow's states module, a scenario whose `state` is not a modeled state, an id that is not a lowercase slug with single hyphens, an id used twice across the product, and a `scenarios.ts` that is missing, does not load or does not export `scenarios` as a record of id to `{ state, ...data }`.
 
 It matches strings, so it does not see whether the case renders anything distinct. Typecheck is a second gate for the same idea: `renderedStates` has to satisfy `ModeledState`.
 
+Scenarios are product code, not an inventory: adding or removing one needs no proposal, but a modeled state never loses its last one. It imports each `scenarios.ts` in Node, so the file holds data only, with no JSX, CSS or `window`. It needs no Chrome, so a product that opts out of a Chrome check still has its scenarios checked. It does not check that a scenario renders the state it names. [Proposal 2026-11-12-scenarios](../../../proposals/2026-11-12-scenarios.md) records the rule.
+
 Fixture cases, under `packages/harness/fixtures/`, that run it:
 
-- `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes, and npm run new:product starts a product from a copy that passes. It passes with "6 modeled states have views".
+- `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes, and npm run new:product starts a product from a copy that passes. It passes with "7 scenarios cover every modeled state, each id once.".
+- `illegal/duplicate-scenario-id`: Illegal: two flows both name a scenario "queue", so ?scenario=queue would open one of two cases. It fails with ""queue" is also a scenario in packages/harness/fixtures/product/flows/scenarios.ts".
 - `illegal/missing-view`: Illegal: invoice-approved is modeled and has no view. It fails with "has no view".
+- `illegal/scenario-not-a-slug`: Illegal: a scenario id is not a lowercase slug, so it would not read in an address, a screenshot's file name or a message. It fails with ""Invoice_Queue" is not a lowercase slug".
+- `illegal/scenario-unmodeled-state`: Illegal: a scenario renders "confirming", which is not a modeled state, so it opens nothing the flow promises to handle. It fails with "scenarios.ts "confirming" renders "confirming", which is not a modeled state".
+- `illegal/state-without-scenario`: Illegal: the modeled state changes-requested has no scenario, so no check opens it and no screenshot shows it. It fails with "has no scenario for the modeled state "changes-requested"".
 
 ## `check:target-size`
 
-Every control on every preview is at least 24 CSS px, or meets the WCAG 2.5.8 spacing exception, measured in headless Chrome.
+Every control on every scenario, at desktop and phone width, is at least 24 CSS px, or meets the WCAG 2.5.8 spacing exception, measured in headless Chrome.
 
 A rule check: `check:rules` runs it, and `check:product` runs it on each product. Run it as `npm run check:target-size`, from the repository root, defined in `packages/harness/src/check-target-size.ts`. It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it. It needs headless Chrome.
 
 Flags:
 
-- `--list`: Prints the previews it would open, without building or Chrome.
+- `--list`: Prints the scenarios it would open, without building or Chrome.
 
 It fails:
 
 - A control under 24 CSS px on a side that misses the WCAG 2.5.8 spacing exception, anywhere in the document: the page and the chrome around it, with each closed disclosure opened on its own.
 - A button token floor under 24: the font size plus twice the vertical padding of the design system the adapter names.
-- A `previews` entry for a state that is not modeled, or one that sets `state` itself, and a flow whose states file does not export `modeledStates` as a list of strings.
+- Every scenario problem `check:state-coverage` fails, before Chrome starts, and a flow whose states file does not export `modeledStates` as a list of strings.
 - A `paths.web` outside the repository or with no `index.html`, an app that does not build, and a built app that cannot be served.
 - No Chrome found.
 
-It builds the directory in `paths.web`, serves it with `vite preview` on a free port of 127.0.0.1, or uses the build `check:product` already serves for this product, and opens every state in each flow's `modeledStates` at 1280 by 900: bare, or once per query string that flow's `previews` in the config lists for it, such as `page=detail`. A state added later is opened without editing the script. A state that renders no `[data-page]` element is measured too. It clicks a disclosure summary on the page when one is present and measures, then opens every other closed disclosure in the document, such as a menu in the chrome, one at a time, measures what it shows, and closes it again.
+It builds the directory in `paths.web`, serves it with `vite preview` on a free port of 127.0.0.1, or uses the build `check:product` already serves for this product, and opens every scenario in each flow's `scenarios.ts` at `?scenario=<id>`, at 1280 by 900 and at 390 by 844 as a phone, both in the light colour scheme. A scenario added later is opened without editing the script. A scenario that renders no `[data-page]` element is measured too. It clicks a disclosure summary on the page when one is present and measures, then opens every other closed disclosure in the document, such as a menu in the chrome, one at a time, measures what it shows, and closes it again.
 
-It measures each preview on load and after a disclosure opens, at one width. The floor is `TARGET_MIN_PX` in the product's rules module. It closes the server and the browser itself.
+It measures each scenario on load and after a disclosure opens, in each width. The floor is `TARGET_MIN_PX` in the product's rules module. It closes the server and the browser itself.
 
 Fixture cases, under `packages/harness/fixtures/`, that run it:
 
-- `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes, and npm run new:product starts a product from a copy that passes. It passes with "7 previews from modeledStates" (with --list) and passes with "controls on 7 previews meet 24 CSS px".
-- `target-size-whole-document`: Legal: the page, the chrome around it, and a closed menu in the chrome have controls of at least 24 CSS px. check:target-size builds this folder's index.html. It passes with "controls on 7 previews meet 24 CSS px".
-- `two-tasks`: Legal: a notes inbox with two tasks, each mapped to its own task graph, and a preview query for one modeled state only. It passes with "target size: preview ?state=archived" (with --list).
-- `illegal/preview-sets-state`: Illegal: the preview query for "reminded" sets state=archived itself, so it would open another state than its key names. It fails with "sets state itself" (with --list).
+- `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes, and npm run new:product starts a product from a copy that passes. It passes with "target size: 7 scenarios cover 6 modeled states." (with --list) and passes with "controls on 7 scenarios at 1280 by 900 and 390 by 844, in light, meet 24 CSS px".
+- `target-size-whole-document`: Legal: the page, the chrome around it, and a closed menu in the chrome have controls of at least 24 CSS px. check:target-size builds this folder's index.html. It passes with "controls on 7 scenarios at 1280 by 900 and 390 by 844, in light, meet 24 CSS px".
+- `two-tasks`: Legal: a notes inbox with two tasks, each mapped to its own task graph, and a scenario that opens one modeled state on its detail page. It passes with "target size: scenario reminded-detail (reminded)" (with --list).
+- `illegal/scenario-unmodeled-state`: Illegal: a scenario renders "confirming", which is not a modeled state, so it opens nothing the flow promises to handle. It fails with "which is not a modeled state" (with --list).
 - `illegal/small-control-in-closed-menu`: Illegal: two 12 CSS px links inside a closed menu in the chrome. The check opens every closed disclosure in the document on its own and measures what it shows. It fails with "a "Ready" is 12×12 CSS px and fails the spacing exception".
 - `illegal/small-control-outside-page`: Illegal: two 12 CSS px links side by side in the chrome. They sit outside the [data-page] element, and the check measures the whole document. It fails with "a "Help" is 12×12 CSS px and fails the spacing exception".
-- `illegal/stale-preview`: Illegal: a preview query for "confirming", which is not a modeled state, so it opens nothing. It fails with "previews names "confirming", which is not a modeled state" (with --list).
 
 ## `check:accessible-names`
 
-On every preview, what a screen reader hears matches the flow's `accessible-names.ts`, and every press either announces what changed or moves focus.
+On every scenario, what a screen reader hears matches the flow's `accessible-names.ts`, and every press either announces what changed or moves focus.
 
 A rule check: `check:rules` runs it, and `check:product` runs it on each product. Run it as `npm run check:accessible-names`, from the repository root, defined in `packages/harness/src/check-accessible-names.ts`. It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it. It needs headless Chrome.
 
 Flags:
 
-- `--list`: Checks the file against the previews, without building or Chrome.
+- `--list`: Checks the file against the scenarios, without building or Chrome.
 
 It fails:
 
-- A control with no accessible name.
-- An announcement the flow's `accessible-names.ts` declares for a preview that a screen reader does not hear there, compared by role, by name or text, and by every state the entry gives.
+- A control with no accessible name, at 1280 by 900 or at 390 by 844, so a control only a phone shows, such as a menu button in place of a sidebar, is named too.
+- An announcement the flow's `accessible-names.ts` declares for a scenario that a screen reader does not hear there, compared by role, by name or text, and by every state the entry gives.
 - A node the file leaves out whose announcement changes with the state: one with `aria-current`, which counts as declared only when its entry gives `current`; a live region, by role (`status`, `alert`, `log`, `timer`, `marquee`) or `aria-live` polite or assertive, with something to say; or a progress bar or meter.
-- A missing file, a preview the file declares nothing for, or a key that is not a preview, with or without Chrome.
+- A missing file, a scenario the file declares nothing for, or a key that is not a scenario id, with or without Chrome.
 - A press that changes what a screen reader could read while no live region says anything new, focus stays put and the control's own expanded, checked, pressed or selected state stays the same.
 - A press after which focus is on the page body, whatever was said.
-- An action the check cannot focus, one that moves focus elsewhere when focused, and a preview that does not render the same actions on every load, so an action cannot be pressed on its own.
-- An `accessible-names.ts` that does not load, a malformed `knownGaps` entry, and a `previews` entry that cannot be listed.
-- A `knownGaps` entry whose press no longer has its problem on a preview it names, so the list only shrinks.
+- An action the check cannot focus, one that moves focus elsewhere when focused, and a scenario that does not render the same actions on every load, so an action cannot be pressed on its own.
+- An `accessible-names.ts` that does not load, a malformed `knownGaps` entry, and a scenario problem `check:state-coverage` fails.
+- A `knownGaps` entry whose press no longer has its problem on a scenario it names, so the list only shrinks.
 - A `knownGaps` entry with no `fixIn`, or one that is neither a GitHub issue or pull request URL nor the path of a proposal file that exists, with or without Chrome, so no gap waits on nothing.
 
-It builds and serves the app as `check:target-size` does and opens the same previews. On each it reads the whole document's accessibility tree, the one a screen reader reads, through the DevTools protocol: each node's role, its accessible name, the text its subtree reads with `aria-hidden` runs left out, and `aria-current`, disabled, expanded, checked, pressed and selected. Chrome's tree does not carry `aria-current`, so it reads that from the element. Roles are Chrome's names, such as `image` and `DisclosureTriangle`. A node's text is its runs joined by a space, so write it the way a failure message prints it. Frames inside the page are not read.
+It builds and serves the app as `check:target-size` does and opens the same scenarios at 1280 by 900 in light. On each it reads the whole document's accessibility tree, the one a screen reader reads, through the DevTools protocol: each node's role, its accessible name, the text its subtree reads with `aria-hidden` runs left out, and `aria-current`, disabled, expanded, checked, pressed and selected. Chrome's tree does not carry `aria-current`, so it reads that from the element. Roles are Chrome's names, such as `image` and `DisclosureTriangle`. A node's text is its runs joined by a space, so write it the way a failure message prints it. Frames inside the page are not read.
 
-Beside each flow's `views` module, `accessible-names.ts` exports `accessibleNames` (`satisfies AccessibleNames`): each preview mapped to what a screen reader should hear there. Declare what changes between states, not the whole tree. It reads each preview as it loads, so it does not open disclosures or wait for a live region to fill, and a state that should announce itself and renders no live region at all passes. [Proposal 2026-11-11-accessible-names-per-state](../../../proposals/2026-11-11-accessible-names-per-state.md) records the rule.
+Beside each flow's `views` module, `accessible-names.ts` exports `accessibleNames` (`satisfies AccessibleNames`): each scenario id mapped to what a screen reader should hear there. Declare what changes between states, not the whole tree. It reads each scenario as it loads, so it does not open disclosures or wait for a live region to fill, and a state that should announce itself and renders no live region at all passes. [Proposal 2026-11-11-accessible-names-per-state](../../../proposals/2026-11-11-accessible-names-per-state.md) records the rule.
 
-Then it presses every action. On each preview, from a fresh load with the origin's storage cleared, it focuses each enabled button, link, disclosure summary, menu item, tab, checkbox, radio or switch, checks that focus stayed on it, presses Enter, or Space for a checkbox, radio, switch, or checkbox or radio menu item, and reads the page 150 ms later, past the 100 ms Todae's announcer waits before it writes (inside an open Todae modal it writes later, which the check does not wait for). A new name on the focused control is not enough, and neither is a status region added with its words already in it, since screen readers do not reliably read either. A press that loads another document is skipped and not counted, and a dialog a press opens is dismissed.
+Then it presses every action. On each scenario, from a fresh load with the origin's storage cleared, it focuses each enabled button, link, disclosure summary, menu item, tab, checkbox, radio or switch, checks that focus stayed on it, presses Enter, or Space for a checkbox, radio, switch, or checkbox or radio menu item, and reads the page 150 ms later, past the 100 ms Todae's announcer waits before it writes (inside an open Todae modal it writes later, which the check does not wait for). A new name on the focused control is not enough, and neither is a status region added with its words already in it, since screen readers do not reliably read either. A press that loads another document is skipped and not counted, and a dialog a press opens is dismissed. The declarations and the presses are read at desktop width only, since what a screen reader hears is declared once per scenario and focus and announcements do not change with width; then it reloads each scenario at 390 by 844 in light and fails only a control with no accessible name there.
 
-Problems a product has not fixed yet go in the same file's `knownGaps` (`satisfies KnownGaps`), as `{ presses: ['button "Try again"'], problem: "focus lost", previews: ["state=error"], why, fixIn }`, where `fixIn` is the issue, pull request or proposal its fix waits on. Leaving `previews` out covers every preview, later ones included. A listed problem passes, and the check's last line counts them. [Proposal 2026-11-12-press-every-action](../../../proposals/2026-11-12-press-every-action.md) records the pass and what it cannot see, and [proposal 2026-11-12-shell-owned-focus](../../../proposals/2026-11-12-shell-owned-focus.md) adds `fixIn`.
+Problems a product has not fixed yet go in the same file's `knownGaps` (`satisfies KnownGaps`), as `{ presses: ['button "Try again"'], problem: "focus lost", scenarios: ["error"], why, fixIn }`, where `fixIn` is the issue, pull request or proposal its fix waits on. Leaving `scenarios` out covers every scenario, later ones included. A listed problem passes, and the check's last line counts them. [Proposal 2026-11-12-press-every-action](../../../proposals/2026-11-12-press-every-action.md) records the pass and what it cannot see, and [proposal 2026-11-12-shell-owned-focus](../../../proposals/2026-11-12-shell-owned-focus.md) adds `fixIn`.
 
 Two patterns are fixed where every page shares them, so a page that uses them needs no listing, and the press check still catches one that does not: each product's shell moves focus to the new page's h1 on a page change, and a submit that turns itself off takes the catalog's `submitOff`, `aria-disabled` rather than `disabled`, so it keeps focus.
 
 Fixture cases, under `packages/harness/fixtures/`, that run it:
 
-- `announced-progress`: Legal: Meridian's invoice progress list as pull request 32 fixed it, built with Todae's Steps. After Approve, the current Payment stage reads "Next", as its declarations say. check:accessible-names builds this folder's index.html. It passes with "3 previews announce the 7 things their flows declare".
+- `announced-progress`: Legal: Meridian's invoice progress list as pull request 32 fixed it, built with Todae's Steps. After Approve, the current Payment stage reads "Next", as its declarations say. check:accessible-names builds this folder's index.html. It passes with "3 scenarios announce the 7 things their flows declare".
 - `announced-sort`: Legal: a sort that says its new order through Todae's announcer, which writes its live region 100 ms after announce(). check:accessible-names reads each press after that, so the press is heard. It passes with "1 of 1 presses tell a screen reader what changed and keep focus on the page".
-- `announced-waitlist`: Legal: Nook's Waitlist rows as pull request 42 fixed them. Each press keeps focus on the row's one button and says in the status region what changed. check:accessible-names presses every button on every preview. It passes with "6 of 6 presses tell a screen reader what changed and keep focus on the page".
+- `announced-waitlist`: Legal: Nook's Waitlist rows as pull request 42 fixed them. Each press keeps focus on the row's one button and says in the status region what changed. check:accessible-names presses every button on every scenario. It passes with "6 of 6 presses tell a screen reader what changed and keep focus on the page".
 - `listed-press-gap`: Legal: the silent leave from illegal/silent-waitlist-leave, listed in knownGaps while its fix waits for its own pull request. The check passes and counts it as known. It passes with "5 of 6 presses tell a screen reader what changed and keep focus on the page, and the other 1 has a problem its flow lists in knownGaps".
-- `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes, and npm run new:product starts a product from a copy that passes. It passes with "7 previews declare 7 announcements" (with --list) and passes with "7 previews announce the 7 things their flows declare, and every control has a name. 9 of 9 presses".
+- `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes, and npm run new:product starts a product from a copy that passes. It passes with "7 scenarios declare 7 announcements" (with --list) and passes with "7 scenarios announce the 7 things their flows declare, and every control has a name at 1280 by 900 and at 390 by 844. 9 of 9 presses".
 - `illegal/no-declarations`: Illegal: the flow has no accessible-names.ts beside its views module. It fails with "accessible-names.ts is missing. Beside the flow's views module" (with --list).
 - `illegal/silent-waitlist-leave`: Illegal: Nook's Waitlist from pull request 42 after its first fix and before its second. Leaving Birch's waitlist while Cedar is free turns the row's button into Join waitlist, keeps focus on it, and leaves the status region as it was, so a screen reader hears nothing. It fails with "pressing button "Leave waitlist for Birch" changes the page, and a screen reader hears nothing".
-- `illegal/stale-declaration`: Illegal: the declarations name a preview the flow does not open, so they would compare nothing there. It fails with ""state=ready" is not a preview of this flow" (with --list).
-- `illegal/stale-press-gap`: Illegal: knownGaps still lists the silent leave after the fix that says it, on announced-waitlist's page. A gap that no longer happens fails, so the list only shrinks. It fails with "knownGaps lists button "Leave waitlist for Birch" as "silent", and pressing it on ?state=freed no longer has that problem".
+- `illegal/stale-declaration`: Illegal: the declarations name a scenario the flow does not have, so they would compare nothing there. It fails with ""ready" is not a scenario of this flow" (with --list).
+- `illegal/stale-press-gap`: Illegal: knownGaps still lists the silent leave after the fix that says it, on announced-waitlist's page. A gap that no longer happens fails, so the list only shrinks. It fails with "knownGaps lists button "Leave waitlist for Birch" as "silent", and pressing it on scenario freed no longer has that problem".
 - `illegal/step-read-as-in-progress`: Illegal: pull request 32's bug. After Approve, Todae's Steps reads the waiting Payment stage as "In progress: Payment due Nov 18, 2026", and the declarations say it is next. It fails with "expects listitem reading "Next: Payment due Nov 18, 2026" (aria-current="step"), and a screen reader does not hear it. Its listitem nodes are "Done: Received", "Done: Approval", "In progress: Payment due Nov 18, 2026" (aria-current="step")".
 - `illegal/undeclared-current-step`: Illegal: pull request 32's list with declarations that leave it out. The current step's announcement changes with the state, so the check asks for it to be declared, and the declaration puts "In progress: Payment due" in front of the reviewer. It fails with "listitem reading "In progress: Payment due Nov 18, 2026" (aria-current="step") changes with the state, and".
-- `illegal/undeclared-preview`: Illegal: the declarations leave out one preview, changes-requested, so nothing says what a screen reader hears there. It fails with "declares nothing for "state=changes-requested"" (with --list).
+- `illegal/undeclared-scenario`: Illegal: the declarations leave out one scenario, changes-requested, so nothing says what a screen reader hears there. It fails with "declares nothing for "changes-requested"" (with --list).
 - `illegal/unnamed-control`: Illegal: an icon-only button with no label. Every declaration holds, and a screen reader still announces the button as only "button". It fails with "button <button type="button" class="more-actions"> has no accessible name".
 - `illegal/untracked-press-gap`: Illegal: knownGaps lists the silent leave from listed-press-gap without fixIn, so nothing tracks its fix. Every gap names the issue, pull request or proposal its fix waits on. It fails with "knownGaps[0] needs fixIn: where its fix is tracked" (with --list).
 - `illegal/waitlist-row-loses-focus`: Illegal: Nook's Waitlist rows from pull request 42 before its fix. Joining swaps the row's Join waitlist button for a new Leave waitlist button, and focus falls to the page body. The status region says the right thing, and the check still fails. It fails with "pressing button "Join waitlist for Cedar" removes it from the page, and focus falls to the page body".
 
 ## `check:rendered-page`
 
-Every preview, as Chrome paints it at desktop and phone width: section headings two type-scale steps below the title, the rank-1 action in the first view, disclosures closed unless the state opens them, AA contrast in light and dark, and no sideways scroll on a phone.
+Every scenario, as Chrome paints it at desktop and phone width: section headings two type-scale steps below the title, the rank-1 action in the first view, disclosures closed unless the state opens them, AA contrast in light and dark, and no sideways scroll on a phone.
 
 A rule check: `check:rules` runs it, and `check:product` runs it on each product. Run it as `npm run check:rendered-page`, from the repository root, defined in `packages/harness/src/check-rendered-page.ts`. It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it. It needs headless Chrome.
 
 It fails:
 
 - A heading on a page, a disclosure summary included, that sits fewer than two steps below the page's title on the design system's type scale, or fewer than one step when it is inside an item of a list or table that holds two items or more. The title is the first visible h1, or `role="heading"` at level 1, in each `[data-page]` element. Measured at 1280 by 900 and 390 by 844.
-- A page with no visible title, and a preview with no `[data-page]` element.
+- A page with no visible title, and a scenario with no `[data-page]` element.
 - On a page type with a primary slot, a rank-1 action from `priority` that is not whole inside the first view, or whose centre something else covers, at 1280 by 900 or 390 by 844, before any scroll; and such a page that shows no rank-1 action at all.
-- A disclosure, a `<details>` whose summary a person can see, or one with no summary, that is open on load at either width, unless the flow's `accessible-names.ts` declares it with `expanded: true` on that preview.
-- A run of text under WCAG AA contrast, 4.5:1, or 3:1 for large text, against the background colours of its element and its ancestors, in the light or the dark colour scheme, anywhere in the document; and a page where every run of text sits over a background image or gradient, so none can be measured.
+- A disclosure, a `<details>` whose summary a person can see, or one with no summary, that is open on load at either width, unless the flow's `accessible-names.ts` declares it with `expanded: true` on that scenario.
+- A run of text under WCAG AA contrast, 4.5:1, or 3:1 for large text, against the background colours of its element and its ancestors, in the light or the dark colour scheme, at either width, anywhere in the document; and a page where every run of text sits over a background image or gradient, so none can be measured.
 - At 390 by 844, a page wider than the box it lays out in: the document, the `[data-page]` element or any of its ancestors, so the page scrolls sideways or an app shell cuts it off. The message names the first elements past the edge.
 - At 390 by 844, a page that lays out wider than the phone because its `index.html` has no viewport meta.
 - A design system stylesheet with no type scale: no family of at least three tokens named `--<prefix>font-size-<n>`, and a page on which fewer than three of them have a size.
-- A `previews` entry that cannot be listed, a `paths.web` that does not build or serve, and no Chrome found, as `check:target-size` fails them.
+- A scenario problem `check:state-coverage` fails, a `paths.web` that does not build or serve, and no Chrome found, as `check:target-size` fails them.
 
-It builds and serves the app as `check:target-size` does, or uses the build `check:product` serves, and opens the same previews three times: at 1280 by 900 in the light colour scheme, at 1280 by 900 in the dark one, and at 390 by 844 as a phone, light. It reads each as it loads and presses nothing. Every rule is a pattern that holds on any page: no number is set per page or per page type, and the steps, the views and the AA ratios are the harness's, not a product input. [Proposal 2026-11-12-rendered-page](../../../proposals/2026-11-12-rendered-page.md) records the rule.
+It builds and serves the app as `check:target-size` does, or uses the build `check:product` serves, and opens the same scenarios four times: at 1280 by 900 and at 390 by 844 as a phone, each in the light and the dark colour scheme. Hierarchy, reach, disclosures and phone width are read in light; contrast is read in all four. It reads each as it loads and presses nothing. Every rule is a pattern that holds on any page: no number is set per page or per page type, and the steps, the views and the AA ratios are the harness's, not a product input. [Proposal 2026-11-12-rendered-page](../../../proposals/2026-11-12-rendered-page.md) records the rule.
 
 The type scale is the numbered font-size tokens in the stylesheet the adapter names: Todae's `--todae-font-size-1` to `-6`, 12 to 30 px. The names come from the stylesheet, and Chrome computes each size on the page in each view, so a size set with `clamp()`, `calc()` or a media query counts as painted; a page that does not load the stylesheet falls back to the sizes it writes. A design system whose sizes are not numbered this way has no scale here, and needs an adapter field, which is a proposal. A size counts as the step at or below it, and a size within half a pixel of a step counts as that step. With Todae's 30 px title, section headings are 20 px or smaller and record names in a list 24 px or smaller. A list or table of one item is a section, not a list of records. Only size counts, so a heading set apart by weight or colour alone passes.
 
@@ -460,11 +468,11 @@ Contrast reads every text node a person can see, the chrome's included, against 
 
 A disclosure's name is its summary's `aria-label` or text, which is what it is matched by against `accessible-names.ts`. A box inside the page that scrolls sideways on purpose, such as a wide table's wrapper, is not measured for phone width.
 
-It sees only what each preview shows as it loads: a state a press reveals, data no preview renders, and a long page with correct hierarchy pass. The critique of the screenshots judges those.
+It sees only what each scenario shows as it loads: a state a press reveals, data no scenario renders, and a long page with correct hierarchy pass. The critique of the screenshots judges those.
 
 Fixture cases, under `packages/harness/fixtures/`, that run it:
 
-- `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes, and npm run new:product starts a product from a copy that passes. It passes with "7 previews at 1280 by 900 and 390 by 844: section headings sit 2 type-scale steps below the title (list items 1), "Approve" is in the first view in".
+- `product`: Legal: the fixture product as it is. Every check passes it, so a case fails for what it changes, and npm run new:product starts a product from a copy that passes. It passes with "7 scenarios at 1280 by 900 and 390 by 844: section headings sit 2 type-scale steps below the title (list items 1), "Approve" is in the first view in".
 - `rendered-page-patterns`: Legal: record names one step below the title inside a list, a disclosure the state opens and declares expanded, a menu whose summary is hidden, an action row pinned under a long page, visually hidden text, a turned-off button's faint text, and text over a gradient, which is skipped and counted. It passes with "disclosures load closed (1 opened by their state)" and passes with "(1 over an image, not measured)".
 - `illegal/cut-off-in-an-app-shell`: Illegal: the shell clips the document to the view, so the document never grows, but the page inside it is 640 px wide on a 390 px phone and scrolls sideways in its pane. It fails with "at 390 by 844: the page is wider than main, which it lays out in: 640 CSS px in 390, so it scrolls sideways or is cut off. Past the edge: div.line-items".
 - `illegal/dark-scheme-contrast`: Illegal: the text follows the dark scheme and the page's white ground does not, as Nook's did on main before its ground took the canvas token. Light passes; dark fails. It fails with "dark colour scheme: text under WCAG AA contrast: "Northwind Office Supply" is #eeeeee on #ffffff".
@@ -534,11 +542,13 @@ It fails:
 - Compared with the base: a status that moves more than one step or backwards; a change to a decided or adopted proposal's `changes`, `retires`, `opts-out`, `adds` or `tightens`; a decided or adopted proposal renamed or deleted.
 - Compared with the base: a new proposal that starts `adopted` while it lists anything under `changes`, `retires` or `opts-out`.
 - Compared with the base: a proposal that lists anything under `changes` or `adds` with no `## States` when it is new or moves from `open` to `decided`, and a decided or adopted proposal that drops the `## States` it had.
+- Compared with the base: in a proposal the change adds that has a `## States` section, an edge case that is not `Out of scope, <why>` and names no scenario as ``scenario `<id>` ``.
+- An `adopted` proposal that names a scenario as ``scenario `<id>` `` that no product's `scenarios.ts` has, so a scenario a proposal stands on cannot be removed quietly.
 - A proposal the change adds or renames whose file name is not a real date no later than tomorrow in UTC and a lowercase slug, such as `2026-11-12-side-panel.md`, or that shares its name with a proposal in another proposal folder.
 
 It reads `proposals/`, each product config's `paths.proposals`, and every other folder named `proposals` that git knows of outside the harness package, so a proposal seeded for a later `paths.proposals` move is checked when it lands. A proposal is a file ending in `.md`, in that case, other than `README.md`; a `.MD` file is not read.
 
-It takes no `--config`. Proposals already on the base keep their text, without `## States`, until they move to `decided`. The proposals that merged with a number, from 0001, keep those names. `proposals/README.md` has the format, and the Vitest suite in `packages/harness/src/lib/proposals.test.ts` proves the rules, since the check reads the repository's own folders.
+It takes no `--config`. Scenario ids come from every product the registry finds, loaded as `check:state-coverage` loads them. Proposals already on the base keep their text, without `## States`, until they move to `decided`. The proposals that merged with a number, from 0001, keep those names. `proposals/README.md` has the format, and the Vitest suite in `packages/harness/src/lib/proposals.test.ts` proves the rules, since the check reads the repository's own folders.
 
 ## `check:retirement`
 
@@ -660,7 +670,7 @@ Flags:
 - `--findings <file>`: The critic's answer, one JSON object. It is checked against the gallery, written into it as `CRITIQUE.md`, and the edge to take is printed with the block for the pull request description.
 - `--trace <file>`: Goes with `--findings`: the change's trace, `traces/<change>.jsonl`. It must be a walk the graph allows whose last step is `screenshots`, and its `critique` steps that took `revise` count the rounds so far.
 
-The harness calls no model. Run `npm run critique -- --config <product config> --gallery <dir> --brief <file>` and give the brief it writes to a model other than the one that built the change, with the screenshots it names. The brief gives the product's tasks and ranked actions and a rubric of four patterns that hold on any page: hierarchy, the primary action, grouping and crowding. The critic judges relationships and weight, never counts. Each finding names its pattern, `revise` or `note`, the `after` screenshots it shows in, the problem and the fix.
+The harness calls no model. Run `npm run critique -- --config <product config> --gallery <dir> --brief <file>` and give the brief it writes to a model other than the one that built the change, with the screenshots it names. The brief gives the product's tasks and ranked actions and a rubric of four patterns that hold on any page: hierarchy, the primary action, grouping and crowding. The critic judges relationships and weight, never counts. It names each screenshot's view and size, so the critic sees the phone and the dark scheme too. Each finding names its pattern, `revise` or `note`, the `after` screenshots it shows in, the problem and the fix.
 
 With `--findings` and `--trace`, a finding that calls for `revise` sends the loop back to `build`, until two rounds have: the third critique of a run prints `pass`, and what is left open goes in the review note with the `note` findings. A retake of the screenshots replaces the folder, `CRITIQUE.md` included, so the next round's critique is of the new screenshots. It is advisory: the build gate does not run it, and no check reads `CRITIQUE.md`. [Proposal 2026-11-12-critique-step](../../../proposals/2026-11-12-critique-step.md) records it.
 
@@ -682,18 +692,20 @@ Run it as `npm run new:product -- <name>`, with a lowercase slug. It refuses a f
 
 ## `screenshots`
 
-The design loop's `screenshots` step: captures each preview before and after a change into a gallery the pull request links.
+The design loop's `screenshots` step: captures each scenario in four views, before and after a change, into a gallery the pull request links.
 
 A tool: the build gate does not run it. Run it as `npm run screenshots`, from the repository root, defined in `packages/harness/src/screenshots.ts`. It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it. It needs headless Chrome.
 
 Flags:
 
 - `--out <dir>`: The gallery folder, `products/<name>/review/screenshots/<change>`. Each run replaces it whole, with the `CRITIQUE.md` the `critique` step wrote of the old screenshots.
-- `--state <state>`: Keeps the previews of that state. Repeat it for each state the change touches, or leave it out for every preview.
-- `--base <ref>`: Also captures the previews at that commit, so the folder holds `before/` and `after/`.
+- `--state <state>`: Keeps the scenarios of that state. Repeat it for each state the change touches, or leave it out for every scenario.
+- `--scenario <id>`: Keeps that scenario. Repeat it for each one.
+- `--view <view>`: Keeps that view: `desktop-light`, `desktop-dark`, `phone-light` or `phone-dark`. Repeat it for each one, or leave it out for all four.
+- `--base <ref>`: Also captures the same scenarios and views at that commit, so the folder holds `before/` and `after/`. At a commit from before scenarios it captures nothing there and says so.
 - `--pin <dir>`: Takes only `--config`. Points each image's link in a committed gallery at the raw PNG at that commit, and prints the line for the pull request description. It refuses a folder with anything but its `README.md` uncommitted.
 
-It opens the previews `check:target-size` opens, at 1280 by 900 in the same Chrome, from the app `check:product` serves for this product or one it builds and serves on a free port, and writes `before/` and `after/` PNGs and a gallery `README.md` whose images each link to their own file. Commit the folder, run `--pin`, commit the `README.md` again, and put the line `--pin` prints in the pull request description with `<sha>` replaced by the pushed commit's full SHA, with its whole `https://github.com/` address: a relative path breaks in the GitHub app and in email, and a branch link breaks once the branch is deleted. Images in the description itself don't come through from an agent. [Proposal 2026-11-11-screenshot-gallery](../../../proposals/2026-11-11-screenshot-gallery.md) records it.
+It opens every scenario at `?scenario=<id>` in four views, `desktop-light` and `desktop-dark` at 1280 by 900 and `phone-light` and `phone-dark` at 390 by 844 as a phone, each a full-page PNG named `<scenario>--<view>.png`, in the Chrome `check:target-size` uses, from the app `check:product` serves for this product or one it builds and serves on a free port, and writes `before/` and `after/` PNGs and a gallery `README.md` whose images each link to their own file. Commit the folder, run `--pin`, commit the `README.md` again, and put the line `--pin` prints in the pull request description with `<sha>` replaced by the pushed commit's full SHA, with its whole `https://github.com/` address: a relative path breaks in the GitHub app and in email, and a branch link breaks once the branch is deleted. Images in the description itself don't come through from an agent. [Proposal 2026-11-11-screenshot-gallery](../../../proposals/2026-11-11-screenshot-gallery.md) records it.
 
 ## `setup:chrome`
 

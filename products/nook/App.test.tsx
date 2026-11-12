@@ -2,7 +2,8 @@ import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
-import { FREE_UP_SECONDS, HOLD_MINUTES, modeledStates } from "./flows/booking/states";
+import { scenarios } from "./flows/booking/scenarios";
+import { FREE_UP_SECONDS, HOLD_MINUTES } from "./flows/booking/states";
 import { transition } from "./flows/booking/transition";
 
 describe("Nook", () => {
@@ -47,7 +48,7 @@ describe("Nook", () => {
 
   it("holds a room instead of booking it", async () => {
     const user = userEvent.setup();
-    window.history.replaceState(null, "", "/?state=choosing&page=booking");
+    window.history.replaceState(null, "", "/?scenario=booking-harbor");
     render(<App />);
     await user.selectOptions(screen.getByLabelText("How long?"), "90");
     await user.click(screen.getByRole("button", { name: "Hold room" }));
@@ -57,7 +58,7 @@ describe("Nook", () => {
 
   it("books a held room for the length chosen before the hold", async () => {
     const user = userEvent.setup();
-    window.history.replaceState(null, "", "/?state=choosing&page=booking");
+    window.history.replaceState(null, "", "/?scenario=booking-harbor");
     render(<App />);
     await user.selectOptions(screen.getByLabelText("How long?"), "30");
     await user.click(screen.getByRole("button", { name: "Hold room" }));
@@ -92,7 +93,7 @@ describe("Nook", () => {
 
   it("keeps a held preview held", () => {
     vi.useFakeTimers();
-    window.history.replaceState(null, "", "/?state=held");
+    window.history.replaceState(null, "", "/?scenario=held");
     render(<App />);
     act(() => {
       vi.advanceTimersByTime(HOLD_MINUTES * 60_000);
@@ -103,7 +104,7 @@ describe("Nook", () => {
   it("ends a hold made after opening a preview", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
-    window.history.replaceState(null, "", "/?state=choosing&page=booking");
+    window.history.replaceState(null, "", "/?scenario=booking-harbor");
     render(<App />);
     await user.click(screen.getByRole("button", { name: "Hold room" }));
     act(() => {
@@ -114,7 +115,7 @@ describe("Nook", () => {
 
   it("goes back to the list after a hold ends", async () => {
     const user = userEvent.setup();
-    window.history.replaceState(null, "", "/?state=expired");
+    window.history.replaceState(null, "", "/?scenario=expired");
     render(<App />);
     await user.click(screen.getByRole("button", { name: "All rooms" }));
     expect(screen.getByRole("heading", { name: "Book a room" })).toBeInTheDocument();
@@ -122,7 +123,7 @@ describe("Nook", () => {
 
   it("goes back from a room to the list", async () => {
     const user = userEvent.setup();
-    window.history.replaceState(null, "", "/?state=choosing&page=booking");
+    window.history.replaceState(null, "", "/?scenario=booking-harbor");
     render(<App />);
     await user.click(screen.getByRole("button", { name: "All rooms" }));
     expect(screen.getByRole("heading", { name: "Book a room" })).toBeInTheDocument();
@@ -156,7 +157,7 @@ describe("Nook", () => {
 
   it("keeps the person's place on the waitlist when they go back to the rooms", async () => {
     const user = userEvent.setup();
-    window.history.replaceState(null, "", "/?state=waiting");
+    window.history.replaceState(null, "", "/?scenario=waiting");
     render(<App />);
     await user.click(screen.getByRole("button", { name: "Rooms" }));
     expect(screen.getByRole("heading", { name: "Book a room" })).toBeInTheDocument();
@@ -168,7 +169,7 @@ describe("Nook", () => {
   it("frees a room the person waits for, and books it from the waitlist", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
-    window.history.replaceState(null, "", "/?state=waitlist");
+    window.history.replaceState(null, "", "/?scenario=waitlist");
     render(<App />);
     await user.click(screen.getByRole("button", { name: "Join waitlist for Cedar" }));
     act(() => {
@@ -187,7 +188,7 @@ describe("Nook", () => {
 
   it("says so when the person leaves a waitlist while a room is free", async () => {
     const user = userEvent.setup();
-    window.history.replaceState(null, "", "/?state=freed");
+    window.history.replaceState(null, "", "/?scenario=freed");
     render(<App />);
     await user.click(screen.getByRole("button", { name: "Leave waitlist for Birch" }));
     expect(screen.getByRole("status")).toHaveTextContent("Cedar is free now.Choose it to book it. You left the waitlist for Birch.");
@@ -198,7 +199,7 @@ describe("Nook", () => {
 
   it("keeps a waiting preview waiting", () => {
     vi.useFakeTimers();
-    window.history.replaceState(null, "", "/?state=waiting");
+    window.history.replaceState(null, "", "/?scenario=waiting");
     render(<App />);
     act(() => {
       vi.advanceTimersByTime(FREE_UP_SECONDS * 1000);
@@ -207,7 +208,7 @@ describe("Nook", () => {
   });
 
   it("turns the top bar off where the flow keeps the person on the page", () => {
-    window.history.replaceState(null, "", "/?state=held");
+    window.history.replaceState(null, "", "/?scenario=held");
     render(<App />);
     expect(screen.getByRole("button", { name: "Rooms" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Waitlist" })).toBeDisabled();
@@ -215,7 +216,7 @@ describe("Nook", () => {
 
   it("opens the waitlist from No rooms are free", async () => {
     const user = userEvent.setup();
-    window.history.replaceState(null, "", "/?state=no-rooms");
+    window.history.replaceState(null, "", "/?scenario=no-rooms");
     render(<App />);
     await user.click(screen.getByRole("button", { name: "See the waitlist" }));
     expect(screen.getByRole("heading", { name: "Waitlist" })).toBeInTheDocument();
@@ -244,8 +245,8 @@ describe("Nook", () => {
     expect(transition(rooms, { type: "choose-room", roomId: "cedar" })).toBe(rooms);
   });
 
-  it.each(modeledStates)("previews the %s state on one page", (state) => {
-    window.history.replaceState(null, "", `/?state=${state}`);
+  it.each(Object.entries(scenarios).map(([id, scenario]) => [id, scenario.state] as const))("renders scenario %s, the %s state, on one page", (id, state) => {
+    window.history.replaceState(null, "", `/?scenario=${id}`);
     const { container } = render(<App />);
     const pages = container.querySelectorAll("[data-page]");
     expect(pages).toHaveLength(1);

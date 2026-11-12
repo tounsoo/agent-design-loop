@@ -4,7 +4,8 @@ import path from "node:path";
 import { resolveBaseRev } from "./lib/base";
 import { DEFAULT_PROPOSALS, parseConfig } from "./lib/parse-config";
 import { harnessDir, productConfigs } from "./lib/products";
-import { nameProblems, parseAll, sharedNameProblems, proposalsAtRev, proposalsInDir, transitionProblems } from "./lib/proposals";
+import { missingScenarioProblems, nameProblems, parseAll, sharedNameProblems, proposalsAtRev, proposalsInDir, transitionProblems } from "./lib/proposals";
+import { loadScenarios } from "./lib/scenarios";
 
 /**
  * Every proposal parses: front matter with a status and the changes it
@@ -15,7 +16,10 @@ import { nameProblems, parseAll, sharedNameProblems, proposalsAtRev, proposalsIn
  * status moved only open → decided → adopted, one step per change, with
  * nothing an approved proposal covers widened. A new proposal cannot adopt
  * what it names in the change that adds it, and is named for the UTC day it
- * was written and a slug, so parallel changes cannot pick the same name.
+ * was written and a slug, so parallel changes cannot pick the same name. A
+ * new proposal names the scenario each edge case in its States renders in,
+ * and every scenario an adopted proposal names is in a product's
+ * scenarios.ts.
  *
  * The folders read are `proposals/`, every product config's
  * `paths.proposals`, and any other folder named `proposals` outside the
@@ -44,6 +48,13 @@ if ("problem" in resolved) {
 }
 const rev = resolved.rev;
 
+// Every scenario id across the products, for the scenarios adopted proposals name. A product whose scenarios do not load fails check:state-coverage, so here it only adds no ids.
+const scenarioIds = new Set<string>();
+for (const file of configs) {
+  const { scenarios } = await loadScenarios(parseConfig(readFileSync(file, "utf8"), file).flows);
+  for (const scenario of scenarios) scenarioIds.add(scenario.id);
+}
+
 const problems: string[] = [];
 let count = 0;
 const allHead: string[] = [];
@@ -60,6 +71,7 @@ for (const dir of dirs) {
     ...nameProblems(baseFiles.keys(), headFiles.keys()),
     ...head.problems,
     ...transitionProblems(base.proposals, head.proposals, base.legacy, head.unparsed),
+    ...missingScenarioProblems(head.proposals, scenarioIds),
   );
 }
 
@@ -70,4 +82,4 @@ if (problems.length > 0) {
   for (const problem of problems) console.error(`- ${problem}`);
   process.exit(1);
 }
-console.log(`proposals: ${count} proposals in ${dirs.join(", ")} have their fields and sections, each new one has a dated name, new and approved ones list their states, and each status moved one step at most from ${rev.slice(0, 7)}.`);
+console.log(`proposals: ${count} proposals in ${dirs.join(", ")} have their fields and sections, each new one has a dated name, new and approved ones list their states, scenarios adopted ones name exist, and each status moved one step at most from ${rev.slice(0, 7)}.`);

@@ -1,7 +1,7 @@
 import type { AccessibleNames, KnownGaps } from "@agent-design-loop/harness";
 
 /**
- * What a screen reader hears on each preview of the invoice-approval flow.
+ * What a screen reader hears on each scenario of the invoice-approval flow.
  * check:accessible-names opens each one in Chrome and compares. Declare what
  * changes between states: where the reader is, what a live region says, and
  * which actions are on offer or turned off.
@@ -17,32 +17,32 @@ const paymentNotStarted = { role: "listitem", text: "Not started: Payment due No
 const awaitingApproval = [received, { role: "listitem", text: "In progress: Approval", current: "step" }, paymentNotStarted];
 
 export const accessibleNames = {
-  "state=loading": [queue, { role: "heading", name: "To approve" }, { role: "status", text: "Loading invoices" }],
-  "state=empty": [queue, { role: "heading", name: "No invoices waiting" }],
-  "state=error": [queue, { role: "alert", text: "Couldn't load invoices." }, { role: "button", name: "Try again" }],
-  "state=ready&page=collection": [
+  loading: [queue, { role: "heading", name: "To approve" }, { role: "status", text: "Loading invoices" }],
+  empty: [queue, { role: "heading", name: "No invoices waiting" }],
+  error: [queue, { role: "alert", text: "Couldn't load invoices." }, { role: "button", name: "Try again" }],
+  queue: [
     queue,
     { role: "table", name: "Invoices to approve" },
     { role: "button", name: "1", current: "page" },
     { role: "button", name: "Previous", disabled: true },
   ],
-  "state=ready&route=invoices": [here("All invoices"), { role: "table", name: "Invoices" }, { role: "button", name: "1", current: "page" }],
-  "state=ready&route=vendors": [
+  invoices: [here("All invoices"), { role: "table", name: "Invoices" }, { role: "button", name: "1", current: "page" }],
+  vendors: [
     vendors,
     { role: "heading", name: "Vendors" },
     { role: "searchbox", name: "Search vendors" },
     { role: "DisclosureTriangle", name: "Add a vendor", expanded: false },
     { role: "list", name: "Vendors" },
   ],
-  "state=ready&page=detail": [
+  "invoice-detail": [
     ...invoice,
     ...awaitingApproval,
     { role: "DisclosureTriangle", name: "Line items", expanded: false },
     { role: "button", name: "Approve", disabled: false },
     { role: "button", name: "Request changes", disabled: false },
   ],
-  "state=ready&page=detail&branch=request": [...invoice, ...awaitingApproval, { role: "textbox", name: "What should change?" }],
-  "state=invoice-approved&page=detail": [
+  "invoice-requesting-changes": [...invoice, ...awaitingApproval, { role: "textbox", name: "What should change?" }],
+  "invoice-approved": [
     ...invoice,
     received,
     { role: "listitem", text: "Done: Approval" },
@@ -51,7 +51,7 @@ export const accessibleNames = {
     { role: "status", text: "Invoice approved Northwind Office Supply · $4,280.00 is approved." },
     { role: "button", name: "Approve", disabled: true },
   ],
-  "state=changes-requested&page=detail": [
+  "changes-requested": [
     ...invoice,
     received,
     { role: "listitem", text: "Changes requested: Approval" },
@@ -59,7 +59,7 @@ export const accessibleNames = {
     { role: "status", text: "Changes requested Quantity on toner does not match the packing slip." },
     { role: "button", name: "Approve", disabled: true },
   ],
-  "state=vendor-added": [
+  "vendor-added": [
     vendors,
     { role: "heading", name: "Vendors" },
     { role: "DisclosureTriangle", name: "Add a vendor", expanded: true },
@@ -77,21 +77,21 @@ export const accessibleNames = {
  * shell moves focus to the new page's heading on every page change, and
  * submits keep focus (`submitOff`), so what is left changes one page in
  * place. Each entry names where its fix is tracked, and the check fails an
- * entry once its press is fixed on a preview it names, so this list only
+ * entry once its press is fixed on a scenario it names, so this list only
  * shrinks.
  */
 export const knownGaps = [
   {
     presses: ['button "Request changes"'],
     problem: "silent",
-    previews: ["state=ready&page=detail", "state=ready&page=detail&branch=request"],
+    scenarios: ["invoice-detail", "invoice-requesting-changes"],
     why: "Request changes opens the reason field below and leaves focus on the button. Move focus to the field.",
     fixIn: "https://github.com/tounsoo/agent-design-loop/issues/51",
   },
   {
     presses: ['button "Try again"'],
     problem: "focus lost",
-    previews: ["state=error"],
+    scenarios: ["error"],
     why: "Try again replaces the error, and the button with it, with the loading state, so focus falls to the page body. Move focus to the loading state's status, or keep a focusable element in the button's place.",
     fixIn: "https://github.com/tounsoo/agent-design-loop/issues/50",
   },

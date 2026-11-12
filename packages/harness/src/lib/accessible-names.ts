@@ -1,9 +1,9 @@
 import path from "node:path";
 
 /**
- * What check:accessible-names compares. A product declares, for each preview
+ * What check:accessible-names compares. A product declares, for each scenario
  * check:target-size also opens, what a screen reader should hear there. The
- * check reads Chrome's accessibility tree for each preview and holds it to
+ * check reads Chrome's accessibility tree for each scenario and holds it to
  * three rules: every control has a name, every declared announcement is in
  * the tree, and every node whose announcement depends on the state (an
  * `aria-current` item, a live region with something to say, or progress) is
@@ -16,7 +16,7 @@ import path from "node:path";
  * what the page's nodes read, word for word.
  */
 
-/** One thing a preview announces, as the product declares it. */
+/** One thing a scenario announces, as the product declares it. */
 export type Announcement = {
   /** The role Chrome's accessibility tree gives the node, as DevTools' Accessibility pane shows it: `button`, `listitem`, `status`. */
   readonly role: string;
@@ -33,8 +33,8 @@ export type Announcement = {
   readonly selected?: boolean;
 };
 
-/** A flow's declarations: each preview query, as check:target-size --list prints it, mapped to what it announces. */
-export type AccessibleNames = { readonly [preview: string]: readonly Announcement[] };
+/** A flow's declarations: each scenario id, as check:target-size --list prints it, mapped to what it announces. */
+export type AccessibleNames = { readonly [scenario: string]: readonly Announcement[] };
 
 /** One node of the rendered accessibility tree, in document order. */
 export type AxNode = {
@@ -133,35 +133,35 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 /**
  * Parses a declarations module's `accessibleNames` export against the
- * previews its flow opens. Every preview needs at least one announcement, and
- * a key that is not a preview is stale.
+ * scenarios its flow opens. Every scenario needs at least one announcement, and
+ * a key that is not a scenario is stale.
  */
-export function parseDeclarations(value: unknown, file: string, previews: readonly string[]): { declarations: AccessibleNames; problems: string[] } {
+export function parseDeclarations(value: unknown, file: string, scenarios: readonly string[]): { declarations: AccessibleNames; problems: string[] } {
   const problems: string[] = [];
   if (!isRecord(value)) {
-    return { declarations: {}, problems: [`${file} does not export accessibleNames as an object of previews.`] };
+    return { declarations: {}, problems: [`${file} does not export accessibleNames as an object of scenarios.`] };
   }
   const declarations: Record<string, Announcement[]> = {};
-  for (const [preview, list] of Object.entries(value)) {
-    const where = `${file} "${preview}"`;
-    if (!previews.includes(preview)) {
-      problems.push(`${where} is not a preview of this flow. Its previews are ${previews.map((query) => `"${query}"`).join(", ")}.`);
+  for (const [scenario, list] of Object.entries(value)) {
+    const where = `${file} "${scenario}"`;
+    if (!scenarios.includes(scenario)) {
+      problems.push(`${where} is not a scenario of this flow. Its scenarios are ${scenarios.map((query) => `"${query}"`).join(", ")}.`);
       continue;
     }
     if (!Array.isArray(list)) {
       problems.push(`${where} must be a list of announcements.`);
       continue;
     }
-    declarations[preview] = list.flatMap((item, index): Announcement[] => {
+    declarations[scenario] = list.flatMap((item, index): Announcement[] => {
       const problem = announcementProblem(item);
       if (problem === null) return [item as Announcement];
       problems.push(`${where}[${index}] ${problem}`);
       return [];
     });
   }
-  for (const preview of previews) {
-    if ((declarations[preview]?.length ?? 0) === 0 && !problems.some((problem) => problem.startsWith(`${file} "${preview}"`))) {
-      problems.push(`${file} declares nothing for "${preview}". Say what a screen reader hears there: the things that change between states, at least.`);
+  for (const scenario of scenarios) {
+    if ((declarations[scenario]?.length ?? 0) === 0 && !problems.some((problem) => problem.startsWith(`${file} "${scenario}"`))) {
+      problems.push(`${file} declares nothing for "${scenario}". Say what a screen reader hears there: the things that change between states, at least.`);
     }
   }
   return { declarations, problems };
@@ -297,18 +297,25 @@ function heard(node: AxNode): string {
 }
 
 /**
- * The problems in one preview: a control with no name, a declared
+ * Each control in the tree with no accessible name. The phone pass reads only
+ * this, since a phone layout can show controls a wide one does not, such as a
+ * menu button in place of a sidebar, and the declarations are written for one
+ * view.
+ */
+export function unnamedControls(tree: readonly AxNode[]): string[] {
+  return tree
+    .filter((node) => CONTROL_ROLES.has(node.role) && node.name === "")
+    .map((node) => `${node.role} ${node.html} has no accessible name, so a screen reader announces only "${node.role}". Give it visible text or an aria-label in the component; the declarations cannot name it.`);
+}
+
+/**
+ * The problems in one scenario: a control with no name, a declared
  * announcement the tree does not have, and a state-dependent node the
  * declarations leave out. Each message says what a screen reader hears
  * instead, so the fix is in the message.
  */
-export function auditPreview(tree: readonly AxNode[], declared: readonly Announcement[], file: string): string[] {
-  const problems: string[] = [];
-  for (const node of tree) {
-    if (CONTROL_ROLES.has(node.role) && node.name === "") {
-      problems.push(`${node.role} ${node.html} has no accessible name, so a screen reader announces only "${node.role}". Give it visible text or an aria-label in the component; the declarations cannot name it.`);
-    }
-  }
+export function auditScenario(tree: readonly AxNode[], declared: readonly Announcement[], file: string): string[] {
+  const problems = unnamedControls(tree);
   // A node a failed declaration already lists is not reported again as undeclared; nodes it does not list still are.
   const listed = new Set<AxNode>();
   for (const announcement of declared) {

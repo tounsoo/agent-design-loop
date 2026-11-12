@@ -1,4 +1,4 @@
-/** Legal: Nook's Waitlist rows as pull request 42 fixed them. Each press keeps focus on the row's one button and says in the status region what changed. check:accessible-names presses every button on every preview. */
+/** Legal: Nook's Waitlist rows as pull request 42 fixed them. Each press keeps focus on the row's one button and says in the status region what changed. check:accessible-names presses every button on every scenario. */
 export default {
   config: {
     paths: {

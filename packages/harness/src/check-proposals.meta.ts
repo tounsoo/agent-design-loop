@@ -10,10 +10,12 @@ export const meta = {
     "Compared with the base: a status that moves more than one step or backwards; a change to a decided or adopted proposal's `changes`, `retires`, `opts-out`, `adds` or `tightens`; a decided or adopted proposal renamed or deleted.",
     "Compared with the base: a new proposal that starts `adopted` while it lists anything under `changes`, `retires` or `opts-out`.",
     "Compared with the base: a proposal that lists anything under `changes` or `adds` with no `## States` when it is new or moves from `open` to `decided`, and a decided or adopted proposal that drops the `## States` it had.",
+    "Compared with the base: in a proposal the change adds that has a `## States` section, an edge case that is not `Out of scope, <why>` and names no scenario as ``scenario `<id>` ``.",
+    "An `adopted` proposal that names a scenario as ``scenario `<id>` `` that no product's `scenarios.ts` has, so a scenario a proposal stands on cannot be removed quietly.",
     "A proposal the change adds or renames whose file name is not a real date no later than tomorrow in UTC and a lowercase slug, such as `2026-11-12-side-panel.md`, or that shares its name with a proposal in another proposal folder.",
   ],
   details: [
     "It reads `proposals/`, each product config's `paths.proposals`, and every other folder named `proposals` that git knows of outside the harness package, so a proposal seeded for a later `paths.proposals` move is checked when it lands. A proposal is a file ending in `.md`, in that case, other than `README.md`; a `.MD` file is not read.",
-    "It takes no `--config`. Proposals already on the base keep their text, without `## States`, until they move to `decided`. The proposals that merged with a number, from 0001, keep those names. `proposals/README.md` has the format, and the Vitest suite in `packages/harness/src/lib/proposals.test.ts` proves the rules, since the check reads the repository's own folders.",
+    "It takes no `--config`. Scenario ids come from every product the registry finds, loaded as `check:state-coverage` loads them. Proposals already on the base keep their text, without `## States`, until they move to `decided`. The proposals that merged with a number, from 0001, keep those names. `proposals/README.md` has the format, and the Vitest suite in `packages/harness/src/lib/proposals.test.ts` proves the rules, since the check reads the repository's own folders.",
   ],
 } satisfies CheckMeta;

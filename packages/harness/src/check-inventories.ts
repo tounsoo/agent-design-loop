@@ -322,10 +322,6 @@ function readInventory(root: Root): Inventory | null {
     stringArray(exportedInitializer(parseSource(flow.states, readText(root, flow.states)), "modeledStates"), "modeledStates"),
   );
   const flowStates = statesByFlow.flat();
-  const previews: Record<string, string[]> = {};
-  flows.forEach((flow, index) => {
-    for (const state of statesByFlow[index] ?? []) previews[state] = sortedUnique([...(previews[state] ?? []), ...(flow.previews?.[state] ?? [])]);
-  });
   const tasks = objectRecords(exportedInitializer(product, "tasks"), "tasks");
   const priority = objectRecords(exportedInitializer(product, "priority"), "priority");
   return {
@@ -353,7 +349,6 @@ function readInventory(root: Root): Inventory | null {
     disclosuresPerPage: exportedNumber(rules, "MAX_DISCLOSURES_PER_PAGE"),
     visibleQuestions: exportedNumber(rules, "MAX_VISIBLE_QUESTIONS"),
     targetMinPx: exportedNumber(rules, "TARGET_MIN_PX"),
-    previews,
     config: own,
     adapter: adapterAt(root, own),
   };
@@ -497,7 +492,7 @@ function onePullRequestProposals(changes: readonly Change[], proposals: Proposal
   return { usable, refused };
 }
 
-const ADDS_TEXT = `members of ${ADDABLE_LISTS.slice(0, -1).join(", ")} or ${ADDABLE_LISTS.at(-1)}, page-type:<id> with its own shells entry, task:<id> and preview:<state>?<query>`;
+const ADDS_TEXT = `members of ${ADDABLE_LISTS.slice(0, -1).join(", ")} or ${ADDABLE_LISTS.at(-1)}, page-type:<id> with its own shells entry and task:<id>`;
 const ONE_PULL_REQUEST = "only adds or tightens, so it is adopted in the pull request that adds it, which the code owner merges";
 
 /** Why a proposal that lists a change's terms or names still does not cover it. */
@@ -510,7 +505,7 @@ function whyNot(file: string, change: Change, proposals: ProposalsForChange, ref
   // A proposal names this change when its adds or tightens list a name the change adds, a term it touches, or an input it loosens.
   const namesWhatItAdds = listedFrom([...change.names, ...loosened]);
   const named = listedFrom([...change.names, ...termNames(change.terms), ...loosened]);
-  // A page type, a task or a preview goes under adds by its prefixed name, so a bare name there names nothing this change adds.
+  // A page type or a task goes under adds by its prefixed name, so a bare name there names nothing this change adds.
   const bare = change.kind && after ? termNames(change.terms).filter((term) => oneListed(after, change.kind ?? "adds").includes(term) && !change.names.includes(term)) : [];
   if (after && bare.length > 0 && !namesWhatItAdds(after) && before === undefined) {
     return `${file} lists ${quoted(bare)} under ${change.kind}, but this change ${change.kind === "adds" ? "adds" : "tightens"} ${quoted(change.names)}: list ${change.names.length > 1 ? "those names" : "that name"} under ${change.kind}.`;

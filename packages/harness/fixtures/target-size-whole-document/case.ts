@@ -6,6 +6,6 @@ export default {
     },
   },
   checks: [
-    { run: "check:target-size", passes: "controls on 7 previews meet 24 CSS px" },
+    { run: "check:target-size", passes: "controls on 7 scenarios at 1280 by 900 and 390 by 844, in light, meet 24 CSS px" },
   ],
 };
