@@ -27,6 +27,7 @@ export default {
   shells: {
     primarySlots: { booking: "Action" },
     collections: { rooms: ["Title", "Intro"] },
+    chrome: { booking: ["Title", "Facts"] },
   },
   flows: [
     {

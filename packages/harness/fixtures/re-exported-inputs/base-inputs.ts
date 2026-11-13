@@ -21,7 +21,7 @@ const layouts = ["app-shell"] as const;
 
 export { layouts as allowed_layouts };
 
-const allowed_content_layouts = ["data-table"] as const;
+const allowed_content_layouts = ["data-table", "line-items", "text-question"] as const;
 
 export { allowed_content_layouts };
 

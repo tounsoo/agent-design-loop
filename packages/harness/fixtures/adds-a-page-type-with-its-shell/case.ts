@@ -8,6 +8,7 @@ export default {
     shells: {
       primarySlots: { detail: "Primary" },
       collections: { board: ["Heading", "Description"], collection: ["Heading", "Description"] },
+      chrome: { detail: ["Heading"] },
     },
   },
   base: {},

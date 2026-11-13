@@ -1,7 +1,8 @@
-import { useId } from "react";
-import { Alert, Button, Disclosure, EmptyState, Field, Label, Loader, Stack, submitOff, Text } from "../../catalog";
+import { Alert, Button, EmptyState, Loader, Stack, submitOff } from "../../catalog";
 import { RoomCards } from "../../content-layouts/room-cards";
+import { RoomDetails } from "../../content-layouts/room-details";
 import { RoomRows, type RoomRow } from "../../content-layouts/room-rows";
+import { SelectQuestion } from "../../content-layouts/select-question";
 import {
   HOLD_MINUTES,
   durationLabel,
@@ -14,7 +15,6 @@ import {
   type FlowState,
   type ModeledState,
   type Place,
-  type Room,
 } from "../../flows/booking/states";
 import { TopBar } from "../../layouts/top-bar";
 import { BookingPage } from "../../page-types/booking";
@@ -176,49 +176,6 @@ function Rooms({ state, actions }: { state: RoomsState; actions: Actions }) {
   );
 }
 
-function DurationField({ duration, disabled, onDuration }: { duration: Duration; disabled: boolean; onDuration: (duration: Duration) => void }) {
-  const fieldId = useId();
-  return (
-    <Stack.Root gap="condensed">
-      <Label.Root htmlFor={fieldId}>How long?</Label.Root>
-      <Field.Root disabled={disabled} id={fieldId}>
-        <Field.Select
-          value={duration}
-          onValueChange={(value) => {
-            if (isDuration(value)) onDuration(value);
-          }}
-        >
-          {durations.map((option) => (
-            <option key={option} value={option}>
-              {durationLabel[option]}
-            </option>
-          ))}
-        </Field.Select>
-      </Field.Root>
-    </Stack.Root>
-  );
-}
-
-function RoomDetails({ room, open, onToggle }: { room: Room; open: boolean; onToggle: (open: boolean) => void }) {
-  return (
-    <Disclosure.Root
-      open={open}
-      onToggle={(event) => {
-        onToggle(event.currentTarget.open);
-      }}
-    >
-      <Disclosure.Summary>Room details</Disclosure.Summary>
-      <Stack.Root gap="condensed">
-        {room.equipment.map((item) => (
-          <Text.Root as="p" key={item}>
-            {item}
-          </Text.Root>
-        ))}
-      </Stack.Root>
-    </Disclosure.Root>
-  );
-}
-
 function Booking({ state, actions }: { state: BookingState; actions: Actions }) {
   const room = roomById(state.roomId) ?? sampleRooms[0];
   if (!room) throw new Error("Nook has no rooms to book.");
@@ -260,8 +217,16 @@ function Booking({ state, actions }: { state: BookingState; actions: Actions }) 
             </Alert.Root>
           ) : null}
         </Stack.Root>
-        <DurationField disabled={!choosing} duration={state.duration} onDuration={actions.setDuration} />
-        <RoomDetails open={state.status === "choosing" && state.detailsOpen} room={room} onToggle={actions.setDetailsOpen} />
+        <SelectQuestion
+          choices={durations.map((option) => ({ value: option, label: durationLabel[option] }))}
+          disabled={!choosing}
+          label="How long?"
+          value={state.duration}
+          onValueChange={(value) => {
+            if (isDuration(value)) actions.setDuration(value);
+          }}
+        />
+        <RoomDetails items={room.equipment} open={state.status === "choosing" && state.detailsOpen} onToggle={actions.setDetailsOpen} />
       </BookingPage.Body>
       <BookingPage.Alternate>
         <Button.Root {...submitOff(!choosing)} type="button" variant="secondary" onClick={actions.hold}>

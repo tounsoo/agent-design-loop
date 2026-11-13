@@ -100,12 +100,18 @@ for (const { node } of unreachedElements(featuresRoot, pages, ACTION)) {
   }
 }
 
+// A disclosed section's summary is in a feature file, or in a content layout a page renders: a page body is built from content layouts.
 const summaries = new Set<string>();
 for (const file of listSourceFiles(featuresRoot)) {
   walk(parseFile(file), (node) => {
     const opening = openingOf(node);
     if (opening && canonicalTag(opening) === adapter.disclosure.summary) summaries.add(elementText(node).text.trim());
   });
+}
+for (const page of pages) {
+  for (const scope of page.scopes) {
+    for (const found of tagsInScope(scope, adapter.disclosure.summary)) summaries.add(elementText(found.node).text.trim());
+  }
 }
 for (const section of disclosed_sections) {
   if (!summaries.has(section)) violations.push(`priority: "${section}" is not behind a disclosure (disclosed_sections).`);

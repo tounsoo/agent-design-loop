@@ -24,6 +24,9 @@ export type PrimarySlot = { readonly shell: Shell; readonly tag: string };
 /** A collection shell, with its chrome slots as tags. Its other slots are body. */
 export type CollectionShell = { readonly shell: Shell; readonly chrome: ReadonlySet<string> };
 
+/** Any page type's shell, with its chrome slots as tags and the kind of page it is. Its other slots are body. */
+export type BodyShell = CollectionShell & { readonly kind: "primarySlots" | "collections" | "content" };
+
 /** Names a module exports as values, including re-exports. */
 export function valueExports(file: string): string[] {
   const source = parseFile(file);
@@ -227,4 +230,38 @@ export function contentShellsOf(rules: ShellRules, shells: readonly Shell[], all
   const named = rules.content ?? [];
   const problems = [...unknownPageTypes("content", named, allowed), ...unclassifiedPageTypes(rules, allowed)];
   return { content: shells.filter((shell) => named.includes(shell.pageType)), problems };
+}
+
+/**
+ * Every shell with its chrome slots, whatever kind of page it is. A
+ * collection's chrome is its shells.collections entry; a primary-slot page's
+ * is its primary slot plus its shells.chrome entry; a content page's is its
+ * shells.chrome entry. Every other slot is body, which check:inventories
+ * builds only from registered content layouts, so a new block on any page is
+ * a new content layout and takes a proposal.
+ */
+export function bodyShellsOf(rules: ShellRules, shells: readonly Shell[], allowed: readonly string[]): { bodies: BodyShell[]; problems: string[] } {
+  const { collections, problems } = collectionShellsOf(rules, shells, allowed);
+  const chromeRules = rules.chrome ?? {};
+  for (const pageType of Object.keys(chromeRules)) {
+    const kinds = kindsOf(rules, pageType);
+    if (!allowed.includes(pageType)) problems.push(`${configName} shells.chrome names page type "${pageType}", which is not in allowed_page_types.`);
+    else if (kinds.includes("collections")) problems.push(`${configName} shells.chrome names page type "${pageType}", a collection, which names its chrome in shells.collections.`);
+  }
+  const bodies: BodyShell[] = collections.map((collection) => ({ ...collection, kind: "collections" as const }));
+  for (const shell of shells) {
+    const kinds = kindsOf(rules, shell.pageType);
+    if (kinds.length !== 1 || kinds[0] === "collections" || kinds[0] === undefined) continue;
+    const kind = kinds[0];
+    const named = chromeRules[shell.pageType] ?? [];
+    if (named.length > 0) problems.push(...unknownSlots("chrome", shell, named));
+    const primary = kind === "primarySlots" ? rules.primarySlots[shell.pageType] : undefined;
+    const chrome = [...(primary === undefined ? [] : [primary]), ...named];
+    // A page with no body slot would leave the body rule nothing to check.
+    if (shell.slots !== null && shell.slots.size > 0 && [...shell.slots].every((slot) => chrome.includes(slot))) {
+      problems.push(`${configName} shells names every slot of ${shell.name} as chrome (${chrome.join(", ")}), so its pages have no body slot. Leave at least one slot out of shells.chrome.`);
+    }
+    bodies.push({ shell, chrome: new Set(chrome.map((slot) => `${shell.name}.${slot}`)), kind });
+  }
+  return { bodies, problems: [...new Set(problems)] };
 }

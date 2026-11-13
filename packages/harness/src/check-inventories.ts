@@ -4,12 +4,12 @@ import path from "node:path";
 import ts from "typescript";
 import { parseAdapter, type DesignSystemAdapter } from "./lib/adapter";
 import { resolveBaseRev, tryGit } from "./lib/base";
-import { collectionCompositionViolations } from "./lib/collection-body";
+import { bodyCompositionViolations } from "./lib/page-body";
 import { config, configName, memberOf, pageTypesBarrel, parseConfig, type ParsedConfig } from "./lib/config";
 import { walk } from "./lib/jsx";
 import { ADDABLE_LISTS, membershipChanges, type Change, type Inventory, type Term } from "./lib/membership";
 import { addingInThisChange, byBaseName, adopting, parseAll, proposalsAtRev, proposalsInDir, type Proposal } from "./lib/proposals";
-import { collectionShellsOf, shellsOf } from "./lib/shells";
+import { bodyShellsOf, shellsOf } from "./lib/shells";
 
 /**
  * Inventories are data: catalog exports, chrome layout ids, content layout
@@ -39,8 +39,11 @@ import { collectionShellsOf, shellsOf } from "./lib/shells";
  * lands on main first.
  *
  * allowed_layouts is the app frame. allowed_content_layouts are the
- * compositions that fill a page type's body. A collection ready body has to
- * be one of those. Loading, empty, and error may stay in the page shell.
+ * compositions that fill a page type's body. Every page's body, a collection's,
+ * a detail page's or a content page's, is built only from those and the
+ * adapter's status parts, so a new block on a page is a new content layout,
+ * which needs a proposal (lib/page-body.ts). The shells config names each page
+ * type's chrome slots; every other slot is body.
  *
  * A product's harness config says where each inventory lives, so it is an
  * inventory too. The base is read with its own config, at the same path as the
@@ -646,6 +649,8 @@ function introducedLists(base: Inventory, head: Inventory): string[] {
   if (base.layouts === null) introduced.push("allowed_layouts");
   if (base.contentLayouts === null) introduced.push("allowed_content_layouts");
   if (base.adapter === null && head.adapter !== null) introduced.push("design system adapter");
+  // A base config with no shells.chrome had no body rule on primary-slot or content pages, so the field is recorded once, as a list the base does not export is.
+  if (compareConfig && base.config?.shells !== null && base.config?.shells !== undefined && base.config.shells.chrome === undefined && head.config?.shells?.chrome !== undefined) introduced.push("shells.chrome");
   return introduced;
 }
 
@@ -716,17 +721,17 @@ if (!head) fail(`inventory: cannot read ${configName}.`);
 if (!head.layouts) fail(`inventory: allowed_layouts is missing from ${config.paths.inputs}.`);
 if (!head.contentLayouts) fail(`inventory: allowed_content_layouts is missing from ${config.paths.inputs}.`);
 
-const collectionTypes = Object.keys(config.shells.collections);
-const collectionShells = shellsOf(collectionTypes.filter((pageType) => head.pageTypes.includes(pageType)), config.paths.pageTypes);
-const { collections, problems: collectionProblems } = collectionShellsOf(config.shells, collectionShells.shells, head.pageTypes);
+// Every page type's shell: a collection's body, a detail page's and a content page's are each built from registered content layouts.
+const pageShells = shellsOf(head.pageTypes, config.paths.pageTypes);
+const { bodies, problems: bodyProblems } = bodyShellsOf(config.shells, pageShells.shells, head.pageTypes);
 
 const violations = [
   ...directoryDrift("layout", config.paths.layouts, head.layouts),
   ...directoryDrift("content layout", config.paths.contentLayouts, head.contentLayouts),
   ...directoryDrift("page type", config.paths.pageTypes, head.pageTypes),
-  ...collectionShells.problems,
-  ...collectionProblems,
-  ...collectionCompositionViolations(path.resolve(config.paths.features), head.contentLayouts, path.resolve(config.paths.styles), collections),
+  ...pageShells.problems,
+  ...bodyProblems,
+  ...bodyCompositionViolations(path.resolve(config.paths.features), head.contentLayouts, path.resolve(config.paths.styles), bodies),
 ];
 
 const declaredPages = sortedUnique(stringArray(exportedInitializer(parseSource(pageTypesBarrel, readText(headRoot, pageTypesBarrel)), "pageTypes"), "pageTypes"));
@@ -764,7 +769,7 @@ if (base === null) {
   ];
   if (!reportMembership(added, proposalsForChange(baseRoot))) process.exit(1);
   console.log(`inventory: recorded a new product's inventories.`);
-  console.log("inventory: collection bodies use a registered content layout.");
+  console.log("inventory: page bodies use registered content layouts.");
   console.log(`inventory: ${summary(head)}`);
   process.exit(0);
 }
@@ -780,5 +785,5 @@ const introduced = introducedLists(base, head);
 const baseName = baseRoot.kind === "git" ? baseRoot.rev.slice(0, 7) : baseFlag;
 if (introduced.length > 0) console.log(`inventory: base has no ${introduced.join(" or ")}; recorded the current inventories.`);
 else console.log(`inventory: membership matches ${baseName}.`);
-console.log("inventory: collection bodies use a registered content layout.");
+console.log("inventory: page bodies use registered content layouts.");
 console.log(`inventory: ${summary(head)}`);
