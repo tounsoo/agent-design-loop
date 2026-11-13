@@ -20,8 +20,11 @@ import { loadScenarios } from "./scenarios";
  * check:docs holds the map to the product registry both ways: every page
  * type, layout, content layout, task and scenario a product has is covered by
  * one of its feature files, and every name a Covers line gives is one the
- * product has, so a new page or block can't land without a recipe and a
- * removed one can't stay in the map.
+ * product has. So a new page type, layout, content layout, task or scenario
+ * can't land without a recipe, and a removed one can't stay in the map. It
+ * sees names, not pages: a new page built only from a page type and content
+ * layouts the product already has, with no new scenario, adds no name, and
+ * whether a recipe drives what its Covers line names is the reviewer's call.
  */
 
 /** The verify map's folder, from the repository root. */
@@ -84,23 +87,26 @@ export function productName(config: string): string {
   return path.posix.basename(path.posix.dirname(config.split(path.sep).join("/")));
 }
 
+/** Text without its HTML comments. */
+function withoutComments(text: string): string {
+  return text.replace(/<!--[\s\S]*?-->/g, "");
+}
+
 /** Lines outside fenced code blocks and HTML comments, with their text. */
 function proseLines(text: string): string[] {
   const lines: string[] = [];
-  let fenced = false;
-  let comment = false;
-  for (const line of text.replace(/\r\n/g, "\n").split("\n")) {
-    if (/^\s*(```|~~~)/.test(line)) {
-      fenced = !fenced;
+  // A fence closes only on a run of its own character at least as long, as CommonMark has it.
+  let fence: { char: string; length: number } | null = null;
+  for (const line of withoutComments(text.replace(/\r\n/g, "\n")).split("\n")) {
+    const marker = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+    if (fence) {
+      const run = marker?.[1] ?? "";
+      if (run.startsWith(fence.char) && run.length >= fence.length && (marker?.[2] ?? "").trim() === "") fence = null;
       continue;
     }
-    if (fenced) continue;
-    if (comment) {
-      if (line.includes("-->")) comment = false;
-      continue;
-    }
-    if (line.includes("<!--") && !line.includes("-->")) {
-      comment = true;
+    if (marker) {
+      const run = marker[1] ?? "";
+      fence = { char: run.charAt(0), length: run.length };
       continue;
     }
     lines.push(line);
@@ -108,19 +114,41 @@ function proseLines(text: string): string[] {
   return lines;
 }
 
+/** Every link target a Markdown file gives outside code and comments, without its `./`, anchor or title. */
+function linkTargets(text: string): Set<string> {
+  const targets = new Set<string>();
+  for (const line of proseLines(text)) {
+    for (const match of line.matchAll(/\]\(\s*(?:\.\/)?([^)\s#]+)(?:#[^)\s]*)?(?:\s+"[^"]*")?\s*\)/g)) targets.add(match[1] ?? "");
+  }
+  return targets;
+}
+
+/** Every `?scenario=<id>` a file opens, outside comments, code included. A placeholder such as `?scenario=<id>` opens none. */
+function scenarioUrls(text: string): string[] {
+  return [...withoutComments(text).matchAll(/\?scenario=([^\s&`)"'#<>\]]+)/g)].map((match) => (match[1] ?? "").replace(/[.,;:!?]+$/, ""));
+}
+
 /** What a feature file's `## Covers` section names, by kind, or the problems with it. `null` when it has none. */
 export function parseCovers(file: string, text: string): { covers: Map<Kind, string[]>; problems: string[] } | null {
   const lines = proseLines(text);
-  const start = lines.findIndex((line) => /^##\s+Covers\s*$/.test(line));
+  const isCovers = (line: string): boolean => /^##\s+Covers\s*$/.test(line);
+  const start = lines.findIndex(isCovers);
   if (start === -1) return null;
   const covers = new Map<Kind, string[]>();
   const problems: string[] = [];
   for (const line of lines.slice(start + 1)) {
-    if (/^#{1,2}\s/.test(line)) break;
+    if (/^#{1,6}\s/.test(line)) {
+      problems.push(
+        isCovers(line)
+          ? `${file} has two ## Covers sections. Merge them into one, the last section of the file.`
+          : `${file}: "${line.trim()}" comes after ## Covers, which must be the file's last section. Move the section above ## Covers.`,
+      );
+      break;
+    }
     if (line.trim() === "") continue;
     const item = /^- ([^:]+):\s*(.*)$/.exec(line);
     const label = item?.[1]?.trim();
-    if (!item || label === undefined || !(label in COVERS)) {
+    if (!item || label === undefined || !Object.hasOwn(COVERS, label)) {
       problems.push(`${file}: "${line.trim()}" under ## Covers is not a "- <kind>: \`<name>\`" line. The kinds are ${Object.keys(COVERS).join(", ")}.`);
       continue;
     }
@@ -163,6 +191,22 @@ export function verifyMapProblems(products: readonly ProductRegistry[], files: M
   for (const folder of [...folders].sort()) {
     if (!byName.has(folder)) problems.push(`${VERIFY_MAP}/${folder}/ is not a product's verify map: no product's config is in a folder named ${folder}. Remove it, or move it to the product's own folder name.`);
   }
+  for (const file of [...files.keys()].sort()) {
+    if (file.split("/").length > 2) problems.push(`${VERIFY_MAP}/${file} sits below a product's folder, where check:docs does not read it. Move it to ${VERIFY_MAP}/${file.split("/")[0]}/ and link it from that folder's README.md.`);
+  }
+
+  // The map's own pages sit at the top, each linked from its index; a page left there from before the product folders is stale.
+  const top = files.get("README.md");
+  const topLinks = top === undefined ? new Set<string>() : linkTargets(top);
+  const allScenarios = new Set(products.flatMap((product) => product.scenarios));
+  for (const [file, text] of [...files.entries()].filter(([file]) => !file.includes("/"))) {
+    if (file !== "README.md" && !topLinks.has(file)) {
+      problems.push(`${VERIFY_MAP}/${file} is not linked from ${VERIFY_MAP}/README.md. Move a product's recipe into its folder, or link the page from the index.`);
+    }
+    for (const id of scenarioUrls(text)) {
+      if (!allScenarios.has(id)) problems.push(`${VERIFY_MAP}/${file} opens ${code(`?scenario=${id}`)}, which is not a scenario of any product.`);
+    }
+  }
 
   for (const product of products) {
     const prefix = `${product.name}/`;
@@ -176,11 +220,12 @@ export function verifyMapProblems(products: readonly ProductRegistry[], files: M
     }
 
     const covered = new Map<Kind, Set<string>>();
+    const linked = index === undefined ? new Set<string>() : linkTargets(index);
     const features = own.filter(([file]) => file !== `${prefix}README.md`);
     for (const [file, text] of features) {
       const label = `${VERIFY_MAP}/${file}`;
       const leaf = file.slice(prefix.length);
-      if (index !== undefined && !new RegExp(`\\]\\((?:\\./)?${leaf.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\)`).test(index)) {
+      if (index !== undefined && !linked.has(leaf)) {
         problems.push(`${where}/README.md does not link ${leaf}. List every feature file in the index.`);
       }
       const parsed = parseCovers(label, text);
@@ -195,12 +240,8 @@ export function verifyMapProblems(products: readonly ProductRegistry[], files: M
         covered.set(kind, set);
       }
     }
-    if (index !== undefined) {
-      for (const match of index.matchAll(/\]\((?:\.\/)?([^)#\s]+\.md)(?:#[^)]*)?\)/g)) {
-        const target = match[1] ?? "";
-        if (target.includes("/")) continue;
-        if (!files.has(`${prefix}${target}`)) problems.push(`${where}/README.md links ${target}, which is not in ${where}/.`);
-      }
+    for (const target of [...linked].sort()) {
+      if (target.endsWith(".md") && !target.includes("/") && !files.has(`${prefix}${target}`)) problems.push(`${where}/README.md links ${target}, which is not in ${where}/.`);
     }
 
     for (const kind of Object.values(COVERS)) {
@@ -221,11 +262,8 @@ export function verifyMapProblems(products: readonly ProductRegistry[], files: M
     // A ?scenario= address anywhere in the product's map must open one of its scenarios.
     const scenarios = new Set(product.scenarios);
     for (const [file, text] of own) {
-      for (const line of proseLines(text)) {
-        for (const match of line.matchAll(/\?scenario=([a-z0-9]+(?:-[a-z0-9]+)*)/g)) {
-          const id = match[1] ?? "";
-          if (!scenarios.has(id)) problems.push(`${VERIFY_MAP}/${file} opens ${code(`?scenario=${id}`)}, which is not a scenario of ${product.name}.`);
-        }
+      for (const id of scenarioUrls(text)) {
+        if (!scenarios.has(id)) problems.push(`${VERIFY_MAP}/${file} opens ${code(`?scenario=${id}`)}, which is not a scenario of ${product.name}.`);
       }
     }
   }
@@ -291,12 +329,16 @@ function inline(items: readonly string[]): string {
   return items.length === 0 ? "none" : items.map(code).join(", ");
 }
 
-/** CLAUDE.md's list: one line per product, with what it registers and its verify map. */
+/**
+ * CLAUDE.md's list: one line per product, with what it registers and its
+ * verify map. Scenarios are left to the map's index, so adding one, which
+ * needs no proposal, needs no edit to CLAUDE.md either.
+ */
 export function renderClaudeProducts(products: readonly ProductRegistry[]): string {
   return products
     .map(
       (product) =>
-        `- [${code(product.name)}](${product.config}), verify map [${VERIFY_MAP}/${product.name}/](${VERIFY_MAP}/${product.name}/README.md): page types ${product.pageTypes.map((pageType) => `${code(pageType.id)} (${pageType.kind})`).join(", ")}; layouts ${inline(product.layouts)}; content layouts ${inline(product.contentLayouts)}; tasks ${inline(product.tasks)}; ${count(product.scenarios.length, "scenario")}.`,
+        `- [${code(product.name)}](${product.config}), verify map [${VERIFY_MAP}/${product.name}/](${VERIFY_MAP}/${product.name}/README.md): page types ${product.pageTypes.length === 0 ? "none" : product.pageTypes.map((pageType) => `${code(pageType.id)} (${pageType.kind})`).join(", ")}; layouts ${inline(product.layouts)}; content layouts ${inline(product.contentLayouts)}; tasks ${inline(product.tasks)}.`,
     )
     .join("\n");
 }

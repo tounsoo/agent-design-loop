@@ -28,7 +28,7 @@ Preconditions:
 
 ## Gotchas
 
-- `check:target-size`, `check:accessible-names`, `check:rendered-page` and `npm run screenshots` open every scenario in each flow's `scenarios.ts`. A new scenario is opened without editing a script or the config, and needs no proposal. A modeled state with no scenario, a scenario for a state that is not modeled, an id that is not a lowercase slug, and an id used twice fail `check:state-coverage`.
+- `check:target-size`, `check:accessible-names`, `check:rendered-page` and `npm run screenshots` open every scenario in each flow's `scenarios.ts`. A new scenario is opened without editing a script or the config, and needs no proposal, but it needs a recipe here or in another Meridian feature file, named as `?scenario=<id>` on its `## Covers` line, or `check:docs` fails. A modeled state with no scenario, a scenario for a state that is not modeled, an id that is not a lowercase slug, and an id used twice fail `check:state-coverage`.
 - `scenarios.ts` is imported in Node by the checks, so it holds data only: no JSX, CSS or `window`.
 - Every other scenario is covered by the feature file that drives its page: [collections](collections.md), [approve an invoice](approve-invoice.md), [request changes](request-changes.md) and [the vendor page](vendor-page.md). This file covers the states no page owns.
 

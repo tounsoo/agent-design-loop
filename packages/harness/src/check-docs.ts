@@ -77,8 +77,16 @@ const stale = Object.entries(docs).filter(([file, text]) => {
     return true;
   }
 });
+// The map is read before anything exits, so a pull request that adds a page type with no recipe sees both what docs:gen
+// would rewrite and the recipe it still needs in one run; docs:gen never writes a feature file.
+const mapProblems = verifyMapProblems(products, readMapFiles());
+const reportMap = (): void => {
+  console.error(`docs: the verify map in ${VERIFY_MAP}/ misses what the products have:`);
+  for (const problem of mapProblems) console.error(`- ${problem}`);
+};
 if (stale.length > 0 && !write) {
   console.error(`docs: ${stale.map(([file]) => file).join(", ")} ${stale.length === 1 ? "is" : "are"} stale. Run npm run docs:gen.`);
+  if (mapProblems.length > 0) reportMap();
   process.exit(1);
 }
 for (const [file, text] of stale) {
@@ -88,10 +96,8 @@ for (const [file, text] of stale) {
 
 console.log(`docs: ${Object.keys(docs).length} docs describe ${built.model.scripts.length} scripts, ${built.model.cases.length} fixture cases and ${products.length} ${products.length === 1 ? "product" : "products"}, as the code has them.`);
 
-const mapProblems = verifyMapProblems(products, readMapFiles());
 if (mapProblems.length > 0) {
-  console.error(`docs: the verify map in ${VERIFY_MAP}/ misses what the products have:`);
-  for (const problem of mapProblems) console.error(`- ${problem}`);
+  reportMap();
   process.exit(1);
 }
 const count = (kind: (product: ProductRegistry) => readonly unknown[]): number => products.reduce((sum, product) => sum + kind(product).length, 0);

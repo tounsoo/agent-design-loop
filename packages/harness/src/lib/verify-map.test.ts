@@ -49,9 +49,18 @@ describe("parseCovers", () => {
     expect(parseCovers("f.md", "# F\n\n```md\n## Covers\n\n- Tasks: `x`\n```\n")).toBeNull();
   });
 
-  it("stops at the next heading", () => {
-    const parsed = parseCovers("f.md", "## Covers\n\n- Tasks: `a`\n\n## Later\n\n- Tasks: `b`\n");
-    expect(parsed?.covers.get("tasks")).toEqual(["a"]);
+  it("fails a second Covers section and a heading after Covers, rather than dropping what they hold", () => {
+    expect(parseCovers("f.md", "## Covers\n\n- Tasks: `a`\n\n## Covers\n\n- Tasks: `b`\n")?.problems).toEqual(["f.md has two ## Covers sections. Merge them into one, the last section of the file."]);
+    expect(parseCovers("f.md", "## Covers\n\n- Tasks: `a`\n\n## More\n\n- Tasks: `b`\n")?.problems[0]).toContain('"## More" comes after ## Covers, which must be the file\'s last section');
+  });
+
+  it("refuses a label that is only an Object property name", () => {
+    expect(parseCovers("f.md", "## Covers\n\n- toString: `cart`\n")?.problems[0]).toContain('"- toString: `cart`" under ## Covers is not a "- <kind>: `<name>`" line');
+  });
+
+  it("closes a fence only on a run of its own character at least as long", () => {
+    const text = "# F\n\n````md\n```\n~~~\n````\n\n## Covers\n\n- Tasks: `a`\n";
+    expect(parseCovers("f.md", text)?.covers.get("tasks")).toEqual(["a"]);
   });
 
   it("names a line that is not a kind, a kind with no span, a scenario not written as its URL and an empty section", () => {
@@ -101,6 +110,32 @@ describe("verifyMapProblems", () => {
     expect(problems).toEqual([expect.stringContaining("shop/browse.md opens `?scenario=gone`, which is not a scenario of shop")]);
   });
 
+  it("checks the whole ?scenario= id, in code blocks too, and skips a placeholder and comments", () => {
+    const opens = (text: string): string[] => verifyMapProblems([shop], map({ "shop/browse.md": BROWSE.replace("## Covers", `${text}\n\n## Covers`) }));
+    expect(opens("Open `?scenario=loading_bogus`.")).toEqual([expect.stringContaining("opens `?scenario=loading_bogus`, which is not a scenario of shop")]);
+    expect(opens("Open `?scenario=Loading`.")).toEqual([expect.stringContaining("opens `?scenario=Loading`")]);
+    expect(opens("```sh\nopen http://127.0.0.1:5173/?scenario=gone\n```")).toEqual([expect.stringContaining("opens `?scenario=gone`")]);
+    expect(opens("Open ?scenario=loading. Write `?scenario=<id>`. <!-- ?scenario=gone -->")).toEqual([]);
+  });
+
+  it("reads index links with ./, an anchor or a title as links", () => {
+    expect(verifyMapProblems([shop], map({ "shop/README.md": '- [Browse](./browse.md#top)\n- [Check out](check-out.md "Check out")\n' }))).toEqual([]);
+  });
+
+  it("does not count a link in a comment as listed", () => {
+    expect(verifyMapProblems([shop], map({ "shop/README.md": "- [Browse](browse.md)\n<!-- [Check out](check-out.md) -->\n" }))).toEqual([
+      ".claude/skills/verify/features/shop/README.md does not link check-out.md. List every feature file in the index.",
+    ]);
+  });
+
+  it("fails a file below a product's folder, a top page the index does not link, and a top URL no product opens", () => {
+    expect(verifyMapProblems([shop], map({ "shop/old/extra.md": "## Covers\n\n- Tasks: `ghost`\n" }))).toEqual([expect.stringContaining(".claude/skills/verify/features/shop/old/extra.md sits below a product's folder")]);
+    expect(verifyMapProblems([shop], map({ "collections.md": "# Old\n" }))).toEqual([expect.stringContaining(".claude/skills/verify/features/collections.md is not linked from .claude/skills/verify/features/README.md")]);
+    expect(verifyMapProblems([shop], map({ "README.md": "# Map\n\n- [Rule gate](rule-gate.md)\n", "rule-gate.md": "Open `?scenario=cart-full`, not `?scenario=gone`.\n" }))).toEqual([
+      expect.stringContaining(".claude/skills/verify/features/rule-gate.md opens `?scenario=gone`, which is not a scenario of any product"),
+    ]);
+  });
+
   it("fails a feature file the index does not link, and a link to a file that is not there", () => {
     expect(verifyMapProblems([shop], map({ "shop/README.md": "- [Browse](browse.md)\n- [Gone](gone.md)\n" }))).toEqual([
       ".claude/skills/verify/features/shop/README.md does not link check-out.md. List every feature file in the index.",
@@ -124,8 +159,9 @@ describe("verifyMapProblems", () => {
 describe("renderers", () => {
   it("lists each product with what it registers, its map and its Chrome drive", () => {
     expect(renderClaudeProducts([shop])).toBe(
-      "- [`shop`](products/shop/harness.config.ts), verify map [.claude/skills/verify/features/shop/](.claude/skills/verify/features/shop/README.md): page types `cart` (primary slot), `catalog` (collection); layouts `frame`; content layouts `item-grid`, `totals`; tasks `check-out`; 2 scenarios.",
+      "- [`shop`](products/shop/harness.config.ts), verify map [.claude/skills/verify/features/shop/](.claude/skills/verify/features/shop/README.md): page types `cart` (primary slot), `catalog` (collection); layouts `frame`; content layouts `item-grid`, `totals`; tasks `check-out`.",
     );
+    expect(renderClaudeProducts([{ ...shop, pageTypes: [] }])).toContain("page types none;");
     expect(renderMapProducts([shop])).toBe("- [shop](shop/README.md), from `products/shop/harness.config.ts`: 2 page types, 1 layout, 2 content layouts, 1 task and 2 scenarios.");
     expect(renderChromeDrive([shop], ["check:a", "check:b"])).toBe(
       "```sh\nnpm run check:a -- --config products/shop/harness.config.ts\nnpm run check:b -- --config products/shop/harness.config.ts\n```",

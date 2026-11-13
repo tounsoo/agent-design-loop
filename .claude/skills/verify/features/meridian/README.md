@@ -3,7 +3,7 @@
 Meridian is the accounts-payable demo in `products/meridian/`, checked with `products/meridian/harness.config.ts`. Read [the map's index](../README.md) for the preconditions and conventions every recipe here assumes, then use the matching feature file.
 
 - Serve it with `npm run build && npm run preview` at `http://127.0.0.1:4173/`, or `npm run dev` at `http://127.0.0.1:5173/`.
-- Its Vitest journeys are `products/meridian/App.test.tsx` and `products/meridian/features/invoice-approval/InvoiceApproval.test.tsx`.
+- Its Vitest journeys are `products/meridian/App.test.tsx` and `products/meridian/features/invoice-approval/InvoiceApproval.test.tsx`, and `products/meridian/preview/readState.test.ts` reads the scenario preview.
 
 ## Features
 
