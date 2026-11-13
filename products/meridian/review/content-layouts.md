@@ -18,3 +18,13 @@ Content layouts are the compositions that fill a page type's body. `allowed_layo
 
 - Whether a new composition is a new content layout, or an implementation edit of the existing data-table layout. Rebuilding the table inside `data-table` keeps the id. The check cannot tell a redesigned table from a different composition that reused the directory.
 - Whether a future board should be a content layout of `collection`, or a new page type. Both are membership changes and need a proposal. The check cannot choose which inventory grows. Shipping the board inside the collection body, without either change, now fails.
+
+## Page bodies from content layouts (Nov 13, 2026)
+
+What the checks decided: the detail page's Meta, Body and Secondary slots are body, so the facts, progress, line items and text question are content layouts now, and the screenshots before and after match byte for byte.
+
+What the checks cannot decide:
+
+- Whether a block built only from status parts (Stack, Text, Button) is a new pattern. The body rule lets those compose freely, so such a block passes without a proposal.
+- The critique's notes, both already on main before this change: the vendor name shows as the title and again in the facts and the approved banner, and the facts sit tight under the title while Line items reads at body weight. Left for a design change of its own.
+
