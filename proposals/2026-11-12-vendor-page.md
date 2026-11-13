@@ -8,7 +8,9 @@ adds:
 
 Meridian gains a third page type, `profile`: one record's facts and what belongs to it, with no primary action. Its first use is the vendor page, which opens from a vendor's card on Vendors and shows that vendor's payment details, open total, open invoices and approved invoices. It is the first page type in any product named under `shells.content`.
 
-Rule or input: `allowed_page_types` gains `profile`, `products/meridian/page-types/profile/` holds its shell, `ProfilePage`, and `products/meridian/harness.config.ts` names it under a new `shells.content`. Every `shells` entry the base had stays as it is, so this only adds, and it is adopted in the pull request that adds it. No task, `max_steps`, priority, disclosure, cap, catalog export, layout, content layout, flow state or adapter field changes.
+Rule or input: `allowed_page_types` gains `profile`, `products/meridian/page-types/profile/` holds its shell, `ProfilePage`, and `products/meridian/harness.config.ts` names it under a new `shells.content`. Every `shells` entry the base had stays as it is, so this only adds, and it is adopted in the pull request that adds it. No task, `max_steps`, priority, disclosure, cap, catalog export, layout, flow state or adapter field changes.
+
+One registered content layout changes what it does: in `directory`, the Vendors body, each card's vendor name becomes a link to that vendor's page, so a card is now a way in as well as a summary. Its id, its place in `allowed_content_layouts` and its other parts stay as they are.
 
 ## Reason
 
