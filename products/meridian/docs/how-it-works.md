@@ -66,7 +66,7 @@ Search, filters, sort, and paging live in the data table, and search in the dire
 
 ### One vendor
 
-A vendor's name on its card opens the vendor's page, `?route=vendors&vendor=<id>`, page type `profile`, which the config names under `shells.content`: it shows information and holds no primary action. Breadcrumbs lead back to Vendors, the title is the vendor's name, and a horizontal DataList gives the remittance email, terms and open total. Under it, `ProfilePage.Section` renders Open invoices and Approved, each with its own `h2` and a table of invoice links that scrolls inside its frame on a phone. A section with no rows is left out, and a vendor with no invoices says so. A vendor id Meridian does not have opens Vendors. The vendor page reads the session's ledger, so an invoice approved in the session is under Approved the next time it opens.
+A vendor's name on its card opens the vendor's page, `?route=vendors&vendor=<id>`, page type `profile`, which the config names under `shells.content`: it shows information and holds no primary action. Breadcrumbs lead back to Vendors, the title is the vendor's name, and the `facts` content layout gives the remittance email, terms and open total. Under it, the `invoice-list` content layout renders Open invoices and Approved, each a section with its own `h2` and a table of invoice links that scrolls inside its frame on a phone. A section with no rows is left out, and a vendor with no invoices says so. A vendor id Meridian does not have opens Vendors. The vendor page reads the session's ledger, so an invoice approved in the session is under Approved the next time it opens.
 
 ### One invoice
 

@@ -11,13 +11,14 @@ Chrome layouts are the frame. Content layouts are the compositions that fill a p
 | App shell, the frame | `products/meridian/layouts/app-shell` | [App shell](https://todae.omsoo.design/recipes/app-shell) |
 | Data table, the To approve and All invoices body | `products/meridian/content-layouts/data-table` | [Filter bar](https://todae.omsoo.design/recipes/filter-bar) and [Data table](https://todae.omsoo.design/recipes/data-table) |
 | Directory, the Vendors body | `products/meridian/content-layouts/directory` | None. Search, an add form behind a disclosure, and a grid of cards |
-| Facts, an invoice's fields under its heading | `products/meridian/content-layouts/facts` | None. A horizontal DataList |
+| Facts, an invoice's or a vendor's fields under its heading | `products/meridian/content-layouts/facts` | None. A horizontal DataList |
+| Invoice list, a vendor's open or approved invoices | `products/meridian/content-layouts/invoice-list` | None. A section with its own `h2` and a table of invoice links that scrolls inside its frame |
 | Progress, an invoice's stages | `products/meridian/content-layouts/progress` | None. Steps in its progress variant |
 | Line items, behind a disclosure | `products/meridian/content-layouts/line-items` | None. A disclosure holding a table with a Total row |
 | Text question, the reason for a change request | `products/meridian/content-layouts/text-question` | None. A label, a textarea and its hint or error |
 | Collection page | `products/meridian/page-types/collection` | Heading and body. The ready body is a content layout |
 | Detail page | `products/meridian/page-types/detail` | Breadcrumbs and a heading for one record; its meta, body and secondary slots are body, built from content layouts |
-| Profile page | `products/meridian/page-types/profile` | Breadcrumbs and a heading for one vendor; its meta and body are body, built from content layouts, and its sections each render their own heading. No primary action |
+| Profile page | `products/meridian/page-types/profile` | Breadcrumbs and a heading for one vendor; its meta and body are body, built from content layouts. No primary action |
 
 The app shell is the frame, not a third page type. A different body composition is a content layout, not a new entry in `allowed_layouts`.
 
@@ -79,13 +80,14 @@ catalog/                      only UI entry; re-exports @tounsoo/todae
 layouts/app-shell/            Meridian frame: header, nav, drawer; no page type
 content-layouts/data-table/   invoice collection body: filter bar, table, pagination
 content-layouts/directory/    Vendors body: search, the add-vendor form in a disclosure, cards
-content-layouts/facts/        an invoice's fields, as a horizontal DataList
+content-layouts/facts/        an invoice's or a vendor's fields, as a horizontal DataList
+content-layouts/invoice-list/ one section of a vendor's invoices: its h2 and a table of links
 content-layouts/progress/     an invoice's stages, received to payment
 content-layouts/line-items/   line items and their total, behind a disclosure
 content-layouts/text-question/ one labelled textarea with its hint or error
 page-types/collection/        heading and body; no primary. Ready body is a content layout
 page-types/detail/            breadcrumbs, meta, body, one primary, secondary
-page-types/profile/           breadcrumbs, heading, meta, body of sections; no primary
+page-types/profile/           breadcrumbs, heading, meta, body; no primary
 flows/invoice-approval/       loading, empty, error, ready, invoice-approved, changes-requested, vendor-added; vendors.ts holds the vendors and their validation
 inputs/product.ts             tasks, priority, disclosed sections, allowed layouts, content layouts, page types
 rules/ux-rules.ts             check, input, and review question for each rule
