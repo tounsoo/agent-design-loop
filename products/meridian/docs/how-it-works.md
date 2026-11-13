@@ -80,8 +80,8 @@ flowchart TB
       direction TB
       crumbs["Breadcrumbs back to the collection you came from."]
       heading["Heading. The vendor name."]
-      meta["Meta. A DataList: Invoice, Vendor, Status, Amount, Due."]
-      body["Body. Invoice progress as Steps: Received, Approval, Payment. Line items behind one Disclosure. The reason field appears after Request changes."]
+      meta["Meta. The facts content layout: Invoice, Vendor, Status, Amount, Due."]
+      body["Body. Content layouts: progress (Received, Approval, Payment), line items behind one Disclosure, and the text question after Request changes."]
       subgraph actions ["Action row. Secondary on the left, primary on the right."]
         direction LR
         secondary["Secondary slot. Request changes."]

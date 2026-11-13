@@ -3,12 +3,15 @@ status: adopted
 changes: []
 adds:
   - page-type:profile
+  - invoice-list
 ---
 # Meridian gets a page for each vendor
 
 Meridian gains a third page type, `profile`: one record's facts and what belongs to it, with no primary action. Its first use is the vendor page, which opens from a vendor's card on Vendors and shows that vendor's payment details, open total, open invoices and approved invoices. It is the first page type in any product named under `shells.content`.
 
-Rule or input: `allowed_page_types` gains `profile`, `products/meridian/page-types/profile/` holds its shell, `ProfilePage`, and `products/meridian/harness.config.ts` names it under a new `shells.content`. Every `shells` entry the base had stays as it is, so this only adds, and it is adopted in the pull request that adds it. No task, `max_steps`, priority, disclosure, cap, catalog export, layout, flow state or adapter field changes.
+Rule or input: `allowed_page_types` gains `profile`, `products/meridian/page-types/profile/` holds its shell, `ProfilePage`, and `products/meridian/harness.config.ts` names it under a new `shells.content`, with its chrome, `Breadcrumbs` and `Heading`, in `shells.chrome`. `allowed_content_layouts` gains `invoice-list`, the vendor page's invoice tables. Every `shells` entry and content layout the base had stays as it is, so this only adds, and it is adopted in the pull request that adds it. No task, `max_steps`, priority, disclosure, cap, catalog export, layout, flow state or adapter field changes.
+
+The vendor's facts reuse `facts`, the content layout the invoice page's facts use, with no change to it.
 
 One registered content layout changes what it does: in `directory`, the Vendors body, each card's vendor name becomes a link to that vendor's page, so a card is now a way in as well as a summary. Its id, its place in `allowed_content_layouts` and its other parts stay as they are.
 
@@ -22,7 +25,7 @@ Why not `collection`: a collection lists many records of one kind, and its body 
 
 Why `shells.content`: the config already has a kind for a page that shows information and holds no primary button, and `check:one-thing` already holds such a page to that. No product used it until now.
 
-Why the shell owns the section headings: a `ProfilePage.Section` slot renders its own `h2` through the catalog's `Text`, so every section on a page of this type is a heading one level below the title, in Todae's own size for that level, and a page cannot skip a level or style a heading by hand. A product that wants another size for a level sets it through Todae's theme overrides, not on one page.
+Why a new content layout: every page body is built from registered content layouts, and no registered one is a short fixed list of invoices. `data-table` searches, sorts and pages every invoice, which a vendor's two or three do not need, and its first column is the vendor, which every row here shares. `invoice-list` is one section: its own `h2` through the catalog's `Text`, one level below the page's title in Todae's own size for that level, and a table whose invoice numbers link to their invoices. A page cannot skip a level or style the heading by hand. A product that wants another size for a level sets it through Todae's theme overrides, not on one page.
 
 ## States
 
@@ -53,9 +56,9 @@ Shown twice: the vendor's name is the breadcrumb's current item and the title, a
 The line `check:inventories` prints on the pull request that adds it:
 
 ```
-inventory: products/meridian/harness.config.ts shells adds profile, the page type this change adds: profile joins shells.content: no primary action.
+inventory: products/meridian/harness.config.ts shells adds profile, the page type this change adds: profile joins shells.content: no primary action, chrome Breadcrumbs, Heading.
 ```
 
 ## Adoption
 
-`products/meridian/inputs/product.ts` adds `profile` to `allowed_page_types`; `products/meridian/page-types/profile/` holds `ProfilePage` with `Breadcrumbs`, `Heading`, `Meta`, `Body` and `Section`; `page-types/index.ts` exports it; `harness.config.ts` names it under `shells.content`. The flow gains the `vendor` screen, read from `?vendor=` on the Vendors route, and five scenarios; the sample vendors gain one with a long name and no invoices. `features/invoice-approval/views.tsx` renders the page, `content-layouts/directory` links each card's name to it, `App.tsx` titles the document with the vendor's name, and `accessible-names.ts` declares what a screen reader hears on each new scenario. A review note, `products/meridian/review/vendor-page.md`, records what the checks leave open.
+`products/meridian/inputs/product.ts` adds `profile` to `allowed_page_types`; `products/meridian/page-types/profile/` holds `ProfilePage` with `Breadcrumbs`, `Heading`, `Meta` and `Body`; `page-types/index.ts` exports it; `harness.config.ts` names it under `shells.content` and its chrome under `shells.chrome`. `content-layouts/invoice-list/` holds `InvoiceList`, and `allowed_content_layouts` lists it. The flow gains the `vendor` screen, read from `?vendor=` on the Vendors route, and five scenarios; the sample vendors gain one with a long name and no invoices. `features/invoice-approval/views.tsx` renders the page from `facts` and `invoice-list`, `content-layouts/directory` links each card's name to it, `App.tsx` titles the document with the vendor's name, and `accessible-names.ts` declares what a screen reader hears on each new scenario. A review note, `products/meridian/review/vendor-page.md`, records what the checks leave open.

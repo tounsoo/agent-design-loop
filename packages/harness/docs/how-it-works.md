@@ -210,6 +210,14 @@ The fixtures the gate has to reject, all under `packages/harness/fixtures/illega
 | `undeclared-content-layout` | A `board` directory beside `data-table` | `undeclared content layout` |
 | `content-layout-expansion` | `allowed_content_layouts` gains `board`, and no proposal | `without a proposal` |
 | `ad-hoc-content` | A status board and page CSS inside the collection body | `not a registered content layout` |
+| `block-in-detail-body` | A detail page's body holds a facts block the feature writes from catalog parts | `is not a registered content layout` |
+| `chrome-names-a-collection` | `shells.chrome` names the collection, which names its chrome in `shells.collections` | `a collection, which names its chrome in shells.collections` |
+| `detail-without-body-slot` | `shells.chrome` names every slot of the detail shell but its primary slot | `so its pages have no body slot` |
+| `chrome-misspelled-slot` | `shells.chrome` names the detail shell's slot `Heding` | `but DetailPage has no such slot` |
+| `chrome-unknown-page-type` | `shells.chrome` names `help`, which is not in `allowed_page_types` | `which is not in allowed_page_types` |
+| `renamed-shell-body` | The detail shell is imported as `Page`, and its body holds a disclosure the feature wrote | `is not a registered content layout` |
+| `block-in-a-status-part` | A `Stack.Root` in the detail body holds disclosures a map builds | `is not a registered content layout` |
+| `value-under-the-shell` | A block held in a const is placed straight under the detail shell, outside its slots | `detail body is not a registered content layout (extra in` |
 | `fake-ds-two-primaries` | Two strong actions in the primary slot, under the stand-in adapter | `found 2 primary and 2 Action` |
 | `fake-ds-nested-reveal` | A disclosure inside a disclosure, under the stand-in adapter | `disclosure depth 2 exceeds 1` |
 | `fake-ds-over-caps` | Two disclosures, two open questions, and the strong action in a disclosure, under the stand-in adapter | `page has 2 disclosures`, `shows 2 questions outside a disclosure`, `a primary button is inside a disclosure` |
@@ -439,7 +447,7 @@ String lists are sorted and de-duplicated before the comparison, so reordering `
 Two other checks in the same script always run, and a proposal does not waive them:
 
 - Directory names under the config's `paths.layouts`, `paths.contentLayouts`, and `paths.pageTypes` match the allowlists in both directions. For Meridian those are `products/meridian/layouts`, `products/meridian/content-layouts`, and `products/meridian/page-types`. Any other file directly in those directories, besides `index.ts`, fails too. Imports of those ids anywhere under `paths.source` must be on the lists. The `pageTypes` export matches `allowed_page_types`, and the page-type barrel, `index.ts` in `paths.pageTypes`, may not re-export an id that is not on it.
-- In the ready state, a collection body is one registered content layout, and the feature does not pass ad-hoc children into it. Loading, empty, and error may stay in the shell. Page CSS for a class the feature uses fails when no content layout, chrome layout, or page type uses that class.
+- Every page's body holds only registered content layouts, with no ad-hoc children passed into them, and the adapter's status parts, which loading, empty, error and outcome messages are made of. A collection's chrome is its `shells.collections` entry; a primary-slot page's is its primary slot and its `shells.chrome` entry; a content page's is its `shells.chrome` entry; every other slot is body. JSX a status part builds in a map or a same-file const is read too, and a shell imported under another name is still that shell. The status parts themselves, such as Stack, Text and Button, still compose freely. So a block of catalog parts a page needs that no content layout gives is a new content layout, and a new content layout takes a proposal ([proposal 2026-11-13-page-bodies-from-content-layouts](../../../proposals/2026-11-13-page-bodies-from-content-layouts.md)). Page CSS for a class the feature uses fails when no content layout, chrome layout, or page type uses that class.
 
 So a new content layout needs three things that are different jobs: the id in `allowed_content_layouts`, a matching directory, and an adopted proposal if that id is a membership change against the base. The directory check fails an extra folder even when a proposal is present. The membership check fails a new id when no adopted proposal lists it.
 

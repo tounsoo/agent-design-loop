@@ -113,6 +113,34 @@ describe("membershipChanges", () => {
     expect(change.terms).toEqual(["shells.primarySlots", "shells.collections"]);
   });
 
+  it("records shells.chrome once when the base has none, then compares it like any other entry", () => {
+    const plain = { primarySlots: { detail: "Primary" }, collections: { collection: ["Heading", "Description"] } };
+    const withChrome = { ...plain, chrome: { detail: ["Heading", "Secondary"] } };
+    expect(compare({ config: config({ shells: withChrome }) }, { config: config({ shells: plain }) })).toEqual([]);
+    const wider = { ...plain, chrome: { detail: ["Heading", "Body", "Secondary"] } };
+    const change = one(compare({ config: config({ shells: wider }) }, { config: config({ shells: withChrome }) }), 'shells changed an entry the base had ("detail")');
+    expect(change.kind).toBeUndefined();
+    expect(change.terms).toEqual(["shells.chrome"]);
+    const dropped = one(compare({ config: config({ shells: plain }) }, { config: config({ shells: withChrome }) }), 'shells changed an entry the base had ("detail")');
+    expect(dropped.kind).toBeUndefined();
+  });
+
+  it("lets a new primary-slot page type bring its own chrome entry, and prints it", () => {
+    const base = { config: config({ shells: { primarySlots: { detail: "Primary" }, collections: { collection: ["Heading", "Description"] }, chrome: { detail: ["Heading"] } } }) };
+    const shells = { primarySlots: { detail: "Primary", wizard: "Action" }, collections: { collection: ["Heading", "Description"] }, chrome: { detail: ["Heading"], wizard: ["Title"] } };
+    const changes = compare({ pageTypes: ["collection", "detail", "wizard"], config: config({ shells }) }, base);
+    expect(one(changes, "allowed_page_types")).toMatchObject({ kind: "adds", names: ["page-type:wizard"] });
+    expect(one(changes, "shells adds wizard")).toMatchObject({ kind: "adds", terms: ["shells.primarySlots"] });
+    expect(one(changes, "shells adds wizard").text).toContain("wizard joins shells.primarySlots: primary slot Action, chrome Title");
+  });
+
+  it("does not let shells.chrome alone make a page type one kind of page", () => {
+    const base = { config: config({ shells: { primarySlots: { detail: "Primary" }, collections: { collection: ["Heading", "Description"] }, chrome: {} } }) };
+    const shells = { primarySlots: { detail: "Primary" }, collections: { collection: ["Heading", "Description"] }, chrome: { wizard: ["Title"] } };
+    const changes = compare({ pageTypes: ["collection", "detail", "wizard"], config: config({ shells }) }, base);
+    expect(one(changes, "allowed_page_types").kind).toBeUndefined();
+  });
+
   it("does not make a page type an addition when it has no shells entry of its own", () => {
     const changes = compare({ pageTypes: ["board", "collection", "detail"] });
     expect(one(changes, "allowed_page_types").kind).toBeUndefined();

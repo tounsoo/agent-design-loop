@@ -5,7 +5,9 @@ import { Stack, Text } from "../../catalog";
  * Profile page type. One record's facts and what belongs to it, with no
  * primary action: the config names it under shells.content, so a primary
  * button anywhere on the page fails check:one-thing. Slots: breadcrumbs,
- * heading, meta, and a body of sections, each with its own heading.
+ * heading, meta and body. Breadcrumbs and heading are its chrome; meta and
+ * body hold registered content layouts, which render their own section
+ * headings under the page's h1.
  */
 
 function isSlot(node: ReactNode, slot: unknown): boolean {
@@ -32,17 +34,6 @@ export function Meta({ children }: { children: ReactNode }) {
 export function Body({ children }: { children: ReactNode }) {
   return (
     <Stack.Root data-slot="body" gap="spacious">
-      {children}
-    </Stack.Root>
-  );
-}
-
-/** One part of the record under its own heading. The shell owns the heading, so every profile page's sections read the same. */
-export function Section({ title, children }: { title: string; children: ReactNode }) {
-  // Its heading names the section for the page outline; the table inside carries its own name, so the section is not a second landmark.
-  return (
-    <Stack.Root as="section" className="profile-section" gap="normal">
-      <Text.Root as="h2">{title}</Text.Root>
       {children}
     </Stack.Root>
   );
@@ -93,5 +84,4 @@ export const ProfilePage = Object.assign(ProfilePageRoot, {
   Heading,
   Meta,
   Body,
-  Section,
 });

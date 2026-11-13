@@ -6,11 +6,11 @@ The inventories are listed here with Meridian's paths, under `products/meridian/
 
 - the component catalog, `catalog/index.ts`
 - layouts, `allowed_layouts` in `inputs/product.ts` and the directories in `layouts` — the app frame
-- content layouts, `allowed_content_layouts` in `inputs/product.ts` and the directories in `content-layouts` — the compositions that fill a page type's body
+- content layouts, `allowed_content_layouts` in `inputs/product.ts` and the directories in `content-layouts` — the compositions that fill every page's body, so a new block on any page is a new content layout
 - page types, `allowed_page_types` in `inputs/product.ts` and the directories in `page-types`
 - flow states, `modeledStates` in `flows/invoice-approval/states.ts`
 - rule inputs in `inputs/product.ts` and `rules/ux-rules.ts`: step budgets (`max_steps`), priority, `disclosed_sections`, disclosure caps, the visible-question cap, the target-size floor, and the allowed lists
-- the harness config, `harness.config.ts`: where each of the inventories above lives, which the checks read, and its `shells` rules, which page types hold a primary slot, are collections or are content pages. Pointing a path somewhere else, or dropping a page type from a rule, can quietly empty a check. Every product's config, such as `products/nook/harness.config.ts`, is an inventory of that product in the same way
+- the harness config, `harness.config.ts`: where each of the inventories above lives, which the checks read, and its `shells` rules, which page types hold a primary slot, are collections or are content pages, and which slots of each are chrome rather than body. Pointing a path somewhere else, or dropping a page type from a rule, can quietly empty a check. Every product's config, such as `products/nook/harness.config.ts`, is an inventory of that product in the same way
 - the design system adapter that config names, `packages/adapter-todae/index.ts`: the component names the checks count, such as `Button.Root` and `Field.Root`. Swapping a name can empty a check the same way
 
 Editing a layout, content layout, or page-type implementation without changing its id is not an inventory change.
@@ -106,7 +106,7 @@ tightens:
 `adds` takes:
 
 - A new member of the catalog exports, `allowed_layouts`, `allowed_content_layouts` or the flow states, by its bare name, `side-panel`, when every member the base had is still there.
-- `page-type:<id>`: a new page type in `allowed_page_types`, its directory under `page-types/`, and one new `shells` entry for that page type alone, under `shells.primarySlots` or `shells.collections`, with every entry the base had unchanged. A new `collections` entry must leave its shell at least one body slot. `check:inventories` prints the rule the page type joins and its slots, such as `board joins shells.collections: chrome Heading, Description`, so the code owner reads that choice in the pull request they merge.
+- `page-type:<id>`: a new page type in `allowed_page_types`, its directory under `page-types/`, and one new `shells` entry for that page type alone, under `shells.primarySlots`, `shells.collections` or `shells.content`, with every entry the base had unchanged. A primary-slot or content page type may also bring its own `shells.chrome` entry. A new entry must leave its shell at least one body slot. `check:inventories` prints the rule the page type joins and its slots, such as `board joins shells.collections: chrome Heading, Description`, so the code owner reads that choice in the pull request they merge.
 - `task:<id>`: a new task in the product's `tasks`, with its `success_state` and `max_steps`, and its graph module under `flows[].tasks`.
 
 A scenario is not an inventory, so it needs no entry under `adds`: a change adds one to its flow's `scenarios.ts` with no proposal.

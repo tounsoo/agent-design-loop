@@ -1,5 +1,5 @@
 import { Action, Notice, Spinner } from "../catalog";
-import { DataTable } from "../../product/content-layouts/data-table";
+import { DataTable } from "../content-layouts/data-table";
 import { CollectionPage } from "../../product/page-types/collection";
 
 type Status = "loading" | "empty" | "error" | "ready";

@@ -7,7 +7,7 @@ export const meta = {
     "On a page: the rank-2 action (Meridian's Request changes) shown as primary or more than once.",
     "On any page: an action button whose variant is computed, such as `variant={tone}`, because it could be a second primary.",
     "Across the product: no page with the rank-1 primary, or a rank-1 or rank-2 button no page reaches.",
-    "A section in `disclosed_sections` that is not the text of a `Disclosure.Summary`.",
+    "A section in `disclosed_sections` that is not the text of a `Disclosure.Summary` in a feature file or in a content layout a page renders.",
   ],
   details: [
     "The rules hold per page, in the page scope `check:disclosure` describes, with import aliases undone and `UI.Button.Root` through `import * as UI` read too. A product may render as many pages as it needs, so two record pages may each hold the rank-1 action. Actions are matched by their button text, so a translation breaks the match.",
