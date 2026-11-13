@@ -22,8 +22,15 @@ Preconditions:
 - **Reveal.** Choose `Request changes`. The textbox `What should change?` appears.
 - **Required.** Choose `Request changes` again with the box empty. The error `Enter what the vendor should change.` shows.
 - **Send.** Type a reason and choose `Request changes`. Run `npx vitest run -t "requires a reason before requesting changes"` for all three. The status reads `Changes requested`, the reason shows, and `Approve` is disabled.
-- **Priority.** Run `npm run check:priority -- --config products/meridian/harness.config.ts`. It prints `"Request changes" is secondary`.
+- **Priority.** Run `npm run check:priority -- --config products/meridian/harness.config.ts`. It prints `"Request changes" is secondary` in its `priority:` line.
+- **Browser.** Open `?scenario=invoice-requesting-changes` for the open reason and `?scenario=changes-requested` for the result. Run `npx vitest run -t "marks the approval stage when changes are requested"` for the progress stages after a request.
 
 ## Gotchas
 
 - The branch does not count toward the happy path's `max_steps`.
+- The reason is the `text-question` content layout, the detail page's one visible question, so `check:one-thing` fails a second visible question on the page.
+
+## Covers
+
+- Content layouts: `text-question`
+- Scenarios: `?scenario=invoice-requesting-changes`, `?scenario=changes-requested`

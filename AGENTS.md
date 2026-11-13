@@ -33,7 +33,7 @@ Checks: `npm run check:fixtures && npm run check`
 
 What each check fails, the flags it reads and the fixture cases that prove it: [the check reference](packages/harness/docs/checks.md), written from the code by `npm run docs:gen`.
 
-A pull request that adds or changes a check in `packages/harness/` also updates `CLAUDE.md` and the verify skill, `.claude/skills/verify/SKILL.md`, in the same pull request: it changes the check's `.meta.ts` and runs `npm run docs:gen`, which rewrites their generated parts, and `npm run check:docs` fails when it didn't.
+A pull request that adds or changes a check in `packages/harness/` also updates `CLAUDE.md` and the verify skill, `.claude/skills/verify/SKILL.md`, in the same pull request: it changes the check's `.meta.ts` and runs `npm run docs:gen`, which rewrites their generated parts, and `npm run check:docs` fails when it didn't. A pull request that adds a page type, layout, content layout, task or scenario to a product writes how to reach and drive it in the product's folder of the verify map, `.claude/skills/verify/features/<product>/`, and names it under a feature file's `## Covers`; `npm run check:docs` fails until it does, and `npm run docs:gen` rewrites the product lists in `CLAUDE.md` and the map's index.
 
 Every page's body is built from registered content layouts and the adapter's status parts, so a block the page needs that no content layout gives is a new content layout, which takes a proposal like any other missing piece; a page that only reuses content layouts needs none ([proposal 2026-11-13-page-bodies-from-content-layouts](proposals/2026-11-13-page-bodies-from-content-layouts.md)).
 
