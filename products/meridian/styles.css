@@ -97,6 +97,11 @@
     overflow-wrap: anywhere;
   }
 
+  /* Not inside its tables: a number or an amount split mid-word misreads, so a narrow table keeps its words whole and scrolls inside its own frame. */
+  .profile-page table {
+    overflow-wrap: normal;
+  }
+
   .num {
     text-align: end;
     font-variant-numeric: tabular-nums;
