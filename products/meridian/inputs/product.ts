@@ -25,7 +25,8 @@ export const priority = [
 
 /**
  * Sections that sit behind a disclosure, by the disclosure's summary text.
- * check:priority requires each one to be a Disclosure.Summary in features/.
+ * check:priority requires each one to be a Disclosure.Summary in features/ or
+ * in a content layout a page renders.
  */
 export const disclosed_sections = ["Line items"] as const;
 
@@ -35,7 +36,7 @@ export const allowed_page_types = ["collection", "detail"] as const;
 export const allowed_layouts = ["app-shell"] as const;
 
 /** Compositions that fill a page type's body. */
-export const allowed_content_layouts = ["data-table", "directory"] as const;
+export const allowed_content_layouts = ["data-table", "directory", "facts", "line-items", "progress", "text-question"] as const;
 
 export type Task = (typeof tasks)[number];
 export type PriorityItem = (typeof priority)[number];

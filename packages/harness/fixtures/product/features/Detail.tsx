@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { Button, Disclosure, Field, Label, Stack, Text } from "../catalog";
+import { Button, Text } from "../catalog";
+import { LineItems } from "../content-layouts/line-items";
+import { TextQuestion } from "../content-layouts/text-question";
 import { DetailPage } from "../page-types/detail";
 
 type Status = "ready" | "invoice-approved" | "changes-requested";
 
-/** Legal: one primary action, one secondary action, Line items behind a disclosure, and one question in the open. */
+/** Legal: one primary action, one secondary action, Line items behind a disclosure, and one question in the open, its body built from content layouts. */
 export function Detail({ status }: { status: Status }) {
   const [reason, setReason] = useState("");
   return (
@@ -12,16 +14,8 @@ export function Detail({ status }: { status: Status }) {
       <DetailPage.Heading>Northwind Office Supply</DetailPage.Heading>
       <DetailPage.Body>
         {status === "invoice-approved" ? <Text.Root role="status">Invoice approved</Text.Root> : null}
-        <Disclosure.Root>
-          <Disclosure.Summary>Line items</Disclosure.Summary>
-          Paper stock
-        </Disclosure.Root>
-        <Stack.Root>
-          <Label.Root htmlFor="change-reason">What should change?</Label.Root>
-          <Field.Root id="change-reason">
-            <Field.Textarea rows={3} value={reason} onValueChange={setReason} />
-          </Field.Root>
-        </Stack.Root>
+        <LineItems />
+        <TextQuestion label="What should change?" value={reason} onValueChange={setReason} />
       </DetailPage.Body>
       <DetailPage.Secondary>
         <Button.Root variant="secondary">Request changes</Button.Root>

@@ -19,4 +19,4 @@ export const allowed_page_types = ["collection", "detail", "help"] as const;
 
 export const allowed_layouts = ["app-shell"] as const;
 
-export const allowed_content_layouts = ["data-table"] as const;
+export const allowed_content_layouts = ["data-table", "line-items", "text-question"] as const;

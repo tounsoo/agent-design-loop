@@ -1,20 +1,13 @@
-import { useId, type ReactElement } from "react";
+import type { ReactElement } from "react";
 import {
   Alert,
   Breadcrumbs,
   Button,
-  DataList,
-  Disclosure,
   EmptyState,
-  ErrorMessage,
-  Field,
-  Label,
   Link,
   Loader,
   Skeleton,
   Stack,
-  Steps,
-  Table,
   submitOff,
   Text,
   VisuallyHidden,
@@ -36,6 +29,10 @@ import {
 } from "../../flows/invoice-approval";
 import { DataTable, useCollectionBrowser } from "../../content-layouts/data-table";
 import { Directory } from "../../content-layouts/directory";
+import { Facts, type Fact } from "../../content-layouts/facts";
+import { LineItems } from "../../content-layouts/line-items";
+import { Progress, type Stage, type StageStatus } from "../../content-layouts/progress";
+import { TextQuestion } from "../../content-layouts/text-question";
 import { CollectionPage } from "../../page-types/collection";
 import { DetailPage } from "../../page-types/detail";
 import { navCopy } from "./navigation";
@@ -123,34 +120,16 @@ function ErrorBody({ message, onRetry }: { message: string; onRetry: () => void 
   );
 }
 
-function InvoiceFacts({ invoice, status }: { invoice: Invoice; status: Invoice["status"] }) {
-  return (
-    <DataList.Root orientation="horizontal">
-      <DataList.Item>
-        <DataList.Term>Invoice</DataList.Term>
-        <DataList.Details>{invoice.number}</DataList.Details>
-      </DataList.Item>
-      <DataList.Item>
-        <DataList.Term>Vendor</DataList.Term>
-        <DataList.Details>{invoice.vendor}</DataList.Details>
-      </DataList.Item>
-      <DataList.Item>
-        <DataList.Term>Status</DataList.Term>
-        <DataList.Details>{statusLabel[status]}</DataList.Details>
-      </DataList.Item>
-      <DataList.Item>
-        <DataList.Term>Amount</DataList.Term>
-        <DataList.Details>{formatMoney(invoice.amountCents)}</DataList.Details>
-      </DataList.Item>
-      <DataList.Item>
-        <DataList.Term>Due</DataList.Term>
-        <DataList.Details>{invoice.due}</DataList.Details>
-      </DataList.Item>
-    </DataList.Root>
-  );
+/** The facts an invoice shows under its heading, with the status the page shows. */
+function invoiceFacts(invoice: Invoice, status: Invoice["status"]): readonly Fact[] {
+  return [
+    { term: "Invoice", details: invoice.number },
+    { term: "Vendor", details: invoice.vendor },
+    { term: "Status", details: statusLabel[status] },
+    { term: "Amount", details: formatMoney(invoice.amountCents) },
+    { term: "Due", details: invoice.due },
+  ];
 }
-
-type StageStatus = "done" | "current" | "pending" | "error";
 
 const stagesByStatus: Record<Invoice["status"], readonly [StageStatus, StageStatus, StageStatus]> = {
   pending: ["done", "current", "pending"],
@@ -158,93 +137,14 @@ const stagesByStatus: Record<Invoice["status"], readonly [StageStatus, StageStat
   "changes-requested": ["done", "error", "pending"],
 };
 
-function InvoiceProgress({ invoice, status }: { invoice: Invoice; status: Invoice["status"] }) {
+/** An invoice's stages: received, approval and payment, and where it is now. */
+function invoiceStages(invoice: Invoice, status: Invoice["status"]): readonly Stage[] {
   const [received, approval, payment] = stagesByStatus[status];
-  return (
-    <Steps.Root aria-label="Invoice progress" variant="progress">
-      <Steps.Item status={received}>Received</Steps.Item>
-      <Steps.Item status={approval} statusLabel={approval === "error" ? "Changes requested" : undefined}>
-        Approval
-      </Steps.Item>
-      <Steps.Item status={payment} statusLabel={payment === "current" ? "Next" : undefined}>
-        Payment due {invoice.due}
-      </Steps.Item>
-    </Steps.Root>
-  );
-}
-
-function LineItems({
-  invoice,
-  open,
-  onToggle,
-}: {
-  invoice: Invoice;
-  open: boolean;
-  onToggle: (open: boolean) => void;
-}) {
-  return (
-    <Disclosure.Root
-      open={open}
-      onToggle={(event) => {
-        onToggle(event.currentTarget.open);
-      }}
-    >
-      <Disclosure.Summary>Line items</Disclosure.Summary>
-      <Table.Root>
-        <Table.Head>
-          <Table.Row>
-            <Table.HeaderCell scope="col">Description</Table.HeaderCell>
-            <Table.HeaderCell scope="col">Amount</Table.HeaderCell>
-          </Table.Row>
-        </Table.Head>
-        <Table.Body>
-          {invoice.lines.map((line) => (
-            <Table.Row key={line.description}>
-              <Table.Cell>{line.description}</Table.Cell>
-              <Table.Cell>{formatMoney(line.amountCents)}</Table.Cell>
-            </Table.Row>
-          ))}
-        </Table.Body>
-        <Table.Foot>
-          <Table.Row>
-            <Table.HeaderCell scope="row">Total</Table.HeaderCell>
-            <Table.Cell>{formatMoney(lineTotal(invoice))}</Table.Cell>
-          </Table.Row>
-        </Table.Foot>
-      </Table.Root>
-    </Disclosure.Root>
-  );
-}
-
-function ReasonField({
-  reason,
-  reasonError,
-  onReason,
-}: {
-  reason: string;
-  reasonError: boolean;
-  onReason: (reason: string) => void;
-}) {
-  const fieldId = useId();
-  const errorId = useId();
-  return (
-    <Stack.Root gap="condensed">
-      <Label.Root htmlFor={fieldId}>What should change?</Label.Root>
-      <Field.Root id={fieldId} invalid={reasonError}>
-        <Field.Textarea
-          aria-describedby={reasonError ? errorId : undefined}
-          rows={3}
-          value={reason}
-          onValueChange={onReason}
-        />
-      </Field.Root>
-      {reasonError ? (
-        <ErrorMessage.Root id={errorId}>Enter what the vendor should change.</ErrorMessage.Root>
-      ) : (
-        <Text.Root tone="muted">Required before the request is sent.</Text.Root>
-      )}
-    </Stack.Root>
-  );
+  return [
+    { label: "Received", status: received },
+    { label: "Approval", status: approval, ...(approval === "error" ? { statusLabel: "Changes requested" } : {}) },
+    { label: `Payment due ${invoice.due}`, status: payment, ...(payment === "current" ? { statusLabel: "Next" } : {}) },
+  ];
 }
 
 function crumbFor(route: CollectionRoute): { href: string; label: string } {
@@ -385,10 +285,10 @@ export function InvoiceApprovalView({
       </DetailPage.Breadcrumbs>
       <DetailPage.Heading>{invoice.vendor}</DetailPage.Heading>
       <DetailPage.Meta>
-        <InvoiceFacts invoice={invoice} status={shownStatus} />
+        <Facts items={invoiceFacts(invoice, shownStatus)} />
       </DetailPage.Meta>
       <DetailPage.Body>
-        <InvoiceProgress invoice={invoice} status={shownStatus} />
+        <Progress label="Invoice progress" stages={invoiceStages(invoice, shownStatus)} />
         <Stack.Root gap="normal" role="status">
           {outcome === "approved" ? (
             <Alert.Root role="none" tone="success">
@@ -405,9 +305,21 @@ export function InvoiceApprovalView({
             </Alert.Root>
           ) : null}
         </Stack.Root>
-        <LineItems invoice={invoice} open={detail?.lineItemsOpen ?? false} onToggle={actions.setLineItemsOpen} />
+        <LineItems
+          items={invoice.lines.map((line) => ({ description: line.description, amount: formatMoney(line.amountCents) }))}
+          open={detail?.lineItemsOpen ?? false}
+          total={formatMoney(lineTotal(invoice))}
+          onToggle={actions.setLineItemsOpen}
+        />
         {detail?.requestingChanges && outcome === null ? (
-          <ReasonField reason={reason} reasonError={detail.reasonError} onReason={actions.setReason} />
+          <TextQuestion
+            error="Enter what the vendor should change."
+            hint="Required before the request is sent."
+            invalid={detail.reasonError}
+            label="What should change?"
+            value={reason}
+            onValueChange={actions.setReason}
+          />
         ) : null}
       </DetailPage.Body>
       <DetailPage.Secondary>

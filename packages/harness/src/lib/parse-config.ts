@@ -35,8 +35,8 @@ export type ShellRules = {
   readonly primarySlots: { readonly [pageType: string]: string };
   /**
    * Page type → its shell's chrome slots, for page types that are collections.
-   * Every other slot is body. A collection's ready body must be a registered
-   * content layout (check:inventories), and a collection page holds no primary
+   * Every other slot is body. Every page's body, a collection's included, is
+   * built from registered content layouts (check:inventories), and a collection page holds no primary
    * action (check:one-thing). A product with no collection names none. Each
    * slot named must be one the shell defines, as in primarySlots.
    */
@@ -48,6 +48,17 @@ export type ShellRules = {
    * Optional: a product with no content page type leaves it out.
    */
   readonly content?: readonly string[];
+  /**
+   * Page type → its shell's chrome slots, for page types under primarySlots
+   * or content. A collection names its chrome in its own entry. The primary
+   * slot is always chrome. Every other slot is body: a page's body is built
+   * only from registered content layouts and the adapter's status parts
+   * (check:inventories), so a new block on a page is a new content layout,
+   * which takes a proposal. A page type with no entry here has no chrome but
+   * its primary slot. Optional: a config written before this rule leaves it
+   * out, and check:inventories then skips comparing it with the base once.
+   */
+  readonly chrome?: { readonly [pageType: string]: readonly string[] };
 };
 
 export type HarnessConfig = {
@@ -217,13 +228,16 @@ export const DEFAULT_PROPOSALS = "proposals";
 function parseShells(value: unknown, where: string): ShellRules | null {
   if (value === undefined) return null;
   if (!isRecord(value)) throw new Error(`${where} must be an object.`);
-  const unknown = Object.keys(value).filter((key) => key !== "primarySlots" && key !== "collections" && key !== "content");
+  const unknown = Object.keys(value).filter((key) => !["primarySlots", "collections", "content", "chrome"].includes(key));
   if (unknown.length > 0) throw new Error(`${where} has unknown keys: ${unknown.join(", ")}.`);
   // Both are required, so a product says it has no collection rather than leaving it out. content came later, so a config without it still reads.
   if (!isRecord(value.primarySlots)) throw new Error(`${where}.primarySlots must be an object.`);
   if (!isRecord(value.collections)) throw new Error(`${where}.collections must be an object.`);
   const rules = { primarySlots: stringRecord(value, "primarySlots", where), collections: stringListRecord(value, "collections", where) };
-  return value.content === undefined ? rules : { ...rules, content: requireStrings(value, "content", where) };
+  const content = value.content === undefined ? {} : { content: requireStrings(value, "content", where) };
+  // chrome came later still, so a config without it reads too.
+  const chrome = value.chrome === undefined ? {} : { chrome: stringListRecord(value, "chrome", where) };
+  return { ...rules, ...content, ...chrome };
 }
 
 /** Parses a harness config's source text. Throws when it is not plain literals or misses a field. */

@@ -109,9 +109,15 @@ function leafDiff(before: unknown, after: unknown): string[] {
 /** Each page type's own shells entry: which rule it is in and what the entry holds. */
 type ShellEntry = { readonly rule: keyof ShellRules; readonly value: string };
 
-function shellEntries(shells: ShellRules | null): Map<string, ShellEntry[]> {
+/**
+ * Each page type's shells entries. `chrome` counts only when the base names
+ * it: a base written before shells.chrome had no body rule on primary-slot or
+ * content pages, so the change that brings the rule records each product's
+ * chrome once without a proposal, as the lists the base does not export are.
+ */
+function shellEntries(shells: ShellRules | null, withChrome: boolean): Map<string, ShellEntry[]> {
   const entries = new Map<string, ShellEntry[]>();
-  for (const rule of ["primarySlots", "collections"] as const) {
+  for (const rule of ["primarySlots", "collections", ...(withChrome ? (["chrome"] as const) : [])] as const) {
     for (const [pageType, value] of Object.entries(shells?.[rule] ?? {})) {
       entries.set(pageType, [...(entries.get(pageType) ?? []), { rule, value: JSON.stringify(value) }]);
     }
@@ -123,11 +129,16 @@ function shellEntries(shells: ShellRules | null): Map<string, ShellEntry[]> {
   return entries;
 }
 
+/** The entries that say what kind of page a page type is, its chrome entry aside. */
+const kindEntries = (entries: readonly ShellEntry[] | undefined) => (entries ?? []).filter((entry) => entry.rule !== "chrome");
+
 /** How a new page type's entry reads in a pass line: `board joins shells.collections: chrome Heading, Description`. */
 function joins(pageType: string, shells: ShellRules): string {
+  const ownChrome = shells.chrome?.[pageType] ?? [];
+  const withChrome = `, chrome ${ownChrome.length > 0 ? ownChrome.join(", ") : "none"}`;
   const primary = shells.primarySlots[pageType];
-  if (primary !== undefined) return `${pageType} joins shells.primarySlots: primary slot ${primary}`;
-  if ((shells.content ?? []).includes(pageType)) return `${pageType} joins shells.content: no primary action`;
+  if (primary !== undefined) return `${pageType} joins shells.primarySlots: primary slot ${primary}${withChrome}`;
+  if ((shells.content ?? []).includes(pageType)) return `${pageType} joins shells.content: no primary action${withChrome}`;
   const chrome = shells.collections[pageType] ?? [];
   return `${pageType} joins shells.collections: chrome ${chrome.length > 0 ? chrome.join(", ") : "none"}`;
 }
@@ -140,8 +151,9 @@ function joins(pageType: string, shells: ShellRules): string {
  */
 function shellAdditions(base: ShellRules | null, head: ShellRules | null, newPageTypes: readonly string[]): { ok: true } | { ok: false; reason: string; changedBase: string[] } {
   if (base === null || head === null) return { ok: false, reason: "the base config has no shells to compare with", changedBase: [] };
-  const before = shellEntries(base);
-  const after = shellEntries(head);
+  const withChrome = base.chrome !== undefined;
+  const before = shellEntries(base, withChrome);
+  const after = shellEntries(head, withChrome);
   const changedBase = [...before.keys()].filter((pageType) => JSON.stringify(before.get(pageType)) !== JSON.stringify(after.get(pageType))).sort();
   if (changedBase.length > 0) {
     return { ok: false, reason: `the change also alters a shells entry the base had (${changedBase.map((name) => `"${name}"`).join(", ")})`, changedBase };
@@ -149,9 +161,10 @@ function shellAdditions(base: ShellRules | null, head: ShellRules | null, newPag
   const added = [...after.keys()].filter((pageType) => !before.has(pageType));
   const stray = added.filter((pageType) => !newPageTypes.includes(pageType));
   if (stray.length > 0) return { ok: false, reason: `shells names ${stray.map((name) => `"${name}"`).join(", ")}, which is not a page type this change adds`, changedBase };
-  const missing = newPageTypes.filter((pageType) => (after.get(pageType)?.length ?? 0) !== 1);
+  // A new page type is one kind of page, and a primary-slot or content page may bring its own chrome entry with it.
+  const missing = newPageTypes.filter((pageType) => kindEntries(after.get(pageType)).length !== 1);
   if (missing.length > 0) {
-    return { ok: false, reason: `each new page type needs exactly one new entry under shells, and ${missing.map((name) => `"${name}"`).join(", ")} has none or two`, changedBase };
+    return { ok: false, reason: `each new page type needs exactly one new entry under shells.primarySlots, shells.collections or shells.content, and ${missing.map((name) => `"${name}"`).join(", ")} has none or two`, changedBase };
   }
   return { ok: true };
 }
@@ -321,14 +334,17 @@ function configChanges(base: Inventory, head: Inventory, before: ParsedConfig, a
   // shells, entry by entry: a new page type's own new entry is part of adding it.
   if (json(before.shells) !== json(after.shells)) {
     const newPageTypes = head.pageTypes.filter((pageType) => !base.pageTypes.includes(pageType));
-    const fields = (["primarySlots", "collections", "content"] as const).filter((field) => json(before.shells?.[field]) !== json(after.shells?.[field])).map((field) => `shells.${field}`);
+    const withChrome = before.shells?.chrome !== undefined;
+    const fields = (["primarySlots", "collections", "content", ...(withChrome ? (["chrome"] as const) : [])] as const)
+      .filter((field) => json(before.shells?.[field]) !== json(after.shells?.[field]))
+      .map((field) => `shells.${field}`);
     const verdict = shellAdditions(before.shells, after.shells, newPageTypes);
-    const beforeEntries = shellEntries(before.shells);
-    const afterEntries = shellEntries(after.shells);
+    const beforeEntries = shellEntries(before.shells, withChrome);
+    const afterEntries = shellEntries(after.shells, withChrome);
     const added = [...afterEntries.keys()].filter((pageType) => !beforeEntries.has(pageType));
     if (verdict.ok && after.shells) {
       for (const pageType of added.sort()) {
-        const field = `shells.${afterEntries.get(pageType)?.[0]?.rule ?? "collections"}`;
+        const field = `shells.${kindEntries(afterEntries.get(pageType))[0]?.rule ?? "collections"}`;
         push({
           text: `${configName} shells adds ${pageType}, the page type this change adds: ${joins(pageType, after.shells)}.`,
           terms: [field],

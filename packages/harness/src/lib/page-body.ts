@@ -4,15 +4,19 @@ import ts from "typescript";
 import { adapter } from "./adapter";
 import { config, memberOf, styleOwnerDirs } from "./config";
 import { jsxTagName, listSourceFiles, parseFile, walk } from "./jsx";
-import type { CollectionShell } from "./shells";
+import { canonicalTag } from "./page-scope";
+import type { BodyShell } from "./shells";
 
 /**
- * A collection is a page type the config names under shells.collections. Its
- * shell's chrome slots, like a heading, hold no body; every other slot does.
- * A collection's ready body has to be a registered content layout. Loading,
- * empty, and error may stay in the page shell: their markup is only the
- * catalog's status pieces, the adapter's statusParts. Anything else in the collection — a board, a
- * card column, page CSS that no registered content layout uses — fails.
+ * Every page's body is built from registered content layouts. A page type's
+ * chrome slots, like a heading or its primary slot, hold no body; every
+ * other slot does (`bodyShellsOf` in shells.ts). A body holds registered
+ * content layouts and the catalog's status pieces, the adapter's
+ * statusParts, which loading, empty, error and outcome messages are made of.
+ * Anything else in a body (a board, a card column, a facts list or a form
+ * field written in the feature, or page CSS that no registered content
+ * layout uses) fails, so a new block on a page is a new content layout, and
+ * a new content layout takes a proposal.
  */
 
 const STATE_ROOTS = new Set(adapter.statusParts);
@@ -26,12 +30,17 @@ type Scan = {
   allowed: readonly string[];
   violations: string[];
   seen: Set<string>;
-  /** The collection shell whose page is being read. */
-  page: CollectionShell | null;
-  /** Per collection shell: its pages, and the slots outside its chrome that those pages fill. */
+  /** The shell whose page is being read. */
+  page: BodyShell | null;
+  /** Per shell: its pages, and the slots outside its chrome that those pages fill. */
   pages: Map<string, number>;
   bodySlots: Map<string, number>;
 };
+
+/** How a message names the body being read: `collection body`, `detail body`. */
+function bodyName(scan: Scan): string {
+  return scan.page ? `${scan.page.shell.pageType} body` : "page body";
+}
 
 function tagRoot(tag: string): string {
   const dot = tag.indexOf(".");
@@ -197,7 +206,7 @@ function inspectElement(
   if (layout) {
     if (hasNestedJsx(node)) {
       scan.violations.push(
-        `collection body passes ad-hoc composition into content layout "${layout}" (${relative(file)}).`,
+        `${bodyName(scan)} passes ad-hoc composition into content layout "${layout}" (${relative(file)}).`,
       );
     }
     return;
@@ -208,7 +217,8 @@ function inspectElement(
     scan.violations.push(`content layout "${attempted}" is not a registered content layout (${relative(file)}).`);
     return;
   }
-  if (STATE_ROOTS.has(tagRoot(tag))) {
+  // The tag as imported, so `import { Table as Stack }` is not read as a status part.
+  if (STATE_ROOTS.has(tagRoot(canonicalTag(opening)))) {
     for (const child of jsxChildNodes(node)) visitNode(child, "state", file, source, bindings, scan);
     return;
   }
@@ -260,9 +270,48 @@ function visitExpression(
     visitElement(value, mode, file, source, bindings, scan);
     return;
   }
-  if (mode === "body") {
-    scan.violations.push(`collection body is not a registered content layout (${value.getText(source)} in ${relative(file)}).`);
+  if (mode !== "state") {
+    // A body, or the shell's own children outside its slots, holds content layouts and status parts as JSX, not values computed in the feature.
+    scan.violations.push(`${bodyName(scan)} is not a registered content layout (${value.getText(source)} in ${relative(file)}).`);
+    return;
   }
+  // Text in a status part is a value, but JSX it builds, as in a map or a local const, is read like any other element in it.
+  for (const element of jsxIn(value, source, new Set())) visitElement(element, mode, file, source, bindings, scan);
+}
+
+/** The outermost JSX elements an expression builds, following names to the same file's const initializers. */
+function jsxIn(expression: ts.Node, source: ts.SourceFile, followed: Set<string>): ts.Node[] {
+  const found: ts.Node[] = [];
+  const visit = (node: ts.Node): void => {
+    if (ts.isJsxElement(node) || ts.isJsxSelfClosingElement(node)) {
+      found.push(node);
+      return;
+    }
+    if (ts.isJsxFragment(node)) {
+      for (const child of node.children) visit(child);
+      return;
+    }
+    if (ts.isIdentifier(node) && !followed.has(node.text)) {
+      const declaration = localInitializer(node.text, source);
+      if (declaration) {
+        followed.add(node.text);
+        visit(declaration);
+      }
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(expression);
+  return found;
+}
+
+function localInitializer(name: string, source: ts.SourceFile): ts.Expression | null {
+  let initializer: ts.Expression | null = null;
+  walk(source, (node) => {
+    if (initializer || !ts.isVariableDeclaration(node) || !ts.isIdentifier(node.name) || node.name.text !== name) return;
+    initializer = node.initializer ?? null;
+  });
+  return initializer;
 }
 
 function visitElement(
@@ -275,7 +324,8 @@ function visitElement(
 ): void {
   const opening = openingOf(node);
   if (!opening) return;
-  const tag = jsxTagName(opening.tagName);
+  // Read the slot as the shell exports it, so `import { DetailPage as Page }` keeps its chrome and body slots.
+  const tag = canonicalTag(opening);
   if (mode === "page" && scan.page) {
     if (scan.page.chrome.has(tag)) return;
     if (tag.startsWith(`${scan.page.shell.name}.`)) {
@@ -346,32 +396,33 @@ function pageCssViolations(featureFiles: readonly string[], stylesPath: string):
   return violations;
 }
 
-export function collectionCompositionViolations(
+export function bodyCompositionViolations(
   featuresDir: string,
   allowed: readonly string[],
   stylesPath: string,
-  collections: readonly CollectionShell[],
+  bodies: readonly BodyShell[],
 ): string[] {
   if (!existsSync(featuresDir)) return [`content layout features directory ${featuresDir} is missing.`];
   const files = listSourceFiles(featuresDir).filter((file) => file.endsWith(".tsx"));
   const scan: Scan = { root: featuresDir, allowed, violations: [], seen: new Set(), page: null, pages: new Map(), bodySlots: new Map() };
-  const byName = new Map(collections.map((collection) => [collection.shell.name, collection]));
+  const byName = new Map(bodies.map((body) => [body.shell.name, body]));
   for (const file of files) {
     const source = parseFile(file);
     const bindings = importBindings(source);
     walk(source, (node) => {
       if (!ts.isJsxElement(node)) return;
-      const collection = byName.get(jsxTagName(node.openingElement.tagName));
-      if (!collection) return;
-      scan.page = collection;
-      scan.pages.set(collection.shell.name, (scan.pages.get(collection.shell.name) ?? 0) + 1);
+      // A shell imported under another name, or through a namespace, is still that shell.
+      const body = byName.get(canonicalTag(node.openingElement));
+      if (!body) return;
+      scan.page = body;
+      scan.pages.set(body.shell.name, (scan.pages.get(body.shell.name) ?? 0) + 1);
       for (const child of node.children) visitNode(child, "page", file, source, bindings, scan);
       scan.page = null;
     });
   }
   // A page whose every slot is chrome has no body to check, so naming the body slot as chrome would switch the rule off.
-  const noBody = collections
+  const noBody = bodies
     .filter(({ shell }) => (scan.pages.get(shell.name) ?? 0) > 0 && (scan.bodySlots.get(shell.name) ?? 0) === 0)
-    .map(({ shell, chrome }) => `${shell.name} pages fill no slot outside the chrome slots ${[...chrome].join(", ")}, so no collection body is checked.`);
+    .map(({ shell, chrome }) => `${shell.name} pages fill no slot outside the chrome slots ${[...chrome].join(", ")}, so no ${shell.pageType} body is checked.`);
   return [...scan.violations, ...noBody, ...pageCssViolations(files, stylesPath)];
 }
