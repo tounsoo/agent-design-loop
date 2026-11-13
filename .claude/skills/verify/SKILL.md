@@ -45,7 +45,7 @@ The Chrome checks look for Chrome where [the check reference](../../../packages/
 npm run check:fixtures && npm run check
 ```
 
-This is the command `AGENTS.md` names. CI runs the same checks split into jobs: one runs the fixtures, the repository-wide checks and `check:trace`, and one runs `check:product` for each product in the list `npm run check:products -- --json` prints. `check:fixtures` runs every case folder under `packages/harness/fixtures/` against the checks its `case.ts` names, and passes only when every illegal case fails with its expected message and every legal case passes with its expected message. `check` then runs typecheck, ESLint and the Vitest suite on the whole repository, `check:product` on each product's config, and the repository checks; [the check reference](../../../packages/harness/docs/checks.md#the-build-gate) lists them in order and says what each fails. The Vitest suite drives Meridian with Testing Library and `user-event` in jsdom: it follows an invoice link, opens Line items and presses Approve, approves again with Line items closed, and requests changes with and without a reason.
+This is the command `AGENTS.md` names. CI runs the same checks split into jobs: one runs the fixtures, the repository-wide checks and `check:trace`, and one runs `check:product` for each product in the list `npm run check:products -- --json` prints. `check:fixtures` runs every case folder under `packages/harness/fixtures/` against the checks its `case.ts` names, and passes only when every illegal case fails with its expected message and every legal case passes with its expected message. `check` then runs typecheck, ESLint and the Vitest suite on the whole repository, `check:product` on each product's config, and the repository checks; [the check reference](../../../packages/harness/docs/checks.md#the-build-gate) lists them in order and says what each fails. The Vitest suite drives each product with Testing Library and `user-event` in jsdom, through its rendered controls: for Meridian it follows an invoice link, opens Line items and presses Approve, requests changes with and without a reason, adds a vendor and opens a vendor's page; for Nook it books, holds and joins a waitlist. Each product's folder in [the verify map](features/README.md) names its journeys. `check:docs` also holds that map to the products: every page type, layout, content layout, task and scenario a product has must be named in a feature file's `## Covers`, and nothing a `Covers` line names may be gone.
 
 Each product's rule checks end with `check:target-size`, `check:accessible-names` and `check:rendered-page`, which share one build of the app that `check:product` serves on a free port, so without Chrome `check` stops at the first product's. Then run the rest by hand, one product at a time, and mark step 3 `BLOCKED`:
 
@@ -81,23 +81,30 @@ When a change adds or edits a proposal, `check:proposals` must pass. [Its refere
 
 ### 3. Browser drive (a change to anything a product renders, its styles, its build config or the Todae version)
 
+Run each Chrome rule check on the product the change touches. `npm run docs:gen` writes this list, every Chrome rule check on every product:
+
+<!-- docs:gen chrome-drive start -->
 ```sh
 npm run check:target-size -- --config products/meridian/harness.config.ts
 npm run check:accessible-names -- --config products/meridian/harness.config.ts
 npm run check:rendered-page -- --config products/meridian/harness.config.ts
+npm run check:target-size -- --config products/nook/harness.config.ts
+npm run check:accessible-names -- --config products/nook/harness.config.ts
+npm run check:rendered-page -- --config products/nook/harness.config.ts
 ```
+<!-- docs:gen chrome-drive end -->
 
-Use `products/nook/harness.config.ts` for Nook, and any other product's own config the same way. Each builds and serves its own copy of the app on a free port, so two runs at once do not collide, though a Chrome per run is slow; `check:product` builds once for all three.
+Each builds and serves its own copy of the app on a free port, so two runs at once do not collide, though a Chrome per run is slow; `check:product` builds once for all three.
 
 Before building, list the screen's states, the edge cases included, and look for information it would show twice; a proposal keeps that list in `## States` (`proposals/README.md`). Once built, open each state the list names, out-of-scope ones aside, and check that the screen shows what its line says and says nothing twice. Name any state you could not open in the pull request.
 
-`check:target-size` builds and serves the app and opens every scenario in each flow's `scenarios.ts`, at `?scenario=<id>`, at 1280 by 900 and at 390 by 844 in headless Chrome, so stop any other `vite preview` on its port first. `npm run check:target-size -- --list --config products/meridian/harness.config.ts` prints those scenarios without Chrome. When a change shows a case no scenario renders, such as a long name or a third room, add a scenario for it to the flow's `scenarios.ts`; it needs no proposal. [Its reference entry](../../../packages/harness/docs/checks.md#checktarget-size) says what it fails. It closes the server and the browser itself.
+`check:target-size` builds and serves the app and opens every scenario in each flow's `scenarios.ts`, at `?scenario=<id>`, at 1280 by 900 and at 390 by 844 in headless Chrome, so stop any other `vite preview` on its port first. `npm run check:target-size -- --list --config products/meridian/harness.config.ts` prints those scenarios without Chrome. When a change shows a case no scenario renders, such as a long name or a third room, add a scenario for it to the flow's `scenarios.ts`; it needs no proposal, but it needs a line in a feature file's `## Covers` in the product's folder of the verify map, or `check:docs` fails. [Its reference entry](../../../packages/harness/docs/checks.md#checktarget-size) says what it fails. It closes the server and the browser itself.
 
 `check:accessible-names` opens the same scenarios, reads what a screen reader hears on each at 1280 by 900, fails an unnamed control at 390 by 844 too, and presses every action; [its reference entry](../../../packages/harness/docs/checks.md#checkaccessible-names) says what it fails. Its last line counts the presses, and how many of them have problems the flows list in `knownGaps`. When a change alters what a state says, change the flow's `accessible-names.ts` in the same pull request, and say in the pull request what each changed state now announces, so a reviewer can judge the words. When a change fixes a listed gap, the check fails until its entry comes off `knownGaps`; when it adds a press problem, fix it rather than list it, unless the fix belongs in its own pull request, and then say so in the pull request. `--list` checks the file against the scenarios without Chrome.
 
-`check:rendered-page` opens the same scenarios at 1280 by 900 and at 390 by 844 as a phone, presses nothing, and reads the page as Chrome paints it: in light at both widths, section headings two type-scale steps below the title, the rank-1 action in the first view, disclosures closed unless the flow's `accessible-names.ts` declares them `expanded: true`, and no sideways scroll on a phone; and AA contrast at both widths in light and dark; [its reference entry](../../../packages/harness/docs/checks.md#checkrendered-page) says what it fails. When it fails, fix the page rather than the numbers: they are the harness's, not the product's, and no rule sets a number per page.
+`check:rendered-page` opens the same scenarios at 1280 by 900 and at 390 by 844 as a phone, presses nothing, and reads the page as Chrome paints it: in light at both widths, one h1 per page and no skipped heading level, read from the tags as a screen reader announces them and not from their sizes, the rank-1 action in the first view, disclosures closed unless the flow's `accessible-names.ts` declares them `expanded: true`, and no sideways scroll on a phone; and AA contrast at both widths in light and dark; [its reference entry](../../../packages/harness/docs/checks.md#checkrendered-page) says what it fails. When it fails, fix the page rather than the numbers: they are the harness's, not the product's, and no rule sets a number per page. Heading sizes are the design system's: a product that wants another size changes it through Todae's theme customization, never with a check.
 
-To look at a Meridian change, run `npm run build && npm run preview`. It is ready when Vite prints `http://127.0.0.1:4173/`. Open the URLs in [features/](features/README.md) there, and stop the preview server you started when done.
+To look at a change yourself, serve the product as its folder in [the verify map](features/README.md) says, such as `npm run build && npm run preview` for Meridian, ready when Vite prints `http://127.0.0.1:4173/`, or `npm run dev:nook` for Nook. Open the URLs its feature files give, and stop the server you started when done.
 
 A Claude Duet thread runs this step too: `npm run setup:chrome` downloads chrome-headless-shell into `.cache/chrome` there, and `check:target-size`, `check:accessible-names` and `check:rendered-page` run in it. The step is `BLOCKED` only when no Chrome that starts is found: `setup:chrome` cannot download one or has no build for the platform, there is no other Chrome, or the one found does not start. Then say so in the pull request, link the pull request's CI run (it runs `npm run setup:chrome`, `check:target-size`, `check:accessible-names` and `check:rendered-page`), and name the URLs a reviewer should open. The fixture cases that open a page are `BLOCKED` with it, as the Doctor's list says.
 
@@ -143,6 +150,8 @@ Every row also runs step 4.
 | `proposals/` | 1, including `check:proposals`. A proposal changes nothing until it is adopted. |
 | `.github/` | 1, then the pull request's CI run is the rest of the proof; link it |
 | `README.md`, `AGENTS.md`, `CODEOWNERS`, `docs/` folders, `products/<name>/review/`, `CLAUDE.md`, `.claude/` | 1. Review covers the rest. |
+
+A change that adds or removes a page type, layout, content layout, task or scenario also updates the product's feature files under [features/](features/README.md), with how to reach and drive it and its name under `## Covers`, in the same pull request; `check:docs` in step 1 fails until it does. A new product needs its own folder there.
 
 ## Helpers
 

@@ -604,7 +604,7 @@ The loop is the harness's, and every product follows the same one. [Proposal 000
 
 ## `check:docs`
 
-The check reference and the docs that copy it are the ones the code writes: `npm run docs:gen` rewrites them.
+The check reference and the docs that copy it are the ones the code writes, and the verify map covers every page type, layout, content layout, task and scenario of every product: `npm run docs:gen` rewrites the generated parts.
 
 A repository check: it reads the repository, not one product. Run it as `npm run check:docs`, from the repository root, defined in `packages/harness/src/check-docs.ts`. It takes no `--config`.
 
@@ -614,7 +614,10 @@ Flags:
 
 It fails:
 
-- `packages/harness/docs/checks.md`, or a generated block in the harness README, `CLAUDE.md` or the verify skill, that is not what the code writes now.
+- `packages/harness/docs/checks.md`, or a generated block in the harness README, `CLAUDE.md`, the verify skill or its map's index, that is not what the code writes now: the scripts, the products with what each registers, and the browser drive that runs each Chrome rule check on each product.
+- A product with no folder in the verify map, `.claude/skills/verify/features/<product>/` named after the product's own folder, with a `README.md` that links each of its feature files; a folder there that is no product's; and two products whose folders share a name.
+- A page type, layout, content layout, task or scenario of a product that no feature file in its folder names under `## Covers`, and a `## Covers` line that names one the product does not have, so a new page or block can't land without a recipe and a removed one can't stay in the map.
+- A feature file in a product's folder with no `## Covers` section, an empty one, a line that is not `- <kind>: ` and code spans, a scenario not written as `?scenario=<id>`, and a `?scenario=` URL anywhere in the folder that opens no scenario of that product.
 - A doc missing a block's `<!-- docs:gen <block> start -->` or `end` marker, or holding either twice.
 - An npm script that runs a harness file with no `<file>.meta.ts` beside it, or a meta no script runs.
 - A meta that is not a tool and lists nothing it fails, or a rule check whose meta says it is a tool.
@@ -624,6 +627,8 @@ It fails:
 Each harness script's meta, `packages/harness/src/<file>.meta.ts`, typed `satisfies CheckMeta`, gives the words: a summary, the flags it reads, what it fails, and how it works. Everything else is read from the code: script names and the build gate from `package.json`, rule checks from `check:rules`, `--config` from whether the script loads `lib/config.ts`, the base from whether it calls `resolveBaseRev`, Chrome from whether it loads `puppeteer-core`, and fixture cases from each `case.ts` and its doc comment. For a script that loads `lib/config.ts`, the config loader accepts only the flags its meta lists, so a documented flag is a read one.
 
 So a pull request that adds or changes a check updates its meta and runs `npm run docs:gen`, which keeps `CLAUDE.md` and the verify skill current with it.
+
+The verify map is held to the product registry, as `check:products` finds it: each config's `shells` gives its page types, the folders under its `paths.layouts` and `paths.contentLayouts` its layouts and content layouts, its `flows[].tasks` its tasks, and each flow's `scenarios.ts` its scenarios. Each feature file ends with `## Covers`, one kind to a line: `- Page types:`, `- Layouts:`, `- Content layouts:`, `- Tasks:` and `- Scenarios:`, each name in a code span, a scenario as `?scenario=<id>`. The check reads names only: whether the recipe above them drives what it names is the reviewer's to judge, and a section added inside an existing content layout, or a step added to an existing page, names nothing new, so it passes. `npm run docs:gen` writes the generated blocks but never a feature file, so it still fails while the map misses something. [Proposal 2026-11-13-verify-map-covers-products](../../../proposals/2026-11-13-verify-map-covers-products.md) records it.
 
 ## `check:fixtures`
 
@@ -708,7 +713,7 @@ Starts a product: copies the harness's fixture product, which passes every check
 
 A tool: the build gate does not run it. Run it as `npm run new:product`, from the repository root, defined in `packages/harness/src/new-product.ts`. It takes no `--config`.
 
-Run it as `npm run new:product -- <name>`, with a lowercase slug. It refuses a folder that already exists. The registry finds the new product from its config, so `npm run check` and CI check it with nothing else to edit. A new product is a whole inventory added at once, so `check:inventories` passes it only with an adopted proposal that lists `products/<name>` under `changes`, decided on the base. The copy is the fixture's invoice approval: rename and reshape it from there, one proposal at a time.
+Run it as `npm run new:product -- <name>`, with a lowercase slug. It refuses a folder that already exists. The registry finds the new product from its config, so `npm run check` and CI run every rule check on it with nothing else to edit. `check:docs` then fails until the product has its folder in the verify map, `.claude/skills/verify/features/<name>/`, with a feature file covering each of its page types, layouts, content layouts, tasks and scenarios, and `npm run docs:gen` has listed it. A new product is a whole inventory added at once, so `check:inventories` passes it only with an adopted proposal that lists `products/<name>` under `changes`, decided on the base. The copy is the fixture's invoice approval: rename and reshape it from there, one proposal at a time.
 
 ## `screenshots`
 

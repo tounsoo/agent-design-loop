@@ -6,6 +6,7 @@ import { BASE_DOC } from "./base";
 import { CHROME_DOC } from "./chrome";
 import { defaultExportLiteral, isRecord } from "./parse-config";
 import { ruleChecks } from "./scripts";
+import { renderChromeDrive, renderClaudeProducts, renderMapProducts, VERIFY_MAP, type ProductRegistry } from "./verify-map";
 
 /**
  * The check reference, written from the code. Each harness script's meta
@@ -432,12 +433,25 @@ export function renderBlockers(model: Model): string {
   ].join(" ");
 }
 
-/** The generated blocks each hand-written doc holds, by file from the repository root. */
-export function renderBlocks(model: Model): Record<string, Record<string, string>> {
+/** The rule checks that open Chrome, in `check:rules` order. */
+export function chromeRules(model: Model): string[] {
+  const chrome = new Set(model.scripts.filter((script) => script.chrome).map((script) => script.name));
+  return model.rules.filter((name) => chrome.has(name));
+}
+
+/**
+ * The generated blocks each hand-written doc holds, by file from the
+ * repository root. `products` is the product registry, as the verify map
+ * reads it, so CLAUDE.md and the verify skill name every product, page type,
+ * content layout and task, and the browser drive runs every Chrome rule check
+ * on every product.
+ */
+export function renderBlocks(model: Model, products: readonly ProductRegistry[]): Record<string, Record<string, string>> {
   return {
     "packages/harness/README.md": { scripts: renderReadmeTable(model) },
-    "CLAUDE.md": { scripts: renderClaudeList(model) },
-    ".claude/skills/verify/SKILL.md": { "no-chrome": renderNoChrome(model), blockers: renderBlockers(model) },
+    "CLAUDE.md": { scripts: renderClaudeList(model), products: renderClaudeProducts(products) },
+    ".claude/skills/verify/SKILL.md": { "no-chrome": renderNoChrome(model), blockers: renderBlockers(model), "chrome-drive": renderChromeDrive(products, chromeRules(model)) },
+    [`${VERIFY_MAP}/README.md`]: { products: renderMapProducts(products) },
   };
 }
 

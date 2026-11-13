@@ -2,14 +2,19 @@ import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { apply, buildModel, readCases, readMetas, REFERENCE, renderBlocks, renderReference } from "./lib/docs";
+import { productConfigs } from "./lib/products";
 import { checkFile, scripts } from "./lib/scripts";
+import { readMapFiles, readProductRegistry, verifyMapProblems, VERIFY_MAP, type ProductRegistry } from "./lib/verify-map";
 
 /**
  * Writes the check reference from the code, and fails when a doc holds a
  * stale copy: packages/harness/docs/checks.md whole, and the generated blocks
- * in the harness README, CLAUDE.md and the verify skill. `npm run docs:gen`
- * runs it with --write, which rewrites them. It takes no --config: the
- * reference is the harness's, for every product.
+ * in the harness README, CLAUDE.md, the verify skill and its map. `npm run
+ * docs:gen` runs it with --write, which rewrites them. It also holds the
+ * verify map to the product registry: every page type, layout, content
+ * layout, task and scenario of every product is covered by a feature file,
+ * and nothing a feature file covers is gone. That part is hand-written, so
+ * --write never fixes it. It takes no --config: it reads every product.
  */
 
 const args = process.argv.slice(2);
@@ -42,8 +47,21 @@ if ("problems" in built) {
   process.exit(1);
 }
 
+const products: ProductRegistry[] = [];
+const registryProblems: string[] = [];
+for (const config of productConfigs()) {
+  const read = await readProductRegistry(config);
+  registryProblems.push(...read.problems);
+  if (read.registry) products.push(read.registry);
+}
+if (registryProblems.length > 0) {
+  console.error("docs: the product registry cannot be read:");
+  for (const problem of registryProblems) console.error(`- ${problem}`);
+  process.exit(1);
+}
+
 const docs: Record<string, string> = { [REFERENCE]: renderReference(built.model) };
-for (const [file, blocks] of Object.entries(renderBlocks(built.model))) {
+for (const [file, blocks] of Object.entries(renderBlocks(built.model, products))) {
   const applied = apply(readFileSync(file, "utf8").replace(/\r\n/g, "\n"), blocks);
   if ("problem" in applied) {
     console.error(`docs: ${file} ${applied.problem}`);
@@ -68,4 +86,15 @@ for (const [file, text] of stale) {
   console.log(`docs: wrote ${file}.`);
 }
 
-console.log(`docs: ${Object.keys(docs).length} docs describe ${built.model.scripts.length} scripts and ${built.model.cases.length} fixture cases, as the code has them.`);
+console.log(`docs: ${Object.keys(docs).length} docs describe ${built.model.scripts.length} scripts, ${built.model.cases.length} fixture cases and ${products.length} ${products.length === 1 ? "product" : "products"}, as the code has them.`);
+
+const mapProblems = verifyMapProblems(products, readMapFiles());
+if (mapProblems.length > 0) {
+  console.error(`docs: the verify map in ${VERIFY_MAP}/ misses what the products have:`);
+  for (const problem of mapProblems) console.error(`- ${problem}`);
+  process.exit(1);
+}
+const count = (kind: (product: ProductRegistry) => readonly unknown[]): number => products.reduce((sum, product) => sum + kind(product).length, 0);
+console.log(
+  `docs: the verify map covers ${count((product) => product.pageTypes)} page types, ${count((product) => product.layouts)} layouts, ${count((product) => product.contentLayouts)} content layouts, ${count((product) => product.tasks)} tasks and ${count((product) => product.scenarios)} scenarios of ${products.length} ${products.length === 1 ? "product" : "products"}, and nothing they lack.`,
+);
