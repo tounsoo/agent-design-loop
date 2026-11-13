@@ -57,9 +57,18 @@ describe("Meridian shell", () => {
     expect(document.title).toMatch(/^Helios Freight/);
   });
 
-  it("titles a link to a vendor the page does not show as Vendors, as the page it opens", () => {
-    // Ridgeway Janitorial is only in the Vendor added preview, so outside it the link opens Vendors.
-    window.history.replaceState(null, "", "/?route=vendors&vendor=ridgeway-janitorial");
+  it("opens a vendor's page from its card in the Vendor added preview, titled as the page", async () => {
+    // Ridgeway Janitorial is the Vendor added preview's vendor. Its card's link leaves the preview and still opens its page.
+    const user = userEvent.setup();
+    window.history.replaceState(null, "", "/?scenario=vendor-added");
+    render(<App />);
+    await user.click(screen.getByRole("link", { name: "Ridgeway Janitorial" }));
+    expect(screen.getByRole("heading", { level: 1, name: "Ridgeway Janitorial" })).toHaveFocus();
+    expect(document.title).toMatch(/^Ridgeway Janitorial/);
+  });
+
+  it("titles a link to a vendor Meridian does not have as Vendors, the page it opens", () => {
+    window.history.replaceState(null, "", "/?route=vendors&vendor=nobody-at-all");
     render(<App />);
     expect(screen.getByRole("heading", { level: 1, name: "Vendors" })).toBeInTheDocument();
     expect(document.title).toMatch(/^Vendors/);

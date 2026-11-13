@@ -14,10 +14,11 @@ A vendor's name on its card on Vendors opens the vendor's page, `?route=vendors&
 
 ## What the checks cannot decide
 
-- The table on a phone. The page lets a long name or email break anywhere, and on the first screenshots that also split invoice numbers and amounts mid-word inside the tables. The critique called it a note; a second round keeps table words whole and lets the table scroll in its frame. On Harbor & Pine, whose Changes requested badge makes its Status column the widest, the Due column then sits partly behind the frame's edge until someone scrolls the table, and its dates wrap at their spaces. The second critique read that as the page scrolling sideways; `check:rendered-page` measured no sideways scroll, so it is the table's frame. Whether a phone should keep the table, stack each invoice, or keep each row on one line is a design call. No check reads a word broken mid-word.
+- The table on a phone. The page lets a long name or email break anywhere, and on the first screenshots that also split invoice numbers and amounts mid-word inside the tables. The critique called it a note; a second trace, the phone table change, keeps table words whole and lets the table scroll in its frame. On Harbor & Pine, whose Changes requested badge makes its Status column the widest, the Due column then sits partly behind the frame's edge until someone scrolls the table, and its dates wrap at their spaces. That change's critique read it as the page scrolling sideways; `check:rendered-page` measured no sideways scroll, so it is the table's frame. Whether a phone should keep the table, stack each invoice, or keep each row on one line is a design call. No check reads a word broken mid-word.
 - The facts sit close under the title and give the open total no more weight than the email. Whether the total should lead is a design call.
 - Every vendor card name is now an underlined link, which the critique found louder than the cards were. Todae's link style is the same everywhere in Meridian.
 - The breadcrumb's last item repeats the title, as it does on an invoice. The proposal says why both stay.
+- A 64-character vendor name fills the title row on a desktop and takes four lines on a phone, pushing the facts down. It wraps rather than truncates because people copy names, as on the Vendors cards; whether such a name wants a smaller title is a design call, and a smaller size for a heading level is set through Todae's theme overrides, for the whole product.
 - A vendor with nothing open still shows an open total of $0.00. It is a fact, not an empty state, so it stays; whether to quiet it is a design call.
 - The Amount column's `.num` class asks for numbers aligned to the end, and Todae's table cell styles win over it, so amounts sit at the start of their cells here as in the data table. That is a cascade question for the product stylesheet, not this page.
 - Whether a clerk asks "what do we owe this vendor" often enough to earn a page is research. The proposal makes the case; nothing measures it.
@@ -25,10 +26,10 @@ A vendor's name on its card on Vendors opens the vendor's page, `?route=vendors&
 ## Critique
 
 - Round 1, by Claude Sonnet, of the whole page: pass, with four notes, all above. [CRITIQUE.md](screenshots/meridian-vendor-page/CRITIQUE.md).
-- Round 1 of the phone table change, by Claude Sonnet: pass, with two notes, both above. [CRITIQUE.md](screenshots/meridian-vendor-page-phone-table/CRITIQUE.md).
+- The phone table change's critique, round 1, by Claude Sonnet: pass, with two notes, both above. [CRITIQUE.md](screenshots/meridian-vendor-page-phone-table/CRITIQUE.md).
 
 ## Screenshots and the traces
 
 - [Screenshots](screenshots/meridian-vendor-page/README.md) of Vendors, Vendor added and the five vendor scenarios in four views, with Vendors and Vendor added before the change.
 - [Screenshots](screenshots/meridian-vendor-page-phone-table/README.md) of the three vendors with invoices on a phone, before and after the table change.
-- The traces are `traces/meridian-vendor-page.jsonl`, which proposes, adopts, fails the checks once and passes, and `traces/meridian-vendor-page-phone-table.jsonl`, the second round.
+- The traces are `traces/meridian-vendor-page.jsonl`, which proposes, adopts, fails the checks once and passes, and `traces/meridian-vendor-page-phone-table.jsonl`, the phone table change.
