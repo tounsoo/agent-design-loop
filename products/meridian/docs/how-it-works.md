@@ -13,7 +13,7 @@ An agent designs inside layers the repo already recorded. From the outside of th
 | Component catalog | The only UI entry. Product code imports these names. | `products/meridian/catalog/index.ts` re-exports `@tounsoo/todae` |
 | Chrome layout | The frame around the page. One id, `app-shell`. | `allowed_layouts` in `products/meridian/inputs/product.ts`, directory `products/meridian/layouts/app-shell` |
 | Page type | The job of one page. `collection`, `detail` and `profile`. | `allowed_page_types`, directories under `products/meridian/page-types` |
-| Content layout | The composition that fills a page type's body. Two ids, `data-table` and `directory`. | `allowed_content_layouts`, directories under `products/meridian/content-layouts` |
+| Content layout | The composition that fills a page type's body; every page body is built from content layouts and the adapter's status parts. | `allowed_content_layouts`, directories under `products/meridian/content-layouts` |
 | Flow | The modeled states of the task, and the legal moves between them. | `products/meridian/flows/invoice-approval` |
 | UX rules | A check, a product-owned input, and a review question for each rule. | `products/meridian/rules/ux-rules.ts`, inputs in `products/meridian/inputs/product.ts` and the caps beside the rules |
 

@@ -2,15 +2,15 @@ import { useEffect, useState } from "react";
 import { DensityProvider, Stack, Text, ThemeProvider } from "./catalog";
 import { InvoiceApproval } from "./features/invoice-approval";
 import { meridianNav, navCopy } from "./features/invoice-approval/navigation";
-import { flowFromLocation, invoiceById, knownVendors, type AppLocation, type Vendor } from "./flows/invoice-approval";
+import { flowFromLocation, invoiceById, previewVendors, type AppLocation, type Vendor } from "./flows/invoice-approval";
 import { readLocation, StatePreviewMenu } from "./preview";
 import { AppShell } from "./layouts/app-shell";
 
 function pageTitle(location: AppLocation, added: readonly Vendor[]): string {
-  // A vendor page is titled with its vendor, by the same decision that opens it. A vendor Meridian does not have opens Vendors.
+  // A vendor page is titled with its vendor, from the vendors the page itself shows. A vendor it does not show opens Vendors.
   const flow = flowFromLocation(location, []);
   if (flow.status === "ready" && flow.screen === "vendor") {
-    const vendor = knownVendors(added).find((entry) => entry.id === flow.vendorId);
+    const vendor = previewVendors(location.preview.state, added).find((entry) => entry.id === flow.vendorId);
     return vendor?.name ?? navCopy("vendors").label;
   }
   const detail =

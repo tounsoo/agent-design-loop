@@ -56,4 +56,12 @@ describe("Meridian shell", () => {
     await user.click(screen.getByRole("link", { name: "Helios Freight" }));
     expect(document.title).toMatch(/^Helios Freight/);
   });
+
+  it("titles a link to a vendor the page does not show as Vendors, as the page it opens", () => {
+    // Ridgeway Janitorial is only in the Vendor added preview, so outside it the link opens Vendors.
+    window.history.replaceState(null, "", "/?route=vendors&vendor=ridgeway-janitorial");
+    render(<App />);
+    expect(screen.getByRole("heading", { level: 1, name: "Vendors" })).toBeInTheDocument();
+    expect(document.title).toMatch(/^Vendors/);
+  });
 });

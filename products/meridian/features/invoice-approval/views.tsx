@@ -20,6 +20,7 @@ import {
   statusLabel,
   termsLabel,
   vendorHref,
+  vendorKey,
   vendorProfile,
   vendorRows,
   vendorsErrorMessage,
@@ -346,7 +347,7 @@ export function InvoiceApprovalView({
   const reason = state.status === "changes-requested" ? state.reason : (detail?.reason ?? "");
   const crumb = crumbFor(route);
   // Opened from a vendor's page: the breadcrumb leads back to that vendor too.
-  const fromVendor = route === "vendors" && vendorId ? registry.find((entry) => entry.id === vendorId && entry.name === invoice.vendor) : undefined;
+  const fromVendor = route === "vendors" && vendorId ? registry.find((entry) => entry.id === vendorId && vendorKey(entry.name) === vendorKey(invoice.vendor)) : undefined;
 
   return (
     <DetailPage state={state.status}>
