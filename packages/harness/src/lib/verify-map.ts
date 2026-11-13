@@ -87,74 +87,105 @@ export function productName(config: string): string {
   return path.posix.basename(path.posix.dirname(config.split(path.sep).join("/")));
 }
 
-/** Text without its HTML comments. */
-function withoutComments(text: string): string {
-  return text.replace(/<!--[\s\S]*?-->/g, "");
-}
-
-/** Lines outside fenced code blocks and HTML comments, with their text. */
-function proseLines(text: string): string[] {
-  const lines: string[] = [];
-  // A fence closes only on a run of its own character at least as long, as CommonMark has it.
+/**
+ * A file's lines as Markdown reads them: each with whether it sits in a
+ * fenced code block, and its text outside HTML comments. A fence closes only
+ * on a run of its own character at least as long, as CommonMark has it, and a
+ * comment opened in prose runs to its `-->`; a `<!--` inside a fence is code.
+ */
+function markdownLines(text: string): { line: string; fenced: boolean }[] {
+  const lines: { line: string; fenced: boolean }[] = [];
   let fence: { char: string; length: number } | null = null;
-  for (const line of withoutComments(text.replace(/\r\n/g, "\n")).split("\n")) {
-    const marker = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+  let comment = false;
+  for (const raw of text.replace(/\r\n/g, "\n").split("\n")) {
     if (fence) {
-      const run = marker?.[1] ?? "";
-      if (run.startsWith(fence.char) && run.length >= fence.length && (marker?.[2] ?? "").trim() === "") fence = null;
+      const marker = /^ {0,3}(`{3,}|~{3,})\s*$/.exec(raw)?.[1] ?? "";
+      if (marker.startsWith(fence.char) && marker.length >= fence.length) fence = null;
+      else lines.push({ line: raw, fenced: true });
       continue;
     }
-    if (marker) {
-      const run = marker[1] ?? "";
-      fence = { char: run.charAt(0), length: run.length };
+    let rest = raw;
+    let prose = "";
+    while (rest !== "") {
+      if (comment) {
+        const close = rest.indexOf("-->");
+        if (close === -1) rest = "";
+        else {
+          rest = rest.slice(close + 3);
+          comment = false;
+        }
+      } else {
+        const open = rest.indexOf("<!--");
+        if (open === -1) {
+          prose += rest;
+          rest = "";
+        } else {
+          prose += rest.slice(0, open);
+          rest = rest.slice(open + 4);
+          comment = true;
+        }
+      }
+    }
+    const marker = /^ {0,3}(`{3,}|~{3,})/.exec(prose)?.[1];
+    if (marker !== undefined) {
+      fence = { char: marker.charAt(0), length: marker.length };
       continue;
     }
-    lines.push(line);
+    lines.push({ line: prose, fenced: false });
   }
   return lines;
 }
 
-/** Every link target a Markdown file gives outside code and comments, without its `./`, anchor or title. */
+/** Lines outside fenced code blocks and HTML comments. */
+function proseLines(text: string): string[] {
+  return markdownLines(text)
+    .filter((entry) => !entry.fenced)
+    .map((entry) => entry.line);
+}
+
+/**
+ * Every link target a Markdown file gives outside code and comments, without
+ * its `./`, angle brackets, anchor or title: inline links and reference
+ * definitions. A link inside a code span is code, not a link.
+ */
 function linkTargets(text: string): Set<string> {
   const targets = new Set<string>();
+  const target = String.raw`<?(?:\./)?([^)\s#>]+)>?(?:#[^)\s>]*)?`;
+  const inline = new RegExp(String.raw`\]\(\s*${target}(?:\s+(?:"[^"]*"|'[^']*'|\([^)]*\)))?\s*\)`, "g");
+  const reference = new RegExp(String.raw`^ {0,3}\[[^\]]+\]:\s*${target}`);
   for (const line of proseLines(text)) {
-    for (const match of line.matchAll(/\]\(\s*(?:\.\/)?([^)\s#]+)(?:#[^)\s]*)?(?:\s+"[^"]*")?\s*\)/g)) targets.add(match[1] ?? "");
+    const prose = line.replace(/`[^`]*`/g, "");
+    for (const match of prose.matchAll(inline)) targets.add(match[1] ?? "");
+    const definition = reference.exec(prose)?.[1];
+    if (definition !== undefined) targets.add(definition);
   }
   return targets;
 }
 
-/** Every `?scenario=<id>` a file opens, outside comments, code included. A placeholder such as `?scenario=<id>` opens none. */
+/**
+ * Every scenario id a file opens, as `?scenario=<id>` or `&scenario=<id>`,
+ * outside comments, code blocks included. The id is read as far as a slug
+ * could go, underscores and capitals included so a bad one is caught whole,
+ * and a placeholder such as `?scenario=<id>`, `{id}` or `${id}` opens none.
+ */
 function scenarioUrls(text: string): string[] {
-  return [...withoutComments(text).matchAll(/\?scenario=([^\s&`)"'#<>\]]+)/g)].map((match) => (match[1] ?? "").replace(/[.,;:!?]+$/, ""));
+  return markdownLines(text).flatMap(({ line }) =>
+    [...line.matchAll(/[?&]scenario=([A-Za-z0-9_-]*)/g)].map((match) => (match[1] ?? "").replace(/[_-]+$/, "")).filter((id) => id !== ""),
+  );
 }
 
 /** What a feature file's `## Covers` section names, by kind, or the problems with it. `null` when it has none. */
 export function parseCovers(file: string, text: string): { covers: Map<Kind, string[]>; problems: string[] } | null {
   const lines = proseLines(text);
-  const isCovers = (line: string): boolean => /^##\s+Covers\s*$/.test(line);
+  const isCovers = (line: string): boolean => /^ {0,3}##\s+Covers(?:\s+#+)?\s*$/.test(line);
   const start = lines.findIndex(isCovers);
   if (start === -1) return null;
   const covers = new Map<Kind, string[]>();
   const problems: string[] = [];
-  for (const line of lines.slice(start + 1)) {
-    if (/^#{1,6}\s/.test(line)) {
-      problems.push(
-        isCovers(line)
-          ? `${file} has two ## Covers sections. Merge them into one, the last section of the file.`
-          : `${file}: "${line.trim()}" comes after ## Covers, which must be the file's last section. Move the section above ## Covers.`,
-      );
-      break;
-    }
-    if (line.trim() === "") continue;
-    const item = /^- ([^:]+):\s*(.*)$/.exec(line);
-    const label = item?.[1]?.trim();
-    if (!item || label === undefined || !Object.hasOwn(COVERS, label)) {
-      problems.push(`${file}: "${line.trim()}" under ## Covers is not a "- <kind>: \`<name>\`" line. The kinds are ${Object.keys(COVERS).join(", ")}.`);
-      continue;
-    }
-    const kind = COVERS[label as Label];
-    const spans = [...(item[2] ?? "").matchAll(/`([^`]+)`/g)].map((match) => match[1] ?? "");
-    if (spans.length === 0) problems.push(`${file}: "- ${label}:" under ## Covers names nothing. Name each in a code span.`);
+  let current: Kind | null = null;
+  const named = new Set<Kind>();
+  const add = (kind: Kind, spans: string[]): void => {
+    if (spans.length > 0) named.add(kind);
     const found = covers.get(kind) ?? [];
     for (const span of spans) {
       if (kind === "scenarios") {
@@ -169,9 +200,40 @@ export function parseCovers(file: string, text: string): { covers: Map<Kind, str
       }
     }
     covers.set(kind, found);
+  };
+  const spansOf = (text: string): string[] => [...text.matchAll(/`([^`]+)`/g)].map((match) => match[1] ?? "");
+  for (const line of lines.slice(start + 1)) {
+    if (/^ {0,3}#{1,6}(?:\s|$)/.test(line)) {
+      problems.push(
+        isCovers(line)
+          ? `${file} has two ## Covers sections. Merge them into one, the last section of the file.`
+          : `${file}: "${line.trim()}" comes after ## Covers, which must be the file's last section. Move the section above ## Covers.`,
+      );
+      break;
+    }
+    // A blank line, or a thematic break, ends no list item that matters here.
+    if (line.trim() === "" || /^ {0,3}([-*_])(?: *\1){2,} *$/.test(line)) continue;
+    // An indented line that is not a new item continues the item above it, as a wrapped list item does.
+    if (current && /^\s+\S/.test(line) && !/^\s*[-*+]\s/.test(line)) {
+      add(current, spansOf(line));
+      continue;
+    }
+    const item = /^ {0,3}[-*+] ([^:]+):\s*(.*)$/.exec(line);
+    const label = item?.[1]?.trim();
+    if (!item || label === undefined || !Object.hasOwn(COVERS, label)) {
+      current = null;
+      problems.push(`${file}: "${line.trim()}" under ## Covers is not a "- <kind>: \`<name>\`" line. The kinds are ${Object.keys(COVERS).join(", ")}.`);
+      continue;
+    }
+    const kind = COVERS[label as Label];
+    current = kind;
+    add(kind, spansOf(item[2] ?? ""));
+  }
+  for (const kind of covers.keys()) {
+    if (!named.has(kind)) problems.push(`${file}: "- ${labelOf(kind)}:" under ## Covers names nothing. Name each in a code span.`);
   }
   if (covers.size === 0 && problems.length === 0) problems.push(`${file}: its ## Covers section lists nothing. Name what the file drives, as "- Page types: \`<id>\`" lines.`);
-  return { covers, problems };
+  return { covers: new Map([...covers].filter(([, found]) => found.length > 0)), problems: [...new Set(problems)] };
 }
 
 /** A file of the verify map, by its path inside the map: `meridian/vendor-page.md`. */

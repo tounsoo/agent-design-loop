@@ -63,6 +63,12 @@ describe("parseCovers", () => {
     expect(parseCovers("f.md", text)?.covers.get("tasks")).toEqual(["a"]);
   });
 
+  it("reads star bullets, wrapped items, closing hashes and a rule, and sees a comment's start inside a fence as code", () => {
+    const parsed = parseCovers("f.md", "```html\n<!-- x\n```\n\n## Covers ##\n\n* Tasks: `a`,\n  `b`\n- Scenarios: `?scenario=c`\n\n---\n");
+    expect(parsed?.problems).toEqual([]);
+    expect(Object.fromEntries(parsed?.covers ?? [])).toEqual({ tasks: ["a", "b"], scenarios: ["c"] });
+  });
+
   it("names a line that is not a kind, a kind with no span, a scenario not written as its URL and an empty section", () => {
     expect(parseCovers("f.md", "## Covers\n\n- Sections: `a`\n")?.problems[0]).toContain('"- Sections: `a`" under ## Covers is not a "- <kind>: `<name>`" line');
     expect(parseCovers("f.md", "## Covers\n\n- Tasks: check-out\n")?.problems[0]).toContain('"- Tasks:" under ## Covers names nothing');
@@ -115,14 +121,24 @@ describe("verifyMapProblems", () => {
     expect(opens("Open `?scenario=loading_bogus`.")).toEqual([expect.stringContaining("opens `?scenario=loading_bogus`, which is not a scenario of shop")]);
     expect(opens("Open `?scenario=Loading`.")).toEqual([expect.stringContaining("opens `?scenario=Loading`")]);
     expect(opens("```sh\nopen http://127.0.0.1:5173/?scenario=gone\n```")).toEqual([expect.stringContaining("opens `?scenario=gone`")]);
-    expect(opens("Open ?scenario=loading. Write `?scenario=<id>`. <!-- ?scenario=gone -->")).toEqual([]);
+    expect(opens("Open ?scenario=loading. Write `?scenario=<id>`, `?scenario={id}` or `?scenario=...`. <!-- ?scenario=gone -->")).toEqual([]);
+    expect(opens("**?scenario=loading**, _?scenario=loading_ and |x|?scenario=cart-full|")).toEqual([]);
+    expect(opens("```ts\npage.goto(`${base}?scenario=${id}`);\n```")).toEqual([]);
+    expect(opens("Open `?theme=dark&scenario=gone`.")).toEqual([expect.stringContaining("opens `?scenario=gone`")]);
   });
 
   it("reads index links with ./, an anchor or a title as links", () => {
     expect(verifyMapProblems([shop], map({ "shop/README.md": '- [Browse](./browse.md#top)\n- [Check out](check-out.md "Check out")\n' }))).toEqual([]);
+    expect(verifyMapProblems([shop], map({ "shop/README.md": "- [Browse](<browse.md>)\n- [Check out][c]\n\n[c]: check-out.md 'Check out'\n" }))).toEqual([]);
+    expect(verifyMapProblems([shop], map({ "shop/README.md": "- [Browse](browse.md)\n- [Check out](check-out.md)\n- [Gone](gone.md 'Gone')\n" }))).toEqual([
+      ".claude/skills/verify/features/shop/README.md links gone.md, which is not in .claude/skills/verify/features/shop/.",
+    ]);
   });
 
-  it("does not count a link in a comment as listed", () => {
+  it("does not count a link in a comment or a code span as listed", () => {
+    expect(verifyMapProblems([shop], map({ "shop/README.md": "- [Browse](browse.md) `[Check out](check-out.md)`\n" }))).toEqual([
+      ".claude/skills/verify/features/shop/README.md does not link check-out.md. List every feature file in the index.",
+    ]);
     expect(verifyMapProblems([shop], map({ "shop/README.md": "- [Browse](browse.md)\n<!-- [Check out](check-out.md) -->\n" }))).toEqual([
       ".claude/skills/verify/features/shop/README.md does not link check-out.md. List every feature file in the index.",
     ]);
