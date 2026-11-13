@@ -1,6 +1,6 @@
 # Meridian
 
-Meridian is the sample product the design loop is tested on: an accounts-payable workspace for vendor invoice approval. The frame is an app shell. The page types are `collection` (To approve, All invoices, and Vendors) and `detail` (one invoice). The named task is `approve-vendor-invoice`. [How Meridian works](docs/how-it-works.md) walks through its screens, its flow, and the inputs its rules read. The checks it runs are the [harness's](../../packages/harness/README.md).
+Meridian is the sample product the design loop is tested on: an accounts-payable workspace for vendor invoice approval. The frame is an app shell. The page types are `collection` (To approve, All invoices, and Vendors), `detail` (one invoice) and `profile` (one vendor). The named task is `approve-vendor-invoice`. [How Meridian works](docs/how-it-works.md) walks through its screens, its flow, and the inputs its rules read. The checks it runs are the [harness's](../../packages/harness/README.md).
 
 Layouts are product-owned shells with named slots. They encode [Todae](https://github.com/tounsoo/todae) recipes. Recipes are copyable glue, not package namespaces: there is no `AppShell.*`, `DataTable.*`, `Directory.*` or `FilterBar.*` export, and this repo does not fork Todae.
 
@@ -11,12 +11,14 @@ Chrome layouts are the frame. Content layouts are the compositions that fill a p
 | App shell, the frame | `products/meridian/layouts/app-shell` | [App shell](https://todae.omsoo.design/recipes/app-shell) |
 | Data table, the To approve and All invoices body | `products/meridian/content-layouts/data-table` | [Filter bar](https://todae.omsoo.design/recipes/filter-bar) and [Data table](https://todae.omsoo.design/recipes/data-table) |
 | Directory, the Vendors body | `products/meridian/content-layouts/directory` | None. Search, an add form behind a disclosure, and a grid of cards |
-| Facts, an invoice's fields under its heading | `products/meridian/content-layouts/facts` | None. A horizontal DataList |
+| Facts, an invoice's or a vendor's fields under its heading | `products/meridian/content-layouts/facts` | None. A horizontal DataList |
+| Invoice list, a vendor's open or approved invoices | `products/meridian/content-layouts/invoice-list` | None. A section with its own `h2` and a table of invoice links that scrolls inside its frame |
 | Progress, an invoice's stages | `products/meridian/content-layouts/progress` | None. Steps in its progress variant |
 | Line items, behind a disclosure | `products/meridian/content-layouts/line-items` | None. A disclosure holding a table with a Total row |
 | Text question, the reason for a change request | `products/meridian/content-layouts/text-question` | None. A label, a textarea and its hint or error |
 | Collection page | `products/meridian/page-types/collection` | Heading and body. The ready body is a content layout |
 | Detail page | `products/meridian/page-types/detail` | Breadcrumbs and a heading for one record; its meta, body and secondary slots are body, built from content layouts |
+| Profile page | `products/meridian/page-types/profile` | Breadcrumbs and a heading for one vendor; its meta and body are body, built from content layouts. No primary action |
 
 The app shell is the frame, not a third page type. A different body composition is a content layout, not a new entry in `allowed_layouts`.
 
@@ -36,7 +38,8 @@ Open the URL Vite prints. The default screen is the Meridian workspace on **To a
 
 - **To approve** (`/`): pending invoices.
 - **All invoices** (`?route=invoices`): every invoice, with status.
-- **Vendors** (`?route=vendors`): a card per vendor with its remittance email, payment terms, open count and last invoice, and an **Add a vendor** form behind the page's one disclosure. The form checks that the name is new and the email is an address before it adds the vendor. Added vendors last until the page reloads. [Proposal 2026-11-12-vendor-directory](../../proposals/2026-11-12-vendor-directory.md) added the directory content layout, the `vendor-added` state, and `Card`, `Description`, `Form` and `Grid` to the catalog.
+- **Vendors** (`?route=vendors`): a card per vendor with its remittance email, payment terms, open count and last invoice, and an **Add a vendor** form behind the page's one disclosure. The form checks that the name is new and the email is an address before it adds the vendor. Added vendors last until the page reloads. [Proposal 2026-11-12-vendor-directory](../../proposals/2026-11-12-vendor-directory.md) added the directory content layout, the `vendor-added` state, and `Card`, `Description`, `Form` and `Grid` to the catalog. Each card's vendor name links to that vendor's page.
+- **A vendor** (`?route=vendors&vendor=helios-freight`): the vendor's remittance email, terms and open total, then Open invoices and Approved, each a table of invoice links, with a section left out when it has no rows. It has no button. Vendors stays current in the navigation. [Proposal 2026-11-12-vendor-page](../../proposals/2026-11-12-vendor-page.md) added the `profile` page type for it, the first page type under `shells.content`.
 
 On an invoice (`?invoice=inv-1842`):
 
@@ -63,6 +66,7 @@ The shell stays up in every modeled state. Loading, empty, and error render insi
 - `?scenario=invoice-detail` and `?scenario=invoice-requesting-changes`: the invoice, `ready`, with the request-changes branch open in the second
 - `?scenario=invoice-approved` and `?scenario=changes-requested`: the invoice after each decision
 - `?scenario=vendor-added`, which opens Vendors, because that state belongs to that route
+- `?scenario=vendor-helios-freight`, `?scenario=vendor-harbor-and-pine`, `?scenario=vendor-nothing-open` and `?scenario=vendor-no-invoices`: a vendor's page with open and approved invoices, open only, approved only, and none (a 64-character name); `?scenario=vendor-unknown`: a vendor Meridian does not have, which opens Vendors
 
 An id the file does not have is ignored. The rest of the URL decides the page, which is To approve when nothing else is set: `?route=invoices`, `?route=vendors` and `?invoice=<id>` still open the live app there. A new case, such as a long vendor name, is a new scenario in that file, with no proposal.
 
@@ -76,16 +80,18 @@ catalog/                      only UI entry; re-exports @tounsoo/todae
 layouts/app-shell/            Meridian frame: header, nav, drawer; no page type
 content-layouts/data-table/   invoice collection body: filter bar, table, pagination
 content-layouts/directory/    Vendors body: search, the add-vendor form in a disclosure, cards
-content-layouts/facts/        an invoice's fields, as a horizontal DataList
+content-layouts/facts/        an invoice's or a vendor's fields, as a horizontal DataList
+content-layouts/invoice-list/ one section of a vendor's invoices: its h2 and a table of links
 content-layouts/progress/     an invoice's stages, received to payment
 content-layouts/line-items/   line items and their total, behind a disclosure
 content-layouts/text-question/ one labelled textarea with its hint or error
 page-types/collection/        heading and body; no primary. Ready body is a content layout
 page-types/detail/            breadcrumbs, meta, body, one primary, secondary
+page-types/profile/           breadcrumbs, heading, meta, body; no primary
 flows/invoice-approval/       loading, empty, error, ready, invoice-approved, changes-requested, vendor-added; vendors.ts holds the vendors and their validation
 inputs/product.ts             tasks, priority, disclosed sections, allowed layouts, content layouts, page types
 rules/ux-rules.ts             check, input, and review question for each rule
-features/invoice-approval/    To approve, All invoices, Vendors, and the invoice
+features/invoice-approval/    To approve, All invoices, Vendors, a vendor, and the invoice
 preview/                      reads ?scenario= into a first render, ?route= and ?invoice=, and the Preview menu
 review/                       judgment the checks cannot make
 App.tsx, main.tsx, index.html the app entry, which check:target-size builds

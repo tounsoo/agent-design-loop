@@ -25,7 +25,8 @@ export default {
   shells: {
     primarySlots: { detail: "Primary" },
     collections: { collection: ["Heading", "Description"] },
-    chrome: { detail: ["Breadcrumbs", "Heading"] },
+    content: ["profile"],
+    chrome: { detail: ["Breadcrumbs", "Heading"], profile: ["Breadcrumbs", "Heading"] },
   },
   flows: [
     {

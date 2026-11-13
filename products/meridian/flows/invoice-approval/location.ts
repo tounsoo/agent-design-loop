@@ -16,6 +16,8 @@ export type AppLocation = {
   readonly preview: Preview;
   readonly route: CollectionRoute;
   readonly invoiceId: string | null;
+  /** The vendor page `?vendor=` or the scenario names, on the Vendors route. */
+  readonly vendorId: string | null;
 };
 
 export function isCollectionRoute(value: string): value is CollectionRoute {
@@ -29,6 +31,7 @@ export function locationKey(location: AppLocation): string {
     branch: location.preview.branch,
     route: location.route,
     invoiceId: location.invoiceId,
+    vendorId: location.vendorId,
   });
 }
 
@@ -37,10 +40,18 @@ export function routeHref(route: CollectionRoute): string {
   return `?route=${route}`;
 }
 
-export function invoiceHref(route: CollectionRoute, invoiceId: string): string {
+export function invoiceHref(route: CollectionRoute, invoiceId: string, vendorId?: string): string {
   const params = new URLSearchParams();
   if (route !== "to-approve") params.set("route", route);
+  // From a vendor's page, so its breadcrumb can lead back there.
+  if (route === "vendors" && vendorId) params.set("vendor", vendorId);
   params.set("invoice", invoiceId);
+  return `?${params.toString()}`;
+}
+
+/** A vendor's page sits on the Vendors route, so Vendors stays current in the navigation. */
+export function vendorHref(vendorId: string): string {
+  const params = new URLSearchParams({ route: "vendors", vendor: vendorId });
   return `?${params.toString()}`;
 }
 
@@ -61,7 +72,10 @@ function detailReady(invoiceId: string): Extract<FlowState, { status: "ready"; s
  * opened invoice shows, unless a `?scenario=` forces a modeled view.
  */
 export function flowFromLocation(location: AppLocation, ledger: readonly Invoice[]): FlowState {
-  const { preview, invoiceId } = location;
+  const { preview, invoiceId, vendorId } = location;
+  if (preview.state === "ready" && preview.page === "vendor") {
+    return { status: "ready", screen: "vendor", vendorId: vendorId ?? "" };
+  }
   if (
     preview.state === "loading" ||
     preview.state === "empty" ||
@@ -87,5 +101,6 @@ export function flowFromLocation(location: AppLocation, ledger: readonly Invoice
     }
     return detailReady(invoice.id);
   }
+  if (vendorId && location.route === "vendors" && preview.state === null) return { status: "ready", screen: "vendor", vendorId };
   return { status: "ready", screen: "collection" };
 }

@@ -30,13 +30,13 @@ export const priority = [
  */
 export const disclosed_sections = ["Line items"] as const;
 
-export const allowed_page_types = ["collection", "detail"] as const;
+export const allowed_page_types = ["collection", "detail", "profile"] as const;
 
 /** Chrome around the page. Not the composition inside a page body. */
 export const allowed_layouts = ["app-shell"] as const;
 
 /** Compositions that fill a page type's body. */
-export const allowed_content_layouts = ["data-table", "directory", "facts", "line-items", "progress", "text-question"] as const;
+export const allowed_content_layouts = ["data-table", "directory", "facts", "invoice-list", "line-items", "progress", "text-question"] as const;
 
 export type Task = (typeof tasks)[number];
 export type PriorityItem = (typeof priority)[number];

@@ -32,5 +32,17 @@ describe("flow from location", () => {
     expect(location.route).toBe("vendors");
     expect(flowFromLocation(location, sampleInvoices).status).toBe("vendor-added");
   });
-});
 
+  it("opens a vendor's page on Vendors, from its link and from its scenario", () => {
+    expect(flowFromLocation(readLocation("?route=vendors&vendor=kite-analytics"), sampleInvoices)).toEqual({
+      status: "ready",
+      screen: "vendor",
+      vendorId: "kite-analytics",
+    });
+    const scenario = readLocation("?scenario=vendor-helios-freight");
+    expect(scenario.route).toBe("vendors");
+    expect(flowFromLocation(scenario, sampleInvoices)).toEqual({ status: "ready", screen: "vendor", vendorId: "helios-freight" });
+    // An invoice opened from a vendor page is the invoice's page.
+    expect(flowFromLocation(readLocation("?route=vendors&vendor=helios-freight&invoice=inv-1907"), sampleInvoices)).toMatchObject({ screen: "detail" });
+  });
+});

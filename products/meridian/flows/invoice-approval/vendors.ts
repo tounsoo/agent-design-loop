@@ -153,7 +153,7 @@ function sample(name: string, remitEmail: string, terms: PaymentTerms): Vendor {
   return { id: slug(name) as VendorId, name, remitEmail, terms };
 }
 
-/** One per vendor in sampleInvoices. A test holds every invoice's vendor to this list. */
+/** One per vendor in sampleInvoices, and one with none yet. A test holds every invoice's vendor to this list. */
 export const sampleVendors: readonly Vendor[] = [
   sample("Brightline Paper Co", "ap@brightlinepaper.example", "net-30"),
   sample("Fieldnote Print", "billing@fieldnoteprint.example", "net-15"),
@@ -162,6 +162,8 @@ export const sampleVendors: readonly Vendor[] = [
   sample("Kite Analytics", "finance@kiteanalytics.example", "net-30"),
   sample("Lumen Cloud Services", "billing@lumencloud.example", "net-30"),
   sample("Northwind Office Supply", "ar@northwindoffice.example", "net-30"),
+  // A new vendor with no invoices yet, and the longest name in the sample: the vendor page's long and empty case.
+  sample("Okafor & Lindqvist Commercial Facilities Maintenance Cooperative", "remittance@okafor-lindqvist-facilities.example", "net-30"),
   sample("Sable Security", "payments@sablesecurity.example", "net-60"),
 ];
 
@@ -198,4 +200,24 @@ export function previewVendors(previewState: ModeledState | null, added: readonl
         : sampleVendors;
   if (added.length === 0) return base;
   return added.reduce<readonly Vendor[]>((registry, vendor) => (sameVendor(registry, vendor.name) ? registry : [...registry, vendor]), base);
+}
+
+/** A vendor's page: who it is, and its invoices split into open (not yet approved) and approved. */
+export type VendorProfile = {
+  readonly vendor: Vendor;
+  /** Pending or changes requested, soonest due first. */
+  readonly open: readonly Invoice[];
+  /** Approved, latest due first. */
+  readonly approved: readonly Invoice[];
+  readonly openTotalCents: number;
+};
+
+export function vendorProfile(registry: readonly Vendor[], ledger: readonly Invoice[], vendorId: string): VendorProfile | null {
+  const vendor = registry.find((entry) => entry.id === vendorId);
+  if (!vendor) return null;
+  const key = vendorKey(vendor.name);
+  const invoices = ledger.filter((invoice) => vendorKey(invoice.vendor) === key);
+  const open = invoices.filter((invoice) => invoice.status !== "approved").sort((a, b) => a.dueOn.localeCompare(b.dueOn));
+  const approved = invoices.filter((invoice) => invoice.status === "approved").sort((a, b) => b.dueOn.localeCompare(a.dueOn));
+  return { vendor, open, approved, openTotalCents: open.reduce((sum, invoice) => sum + invoice.amountCents, 0) };
 }

@@ -1,4 +1,4 @@
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import {
   Alert,
   Breadcrumbs,
@@ -14,9 +14,14 @@ import {
 } from "../../catalog";
 import {
   formatMoney,
+  invoiceHref,
   lineTotal,
   routeHref,
   statusLabel,
+  termsLabel,
+  vendorHref,
+  vendorKey,
+  vendorProfile,
   vendorRows,
   vendorsErrorMessage,
   type CollectionRoute,
@@ -26,15 +31,18 @@ import {
   type ModeledState,
   type NewVendor,
   type Vendor,
+  type VendorProfile,
 } from "../../flows/invoice-approval";
 import { DataTable, useCollectionBrowser } from "../../content-layouts/data-table";
 import { Directory } from "../../content-layouts/directory";
 import { Facts, type Fact } from "../../content-layouts/facts";
+import { InvoiceList } from "../../content-layouts/invoice-list";
 import { LineItems } from "../../content-layouts/line-items";
 import { Progress, type Stage, type StageStatus } from "../../content-layouts/progress";
 import { TextQuestion } from "../../content-layouts/text-question";
 import { CollectionPage } from "../../page-types/collection";
 import { DetailPage } from "../../page-types/detail";
+import { ProfilePage } from "../../page-types/profile";
 import { navCopy } from "./navigation";
 
 export type Actions = {
@@ -191,11 +199,13 @@ function VendorsCollection({
   registry,
   ledger,
   actions,
+  onNavigate,
 }: {
   state: ListState;
   registry: readonly Vendor[];
   ledger: readonly Invoice[];
   actions: Actions;
+  onNavigate: (href: string) => void;
 }) {
   const copy = navCopy("vendors");
   const listed = state.status === "ready" || state.status === "empty" || state.status === "vendor-added";
@@ -210,7 +220,9 @@ function VendorsCollection({
           <Directory
             justAdded={state.status === "vendor-added" ? state.vendorId : null}
             rows={vendorRows(registry, ledger)}
+            vendorHref={vendorHref}
             onAdd={actions.addVendor}
+            onOpenVendor={(vendorId) => onNavigate(vendorHref(vendorId))}
           />
         ) : null}
       </CollectionPage.Body>
@@ -218,10 +230,69 @@ function VendorsCollection({
   );
 }
 
+/** A link that changes the page in place, unless the person asks for a new tab or window. */
+function PageLink({ href, onNavigate, children }: { href: string; onNavigate: (href: string) => void; children: ReactNode }) {
+  return (
+    <Link.Root
+      href={href}
+      onClick={(event) => {
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        onNavigate(href);
+      }}
+    >
+      {children}
+    </Link.Root>
+  );
+}
+
+/** One vendor: where its money goes, what is still open, and what is approved. A section with nothing in it is left out. */
+function VendorPage({ profile, onNavigate }: { profile: VendorProfile; onNavigate: (href: string) => void }) {
+  const { vendor, open, approved } = profile;
+  const vendors = navCopy("vendors");
+  // An invoice opened from here keeps the vendor in its breadcrumbs.
+  const invoiceHrefFor = (invoiceId: string) => invoiceHref("vendors", invoiceId, vendor.id);
+  const openInvoice = (invoiceId: string) => onNavigate(invoiceHrefFor(invoiceId));
+  return (
+    <ProfilePage state="ready">
+      <ProfilePage.Breadcrumbs>
+        <Breadcrumbs.Root>
+          <Breadcrumbs.Item>
+            <PageLink href={vendors.href} onNavigate={onNavigate}>
+              {vendors.label}
+            </PageLink>
+          </Breadcrumbs.Item>
+          <Breadcrumbs.Item current>{vendor.name}</Breadcrumbs.Item>
+        </Breadcrumbs.Root>
+      </ProfilePage.Breadcrumbs>
+      <ProfilePage.Heading>{vendor.name}</ProfilePage.Heading>
+      <ProfilePage.Meta>
+        <Facts
+          items={[
+            { term: "Remittance", details: vendor.remitEmail },
+            { term: "Terms", details: termsLabel[vendor.terms] },
+            { term: "Open total", details: formatMoney(profile.openTotalCents) },
+          ]}
+        />
+      </ProfilePage.Meta>
+      <ProfilePage.Body>
+        {open.length > 0 ? (
+          <InvoiceList invoiceHref={invoiceHrefFor} invoices={open} showStatus title="Open invoices" onOpenInvoice={openInvoice} />
+        ) : null}
+        {approved.length > 0 ? (
+          <InvoiceList invoiceHref={invoiceHrefFor} invoices={approved} showStatus={false} title="Approved" onOpenInvoice={openInvoice} />
+        ) : null}
+        {open.length === 0 && approved.length === 0 ? <Text.Root tone="muted">No invoices from this vendor yet.</Text.Root> : null}
+      </ProfilePage.Body>
+    </ProfilePage>
+  );
+}
+
 export function InvoiceApprovalView({
   state,
   actions,
   route,
+  vendorId = null,
   ledger,
   registry,
   onNavigate,
@@ -229,6 +300,8 @@ export function InvoiceApprovalView({
   state: FlowState;
   actions: Actions;
   route: CollectionRoute;
+  /** The vendor whose page an invoice was opened from, if any. */
+  vendorId?: string | null;
   ledger: readonly Invoice[];
   registry: readonly Vendor[];
   onNavigate: (href: string) => void;
@@ -248,9 +321,19 @@ export function InvoiceApprovalView({
     }
   }
 
+  if (state.status === "ready" && state.screen === "vendor") {
+    const profile = vendorProfile(registry, ledger, state.vendorId);
+    // A link to a vendor Meridian does not have opens the Vendors page.
+    if (profile === null) {
+      const list = { status: "ready", screen: "collection" } as const;
+      return <VendorsCollection actions={actions} ledger={ledger} registry={registry} state={list} onNavigate={onNavigate} />;
+    }
+    return <VendorPage profile={profile} onNavigate={onNavigate} />;
+  }
+
   if (!showsDetail(state)) {
     if (state.status === "vendor-added" || route === "vendors") {
-      return <VendorsCollection actions={actions} ledger={ledger} registry={registry} state={state} />;
+      return <VendorsCollection actions={actions} ledger={ledger} registry={registry} state={state} onNavigate={onNavigate} />;
     }
     return <InvoicesCollection actions={actions} ledger={ledger} route={route} state={state} />;
   }
@@ -263,6 +346,8 @@ export function InvoiceApprovalView({
   const canAct = detail !== null && shownStatus === "pending";
   const reason = state.status === "changes-requested" ? state.reason : (detail?.reason ?? "");
   const crumb = crumbFor(route);
+  // Opened from a vendor's page: the breadcrumb leads back to that vendor too.
+  const fromVendor = route === "vendors" && vendorId ? registry.find((entry) => entry.id === vendorId && vendorKey(entry.name) === vendorKey(invoice.vendor)) : undefined;
 
   return (
     <DetailPage state={state.status}>
@@ -280,6 +365,13 @@ export function InvoiceApprovalView({
               {crumb.label}
             </Link.Root>
           </Breadcrumbs.Item>
+          {fromVendor ? (
+            <Breadcrumbs.Item>
+              <PageLink href={vendorHref(fromVendor.id)} onNavigate={onNavigate}>
+                {fromVendor.name}
+              </PageLink>
+            </Breadcrumbs.Item>
+          ) : null}
           <Breadcrumbs.Item current>{invoice.number}</Breadcrumbs.Item>
         </Breadcrumbs.Root>
       </DetailPage.Breadcrumbs>

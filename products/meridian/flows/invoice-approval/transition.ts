@@ -50,6 +50,8 @@ export function transition(state: FlowState, event: FlowEvent): FlowState {
         if (event.type === "add-vendor") return { status: "vendor-added", vendorId: event.vendorId };
         return state;
       }
+      // A vendor page decides nothing: its links change the page, not the flow.
+      if (state.screen === "vendor") return state;
       if (event.type === "open-line-items") return { ...state, lineItemsOpen: true };
       if (event.type === "close-line-items") return { ...state, lineItemsOpen: false };
       if (event.type === "start-request") {
@@ -110,6 +112,7 @@ export function initialFlowState(preview: Preview, invoiceId?: string | null): F
       if (preview.page === "detail") {
         return detailReady(id, { requestingChanges: preview.branch });
       }
+      if (preview.page === "vendor") return { status: "ready", screen: "vendor", vendorId: "" };
       return { status: "ready", screen: "collection" };
     case null:
       return { status: "ready", screen: "collection" };

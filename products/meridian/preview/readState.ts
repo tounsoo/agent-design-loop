@@ -23,9 +23,11 @@ export function readLocation(search: string): AppLocation {
   const asked: CollectionRoute = routeValue != null && isCollectionRoute(routeValue) ? routeValue : "to-approve";
   const route = (scenario !== null && "route" in scenario ? scenario.route : undefined) ?? (preview.state ? routeOfState[preview.state] : undefined) ?? asked;
   const invoice = params.get("invoice");
+  const vendor = (scenario !== null && "vendor" in scenario ? scenario.vendor : undefined) ?? params.get("vendor");
   return {
     preview,
     route,
     invoiceId: invoice && invoice.length > 0 ? invoice : null,
+    vendorId: vendor && vendor.length > 0 ? vendor : null,
   };
 }

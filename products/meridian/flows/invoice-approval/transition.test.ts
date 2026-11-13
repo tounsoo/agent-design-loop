@@ -86,5 +86,11 @@ describe("invoice approval flow", () => {
       vendorId: previewAddedVendorId,
     });
   });
-});
 
+  it("keeps a vendor's page as it is: it has no event of its own", () => {
+    const vendor = { status: "ready", screen: "vendor", vendorId: "helios-freight" } as const;
+    expect(transition(vendor, { type: "approve" })).toBe(vendor);
+    expect(transition(vendor, { type: "open-line-items" })).toBe(vendor);
+    expect(initialFlowState({ state: "ready", page: "vendor", branch: false }, null)).toEqual({ status: "ready", screen: "vendor", vendorId: "" });
+  });
+});

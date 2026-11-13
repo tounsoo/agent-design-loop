@@ -9,6 +9,7 @@ import {
   sampleVendors,
   searchVendors,
   vendorKey,
+  vendorProfile,
   vendorRows,
   knownVendors,
   previewVendors,
@@ -165,5 +166,32 @@ describe("the vendors a preview shows", () => {
     const added = first.registry;
     const second = addVendor(previewVendors("ready", added), valid("Northwind Office Supply 2"), knownVendors(added));
     expect(second.id).not.toBe(first.id);
+  });
+});
+
+describe("vendorProfile", () => {
+  it("splits a vendor's invoices into open, soonest due first, and approved, latest due first, and totals what is open", () => {
+    const profile = vendorProfile(sampleVendors, sampleInvoices, "helios-freight");
+    expect(profile?.vendor.name).toBe("Helios Freight");
+    expect(profile?.open.map((invoice) => invoice.number)).toEqual(["INV-1907"]);
+    expect(profile?.approved.map((invoice) => invoice.number)).toEqual(["INV-1694"]);
+    expect(profile?.openTotalCents).toBe(1264050);
+    const harbor = vendorProfile(sampleVendors, sampleInvoices, "harbor-and-pine-catering");
+    expect(harbor?.open.map((invoice) => invoice.status)).toEqual(["changes-requested", "pending"]);
+  });
+
+  it("gives a vendor with no invoices empty lists and a zero total, and an unknown vendor nothing", () => {
+    const quiet = sampleVendors.find((vendor) => vendor.name.length > 60);
+    expect(quiet).toBeDefined();
+    expect(vendorProfile(sampleVendors, sampleInvoices, quiet!.id)).toMatchObject({ open: [], approved: [], openTotalCents: 0 });
+    expect(vendorProfile(sampleVendors, sampleInvoices, "no-such-vendor")).toBeNull();
+  });
+
+  it("moves an invoice approved in the session from open to approved", () => {
+    const ledger = sampleInvoices.map((invoice) => (invoice.number === "INV-1907" ? { ...invoice, status: "approved" as const } : invoice));
+    const profile = vendorProfile(sampleVendors, ledger, "helios-freight");
+    expect(profile?.open).toEqual([]);
+    expect(profile?.approved.map((invoice) => invoice.number)).toEqual(["INV-1907", "INV-1694"]);
+    expect(profile?.openTotalCents).toBe(0);
   });
 });

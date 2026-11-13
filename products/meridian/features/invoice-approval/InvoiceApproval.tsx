@@ -17,13 +17,20 @@ import { InvoiceApprovalView, type Actions } from "./views";
 export function InvoiceApproval({
   location,
   onNavigate,
+  added: addedFromApp,
+  onVendorAdded,
 }: {
   location: AppLocation;
   onNavigate: (href: string) => void;
+  /** The vendors added in this session, when the app holds them, so its page title can name an added vendor. */
+  added?: readonly Vendor[];
+  onVendorAdded?: (vendor: Vendor) => void;
 }) {
   const [ledger, setLedger] = useState<Invoice[]>(() => sampleInvoices.map((invoice) => ({ ...invoice })));
   // Only the vendors added in this session. previewVendors decides which of them each preview shows.
-  const [added, setAdded] = useState<readonly Vendor[]>([]);
+  const [ownAdded, setOwnAdded] = useState<readonly Vendor[]>([]);
+  const added = addedFromApp ?? ownAdded;
+  const remember = onVendorAdded ?? ((vendor: Vendor) => setOwnAdded((vendors) => [...vendors, vendor]));
   const key = locationKey(location);
   const [seen, setSeen] = useState(key);
   const [overlay, setOverlay] = useState<FlowState | null>(null);
@@ -31,8 +38,15 @@ export function InvoiceApproval({
     setSeen(key);
     setOverlay(null);
   }
-  const flow = overlay ?? flowFromLocation(location, ledger);
   const shownVendors = previewVendors(location.preview.state, added);
+  const located = flowFromLocation(location, ledger);
+  // A link to a vendor Meridian does not have is the Vendors page, so adding a vendor there works as it does on Vendors.
+  // A vendor's page looks its vendor up among every vendor this session knows, so a card in a preview opens its page though the link leaves the preview.
+  const known = knownVendors(added);
+  const vendorScreen = located.status === "ready" && located.screen === "vendor";
+  const unknownVendor = vendorScreen && !known.some((vendor) => vendor.id === located.vendorId);
+  const registry = vendorScreen && !unknownVendor ? known : shownVendors;
+  const flow = overlay ?? (unknownVendor ? ({ status: "ready", screen: "collection" } as const) : located);
   // Empty means nothing loaded, so its vendor cards join no invoices.
   const shownLedger = location.preview.state === "empty" ? [] : ledger;
 
@@ -69,9 +83,9 @@ export function InvoiceApproval({
       setOverlay(transition(flow, { type: "approve" }));
     },
     addVendor: (vendor) => {
-      const { registry: next, id, added: isNew } = addVendor(shownVendors, vendor, knownVendors(added));
+      const { registry: next, id, added: isNew } = addVendor(shownVendors, vendor, known);
       const created = next.find((entry) => entry.id === id);
-      if (isNew && created) setAdded((vendors) => [...vendors, created]);
+      if (isNew && created) remember(created);
       setOverlay(transition(flow, { type: "add-vendor", vendorId: id }));
     },
   };
@@ -80,9 +94,10 @@ export function InvoiceApproval({
     <InvoiceApprovalView
       actions={actions}
       ledger={shownLedger}
-      registry={shownVendors}
+      registry={registry}
       route={location.route}
       state={flow}
+      vendorId={location.vendorId}
       onNavigate={onNavigate}
     />
   );
