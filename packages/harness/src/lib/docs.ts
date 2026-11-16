@@ -388,8 +388,8 @@ export function renderReadmeTable(model: Model): string {
   return lines.join("\n");
 }
 
-/** CLAUDE.md's list: one line per script. */
-export function renderClaudeList(model: Model): string {
+/** AGENTS.md's list: one line per script. */
+export function renderScriptList(model: Model): string {
   return model.scripts
     .map((script) => `- [${code(script.name)}](${REFERENCE}#${anchor(script.name)}), ${kind(script).toLowerCase()}${script.config ? ", needs `--config`" : ""}: ${script.meta.summary}`)
     .join("\n");
@@ -436,7 +436,7 @@ export function renderBlockers(model: Model): string {
 export function renderBlocks(model: Model): Record<string, Record<string, string>> {
   return {
     "packages/harness/README.md": { scripts: renderReadmeTable(model) },
-    "CLAUDE.md": { scripts: renderClaudeList(model) },
+    "AGENTS.md": { scripts: renderScriptList(model) },
     ".claude/skills/verify/SKILL.md": { "no-chrome": renderNoChrome(model), blockers: renderBlockers(model) },
   };
 }

@@ -14,7 +14,7 @@ The checks are a harness that any product in the repo can use. Each product name
 | `products/nook/` | Nook, a room booking app, the second product |
 | [`proposals/`](proposals/README.md) | How an inventory grows: one file per requested or decided change |
 
-[`AGENTS.md`](AGENTS.md) is the loop every agent follows.
+[`AGENTS.md`](AGENTS.md) is the loop every agent follows. Shared rules that apply across repos are read from [tounsoo/home](https://github.com/tounsoo/home), not copied here.
 
 ## Install
 
