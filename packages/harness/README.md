@@ -48,6 +48,7 @@ The harness's own scripts, written by `npm run docs:gen`:
 | [`npm run check:retirement`](docs/checks.md#checkretirement) | Repository | A rule most products opt out of is flagged for retirement, and a rule leaves `check:rules`, or a product opts out, only by adopting a proposal. |
 | [`npm run check:loop`](docs/checks.md#checkloop) | Repository | The design loop graph in `packages/harness/design-loop.ts` is one an agent can follow, and the diagram in `how-it-works.md` is the one it draws. |
 | [`npm run check:docs`](docs/checks.md#checkdocs) | Repository | The check reference and the docs that copy it are the ones the code writes: `npm run docs:gen` rewrites them. |
+| [`npm run check:self`](docs/checks.md#checkself) | Repository | The rule table, weeds log and suppressions match the self-correcting standard, and the trust measures are printed. |
 | [`npm run check:fixtures`](docs/checks.md#checkfixtures) | Repository | The harness's own tests: every illegal fixture case fails with its expected message, and every legal case passes with its. |
 | [`npm run check:product`](docs/checks.md#checkproduct) | Product | Runs `check:opt-outs`, then every rule check in `check:rules`, on one product, skipping a rule the product opts out of. |
 | [`npm run check:trace`](docs/checks.md#checktrace) | Repository | A change that touches a product carries a loop trace, and every trace it adds or edits is a walk the design loop graph allowed when each step was recorded. |

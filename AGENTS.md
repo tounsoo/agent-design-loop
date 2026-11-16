@@ -25,7 +25,7 @@ npm run check:fixtures && npm run check
 ```
 
 - `check:fixtures` runs the harness's own tests: every illegal case under `packages/harness/fixtures/` must fail with its expected message and every legal case pass with its. `npm run check:fixtures -- illegal/two-primaries` runs one case.
-- `check` runs typecheck, ESLint and the Vitest suite on the whole repository, then `check:products`, which runs `check:product` on every product's config, `check:opt-outs` and every rule check in `check:rules`, then the repository checks. A product is any `harness.config.ts` git knows of outside `packages/harness/`, so nothing lists products by hand. [The check reference](packages/harness/docs/checks.md) lists the exact order.
+- `check` runs typecheck, ESLint and the Vitest suite on the whole repository, then `check:products`, which runs `check:product` on every product's config, `check:opt-outs` and every rule check in `check:rules`, then the repository checks, ending with `check:self`. A product is any `harness.config.ts` git knows of outside `packages/harness/`, so nothing lists products by hand. [The check reference](packages/harness/docs/checks.md) lists the exact order.
 - `check:trace` is not in `check`, because the gate runs in the middle of the design loop's walk. CI runs it after the gate, and an agent runs it before pushing.
 
 Prove a change with [`.claude/skills/verify/SKILL.md`](.claude/skills/verify/SKILL.md). It runs the build gate, then drives the surface the change touches, and ends in PASS, FAIL or BLOCKED. Run it on the commit that ends a review round, before a pull request opens and before each push of new work.
@@ -50,6 +50,7 @@ Every harness script, in one line each. [The check reference](packages/harness/d
 - [`check:retirement`](packages/harness/docs/checks.md#checkretirement), repository: A rule most products opt out of is flagged for retirement, and a rule leaves `check:rules`, or a product opts out, only by adopting a proposal.
 - [`check:loop`](packages/harness/docs/checks.md#checkloop), repository: The design loop graph in `packages/harness/design-loop.ts` is one an agent can follow, and the diagram in `how-it-works.md` is the one it draws.
 - [`check:docs`](packages/harness/docs/checks.md#checkdocs), repository: The check reference and the docs that copy it are the ones the code writes: `npm run docs:gen` rewrites them.
+- [`check:self`](packages/harness/docs/checks.md#checkself), repository: The rule table, weeds log and suppressions match the self-correcting standard, and the trust measures are printed.
 - [`check:fixtures`](packages/harness/docs/checks.md#checkfixtures), repository: The harness's own tests: every illegal fixture case fails with its expected message, and every legal case passes with its.
 - [`check:product`](packages/harness/docs/checks.md#checkproduct), product, needs `--config`: Runs `check:opt-outs`, then every rule check in `check:rules`, on one product, skipping a rule the product opts out of.
 - [`check:trace`](packages/harness/docs/checks.md#checktrace), repository: A change that touches a product carries a loop trace, and every trace it adds or edits is a walk the design loop graph allowed when each step was recorded.
@@ -73,14 +74,46 @@ A page type is one of three kinds in the config's `shells`: `primarySlots` (one 
 These fill the **Repo lines** in home's `playbooks/review-before-pr.md` and `playbooks/waiting-on-ci.md`.
 
 - Base branch: `main`.
-- Checks, in this order: `npm run setup:chrome` when Chrome is missing, then `npm run check:fixtures`, then `npm run check` (`typecheck`, `lint`, `test`, `check:products`, `check:proposals`, `check:retirement`, `check:loop`, `check:docs`). `check:products` runs `check:product` on every product config, which runs `check:opt-outs` and then every rule in `check:rules`. Before pushing, also `npm run check:trace`. On the commit that ends the review round, run `.claude/skills/verify/SKILL.md` and put its verdict in the pull request body. A change to what a product renders also walks the design loop's `screenshots` and `critique` nodes.
+- Checks, in this order: `npm run setup:chrome` when Chrome is missing, then `npm run check:fixtures`, then `npm run check` (`typecheck`, `lint`, `test`, `check:products`, `check:proposals`, `check:retirement`, `check:loop`, `check:docs`, `check:self`). `check:products` runs `check:product` on every product config, which runs `check:opt-outs` and then every rule in `check:rules`. Before pushing, also `npm run check:trace`. On the commit that ends the review round, run `.claude/skills/verify/SKILL.md` and put its verdict in the pull request body. A change to what a product renders also walks the design loop's `screenshots` and `critique` nodes.
 - Dependents to pass as context: importers of a changed catalog export; pages that use a changed layout, content layout, page type or shell; both products and the fixture product when `packages/adapter-todae/` or a harness check changes; the fixture cases that name a changed check; a flow's views, `scenarios.ts` and `accessible-names.ts` when its states change; the generated check reference, the harness README, this file's script list and the verify skill when a check's meta changes.
 - Push builds a preview: no. `npm run preview` serves a local build. Nothing in CI deploys.
 - Drafts: allowed. Open one after a clean round, and mark it ready once that round is clean. `.github/workflows/ci.yml` runs on `pull_request` with no `types` list, so a draft runs the same jobs as a ready pull request. A failure on a draft is a real failure. Marking ready does not start a new run: the default activity types are opened, synchronize and reopened. A conclusion from while the pull request was a draft counts when it is still the latest run of that job on the head.
-- Required check names: `check`, `products`, and `product (<config>)` for each config `npm run check:products -- --json` prints. Today those are `product (products/meridian/harness.config.ts)` and `product (products/nook/harness.config.ts)`. A new product adds its own `product` job by existing. No informational check, and no preview commit status. [`packages/harness/docs/how-it-works.md`](packages/harness/docs/how-it-works.md) says `main` has no branch protection, so `CODEOWNERS` review is requested, not required.
+- Required check names: `check`, `products`, `rule-checker`, and `product (<config>)` for each config `npm run check:products -- --json` prints. Today those are `product (products/meridian/harness.config.ts)` and `product (products/nook/harness.config.ts)`. A new product adds its own `product` job by existing. No informational check, and no preview commit status. [`packages/harness/docs/how-it-works.md`](packages/harness/docs/how-it-works.md) says `main` has no branch protection, so `CODEOWNERS` review is requested, not required.
 - After merging `origin/main`: run `npm run docs:gen` and commit the files it rewrites when they changed (`packages/harness/docs/checks.md`, the script table in `packages/harness/README.md`, the script list in this file, and the generated blocks in `.claude/skills/verify/SKILL.md`). After a conflict-free merge, run the checks in the first step of the review round, push, and mark the pull request ready when it is still a draft.
 - A pull request another session already watches stays untouched: no push, comment, ready or resolve. Tell Ben. A request only to check on a pull request reads its state with the GitHub MCP tools, using home's status rules plus the lines above, and leaves the pull request unchanged.
 - Pull request body: [`.github/pull_request_template.md`](.github/pull_request_template.md). It keeps the three sections from home's `standards/pull-requests.md` (Verification, Unverified checks, Remaining risks) and adds Why, What changed, Screenshots, Critique and Docs vs code. Verification starts with the verify skill's verdict and the tested commit, the full SHA the checks ran on. Add Learnings and Agent-setup entries when there are any, as home's standard says.
+
+The rule table lists the checks the repository runs. The columns, the weeds log and the suppression rules are home's `standards/self-correcting.md`. `npm run check:self` checks this table, `.agents/weeds.tsv` and `.agents/suppression-baseline.json` against that standard.
+
+## Rule table
+
+Tier: T0
+
+| ID | Rule | Enforcer | Evidence | Status |
+| --- | --- | --- | --- | --- |
+| check-fixtures | The harness's own tests: every illegal fixture case fails with its expected message, and every legal case passes with its. | `npm run check:fixtures` | #1 | enforced |
+| typecheck | The repository typechecks with no emit. | `npm run typecheck` | #1 | enforced |
+| lint | ESLint passes on the repository. | `npm run lint` | #1 | enforced |
+| test | The Vitest suite passes. | `npm run test` | #1 | enforced |
+| lint-product-ui | Product UI is built only from the product's catalog: no raw controls, no inline styles, no other component kit, nothing from another product. | `npm run lint:product-ui` | #1 | enforced |
+| lint-slots | Each page type with a primary slot holds its page's one primary action there. | `npm run lint:slots` | #1 | enforced |
+| step-budget | Every route that finishes a task, not only the shortest, fits that task's `max_steps`, in the task graph and in the shipped reducer. | `npm run check:step-budget` | #1 | enforced |
+| disclosure | Each page holds at most `MAX_DISCLOSURES_PER_PAGE` disclosures, nested at most `MAX_DISCLOSURE_DEPTH` deep. | `npm run check:disclosure` | #1 | enforced |
+| priority | Each page holds at most one primary action, and it is the product's rank-1 action; the rank-2 action is secondary; `disclosed_sections` stay behind disclosures. | `npm run check:priority` | #1 | enforced |
+| one-thing | One job per page: no page inside a page, no primary on a collection or content page, and at most `MAX_VISIBLE_QUESTIONS` questions outside a disclosure. | `npm run check:one-thing` | #1 | enforced |
+| inventories | Inventory membership changes only by adopting a proposal, and each inventory's folders, barrels and uses match its list. | `npm run check:inventories` | #6 | enforced |
+| state-coverage | Every modeled flow state has a view and a scenario. | `npm run check:state-coverage` | #1 | enforced |
+| target-size | Every control on every scenario, at desktop and phone width, is at least 24 CSS px, or meets the WCAG 2.5.8 spacing exception, measured in headless Chrome. | `npm run check:target-size` | #1 | enforced |
+| accessible-names | On every scenario, what a screen reader hears matches the flow's `accessible-names.ts`, and every press either announces what changed or moves focus. | `npm run check:accessible-names` | #38 | enforced |
+| rendered-page | Every scenario, as Chrome paints it at desktop and phone width: one h1 per page and no skipped heading level, the rank-1 action in the first view, disclosures closed unless the state opens them, AA contrast in light and dark, and no sideways scroll on a phone. | `npm run check:rendered-page` | #60 | enforced |
+| opt-outs | Every opt-out in a product's config stands on an adopted proposal that names the rule and the product. | `npm run check:opt-outs` | #20 | enforced |
+| products | Runs `check:product` on every product the registry finds, one after another, so a new product needs no script or CI job of its own. | `npm run check:products` | #55 | enforced |
+| product | Runs `check:opt-outs`, then every rule check in `check:rules`, on one product, skipping a rule the product opts out of. | `npm run check:product` | #18 | enforced |
+| proposals | Every proposal has its fields and sections, a new one has a dated name, and each status moves one step at a time from the base. | `npm run check:proposals` | #25 | enforced |
+| retirement | A rule most products opt out of is flagged for retirement, and a rule leaves `check:rules`, or a product opts out, only by adopting a proposal. | `npm run check:retirement` | #20 | enforced |
+| loop | The design loop graph in `packages/harness/design-loop.ts` is one an agent can follow, and the diagram in `how-it-works.md` is the one it draws. | `npm run check:loop` | #22 | enforced |
+| docs | The check reference and the docs that copy it are the ones the code writes: `npm run docs:gen` rewrites them. | `npm run check:docs` | #54 | enforced |
+| trace | A change that touches a product carries a loop trace, and every trace it adds or edits is a walk the design loop graph allowed when each step was recorded. | `npm run check:trace` | #23 | enforced |
 
 ## Before changing a product's UI
 
@@ -121,7 +154,7 @@ Every harness rule applies to every product. If one should not apply to a produc
 
 ## Conventions
 
-- Git follows home's `standards/git.md`. This repo's base branch is `main`. Change `AGENTS.md`, `CLAUDE.md` or anything in `.claude/` only with Ben's yes, as that standard says. There is no `.cursor/` project config and no `.agents/` tree. Leave a Cursor config alone if one is added. The model sheet is `.claude/pstack-models.md`. A change to a role's model or effort goes there, with Ben's yes. Briefs use `.claude/task-prompt.md`.
+- Git follows home's `standards/git.md`. This repo's base branch is `main`. Change `AGENTS.md`, `CLAUDE.md` or anything in `.claude/` only with Ben's yes, as that standard says. Appending a row to `.agents/weeds.tsv` needs no yes. There is no `.cursor/` project config. Leave a Cursor config alone if one is added. The weeds log is `.agents/weeds.tsv` and the suppression baseline is `.agents/suppression-baseline.json`. Their format is home's `standards/self-correcting.md`. The model sheet is `.claude/pstack-models.md`. A change to a role's model or effort goes there, with Ben's yes. Briefs use `.claude/task-prompt.md`.
 - A pull request that adds or changes a check also updates the generated script list in this file and the verify skill, `.claude/skills/verify/SKILL.md`, in the same pull request. Change the check's `.meta.ts` and run `npm run docs:gen`. `check:docs` fails a pull request that leaves them stale. Edit their hand-written parts by hand. The standing yes of 2026-11-11 covers that generated list and the verify skill.
 - A rule is a pattern that holds on every page, such as section headings below the title or the main action in the first view. Never give a rule a number set per page or per page type, such as a section count. A product-wide cap that holds for every page alike, such as `MAX_DISCLOSURES_PER_PAGE`, is still a pattern. The harness README's "A pattern, not a count" states the same rule.
 - Make an illegal state impossible by construction where you can: a type, a shell prop, a slot or a narrower catalog export, so the wrong page can't be written. Add a check only for what construction can't hold. [The control ladder](packages/harness/docs/how-it-works.md#the-control-ladder) orders the options from strongest down.
