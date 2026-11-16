@@ -10,7 +10,7 @@ Every script the harness runs: what it is for, what it reads and what it fails. 
 npm run check:fixtures && npm run check
 ```
 
-`npm run check` runs `typecheck`, `lint`, `test`, `check:products`, `check:proposals`, `check:retirement`, `check:loop` and `check:docs`, in that order, and stops at the first failure. `check:products` runs `check:product` on every product's config, which runs `check:opt-outs`, `lint:product-ui`, `lint:slots`, `check:step-budget`, `check:disclosure`, `check:priority`, `check:one-thing`, `check:inventories`, `check:state-coverage`, `check:target-size`, `check:accessible-names` and `check:rendered-page`, in that order, and skips a rule the config opts out of.
+`npm run check` runs `typecheck`, `lint`, `test`, `check:products`, `check:proposals`, `check:retirement`, `check:loop`, `check:docs` and `check:self`, in that order, and stops at the first failure. `check:products` runs `check:product` on every product's config, which runs `check:opt-outs`, `lint:product-ui`, `lint:slots`, `check:step-budget`, `check:disclosure`, `check:priority`, `check:one-thing`, `check:inventories`, `check:state-coverage`, `check:target-size`, `check:accessible-names` and `check:rendered-page`, in that order, and skips a rule the config opts out of.
 
 **Base.** `check:inventories`, `check:proposals`, `check:retirement`, `check:trace`, `critique` and `loop:step` compare the change with its base. The base is `INVENTORY_BASE` when it is set: CI sets it to the pull request base, or on a push to `main` to `github.event.before`, the tip of `main` before the push. A base missing from the clone fails the check. Unset, empty, `true`, `false` or all zeros, it is the merge base with `origin/main`, or with a local `main`. Without either, the check fails.
 
@@ -35,6 +35,7 @@ npm run check:fixtures && npm run check
 | [`check:retirement`](#checkretirement) | Repository | none | Yes |  |  |
 | [`check:loop`](#checkloop) | Repository | `--write` |  |  |  |
 | [`check:docs`](#checkdocs) | Repository | `--write` |  |  |  |
+| [`check:self`](#checkself) | Repository | none |  |  |  |
 | [`check:fixtures`](#checkfixtures) | Repository | none |  |  |  |
 | [`check:product`](#checkproduct) | Product | `--config <file>` (required) |  | Yes |  |
 | [`check:trace`](#checktrace) | Repository | none | Yes |  |  |
@@ -624,6 +625,25 @@ It fails:
 Each harness script's meta, `packages/harness/src/<file>.meta.ts`, typed `satisfies CheckMeta`, gives the words: a summary, the flags it reads, what it fails, and how it works. Everything else is read from the code: script names and the build gate from `package.json`, rule checks from `check:rules`, `--config` from whether the script loads `lib/config.ts`, the base from whether it calls `resolveBaseRev`, Chrome from whether it loads `puppeteer-core`, and fixture cases from each `case.ts` and its doc comment. For a script that loads `lib/config.ts`, the config loader accepts only the flags its meta lists, so a documented flag is a read one.
 
 So a pull request that adds or changes a check updates its meta and runs `npm run docs:gen`, which keeps `AGENTS.md` and the verify skill current with it.
+
+## `check:self`
+
+The rule table, weeds log and suppressions match the self-correcting standard, and the trust measures are printed.
+
+A repository check: it reads the repository, not one product. Run it as `npm run check:self`, from the repository root, defined in `packages/harness/src/check-self.ts`. It takes no `--config`.
+
+It fails:
+
+- A rule table with no tier, the wrong columns, a row with no evidence, an enforcer that does not resolve, or a status that disagrees with the enforcer.
+- A weeds log whose header or a row is not the date, class, ref, caught_by and note the standard defines, or a row dated after today in Pacific time.
+- A suppression count above `.agents/suppression-baseline.json`, or an annotated suppression with no reason, an expiry already past, or an expiry more than 90 days out.
+- A tier of T1 while an enforced class has a weeds row dated in the last 30 days.
+
+The columns, the log and the suppression form are home's standards/self-correcting.md. This script checks that shape. It does not copy the standard into the repository.
+
+It prints the machine-caught share of weeds-log classes that have an enforced row, the repeats in the last 30 days, the suppression counts against the baseline, the text rows, and the classes seen twice with no enforced rule.
+
+It takes no --config. The Vitest suite in packages/harness/src/lib/self-correcting.test.ts proves it on bad inputs, because it reads this repository rather than a product config.
 
 ## `check:fixtures`
 
