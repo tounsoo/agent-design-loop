@@ -1,27 +1,19 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
-/** Home's `standards/self-correcting.md` names these paths. This module checks that shape. */
-
 export const AGENTS_PATH = "AGENTS.md";
 export const WEEDS_PATH = ".agents/weeds.tsv";
 export const BASELINE_PATH = ".agents/suppression-baseline.json";
 
 const WEEDS_HEADER = "date\tclass\tref\tcaught_by\tnote";
 const CAUGHT_BY = new Set(["review", "ben", "prod", "revert"]);
-const STATUSES = new Set(["enforced", "text", "retired"]);
+const STATUSES = new Set(["enforced", "seeded", "text", "retired"]);
+const PACIFIC = "America/Los_Angeles";
 const COLUMNS = ["ID", "Rule", "Enforcer", "Evidence", "Status"];
 const SOURCE_EXT = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts"]);
 const SKIP_DIRS = new Set(["node_modules", "dist", "coverage", ".cache", ".vite", ".git", ".claude", ".cursor"]);
 
-const MARKERS = [
-  ["eslint-", "disable"],
-  ["@ts-", "ignore"],
-  ["@ts-", "expect-error"],
-  ["@ts-", "nocheck"],
-  ["biome-", "ignore"],
-  ["oxlint-", "disable"],
-].map((parts) => parts.join(""));
+const MARKERS = ["eslint-disable", "@ts-ignore", "@ts-expect-error", "@ts-nocheck", "biome-ignore", "oxlint-disable"];
 
 export type SelfReport = {
   problems: string[];
@@ -44,7 +36,7 @@ export function checkRepository(root: string, now = new Date()): SelfReport {
   const problems: string[] = [];
   const today = isoDate(now);
   const rules = readRules(root, problems);
-  const weeds = readWeeds(root, problems);
+  const weeds = readWeeds(root, problems, today);
   const suppressions = readSuppressions(root, problems, today);
 
   const tier = rules?.tier ?? "T0";
@@ -60,12 +52,14 @@ export function checkRepository(root: string, now = new Date()): SelfReport {
     }
   }
 
-  const live = rows.filter((row) => row.status !== "retired");
-  const classes = new Set<string>([...live.map((row) => row.id), ...weeds.map((weed) => weed.className)]);
-  const enforcedCount = rows.filter((row) => row.status === "enforced").length;
+  const weedClasses = new Set(weeds.map((weed) => weed.className));
   const byClass = new Map<string, number>();
   for (const weed of weeds) byClass.set(weed.className, (byClass.get(weed.className) ?? 0) + 1);
   const enforcedIds = new Set(rows.filter((row) => row.status === "enforced").map((row) => row.id));
+  let enforcedInLog = 0;
+  for (const className of weedClasses) {
+    if (enforcedIds.has(className)) enforcedInLog += 1;
+  }
   const twiceWithoutEnforcement = [...byClass.entries()]
     .filter(([className, count]) => count >= 2 && !enforcedIds.has(className))
     .map(([className]) => className)
@@ -82,9 +76,9 @@ export function checkRepository(root: string, now = new Date()): SelfReport {
   return {
     problems,
     machineCaught: {
-      percent: classes.size === 0 ? null : Math.round((enforcedCount / classes.size) * 100),
-      enforced: enforcedCount,
-      classes: classes.size,
+      percent: weedClasses.size === 0 ? null : Math.round((enforcedInLog / weedClasses.size) * 100),
+      enforced: enforcedInLog,
+      classes: weedClasses.size,
     },
     repeats,
     suppressions,
@@ -161,7 +155,7 @@ function readRules(root: string, problems: string[]): { tier: "T0" | "T1"; rows:
     else if (seen.has(id)) problems.push(`${where} id "${id}" is duplicated.`);
     else seen.add(id);
     if (rule === "") problems.push(`${where} rule is empty.`);
-    if (!STATUSES.has(status)) problems.push(`${where} status "${status}" is not enforced, text or retired.`);
+    if (!STATUSES.has(status)) problems.push(`${where} status "${status}" is not enforced, seeded, text or retired.`);
     if (!validRef(evidence)) problems.push(`${where} evidence "${evidence}" is not a pull request, commit or tounsoo link.`);
     const parsed = parseEnforcer(enforcer);
     if ("problem" in parsed) {
@@ -169,21 +163,20 @@ function readRules(root: string, problems: string[]): { tier: "T0" | "T1"; rows:
       continue;
     }
     if (status === "text" && !parsed.text) problems.push(`${where} status is text but the enforcer is not text.`);
-    if (status === "enforced" && parsed.text) problems.push(`${where} status is enforced but the enforcer is text.`);
-    if ((status === "enforced" || status === "retired") && !parsed.text) {
+    if ((status === "enforced" || status === "seeded") && parsed.text) {
+      problems.push(`${where} status is ${status} but the enforcer is text.`);
+    }
+    if ((status === "enforced" || status === "seeded" || status === "retired") && !parsed.text) {
       for (const token of parsed.machine) {
         if (!enforcerResolves(root, token, scripts)) problems.push(`${where} enforcer \`${token}\` does not resolve.`);
       }
-    }
-    if (status === "retired" && parsed.text && parsed.machine.length > 0) {
-      problems.push(`${where} status and enforcer disagree.`);
     }
     rows.push({ id, enforcer, evidence, status });
   }
   return { tier, rows };
 }
 
-function readWeeds(root: string, problems: string[]): WeedRow[] {
+function readWeeds(root: string, problems: string[], today: string): WeedRow[] {
   const text = readText(root, WEEDS_PATH);
   if (text === null) {
     problems.push(`${WEEDS_PATH} is missing.`);
@@ -206,6 +199,7 @@ function readWeeds(root: string, problems: string[]): WeedRow[] {
     }
     const [date = "", className = "", ref = "", caughtBy = "", note = ""] = fields;
     if (!isRealDate(date)) problems.push(`${where} date "${date}" is not YYYY-MM-DD.`);
+    else if (date > today) problems.push(`${where} date "${date}" is after today.`);
     if (!isKebab(className)) problems.push(`${where} class "${className}" is not kebab-case.`);
     if (!validRef(ref)) problems.push(`${where} ref "${ref}" is not a pull request, commit or tounsoo link.`);
     if (!CAUGHT_BY.has(caughtBy)) problems.push(`${where} caught_by "${caughtBy}" is not review, ben, prod or revert.`);
@@ -412,7 +406,14 @@ function isRealDate(value: string): boolean {
 }
 
 function isoDate(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: PACIFIC,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const value = (type: Intl.DateTimeFormatPartTypes): string => parts.find((part) => part.type === type)?.value ?? "";
+  return `${value("year")}-${value("month")}-${value("day")}`;
 }
 
 function addDays(iso: string, days: number): string {

@@ -91,29 +91,30 @@ Tier: T0
 
 | ID | Rule | Enforcer | Evidence | Status |
 | --- | --- | --- | --- | --- |
-| check-fixtures | The harness's own tests: every illegal fixture case fails with its expected message, and every legal case passes with its. | `npm run check:fixtures` | #1 | enforced |
-| typecheck | The repository typechecks with no emit. | `npm run typecheck` | #1 | enforced |
-| lint | ESLint passes on the repository. | `npm run lint` | #1 | enforced |
-| test | The Vitest suite passes. | `npm run test` | #1 | enforced |
-| lint-product-ui | Product UI is built only from the product's catalog: no raw controls, no inline styles, no other component kit, nothing from another product. | `npm run lint:product-ui` | #1 | enforced |
-| lint-slots | Each page type with a primary slot holds its page's one primary action there. | `npm run lint:slots` | #1 | enforced |
-| step-budget | Every route that finishes a task, not only the shortest, fits that task's `max_steps`, in the task graph and in the shipped reducer. | `npm run check:step-budget` | #1 | enforced |
-| disclosure | Each page holds at most `MAX_DISCLOSURES_PER_PAGE` disclosures, nested at most `MAX_DISCLOSURE_DEPTH` deep. | `npm run check:disclosure` | #1 | enforced |
-| priority | Each page holds at most one primary action, and it is the product's rank-1 action; the rank-2 action is secondary; `disclosed_sections` stay behind disclosures. | `npm run check:priority` | #1 | enforced |
-| one-thing | One job per page: no page inside a page, no primary on a collection or content page, and at most `MAX_VISIBLE_QUESTIONS` questions outside a disclosure. | `npm run check:one-thing` | #1 | enforced |
-| inventories | Inventory membership changes only by adopting a proposal, and each inventory's folders, barrels and uses match its list. | `npm run check:inventories` | #6 | enforced |
-| state-coverage | Every modeled flow state has a view and a scenario. | `npm run check:state-coverage` | #1 | enforced |
-| target-size | Every control on every scenario, at desktop and phone width, is at least 24 CSS px, or meets the WCAG 2.5.8 spacing exception, measured in headless Chrome. | `npm run check:target-size` | #1 | enforced |
-| accessible-names | On every scenario, what a screen reader hears matches the flow's `accessible-names.ts`, and every press either announces what changed or moves focus. | `npm run check:accessible-names` | #38 | enforced |
-| rendered-page | Every scenario, as Chrome paints it at desktop and phone width: one h1 per page and no skipped heading level, the rank-1 action in the first view, disclosures closed unless the state opens them, AA contrast in light and dark, and no sideways scroll on a phone. | `npm run check:rendered-page` | #60 | enforced |
-| opt-outs | Every opt-out in a product's config stands on an adopted proposal that names the rule and the product. | `npm run check:opt-outs` | #20 | enforced |
-| products | Runs `check:product` on every product the registry finds, one after another, so a new product needs no script or CI job of its own. | `npm run check:products` | #55 | enforced |
-| product | Runs `check:opt-outs`, then every rule check in `check:rules`, on one product, skipping a rule the product opts out of. | `npm run check:product` | #18 | enforced |
-| proposals | Every proposal has its fields and sections, a new one has a dated name, and each status moves one step at a time from the base. | `npm run check:proposals` | #25 | enforced |
-| retirement | A rule most products opt out of is flagged for retirement, and a rule leaves `check:rules`, or a product opts out, only by adopting a proposal. | `npm run check:retirement` | #20 | enforced |
-| loop | The design loop graph in `packages/harness/design-loop.ts` is one an agent can follow, and the diagram in `how-it-works.md` is the one it draws. | `npm run check:loop` | #22 | enforced |
-| docs | The check reference and the docs that copy it are the ones the code writes: `npm run docs:gen` rewrites them. | `npm run check:docs` | #54 | enforced |
-| trace | A change that touches a product carries a loop trace, and every trace it adds or edits is a walk the design loop graph allowed when each step was recorded. | `npm run check:trace` | #23 | enforced |
+| check-fixtures | [check:fixtures](packages/harness/docs/checks.md#checkfixtures) | `npm run check:fixtures` | #1 | seeded |
+| typecheck | Typecheck | `npm run typecheck` | #1 | seeded |
+| lint | ESLint | `npm run lint` | #1 | seeded |
+| test | Vitest | `npm run test` | #1 | seeded |
+| lint-product-ui | [lint:product-ui](packages/harness/docs/checks.md#lintproduct-ui) | `npm run lint:product-ui` | #1 | seeded |
+| lint-slots | [lint:slots](packages/harness/docs/checks.md#lintslots) | `npm run lint:slots` | #1 | seeded |
+| step-budget | [check:step-budget](packages/harness/docs/checks.md#checkstep-budget) | `npm run check:step-budget` | #1 | seeded |
+| disclosure | [check:disclosure](packages/harness/docs/checks.md#checkdisclosure) | `npm run check:disclosure` | #1 | seeded |
+| priority | [check:priority](packages/harness/docs/checks.md#checkpriority) | `npm run check:priority` | #1 | seeded |
+| one-thing | [check:one-thing](packages/harness/docs/checks.md#checkone-thing) | `npm run check:one-thing` | #1 | seeded |
+| inventories | [check:inventories](packages/harness/docs/checks.md#checkinventories) | `npm run check:inventories` | #6 | seeded |
+| state-coverage | [check:state-coverage](packages/harness/docs/checks.md#checkstate-coverage) | `npm run check:state-coverage` | #1 | seeded |
+| target-size | [check:target-size](packages/harness/docs/checks.md#checktarget-size) | `npm run check:target-size` | #1 | seeded |
+| accessible-names | [check:accessible-names](packages/harness/docs/checks.md#checkaccessible-names) | `npm run check:accessible-names` | #38 | seeded |
+| rendered-page | [check:rendered-page](packages/harness/docs/checks.md#checkrendered-page) | `npm run check:rendered-page` | #60 | seeded |
+| opt-outs | [check:opt-outs](packages/harness/docs/checks.md#checkopt-outs) | `npm run check:opt-outs` | #20 | seeded |
+| products | [check:products](packages/harness/docs/checks.md#checkproducts) | `npm run check:products` | #55 | seeded |
+| product | [check:product](packages/harness/docs/checks.md#checkproduct) | `npm run check:product` | #18 | seeded |
+| proposals | [check:proposals](packages/harness/docs/checks.md#checkproposals) | `npm run check:proposals` | #25 | seeded |
+| retirement | [check:retirement](packages/harness/docs/checks.md#checkretirement) | `npm run check:retirement` | #20 | seeded |
+| loop | [check:loop](packages/harness/docs/checks.md#checkloop) | `npm run check:loop` | #22 | seeded |
+| docs | [check:docs](packages/harness/docs/checks.md#checkdocs) | `npm run check:docs` | #54 | seeded |
+| trace | [check:trace](packages/harness/docs/checks.md#checktrace) | `npm run check:trace` | #23 | seeded |
+| self | [check:self](packages/harness/docs/checks.md#checkself) | `npm run check:self` | #72 | seeded |
 
 ## Before changing a product's UI
 

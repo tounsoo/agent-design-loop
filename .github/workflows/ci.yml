@@ -30,7 +30,6 @@ jobs:
         env:
           INVENTORY_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
 
-  # The self-correcting rule table, weeds log and suppression baseline. Home's standard defines the format. This job is required.
   rule-checker:
     runs-on: ubuntu-latest
     steps:

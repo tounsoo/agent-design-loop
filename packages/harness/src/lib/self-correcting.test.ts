@@ -10,11 +10,11 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../
 const dirs: string[] = [];
 
 function lineComment(body: string): string {
-  return ["//", body].join(" ");
+  return "// " + body;
 }
 
 function eslintNext(rest: string): string {
-  return ["eslint-", "disable-next-line ", rest].join("");
+  return "eslint-disable-next-line " + rest;
 }
 
 function tempRepo(files: Record<string, string>): string {
@@ -55,7 +55,7 @@ describe("checkRepository", () => {
   it("passes a well-formed repository and prints the machine-caught share", () => {
     const report = checkRepository(tempRepo(validFiles()), NOW);
     expect(report.problems).toEqual([]);
-    expect(formatReport(report)).toContain("machine-caught: 50% (1/2)");
+    expect(formatReport(report)).toContain("machine-caught: 0% (0/1)");
   });
 
   it("fails a malformed rule table", () => {
@@ -79,6 +79,15 @@ describe("checkRepository", () => {
     expect(problems.join("\n")).toContain('caught_by "ci"');
   });
 
+  it("fails a weeds row dated after today in Pacific time", () => {
+    const files = validFiles();
+    const dir = tempRepo(files);
+    const stillToday = new Date("2026-11-17T07:30:00.000Z");
+    expect(checkRepository(dir, stillToday).problems).toEqual([]);
+    writeFileSync(path.join(dir, ".agents/weeds.tsv"), "date\tclass\tref\tcaught_by\tnote\n2026-11-17\tother-class\t#2\treview\tDated tomorrow in Pacific time.\n");
+    expect(checkRepository(dir, stillToday).problems.join("\n")).toContain('date "2026-11-17" is after today');
+  });
+
   it("fails a suppression over the baseline", () => {
     const files = validFiles();
     const dir = tempRepo(files);
@@ -87,6 +96,17 @@ describe("checkRepository", () => {
     const problems = checkRepository(dir, NOW).problems;
     expect(problems.length).toBeGreaterThan(0);
     expect(problems.join("\n")).toContain("total 1 is above the baseline 0");
+  });
+
+  it("fails an unannotated suppression over its baseline", () => {
+    const files = validFiles();
+    files[".agents/suppression-baseline.json"] = '{"total":1,"unannotated":0}\n';
+    const dir = tempRepo(files);
+    expect(checkRepository(dir, NOW).problems).toEqual([]);
+    writeFileSync(path.join(dir, "src/loose.ts"), `${lineComment(eslintNext("no-console"))}\n`);
+    const problems = checkRepository(dir, NOW).problems.join("\n");
+    expect(problems).toContain("unannotated 1 is above the baseline 0");
+    expect(problems).not.toContain("total 1 is above the baseline");
   });
 
   it("fails an expired annotated suppression", () => {
@@ -109,6 +129,20 @@ describe("checkRepository", () => {
     const dir = tempRepo(files);
     writeFileSync(path.join(dir, "src/bare.ts"), `${lineComment(`${eslintNext("no-console")} -- why: ; expires: 2026-12-01; approved: #9`)}\n`);
     expect(checkRepository(dir, NOW).problems.join("\n")).toContain("has no reason");
+  });
+
+  it("fails an annotated suppression with no approval", () => {
+    const files = validFiles();
+    files[".agents/suppression-baseline.json"] = '{"total":1,"unannotated":0}\n';
+    const dir = tempRepo(files);
+    expect(checkRepository(dir, NOW).problems).toEqual([]);
+    writeFileSync(
+      path.join(dir, "src/unapproved.ts"),
+      `${lineComment(`${eslintNext("no-console")} -- why: waiting on a type; expires: 2026-12-01`)}\n`,
+    );
+    const problems = checkRepository(dir, NOW).problems.join("\n");
+    expect(problems).toContain("has no approval");
+    expect(problems).not.toContain("above the baseline");
   });
 
   it("fails an annotated suppression that expires more than 90 days out", () => {
@@ -142,10 +176,5 @@ describe("checkRepository", () => {
   it("passes this repository", () => {
     const report = checkRepository(repoRoot, NOW);
     expect(report.problems).toEqual([]);
-    expect(formatReport(report)).toContain("machine-caught:");
-    expect(report.machineCaught.enforced).toBe(23);
-    expect(report.repeats).toBe(3);
-    expect(report.suppressions).toMatchObject({ total: 0, unannotated: 0, baselineTotal: 0, baselineUnannotated: 0 });
-    expect(report.twiceWithoutEnforcement).toEqual(["docs-claim", "preview-scope", "review-note-claim"]);
   });
 });

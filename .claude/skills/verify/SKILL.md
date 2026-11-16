@@ -79,7 +79,7 @@ When a change touches a reducer, a task graph or a task's `max_steps`, quote eac
 
 When a change adds or edits a proposal, `check:proposals` must pass. [Its reference entry](../../../packages/harness/docs/checks.md#checkproposals) lists what it fails, such as a new proposal not named for the UTC day it was written and a lowercase slug, `2026-11-12-side-panel.md`. Its rules are proven by the Vitest suite in `packages/harness/src/lib/proposals.test.ts`, not by fixture cases, because the check reads the repository's own proposal folders and takes no `--config`.
 
-`check:self` is proven the same way. The Vitest suite in `packages/harness/src/lib/self-correcting.test.ts` runs it on a malformed rule table, a bad weeds row, a suppression over the baseline, an expired suppression and a repeat at T1. It reads this repository's rule table, weeds log and suppression baseline, and it takes no `--config`, so a fixture product cannot show those failures.
+`check:self` is proven the same way. The Vitest suite in `packages/harness/src/lib/self-correcting.test.ts` runs it on a malformed rule table, a bad weeds row, a weeds row dated after today in Pacific time, a suppression over the baseline, an unannotated suppression over its baseline, an expired suppression, an annotated suppression with no reason, an expiry more than 90 days out, a missing approval, and a repeat at T1. It reads this repository's rule table, weeds log and suppression baseline, and it takes no `--config`, so a fixture product cannot show those failures.
 
 ### 3. Browser drive (a change to anything a product renders, its styles, its build config or the Todae version)
 
