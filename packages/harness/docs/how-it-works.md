@@ -4,7 +4,7 @@ This repository is a test of one idea: an agent designs better UI when the const
 
 The harness is the checks in `packages/harness/`, and a product plugs into it through its own `harness.config.ts`. The worked example on this page is **Meridian**, an accounts-payable workspace under `products/meridian/`. Its task is `approve-vendor-invoice`: review a vendor invoice and approve it. The layers on a Meridian screen, its flow states, and the inputs its rules read are on [How Meridian works](../../../products/meridian/docs/how-it-works.md).
 
-This page is for a designer or engineer who has never opened the repo. It describes main, and it is not pinned to a commit, because a pin goes stale on the next merge. Commit ids below are history, not the current main. If this page and the code disagree, the code and the checks win. [AGENTS.md](../../../AGENTS.md) stays a pointer for the agent. It does not restate the inventories, and this page is not a second inventory.
+This page is for a designer or engineer who has never opened the repo. It describes main, and it is not pinned to a commit, because a pin goes stale on the next merge. Commit ids below are history, not the current main. If this page and the code disagree, the code and the checks win. [AGENTS.md](../../../AGENTS.md) holds this repo's agent instructions. It does not restate the inventories, and this page is not a second inventory. Shared playbooks and standards are read from [tounsoo/home](https://github.com/tounsoo/home), not copied here.
 
 ## The control ladder
 
@@ -32,7 +32,7 @@ Here is how those rungs show up in Meridian:
 - **Canonical helper.** The catalog, the page-type shells, and the content layouts are the code the next edit is supposed to copy. There is no second way to build a button.
 - **Runtime check.** `CollectionPage` and `DetailPage` throw while rendering if a required slot is missing or any slot is repeated, and the detail primary slot throws unless it holds one button. CI checks the detail primary slot in `npm run lint:slots`, so a bad primary fails before anyone opens the screen.
 
-The page's pattern, when the same instruction is about to be written a second time: if it can be a lint rule, a metadata flag, a runtime check, or a script, encode it and delete the instruction. If it genuinely requires judgment, make the instruction prominent and add an example of the failure. The corollary on the page: "If the fix is structural, ONLY use the structural fix. The instruction IS the symptom." That is why `AGENTS.md` stays a pointer. Growing the skill text is the weaker move. Growing an inventory, and a check that reads it, is the stronger one.
+The page's pattern, when the same instruction is about to be written a second time: if it can be a lint rule, a metadata flag, a runtime check, or a script, encode it and delete the instruction. If it genuinely requires judgment, make the instruction prominent and add an example of the failure. The corollary on the page: "If the fix is structural, ONLY use the structural fix. The instruction IS the symptom." That is why `AGENTS.md` does not restate the inventories. Growing the skill text is the weaker move. Growing an inventory, and a check that reads it, is the stronger one.
 
 A check beats an instruction for that reason. The instruction needs the agent's cooperation. The check exits non-zero, and CI on every pull request runs it. There is no LLM judge on CI.
 

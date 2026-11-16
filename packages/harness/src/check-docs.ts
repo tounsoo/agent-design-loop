@@ -7,7 +7,7 @@ import { checkFile, scripts } from "./lib/scripts";
 /**
  * Writes the check reference from the code, and fails when a doc holds a
  * stale copy: packages/harness/docs/checks.md whole, and the generated blocks
- * in the harness README, CLAUDE.md and the verify skill. `npm run docs:gen`
+ * in the harness README, AGENTS.md and the verify skill. `npm run docs:gen`
  * runs it with --write, which rewrites them. It takes no --config: the
  * reference is the harness's, for every product.
  */

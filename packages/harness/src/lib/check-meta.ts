@@ -25,7 +25,7 @@ export type CheckFlag = {
 };
 
 export type CheckMeta = {
-  /** One sentence: what the script is for. The README, CLAUDE.md and the reference's table show it. */
+  /** One sentence: what the script is for. The README, AGENTS.md and the reference's table show it. */
   readonly summary: string;
   /** The flags it reads besides `--config`. */
   readonly flags?: readonly CheckFlag[];

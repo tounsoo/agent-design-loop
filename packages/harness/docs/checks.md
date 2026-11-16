@@ -614,7 +614,7 @@ Flags:
 
 It fails:
 
-- `packages/harness/docs/checks.md`, or a generated block in the harness README, `CLAUDE.md` or the verify skill, that is not what the code writes now.
+- `packages/harness/docs/checks.md`, or a generated block in the harness README, `AGENTS.md` or the verify skill, that is not what the code writes now.
 - A doc missing a block's `<!-- docs:gen <block> start -->` or `end` marker, or holding either twice.
 - An npm script that runs a harness file with no `<file>.meta.ts` beside it, or a meta no script runs.
 - A meta that is not a tool and lists nothing it fails, or a rule check whose meta says it is a tool.
@@ -623,7 +623,7 @@ It fails:
 
 Each harness script's meta, `packages/harness/src/<file>.meta.ts`, typed `satisfies CheckMeta`, gives the words: a summary, the flags it reads, what it fails, and how it works. Everything else is read from the code: script names and the build gate from `package.json`, rule checks from `check:rules`, `--config` from whether the script loads `lib/config.ts`, the base from whether it calls `resolveBaseRev`, Chrome from whether it loads `puppeteer-core`, and fixture cases from each `case.ts` and its doc comment. For a script that loads `lib/config.ts`, the config loader accepts only the flags its meta lists, so a documented flag is a read one.
 
-So a pull request that adds or changes a check updates its meta and runs `npm run docs:gen`, which keeps `CLAUDE.md` and the verify skill current with it.
+So a pull request that adds or changes a check updates its meta and runs `npm run docs:gen`, which keeps `AGENTS.md` and the verify skill current with it.
 
 ## `check:fixtures`
 

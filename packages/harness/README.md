@@ -80,7 +80,7 @@ Before you write one, check that it is the right kind of rule.
 2. Beside it, write `packages/harness/src/<name>.meta.ts`, which exports `meta` typed `satisfies CheckMeta` from [`lib/check-meta.ts`](src/lib/check-meta.ts): a one-sentence summary, the flags it reads besides `--config`, what it fails, and how it works. A helper the gate does not run says `tool: true` and lists no failures.
 3. Add its npm script to `package.json`, and to `check:rules` if every product must pass it.
 4. Add fixture cases under `fixtures/`: an illegal case it fails and a legal case it passes.
-5. Run `npm run docs:gen`. It writes the reference, the table above, and the generated parts of `CLAUDE.md` and the verify skill. `npm run check:docs` fails when a script has no meta, a meta has no script, or a generated doc is stale.
+5. Run `npm run docs:gen`. It writes the reference, the table above, and the generated parts of `AGENTS.md` and the verify skill. `npm run check:docs` fails when a script has no meta, a meta has no script, or a generated doc is stale.
 
 ## Plug a product in
 

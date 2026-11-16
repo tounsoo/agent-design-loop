@@ -25,9 +25,21 @@ after the screenshots: the round, the critic's model, the edge it took and each 
 A change that renders nothing: write "None, nothing renders differently."
 -->
 
-## Verify
+## Verification
 
-<!-- The verify skill's verdict (PASS, FAIL or BLOCKED), the tested commit's full SHA, and each step's verdict line. -->
+<!--
+The verify skill's verdict (PASS, FAIL or BLOCKED) on the tested commit, then one line: the full SHA of the head the checks ran on, each command, and its result.
+
+Tested commit: `<full sha>`. Commands: `npm run check:fixtures` (pass), `npm run check` (pass).
+-->
+
+## Unverified checks
+
+<!-- Each check you did not run, including each verify step that ended BLOCKED, and why. Write "None." only when every check ran. -->
+
+## Remaining risks
+
+<!-- What could still break after merge, and who would notice. Write "None known." only after you looked. -->
 
 ## Docs vs code
 

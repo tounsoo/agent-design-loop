@@ -138,7 +138,7 @@ Every row also runs step 4.
 | A flow's `scenarios.ts`, a scenario added or removed | 1 and 3 |
 | `products/<name>/catalog/`, `layouts/`, `content-layouts/`, `page-types/`, `flows/` (the inventories, see `proposals/README.md`) | 1, 2 and 3 |
 | `products/<name>/inputs`, `rules`, `harness.config.ts`, `packages/adapter-todae/`, `package.json` and `package-lock.json` (the Todae version) | 1, 2 and 3 |
-| `packages/harness/` | 1 and 2. A change to a check updates its `.meta.ts` and runs `npm run docs:gen`, which rewrites `packages/harness/docs/checks.md` and the generated parts of `packages/harness/README.md`, `CLAUDE.md` and this skill; update their hand-written parts by hand. |
+| `packages/harness/` | 1 and 2. A change to a check updates its `.meta.ts` and runs `npm run docs:gen`, which rewrites `packages/harness/docs/checks.md` and the generated parts of `packages/harness/README.md`, `AGENTS.md` and this skill; update their hand-written parts by hand. |
 | `*.test.ts(x)`, `vitest.setup.ts`, `tsconfig.json`, `eslint.config.js`, `.npmrc`, `.gitignore` | 1 |
 | `proposals/` | 1, including `check:proposals`. A proposal changes nothing until it is adopted. |
 | `.github/` | 1, then the pull request's CI run is the rest of the proof; link it |
