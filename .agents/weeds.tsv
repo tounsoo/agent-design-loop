@@ -14,3 +14,4 @@ date	class	ref	caught_by	note
 2026-11-13	preview-scope	#69	review	A Vendor added preview card opened Vendors because the page looked that vendor up outside the preview.
 2026-11-13	preview-scope	#69	review	The document title used every known vendor, so a preview-only vendor link was titled while the page showed Vendors.
 2026-11-13	phone-table-wrap	#69	review	Page-wide overflow wrap split invoice numbers and amounts on a phone, which the critique flagged.
+2026-11-16	docs-claim	55f561218bc6e47ee03731292bbda6c66178cb46	ben	AGENTS.md said a Cursor cloud agent cannot clone home, so agents skipped the checkout at /agent/repos/home.
