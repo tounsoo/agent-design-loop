@@ -1,6 +1,6 @@
 # Agent notes
 
-This file is for anyone changing agent-design-loop, including agents. It holds the rules that are specific to this repo. Shared rules live in Ben's home repo, [tounsoo/home](https://github.com/tounsoo/home) (private). Clone it to `~/repos/home` when that directory is missing (`https://github.com/tounsoo/home.git`). A Cursor cloud agent's git credential cannot clone that private repo. When the clone fails, read the same paths through the GitHub MCP tools instead. Do not copy them into this repo. Read these before opening or driving a pull request:
+This file is for anyone changing agent-design-loop, including agents. It holds the rules that are specific to this repo. Shared rules live in Ben's home repo, [tounsoo/home](https://github.com/tounsoo/home) (private). Use `/agent/repos/home` when that directory exists (a Cursor cloud environment). Otherwise use `~/repos/home`, cloning `https://github.com/tounsoo/home.git` there when it is missing (a local Claude or Cursor session). Only when neither works, read the same files through the GitHub MCP tools (owner `tounsoo`, repo `home`, branch `main`). Do not copy them into this repo. Read these before opening or driving a pull request:
 
 - `AGENTS.md` there: the memory split, the learnings ladder, and how Cursor and Claude find pstack. A fact in this file overrides home.
 - `CLAUDE.md` there: the Claude-only lines. This repo's `CLAUDE.md` adapts them for the temp install of pstack-claude that a Duet thread uses.
