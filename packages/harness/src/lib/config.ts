@@ -1,3 +1,5 @@
+// First, so `--json` reports a config this file cannot read.
+import "./report";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";

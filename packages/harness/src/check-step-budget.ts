@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { config, configName, loadInputs } from "./lib/config";
+import { fail } from "./lib/report";
 import { eventEdges, measureRoutes, shortestPath, type RouteMeasure, type TaskEdge } from "./lib/shortest-path";
 
 /**
@@ -192,7 +193,7 @@ for (const task of tasks) {
 }
 
 if (violations.length > 0) {
-  for (const violation of violations) console.error(violation);
+  for (const violation of violations) fail(violation);
   process.exit(1);
 }
 

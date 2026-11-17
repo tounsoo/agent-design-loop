@@ -4,6 +4,7 @@ import { adapter, isPrimaryVariant } from "./lib/adapter";
 import { config, loadInputs } from "./lib/config";
 import { attributeValue, elementText, lineOf, listSourceFiles, parseFile, walk } from "./lib/jsx";
 import { canonicalTag, discoverShells, openingOf, pagesIn, tagsInScope, unreachedElements } from "./lib/page-scope";
+import { fail } from "./lib/report";
 
 /**
  * Priority holds per page, like the other per-page rules (see
@@ -22,7 +23,7 @@ const primaryItem = priority.find((item) => item.rank === 1);
 const secondaryItem = priority.find((item) => item.rank === 2);
 
 if (!primaryItem || primaryItem.level !== "primary" || !secondaryItem || secondaryItem.level !== "secondary") {
-  console.error("priority: expected rank 1 primary and rank 2 secondary.");
+  fail("priority: expected rank 1 primary and rank 2 secondary.");
   process.exit(1);
 }
 
@@ -118,7 +119,7 @@ for (const section of disclosed_sections) {
 }
 
 if (violations.length > 0) {
-  for (const violation of [...new Set(violations)]) console.error(violation);
+  for (const violation of [...new Set(violations)]) fail(violation);
   process.exit(1);
 }
 

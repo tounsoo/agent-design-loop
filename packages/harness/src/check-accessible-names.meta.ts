@@ -1,8 +1,8 @@
-import type { CheckMeta } from "./lib/check-meta";
+import { JSON_FLAG, type CheckMeta } from "./lib/check-meta";
 
 export const meta = {
   summary: "On every scenario, what a screen reader hears matches the flow's `accessible-names.ts`, and every press either announces what changed or moves focus.",
-  flags: [{ name: "--list", what: "Checks the file against the scenarios, without building or Chrome." }],
+  flags: [{ name: "--list", what: "Checks the file against the scenarios, without building or Chrome." }, JSON_FLAG],
   fails: [
     "A control with no accessible name, at 1280 by 900 or at 390 by 844, so a control only a phone shows, such as a menu button in place of a sidebar, is named too.",
     "An announcement the flow's `accessible-names.ts` declares for a scenario that a screen reader does not hear there, compared by role, by name or text, and by every state the entry gives.",

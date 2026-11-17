@@ -1,4 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { afterAll, describe, expect, it } from "vitest";
 import { buildReport, finding, scenarioOf, type CheckReport } from "./report";
 
 describe("finding", () => {
@@ -59,3 +63,39 @@ describe("buildReport", () => {
   });
 });
 
+describe("--json on a check", () => {
+  const scratch = mkdtempSync(path.join(tmpdir(), "report-"));
+  afterAll(() => rmSync(scratch, { recursive: true, force: true }));
+  const product = "packages/harness/fixtures/product/harness.config.ts";
+  const run = (config: string, json: boolean) =>
+    spawnSync(process.execPath, ["--import", "tsx", "packages/harness/src/check-slots.ts", "--config", config, ...(json ? ["--json"] : [])], { encoding: "utf8" });
+
+  it("prints only the report on stdout, and the text it prints without the flag on stderr", () => {
+    const plain = run(product, false);
+    const json = run(product, true);
+    expect(json.status).toBe(plain.status);
+    expect(JSON.parse(json.stdout)).toEqual({ check: "lint:slots", config: product, status: "pass", findings: [] });
+    expect(json.stderr).toBe(plain.stdout + plain.stderr);
+  });
+
+  it("reports the finding of a failing case with its message, file and line, and exits as without the flag", () => {
+    // The fixture case illegal/two-primaries: the fixture product with features that put two primaries in a slot.
+    const config = path.join(scratch, "two-primaries.config.ts");
+    const text = readFileSync(product, "utf8").replace('"packages/harness/fixtures/product/features"', '"packages/harness/fixtures/illegal/two-primaries"');
+    writeFileSync(config, text);
+    const plain = run(config, false);
+    const json = run(config, true);
+    expect(plain.status).toBe(1);
+    expect(json.status).toBe(1);
+    const report = JSON.parse(json.stdout) as CheckReport;
+    expect(report).toMatchObject({ check: "lint:slots", config, status: "fail" });
+    expect(report.findings).toEqual([
+      {
+        message: plain.stderr.trim(),
+        file: "packages/harness/fixtures/illegal/two-primaries/page.tsx",
+        line: 10,
+      },
+    ]);
+    expect(report.findings[0]?.message).toContain("primary slot accepts exactly one primary button, found 2 primary");
+  });
+}, 60_000);

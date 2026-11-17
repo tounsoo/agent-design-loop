@@ -36,3 +36,9 @@ export type CheckMeta = {
   /** True for a helper the build gate does not run, such as `screenshots`. */
   readonly tool?: true;
 };
+
+/** `--json`, which every rule check, `check:opt-outs` and `check:product` read: lib/report.ts prints it. */
+export const JSON_FLAG = {
+  name: "--json",
+  what: "Prints one JSON report on stdout and nothing else: the check, the config, `pass` or `fail`, and each finding with its line and the location the check knows, typed `CheckReport` in `packages/harness`. Everything else it prints goes to stderr, and its exit code is the same as without the flag.",
+} as const satisfies CheckFlag;

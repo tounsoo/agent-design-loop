@@ -1,7 +1,8 @@
-import type { CheckMeta } from "./lib/check-meta";
+import { JSON_FLAG, type CheckMeta } from "./lib/check-meta";
 
 export const meta = {
   summary: "Each page holds at most one primary action, and it is the product's rank-1 action; the rank-2 action is secondary; `disclosed_sections` stay behind disclosures.",
+  flags: [JSON_FLAG],
   fails: [
     "On a page: more than one primary button, a primary whose text is not the rank-1 action in `priority` (Meridian's Approve), or a primary inside a disclosure, including one in a component the page renders.",
     "On a page: the rank-2 action (Meridian's Request changes) shown as primary or more than once.",

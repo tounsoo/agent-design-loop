@@ -13,6 +13,7 @@ import {
   type Rgba,
   type TextRun,
 } from "./lib/rendered-page";
+import { fail as report, scenarioOf } from "./lib/report";
 import { withServedApp } from "./lib/served-app";
 import { viewNamed, type View } from "./lib/views";
 
@@ -44,7 +45,7 @@ const LABEL = "rendered page";
 const problems: string[] = [];
 
 function fail(lines: readonly string[]): never {
-  for (const line of lines) console.error(`${LABEL}: ${line}`);
+  for (const line of lines) report(`${LABEL}: ${line}`, scenarioOf(line, scenarios));
   process.exit(1);
 }
 

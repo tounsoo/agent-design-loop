@@ -1,4 +1,4 @@
-import type { CheckMeta } from "./lib/check-meta";
+import { JSON_FLAG, type CheckMeta } from "./lib/check-meta";
 
 export const meta = {
   summary: "Inventory membership changes only by adopting a proposal, and each inventory's folders, barrels and uses match its list.",
@@ -6,6 +6,7 @@ export const meta = {
     { name: "--base", value: "<file>", what: "Compares with the product that config names in the working tree, instead of the pull request base. The fixtures have no history of their own, so this is how they test membership. The config itself is not compared then." },
     { name: "--proposals", value: "<dir>", what: "Needs `--base`. Reads that folder as the change's proposals." },
     { name: "--base-proposals", value: "<dir>", what: "Needs `--base`. Reads that folder as the base's proposals, matched with `--proposals` by file name." },
+    JSON_FLAG,
   ],
   fails: [
     "A chrome layout, content layout or page type outside its allowlist, a directory under `paths.layouts`, `paths.contentLayouts` or `paths.pageTypes` with no list entry, or a list entry with no directory, and any other file directly in those directories besides `index.ts`.",

@@ -1,8 +1,9 @@
-import type { CheckMeta } from "./lib/check-meta";
+import { JSON_FLAG, type CheckMeta } from "./lib/check-meta";
 
 export const meta = {
   summary:
     "Every scenario, as Chrome paints it at desktop and phone width: one h1 per page and no skipped heading level, the rank-1 action in the first view, disclosures closed unless the state opens them, AA contrast in light and dark, and no sideways scroll on a phone.",
+  flags: [JSON_FLAG],
   fails: [
     "In each `[data-page]` element: no visible h1 (or `role=\"heading\"` at level 1), a second h1, a heading before the h1, or a heading more than one level below the heading before it, such as an h3 straight after the h1. Read at 1280 by 900 and 390 by 844.",
     "A scenario with no `[data-page]` element.",

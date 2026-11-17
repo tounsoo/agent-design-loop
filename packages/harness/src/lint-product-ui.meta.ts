@@ -1,7 +1,8 @@
-import type { CheckMeta } from "./lib/check-meta";
+import { JSON_FLAG, type CheckMeta } from "./lib/check-meta";
 
 export const meta = {
   summary: "Product UI is built only from the product's catalog: no raw controls, no inline styles, no other component kit, nothing from another product.",
+  flags: [JSON_FLAG],
   fails: [
     "A design system import anywhere except the catalog file (`paths.catalog`), where a file beside it in the catalog's folder counts as product UI, an import from one of the foreign component kits the check lists, or a relative import that reaches outside the product's own directories, such as into another product.",
     "A raw `button`, `input`, `select`, `textarea` or `a` element anywhere in product UI, the catalog included, or a `style` attribute outside the catalog file.",

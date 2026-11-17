@@ -1,7 +1,8 @@
-import type { CheckMeta } from "./lib/check-meta";
+import { JSON_FLAG, type CheckMeta } from "./lib/check-meta";
 
 export const meta = {
   summary: "One job per page: no page inside a page, no primary on a collection or content page, and at most `MAX_VISIBLE_QUESTIONS` questions outside a disclosure.",
+  flags: [JSON_FLAG],
   fails: [
     "A page rendered inside another page, in its own JSX or through a component it renders, including one imported under another name.",
     "A page type in `allowed_page_types` that renders no page.",

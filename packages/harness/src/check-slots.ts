@@ -4,6 +4,7 @@ import { adapter, isPrimaryVariant } from "./lib/adapter";
 import { config } from "./lib/config";
 import { attributeValue, elementText, jsxElements, jsxTagName, lineOf, listSourceFiles, parseFile, walk } from "./lib/jsx";
 import { discoverShells, primarySlots as primarySlotsOf } from "./lib/page-scope";
+import { fail } from "./lib/report";
 
 /**
  * A page type with a primary slot, named under shells.primarySlots in the
@@ -80,7 +81,7 @@ for (const { shell } of primarySlots) {
 }
 
 if (violations.length > 0) {
-  for (const violation of violations) console.error(violation);
+  for (const violation of violations) fail(violation);
   process.exit(1);
 }
 

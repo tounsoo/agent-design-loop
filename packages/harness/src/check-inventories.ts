@@ -10,6 +10,7 @@ import { walk } from "./lib/jsx";
 import { ADDABLE_LISTS, membershipChanges, type Change, type Inventory, type Term } from "./lib/membership";
 import { addingInThisChange, byBaseName, adopting, parseAll, proposalsAtRev, proposalsInDir, type Proposal } from "./lib/proposals";
 import { bodyShellsOf, shellsOf } from "./lib/shells";
+import { fail as report } from "./lib/report";
 
 /**
  * Inventories are data: catalog exports, chrome layout ids, content layout
@@ -75,7 +76,7 @@ import { bodyShellsOf, shellsOf } from "./lib/shells";
 type Root = { kind: "tree"; config: ParsedConfig } | { kind: "git"; rev: string; config: string };
 
 function fail(message: string): never {
-  console.error(message);
+  report(message);
   process.exit(1);
 }
 
@@ -586,13 +587,13 @@ function reportMembership(changes: readonly Change[], proposals: ProposalsForCha
     );
   }
   if (uncovered.length > 0) {
-    console.error(
+    report(
       adopts.length === 0 && usable.length === 0
         ? "inventory: set changed without a proposal. An inventory changes only by adopting a proposal decided on the base, or one this change adds that only adds or tightens."
         : `inventory: set changed without a proposal that covers it. Adopting: ${[...adopts, ...usable].map((proposal) => proposal.file).join(", ")}.`,
     );
-    for (const line of uncovered) console.error(line);
-    for (const problem of proposals.problems) console.error(`inventory: ${problem}`);
+    for (const line of uncovered) report(line);
+    for (const problem of proposals.problems) report(`inventory: ${problem}`);
     return false;
   }
   console.log(`inventory: set changed with ${[...used].sort().join(", ")}.`);
@@ -759,7 +760,7 @@ const compareConfig = baseRoot.kind === "git";
 const base = readInventory(baseRoot);
 if (base === null) {
   if (violations.length > 0) {
-    for (const violation of violations) console.error(`inventory: ${violation}`);
+    for (const violation of violations) report(`inventory: ${violation}`);
     process.exit(1);
   }
   const rev = baseRoot.kind === "git" ? baseRoot.rev.slice(0, 7) : baseFlag;
@@ -777,7 +778,7 @@ const changes = membershipChanges(base, head, compareConfig, configName);
 const matched = reportMembership(changes, proposalsForChange(baseRoot));
 
 if (violations.length > 0 || !matched) {
-  for (const violation of violations) console.error(`inventory: ${violation}`);
+  for (const violation of violations) report(`inventory: ${violation}`);
   process.exit(1);
 }
 

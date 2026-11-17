@@ -4,6 +4,7 @@ import ts from "typescript";
 import { adapter, isPrimaryVariant } from "./lib/adapter";
 import { config, loadRules, memberOf } from "./lib/config";
 import { attributeValue, jsxTagName, lineOf, listSourceFiles, parseFile, walk } from "./lib/jsx";
+import { fail } from "./lib/report";
 import { canonicalTag, contentShells as contentShellsOf, discoverShells, missingCatalogParts, openingOf, collectionShells as collectionShellsOf, pagesIn, tagsInScope, unreachedTags } from "./lib/page-scope";
 
 /**
@@ -190,7 +191,7 @@ function contentLayoutsIn(root: ts.Node, source: ts.SourceFile): string[] {
 }
 
 if (violations.length > 0) {
-  for (const violation of violations) console.error(violation);
+  for (const violation of violations) fail(violation);
   process.exit(1);
 }
 

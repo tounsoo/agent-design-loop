@@ -1,7 +1,8 @@
-import type { CheckMeta } from "./lib/check-meta";
+import { JSON_FLAG, type CheckMeta } from "./lib/check-meta";
 
 export const meta = {
   summary: "Every opt-out in a product's config stands on an adopted proposal that names the rule and the product.",
+  flags: [JSON_FLAG],
   fails: [
     "An entry in the config's `optOuts` that names a rule `check:rules` does not run, or a core rule, `lint:product-ui` or `check:inventories`.",
     "An opt-out whose proposal is missing, is not directly in `paths.proposals` (`proposals/` by default), is not `status: adopted`, or has no `opts-out` entry naming the rule and the product's `paths.source`, as `<rule> for <paths.source>`.",

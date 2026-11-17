@@ -14,6 +14,7 @@ import {
 } from "./lib/accessible-names";
 import { actionName, actionsOf, applyKnownGaps, auditPress, keyFor, parseKnownGaps, signature, type FoundProblem, type KnownGap } from "./lib/presses";
 import { config } from "./lib/config";
+import { fail, scenarioOf } from "./lib/report";
 import { loadScenarios, scenariosFile } from "./lib/scenarios";
 import { withServedApp } from "./lib/served-app";
 import { viewNamed } from "./lib/views";
@@ -78,7 +79,7 @@ for (const [file, { queries, failed }] of byFile) {
 }
 
 if (problems.length > 0) {
-  for (const problem of problems) console.error(`accessible names: ${problem}`);
+  for (const problem of problems) fail(`accessible names: ${problem}`);
   process.exit(1);
 }
 
@@ -100,6 +101,8 @@ if (process.argv.includes("--list")) {
 const ANNOUNCER_WAIT_MS = 150;
 
 const failures: string[] = [];
+/** The failures the phone pass found, seen at phone-light. */
+const phoneFailures = new Set<string>();
 const pressProblems: FoundProblem[] = [];
 let pressCount = 0;
 
@@ -209,7 +212,10 @@ await withServedApp("accessible names", config.paths.web, async (page, base) => 
     for (const problem of unnamedControls((await read()).tree)) {
       const failure = `scenario ${query} at ${phone.width} by ${phone.height}: ${problem}`;
       // A control unnamed at both widths is reported once, at desktop.
-      if (!failures.includes(`scenario ${query}: ${problem}`)) failures.push(failure);
+      if (!failures.includes(`scenario ${query}: ${problem}`)) {
+        failures.push(failure);
+        phoneFailures.add(failure);
+      }
     }
   }
 });
@@ -224,7 +230,7 @@ for (const [file, { gaps, queries }] of knownGaps) {
 for (const problem of pressProblems) if (!listed.has(problem)) failures.push(`scenario ${problem.scenario}: ${problem.message}`);
 
 if (failures.length > 0) {
-  for (const failure of failures) console.error(`accessible names: ${failure}`);
+  for (const failure of failures) fail(`accessible names: ${failure}`, { ...scenarioOf(failure, scenarios), ...(phoneFailures.has(failure) ? { view: "phone-light" } : {}) });
   process.exit(1);
 }
 

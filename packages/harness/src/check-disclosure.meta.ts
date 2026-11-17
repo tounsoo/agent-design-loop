@@ -1,7 +1,8 @@
-import type { CheckMeta } from "./lib/check-meta";
+import { JSON_FLAG, type CheckMeta } from "./lib/check-meta";
 
 export const meta = {
   summary: "Each page holds at most `MAX_DISCLOSURES_PER_PAGE` disclosures, nested at most `MAX_DISCLOSURE_DEPTH` deep.",
+  flags: [JSON_FLAG],
   fails: [
     "A page with more `Disclosure.Root` elements than `MAX_DISCLOSURES_PER_PAGE`, counted across every component the page renders.",
     "Disclosures nested deeper than `MAX_DISCLOSURE_DEPTH`, followed across components.",

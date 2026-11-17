@@ -1,7 +1,8 @@
-import type { CheckMeta } from "./lib/check-meta";
+import { JSON_FLAG, type CheckMeta } from "./lib/check-meta";
 
 export const meta = {
   summary: "Every modeled flow state has a view and a scenario.",
+  flags: [JSON_FLAG],
   fails: [
     "A string in a flow's `modeledStates` that is not a `case` label in that flow's `views` module.",
     "A flow's states file that does not export `modeledStates`, or exports an empty list.",

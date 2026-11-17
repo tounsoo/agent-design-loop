@@ -1,7 +1,8 @@
-import type { CheckMeta } from "./lib/check-meta";
+import { JSON_FLAG, type CheckMeta } from "./lib/check-meta";
 
 export const meta = {
   summary: "Every route that finishes a task, not only the shortest, fits that task's `max_steps`, in the task graph and in the shipped reducer.",
+  flags: [JSON_FLAG],
   fails: [
     "A task in the inputs' `tasks` with no task graph mapped under `flows[].tasks`, a mapped id that is not a task, a task mapped to two graphs, a graph file that is missing, or a graph whose `taskId` is not the id it is mapped under.",
     "A graph module that does not export `flowStart`, `userEvents` and `transition`, so the shipped flow cannot be measured, or that exports a `flowStatus` that is not a function.",

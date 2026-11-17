@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { config, configName } from "./lib/config";
 import { optOutProblems } from "./lib/opt-outs";
+import { fail, note } from "./lib/report";
 import { ruleChecks } from "./lib/scripts";
 
 /**
@@ -16,8 +17,8 @@ const read = (file: string): string | null => (existsSync(path.resolve(file)) ? 
 const problems = optOutProblems(product, ruleChecks(), read);
 
 if (problems.length > 0) {
-  console.error(`opt-outs: ${configName} opts out of rules without an adopted proposal:`);
-  for (const problem of problems) console.error(`- ${problem}`);
+  note(`opt-outs: ${configName} opts out of rules without an adopted proposal:`);
+  for (const problem of problems) fail(`- ${problem}`, { file: configName });
   process.exit(1);
 }
 

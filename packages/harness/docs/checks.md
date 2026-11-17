@@ -18,18 +18,18 @@ npm run check:fixtures && npm run check
 
 | Script | Kind | Flags | Base | Chrome | Fixture cases |
 | --- | --- | --- | --- | --- | --- |
-| [`lint:product-ui`](#lintproduct-ui) | Rule | `--config <file>` (required) |  |  | 7 illegal, 3 legal |
-| [`lint:slots`](#lintslots) | Rule | `--config <file>` (required) |  |  | 9 illegal, 5 legal |
-| [`check:step-budget`](#checkstep-budget) | Rule | `--config <file>` (required) |  |  | 9 illegal, 4 legal |
-| [`check:disclosure`](#checkdisclosure) | Rule | `--config <file>` (required) |  |  | 4 illegal, 3 legal |
-| [`check:priority`](#checkpriority) | Rule | `--config <file>` (required) |  |  | 8 illegal, 5 legal |
-| [`check:one-thing`](#checkone-thing) | Rule | `--config <file>` (required) |  |  | 16 illegal, 5 legal |
-| [`check:inventories`](#checkinventories) | Rule | `--config <file>` (required), `--base <file>`, `--proposals <dir>` and `--base-proposals <dir>` | Yes |  | 41 illegal, 9 legal |
-| [`check:state-coverage`](#checkstate-coverage) | Rule | `--config <file>` (required) |  |  | 8 illegal, 1 legal |
-| [`check:target-size`](#checktarget-size) | Rule | `--config <file>` (required) and `--list` |  | Yes | 3 illegal, 3 legal |
-| [`check:accessible-names`](#checkaccessible-names) | Rule | `--config <file>` (required) and `--list` |  | Yes | 11 illegal, 5 legal |
-| [`check:rendered-page`](#checkrendered-page) | Rule | `--config <file>` (required) |  | Yes | 13 illegal, 3 legal |
-| [`check:opt-outs`](#checkopt-outs) | Product | `--config <file>` (required) |  |  | 6 illegal, 2 legal |
+| [`lint:product-ui`](#lintproduct-ui) | Rule | `--config <file>` (required) and `--json` |  |  | 7 illegal, 3 legal |
+| [`lint:slots`](#lintslots) | Rule | `--config <file>` (required) and `--json` |  |  | 9 illegal, 5 legal |
+| [`check:step-budget`](#checkstep-budget) | Rule | `--config <file>` (required) and `--json` |  |  | 9 illegal, 4 legal |
+| [`check:disclosure`](#checkdisclosure) | Rule | `--config <file>` (required) and `--json` |  |  | 4 illegal, 3 legal |
+| [`check:priority`](#checkpriority) | Rule | `--config <file>` (required) and `--json` |  |  | 8 illegal, 5 legal |
+| [`check:one-thing`](#checkone-thing) | Rule | `--config <file>` (required) and `--json` |  |  | 16 illegal, 5 legal |
+| [`check:inventories`](#checkinventories) | Rule | `--config <file>` (required), `--base <file>`, `--proposals <dir>`, `--base-proposals <dir>` and `--json` | Yes |  | 41 illegal, 9 legal |
+| [`check:state-coverage`](#checkstate-coverage) | Rule | `--config <file>` (required) and `--json` |  |  | 8 illegal, 1 legal |
+| [`check:target-size`](#checktarget-size) | Rule | `--config <file>` (required), `--list` and `--json` |  | Yes | 3 illegal, 3 legal |
+| [`check:accessible-names`](#checkaccessible-names) | Rule | `--config <file>` (required), `--list` and `--json` |  | Yes | 11 illegal, 5 legal |
+| [`check:rendered-page`](#checkrendered-page) | Rule | `--config <file>` (required) and `--json` |  | Yes | 13 illegal, 3 legal |
+| [`check:opt-outs`](#checkopt-outs) | Product | `--config <file>` (required) and `--json` |  |  | 6 illegal, 2 legal |
 | [`check:products`](#checkproducts) | Repository | `--json` |  | Yes |  |
 | [`check:proposals`](#checkproposals) | Repository | none | Yes |  |  |
 | [`check:retirement`](#checkretirement) | Repository | none | Yes |  |  |
@@ -37,7 +37,7 @@ npm run check:fixtures && npm run check
 | [`check:docs`](#checkdocs) | Repository | `--write` |  |  |  |
 | [`check:self`](#checkself) | Repository | none |  |  |  |
 | [`check:fixtures`](#checkfixtures) | Repository | none |  |  |  |
-| [`check:product`](#checkproduct) | Product | `--config <file>` (required) |  | Yes |  |
+| [`check:product`](#checkproduct) | Product | `--config <file>` (required) and `--json` |  | Yes |  |
 | [`check:trace`](#checktrace) | Repository | none | Yes |  |  |
 | [`critique`](#critique) | Tool | `--config <file>` (required), `--gallery <dir>`, `--brief <file>`, `--findings <file>` and `--trace <file>` | Yes |  |  |
 | [`loop:step`](#loopstep) | Tool | none | Yes |  |  |
@@ -50,6 +50,10 @@ npm run check:fixtures && npm run check
 Product UI is built only from the product's catalog: no raw controls, no inline styles, no other component kit, nothing from another product.
 
 A rule check: `check:rules` runs it, and `check:product` runs it on each product. Run it as `npm run lint:product-ui`, from the repository root, defined in `packages/harness/src/lint-product-ui.ts`. It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it.
+
+Flags:
+
+- `--json`: Prints one JSON report on stdout and nothing else: the check, the config, `pass` or `fail`, and each finding with its line and the location the check knows, typed `CheckReport` in `packages/harness`. Everything else it prints goes to stderr, and its exit code is the same as without the flag.
 
 It fails:
 
@@ -79,6 +83,10 @@ Each page type with a primary slot holds its page's one primary action there.
 
 A rule check: `check:rules` runs it, and `check:product` runs it on each product. Run it as `npm run lint:slots`, from the repository root, defined in `packages/harness/src/check-slots.ts`. It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it.
 
+Flags:
+
+- `--json`: Prints one JSON report on stdout and nothing else: the check, the config, `pass` or `fail`, and each finding with its line and the location the check knows, typed `CheckReport` in `packages/harness`. Everything else it prints goes to stderr, and its exit code is the same as without the flag.
+
 It fails:
 
 - A page whose primary slot is missing, as when the shell is self-closed (`<Shell />`), or that renders the slot more than once; a slot that does not hold exactly one action control, or holds one that is not primary.
@@ -104,7 +112,7 @@ Fixture cases, under `packages/harness/fixtures/`, that run it:
 - `illegal/page-type-in-primary-and-content`: Illegal: the config names detail as a primary-slot page and a content page, which ask for one primary action and none. It fails with "page type "detail" in both primarySlots and content, but a content page has no primary action".
 - `illegal/primary-slot-from-config`: Illegal: the config names the detail shell's Secondary slot as its primary slot, so lint:slots reads that slot and finds no primary action in it. It fails with "accepts exactly one primary button, found 0 primary and 1 Button.Root".
 - `illegal/shell-rule-unknown-page-type`: Illegal: the shells rules name page types the product does not allow, so a rule would have no shell to read. It fails with "shells.primarySlots names page type "form", which is not in allowed_page_types".
-- `illegal/two-primaries`: Illegal: two buttons in the detail page's primary slot. It fails with "accepts exactly one primary button, found 2 primary".
+- `illegal/two-primaries`: Illegal: two buttons in the detail page's primary slot. With `--json`, the finding is in the report, with its file and line. It fails with "accepts exactly one primary button, found 2 primary" and fails with ""status":"fail","findings":[{"message":"packages/harness/fixtures/illegal/two-primaries/page.tsx:10: primary slot accepts exactly one primary button, found 2 primary and 2 Button.Root.","file":"packages/harness/fixtures/illegal/two-primaries/page.tsx","line":10}]}" (with --json).
 - `illegal/unclassified-page-type`: Illegal: the config names no collection, though the product has a collection page type, so the collection rules would read none of its pages. It fails with "page type "collection" in neither primarySlots nor collections".
 
 ## `check:step-budget`
@@ -112,6 +120,10 @@ Fixture cases, under `packages/harness/fixtures/`, that run it:
 Every route that finishes a task, not only the shortest, fits that task's `max_steps`, in the task graph and in the shipped reducer.
 
 A rule check: `check:rules` runs it, and `check:product` runs it on each product. Run it as `npm run check:step-budget`, from the repository root, defined in `packages/harness/src/check-step-budget.ts`. It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it.
+
+Flags:
+
+- `--json`: Prints one JSON report on stdout and nothing else: the check, the config, `pass` or `fail`, and each finding with its line and the location the check knows, typed `CheckReport` in `packages/harness`. Everything else it prints goes to stderr, and its exit code is the same as without the flag.
 
 It fails:
 
@@ -151,6 +163,10 @@ Each page holds at most `MAX_DISCLOSURES_PER_PAGE` disclosures, nested at most `
 
 A rule check: `check:rules` runs it, and `check:product` runs it on each product. Run it as `npm run check:disclosure`, from the repository root, defined in `packages/harness/src/check-disclosure.ts`. It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it.
 
+Flags:
+
+- `--json`: Prints one JSON report on stdout and nothing else: the check, the config, `pass` or `fail`, and each finding with its line and the location the check knows, typed `CheckReport` in `packages/harness`. Everything else it prints goes to stderr, and its exit code is the same as without the flag.
+
 It fails:
 
 - A page with more `Disclosure.Root` elements than `MAX_DISCLOSURES_PER_PAGE`, counted across every component the page renders.
@@ -177,6 +193,10 @@ Fixture cases, under `packages/harness/fixtures/`, that run it:
 Each page holds at most one primary action, and it is the product's rank-1 action; the rank-2 action is secondary; `disclosed_sections` stay behind disclosures.
 
 A rule check: `check:rules` runs it, and `check:product` runs it on each product. Run it as `npm run check:priority`, from the repository root, defined in `packages/harness/src/check-priority.ts`. It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it.
+
+Flags:
+
+- `--json`: Prints one JSON report on stdout and nothing else: the check, the config, `pass` or `fail`, and each finding with its line and the location the check knows, typed `CheckReport` in `packages/harness`. Everything else it prints goes to stderr, and its exit code is the same as without the flag.
 
 It fails:
 
@@ -213,6 +233,10 @@ Fixture cases, under `packages/harness/fixtures/`, that run it:
 One job per page: no page inside a page, no primary on a collection or content page, and at most `MAX_VISIBLE_QUESTIONS` questions outside a disclosure.
 
 A rule check: `check:rules` runs it, and `check:product` runs it on each product. Run it as `npm run check:one-thing`, from the repository root, defined in `packages/harness/src/check-one-thing.ts`. It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it.
+
+Flags:
+
+- `--json`: Prints one JSON report on stdout and nothing else: the check, the config, `pass` or `fail`, and each finding with its line and the location the check knows, typed `CheckReport` in `packages/harness`. Everything else it prints goes to stderr, and its exit code is the same as without the flag.
 
 It fails:
 
@@ -266,6 +290,7 @@ Flags:
 - `--base <file>`: Compares with the product that config names in the working tree, instead of the pull request base. The fixtures have no history of their own, so this is how they test membership. The config itself is not compared then.
 - `--proposals <dir>`: Needs `--base`. Reads that folder as the change's proposals.
 - `--base-proposals <dir>`: Needs `--base`. Reads that folder as the base's proposals, matched with `--proposals` by file name.
+- `--json`: Prints one JSON report on stdout and nothing else: the check, the config, `pass` or `fail`, and each finding with its line and the location the check knows, typed `CheckReport` in `packages/harness`. Everything else it prints goes to stderr, and its exit code is the same as without the flag.
 
 It fails:
 
@@ -350,6 +375,10 @@ Every modeled flow state has a view and a scenario.
 
 A rule check: `check:rules` runs it, and `check:product` runs it on each product. Run it as `npm run check:state-coverage`, from the repository root, defined in `packages/harness/src/check-state-coverage.ts`. It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it.
 
+Flags:
+
+- `--json`: Prints one JSON report on stdout and nothing else: the check, the config, `pass` or `fail`, and each finding with its line and the location the check knows, typed `CheckReport` in `packages/harness`. Everything else it prints goes to stderr, and its exit code is the same as without the flag.
+
 It fails:
 
 - A string in a flow's `modeledStates` that is not a `case` label in that flow's `views` module.
@@ -381,6 +410,7 @@ A rule check: `check:rules` runs it, and `check:product` runs it on each product
 Flags:
 
 - `--list`: Prints the scenarios it would open, without building or Chrome.
+- `--json`: Prints one JSON report on stdout and nothing else: the check, the config, `pass` or `fail`, and each finding with its line and the location the check knows, typed `CheckReport` in `packages/harness`. Everything else it prints goes to stderr, and its exit code is the same as without the flag.
 
 It fails:
 
@@ -412,6 +442,7 @@ A rule check: `check:rules` runs it, and `check:product` runs it on each product
 Flags:
 
 - `--list`: Checks the file against the scenarios, without building or Chrome.
+- `--json`: Prints one JSON report on stdout and nothing else: the check, the config, `pass` or `fail`, and each finding with its line and the location the check knows, typed `CheckReport` in `packages/harness`. Everything else it prints goes to stderr, and its exit code is the same as without the flag.
 
 It fails:
 
@@ -461,6 +492,10 @@ Every scenario, as Chrome paints it at desktop and phone width: one h1 per page 
 
 A rule check: `check:rules` runs it, and `check:product` runs it on each product. Run it as `npm run check:rendered-page`, from the repository root, defined in `packages/harness/src/check-rendered-page.ts`. It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it. It needs headless Chrome.
 
+Flags:
+
+- `--json`: Prints one JSON report on stdout and nothing else: the check, the config, `pass` or `fail`, and each finding with its line and the location the check knows, typed `CheckReport` in `packages/harness`. Everything else it prints goes to stderr, and its exit code is the same as without the flag.
+
 It fails:
 
 - In each `[data-page]` element: no visible h1 (or `role="heading"` at level 1), a second h1, a heading before the h1, or a heading more than one level below the heading before it, such as an h3 straight after the h1. Read at 1280 by 900 and 390 by 844.
@@ -508,6 +543,10 @@ Fixture cases, under `packages/harness/fixtures/`, that run it:
 Every opt-out in a product's config stands on an adopted proposal that names the rule and the product.
 
 A product check: it reads one product's config, and is not one of `check:rules`. Run it as `npm run check:opt-outs`, from the repository root, defined in `packages/harness/src/check-opt-outs.ts`. It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it.
+
+Flags:
+
+- `--json`: Prints one JSON report on stdout and nothing else: the check, the config, `pass` or `fail`, and each finding with its line and the location the check knows, typed `CheckReport` in `packages/harness`. Everything else it prints goes to stderr, and its exit code is the same as without the flag.
 
 It fails:
 
@@ -668,9 +707,13 @@ Runs `check:opt-outs`, then every rule check in `check:rules`, on one product, s
 
 A product check: it reads one product's config, and is not one of `check:rules`. Run it as `npm run check:product`, from the repository root, defined in `packages/harness/src/check-product.ts`. It needs `--config <file>`, a product's `harness.config.ts`, and reads every path from it. It needs headless Chrome.
 
+Flags:
+
+- `--json`: Runs every check with `--json` and prints one JSON report on stdout and nothing else, whose `checks` hold each check's report in order, `check:opt-outs` first: a rule the product opts out of is `skipped`, with its proposal, and each check after the first failure is `not-run`. Everything else goes to stderr, and the exit code is the same as without the flag.
+
 It fails:
 
-- No `--config <file>`, or any other argument beside it.
+- No `--config <file>`, or any other argument beside it but `--json`.
 - The first check that fails on that product. It stops there.
 - An app in `paths.web` that does not build or serve, when a check that opens it is next.
 

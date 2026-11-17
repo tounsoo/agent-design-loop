@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { adapter } from "./lib/adapter";
 import { config, loadRules } from "./lib/config";
+import { fail, type FindingLocation } from "./lib/report";
 import { resolveLength } from "./lib/tokens";
 import { loadScenarios } from "./lib/scenarios";
 import { withServedApp } from "./lib/served-app";
@@ -10,7 +11,7 @@ const { TARGET_MIN_PX } = await loadRules();
 
 const { scenarios, problems } = await loadScenarios(config.flows);
 if (problems.length > 0) {
-  for (const problem of problems) console.error(`target size: ${problem}`);
+  for (const problem of problems) fail(`target size: ${problem}`);
   process.exit(1);
 }
 
@@ -36,6 +37,8 @@ type Box = {
 assertButtonTokens();
 
 const failures: string[] = [];
+/** Where each failure was seen: its scenario, state and view. */
+const seenAt = new Map<string, FindingLocation>();
 
 await withServedApp("target size", config.paths.web, async (page, base) => {
   for (const view of views) {
@@ -48,7 +51,10 @@ await withServedApp("target size", config.paths.web, async (page, base) => {
       const measure = async () => {
         for (const problem of undersized(await page.evaluate(collectTargets))) {
           const failure = `${scenario.id} at ${view.label}: ${problem}`;
-          if (!failures.includes(failure)) failures.push(failure);
+          if (!failures.includes(failure)) {
+            failures.push(failure);
+            seenAt.set(failure, { scenario: scenario.id, state: scenario.state, view: view.name });
+          }
         }
       };
       const summary = await page.$("[data-page] summary");
@@ -76,7 +82,7 @@ await withServedApp("target size", config.paths.web, async (page, base) => {
 });
 
 if (failures.length > 0) {
-  for (const failure of failures) console.error(`target size: ${failure}`);
+  for (const failure of failures) fail(`target size: ${failure}`, seenAt.get(failure));
   process.exit(1);
 }
 
@@ -97,7 +103,7 @@ function assertButtonTokens(): void {
   const fontSize = length(adapter.tokens.actionFontSize);
   const floor = fontSize + paddingY * 2;
   if (floor < TARGET_MIN_PX) {
-    console.error(
+    fail(
       `target size: ${adapter.name} button floor is ${floor}px (font ${fontSize} + padding-y ${paddingY} * 2), under ${TARGET_MIN_PX}px.`,
     );
     process.exit(1);

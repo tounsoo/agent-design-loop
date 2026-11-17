@@ -1,8 +1,8 @@
-import type { CheckMeta } from "./lib/check-meta";
+import { JSON_FLAG, type CheckMeta } from "./lib/check-meta";
 
 export const meta = {
   summary: "Every control on every scenario, at desktop and phone width, is at least 24 CSS px, or meets the WCAG 2.5.8 spacing exception, measured in headless Chrome.",
-  flags: [{ name: "--list", what: "Prints the scenarios it would open, without building or Chrome." }],
+  flags: [{ name: "--list", what: "Prints the scenarios it would open, without building or Chrome." }, JSON_FLAG],
   fails: [
     "A control under 24 CSS px on a side that misses the WCAG 2.5.8 spacing exception, anywhere in the document: the page and the chrome around it, with each closed disclosure opened on its own.",
     "A button token floor under 24: the font size plus twice the vertical padding of the design system the adapter names.",

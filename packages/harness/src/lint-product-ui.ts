@@ -3,6 +3,7 @@ import ts from "typescript";
 import { adapter, isDesignSystemImport } from "./lib/adapter";
 import { config, configName, uiRoots } from "./lib/config";
 import { attributeValue, jsxTagName, lineOf, listSourceFiles, parseFile, walk } from "./lib/jsx";
+import { fail } from "./lib/report";
 
 const forbiddenTags = new Set(["button", "input", "select", "textarea", "a"]);
 /** Other component kits. The adapter's own packages are not foreign, even when they are on this list. */
@@ -181,7 +182,8 @@ for (const root of uiRoots) {
 
 if (violations.length > 0) {
   for (const violation of violations) {
-    console.error(`${path.relative(process.cwd(), violation.file)}:${violation.line}: ${violation.message}`);
+    const file = path.relative(process.cwd(), violation.file);
+    fail(`${file}:${violation.line}: ${violation.message}`, { file, line: violation.line });
   }
   process.exit(1);
 }

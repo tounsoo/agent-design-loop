@@ -2,6 +2,7 @@ import path from "node:path";
 import ts from "typescript";
 import { config } from "./lib/config";
 import { parseFile, walk } from "./lib/jsx";
+import { fail } from "./lib/report";
 import { loadScenarios } from "./lib/scenarios";
 
 function exportedStringArray(file: string, name: string): string[] | null {
@@ -42,7 +43,7 @@ let failed = false;
 for (const { states: statesFile, views: viewsFile } of config.flows) {
   const modeled = exportedStringArray(statesFile, "modeledStates");
   if (!modeled || modeled.length === 0) {
-    console.error(`state coverage: ${statesFile} does not export modeledStates`);
+    fail(`state coverage: ${statesFile} does not export modeledStates`, { file: statesFile });
     process.exit(1);
   }
 
@@ -50,7 +51,7 @@ for (const { states: statesFile, views: viewsFile } of config.flows) {
   const missing = modeled.filter((state) => !cases.has(state));
   if (missing.length > 0) {
     for (const state of missing) {
-      console.error(`state coverage: modeled state "${state}" has no view in ${viewsFile}`);
+      fail(`state coverage: modeled state "${state}" has no view in ${viewsFile}`, { file: viewsFile, state });
     }
     failed = true;
     continue;
@@ -61,7 +62,7 @@ for (const { states: statesFile, views: viewsFile } of config.flows) {
 
 // Each modeled state also needs a scenario, the case the Chrome checks and the screenshots open it with.
 const { scenarios, problems } = await loadScenarios(config.flows);
-for (const problem of problems) console.error(`state coverage: ${problem}`);
+for (const problem of problems) fail(`state coverage: ${problem}`);
 if (problems.length > 0) failed = true;
 
 if (failed) process.exit(1);

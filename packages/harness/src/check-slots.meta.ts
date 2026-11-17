@@ -1,7 +1,8 @@
-import type { CheckMeta } from "./lib/check-meta";
+import { JSON_FLAG, type CheckMeta } from "./lib/check-meta";
 
 export const meta = {
   summary: "Each page type with a primary slot holds its page's one primary action there.",
+  flags: [JSON_FLAG],
   fails: [
     "A page whose primary slot is missing, as when the shell is self-closed (`<Shell />`), or that renders the slot more than once; a slot that does not hold exactly one action control, or holds one that is not primary.",
     "A slot name the page type's shell does not define as `Object.assign(Root, { ... })`, in its module or a module it re-exports from, so a misspelled slot fails instead of matching nothing.",

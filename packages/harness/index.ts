@@ -8,4 +8,5 @@ export type { FlowConfig, HarnessConfig, ShellRules } from "./src/lib/parse-conf
 export type { DesignSystemAdapter } from "./src/lib/adapter";
 export type { AccessibleNames, Announcement } from "./src/lib/accessible-names";
 export type { KnownGap, KnownGaps } from "./src/lib/presses";
+export type { CheckReport, CheckStatus, Finding, FindingLocation } from "./src/lib/report";
 export { eventEdges, measureRoutes, shortestPath, stateKey, type RouteMeasure, type TaskEdge } from "./src/lib/shortest-path";

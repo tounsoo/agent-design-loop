@@ -3,6 +3,7 @@ import { adapter } from "./lib/adapter";
 import { config, loadRules } from "./lib/config";
 import { lineOf } from "./lib/jsx";
 import { discoverShells, missingCatalogParts, pagesIn, tagsInScope, unreachedTags } from "./lib/page-scope";
+import { fail } from "./lib/report";
 
 /**
  * Disclosures are counted per page: one rendered page-type shell in the
@@ -49,7 +50,7 @@ for (const page of pages) {
 }
 
 if (violations.length > 0) {
-  for (const violation of [...new Set(violations)]) console.error(`disclosure: ${violation}`);
+  for (const violation of [...new Set(violations)]) fail(`disclosure: ${violation}`);
   process.exit(1);
 }
 
