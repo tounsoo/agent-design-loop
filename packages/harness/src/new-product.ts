@@ -79,3 +79,4 @@ console.log("new:product: next:");
 console.log(`- npm run check:product -- --config ${config} checks it alone; npm run check and CI pick it up with no other edit.`);
 console.log(`- A new product is an inventory change: a proposal that lists ${dest} under changes, decided on the base, then adopted in the pull request that adds the product (proposals/README.md).`);
 console.log(`- Start the app with npx vite --config vite.config.ts ${dest}.`);
+console.log(`- Write its verify map in .claude/skills/verify/features/${name}/: a README.md that links a feature file for each part, each ending in ## Covers. npm run check:docs fails until every page type, layout, content layout, task and scenario is covered; then run npm run docs:gen.`);
