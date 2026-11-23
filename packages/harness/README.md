@@ -48,6 +48,10 @@ The harness's own scripts, written by `npm run docs:gen`:
 | [`npm run check:retirement`](docs/checks.md#checkretirement) | Repository | A rule most products opt out of is flagged for retirement, and a rule leaves `check:rules`, or a product opts out, only by adopting a proposal. |
 | [`npm run check:loop`](docs/checks.md#checkloop) | Repository | The design loop graph in `packages/harness/design-loop.ts` is one an agent can follow, and the diagram in `how-it-works.md` is the one it draws. |
 | [`npm run check:docs`](docs/checks.md#checkdocs) | Repository | The check reference and the docs that copy it are the ones the code writes, and the verify map covers every page type, layout, content layout, task and scenario of every product: `npm run docs:gen` rewrites the generated parts. |
+| [`npm run check:docs-claim`](docs/checks.md#checkdocs-claim) | Repository | CODEOWNERS, the gallery proposal and AGENTS.md do not claim review is required, that a file link opens full size, or that a cloud agent cannot clone home. |
+| [`npm run check:stale-proposal-path`](docs/checks.md#checkstale-proposal-path) | Repository | A proposal's later-landing section does not name a moved src, scripts or fixtures path, and an example that names a proposal number names that proposal or a number no proposal has. |
+| [`npm run check:review-note`](docs/checks.md#checkreview-note) | Repository | A review note does not claim a held booking takes a held length, that step-budget measures one route, or a proposal rule the check does not have. |
+| [`npm run check:preview-scope`](docs/checks.md#checkpreview-scope) | Repository | The page and the document title open a vendor with openVendor, not by searching knownVendors, previewVendors, vendorDirectory, or a list taken from them. |
 | [`npm run check:self`](docs/checks.md#checkself) | Repository | The rule table, weeds log and suppressions match the self-correcting standard, and the trust measures are printed. |
 | [`npm run check:fixtures`](docs/checks.md#checkfixtures) | Repository | The harness's own tests: every illegal fixture case fails with its expected message, and every legal case passes with its. |
 | [`npm run check:product`](docs/checks.md#checkproduct) | Product | Runs `check:opt-outs`, then every rule check in `check:rules`, on one product, skipping a rule the product opts out of. |
@@ -81,7 +85,7 @@ Before you write one, check that it is the right kind of rule.
 2. Beside it, write `packages/harness/src/<name>.meta.ts`, which exports `meta` typed `satisfies CheckMeta` from [`lib/check-meta.ts`](src/lib/check-meta.ts): a one-sentence summary, the flags it reads besides `--config`, what it fails, and how it works. A helper the gate does not run says `tool: true` and lists no failures.
 3. Add its npm script to `package.json`, and to `check:rules` if every product must pass it.
 4. Add fixture cases under `fixtures/`: an illegal case it fails and a legal case it passes.
-5. Run `npm run docs:gen`. It writes the reference, the table above, and the generated parts of `AGENTS.md`, the verify skill and its map's index. `npm run check:docs` fails when a script has no meta, a meta has no script, a generated doc is stale, or the verify map misses a page type, layout, content layout, task or scenario of a product.
+5. Run `npm run docs:gen`. It writes the reference, the table above, and the generated parts of `AGENTS.md` and the verify skill. `npm run check:docs` fails when a script has no meta, a meta has no script, or a generated doc is stale.
 
 ## Plug a product in
 

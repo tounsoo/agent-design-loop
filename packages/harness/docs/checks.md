@@ -10,7 +10,7 @@ Every script the harness runs: what it is for, what it reads and what it fails. 
 npm run check:fixtures && npm run check
 ```
 
-`npm run check` runs `typecheck`, `lint`, `test`, `check:products`, `check:proposals`, `check:retirement`, `check:loop`, `check:docs` and `check:self`, in that order, and stops at the first failure. `check:products` runs `check:product` on every product's config, which runs `check:opt-outs`, `lint:product-ui`, `lint:slots`, `check:step-budget`, `check:disclosure`, `check:priority`, `check:one-thing`, `check:inventories`, `check:state-coverage`, `check:target-size`, `check:accessible-names` and `check:rendered-page`, in that order, and skips a rule the config opts out of.
+`npm run check` runs `typecheck`, `lint`, `test`, `check:products`, `check:proposals`, `check:retirement`, `check:loop`, `check:docs`, `check:docs-claim`, `check:stale-proposal-path`, `check:review-note`, `check:preview-scope` and `check:self`, in that order, and stops at the first failure. `check:products` runs `check:product` on every product's config, which runs `check:opt-outs`, `lint:product-ui`, `lint:slots`, `check:step-budget`, `check:disclosure`, `check:priority`, `check:one-thing`, `check:inventories`, `check:state-coverage`, `check:target-size`, `check:accessible-names` and `check:rendered-page`, in that order, and skips a rule the config opts out of.
 
 **Base.** `check:inventories`, `check:proposals`, `check:retirement`, `check:trace`, `critique` and `loop:step` compare the change with its base. The base is `INVENTORY_BASE` when it is set: CI sets it to the pull request base, or on a push to `main` to `github.event.before`, the tip of `main` before the push. A base missing from the clone fails the check. Unset, empty, `true`, `false` or all zeros, it is the merge base with `origin/main`, or with a local `main`. Without either, the check fails.
 
@@ -35,6 +35,10 @@ npm run check:fixtures && npm run check
 | [`check:retirement`](#checkretirement) | Repository | none | Yes |  |  |
 | [`check:loop`](#checkloop) | Repository | `--write` |  |  |  |
 | [`check:docs`](#checkdocs) | Repository | `--write` |  |  |  |
+| [`check:docs-claim`](#checkdocs-claim) | Repository | none |  |  |  |
+| [`check:stale-proposal-path`](#checkstale-proposal-path) | Repository | none |  |  |  |
+| [`check:review-note`](#checkreview-note) | Repository | none |  |  |  |
+| [`check:preview-scope`](#checkpreview-scope) | Repository | none |  |  |  |
 | [`check:self`](#checkself) | Repository | none |  |  |  |
 | [`check:fixtures`](#checkfixtures) | Repository | none |  |  |  |
 | [`check:product`](#checkproduct) | Product | `--config <file>` (required) |  | Yes |  |
@@ -631,6 +635,62 @@ Each harness script's meta, `packages/harness/src/<file>.meta.ts`, typed `satisf
 So a pull request that adds or changes a check updates its meta and runs `npm run docs:gen`, which keeps `AGENTS.md` and the verify skill current with it.
 
 The verify map is held to the product registry, as `check:products` finds it: each config's `shells` gives its page types, the folders under its `paths.layouts` and `paths.contentLayouts` its layouts and content layouts, its `flows[].tasks` its tasks, and each flow's `scenarios.ts` its scenarios. Each feature file ends with `## Covers`, one kind to a line: `- Page types:`, `- Layouts:`, `- Content layouts:`, `- Tasks:` and `- Scenarios:`, each name in a code span, a scenario as `?scenario=<id>`. The check reads names only, not pages: whether the recipe above them drives what it names is the reviewer's to judge, and a new page built from a page type and content layouts the product already has, with no new scenario, or a section added inside an existing content layout, or a step added to an existing page, names nothing new, so it passes. `npm run docs:gen` writes the generated blocks but never a feature file, so it still fails while the map misses something. Stale docs and the map's gaps are printed in one run, so a pull request that adds a page type sees what `npm run docs:gen` would rewrite and the recipe it still needs together. [Proposal 2026-11-13-verify-map-covers-products](../../../proposals/2026-11-13-verify-map-covers-products.md) records it.
+
+## `check:docs-claim`
+
+CODEOWNERS, the gallery proposal and AGENTS.md do not claim review is required, that a file link opens full size, or that a cloud agent cannot clone home.
+
+A repository check: it reads the repository, not one product. Run it as `npm run check:docs-claim`, from the repository root, defined in `packages/harness/src/check-docs-claim.ts`. It takes no `--config`.
+
+It fails:
+
+- CODEOWNERS says review is required. GitHub requests review and blocks a merge only once branch protection requires code owner review.
+- A markdown sentence says a link to the file opens the image full size, and does not say that no longer holds or name raw.githubusercontent.com.
+- AGENTS.md says a cloud agent cannot clone home, instead of reading `/agent/repos/home` when that directory exists.
+
+The three claims are prose, so a type cannot hold them, and generating CODEOWNERS, the proposal and AGENTS.md from one module would hide the instructions those files are. The check names the sentence to write. `packages/harness/src/lib/docs-claim.test.ts` feeds it the wording from the commits that had each claim. It skips when the commit is not in the clone. This check reads the tree.
+
+## `check:stale-proposal-path`
+
+A proposal's later-landing section does not name a moved src, scripts or fixtures path, and an example that names a proposal number names that proposal or a number no proposal has.
+
+A repository check: it reads the repository, not one product. Run it as `npm run check:stale-proposal-path`, from the repository root, defined in `packages/harness/src/check-stale-proposal-path.ts`. It takes no `--config`.
+
+It fails:
+
+- A proposal names `proposals/NNNN-slug.md` when `proposals/NNNN-` is a different file.
+- A section headed "after approval" names a `src/`, `scripts/` or `fixtures/` path without saying the path was corrected.
+
+Paths a merged proposal's own pull request changed stay as they were, including `src/` from before proposal 0006. The proposals README maps those once. A file the section says a later change will add, such as `packages/harness/src/check-new-thing.ts`, is not a failure: it does not exist yet. `packages/harness/src/lib/stale-proposal-path.test.ts` feeds the check proposals 0001 and 0008 from before e8cc09b, and that future path. It skips when the commit is not in the clone.
+
+## `check:review-note`
+
+A review note does not claim a held booking takes a held length, that step-budget measures one route, or a proposal rule the check does not have.
+
+A repository check: it reads the repository, not one product. Run it as `npm run check:review-note`, from the repository root, defined in `packages/harness/src/check-review-note.ts`. It takes no `--config`.
+
+It fails:
+
+- A Nook review note says a booking takes the held length while transition copies the length chosen before the hold.
+- A review note says check:step-budget measures one route, or only the shortest, while the check calls measureRoutes. A bullet that says the check does not see a change is not that claim.
+- A review note bullet that restates which statuses' lists are pinned leaves a status out, or leaves out a new proposal that starts adopted with gated lists. A check:proposals bullet that does not restate that pinning is not required to.
+- A review note says every other inventory cannot be introduced when the base lacks it, and leaves out the design system adapter.
+- A review note says an addition passes by listing the id, or a rename lists that one id, while an addition keeps every base member and a rename lists both.
+- A string the rule reads, such as measureRoutes or before.status !== "open", is not in the file the message names.
+
+The note is the review's record, so the check does not generate it from the checks. It compares the sentences that were false with the code they describe, and names the file when the string it reads is gone, so the rule cannot switch itself off. `packages/harness/src/lib/review-note-claim.test.ts` feeds it Meridian's inventories and content-layouts notes from before d935b9b and Nook's book-a-held-room note from before 9b00127, with the checks as they were then. It skips when the commit is not in the clone. The row in the rule table is text: the check holds five historical sentences, not every way a note can be wrong.
+
+## `check:preview-scope`
+
+The page and the document title open a vendor with openVendor, not by searching knownVendors, previewVendors, vendorDirectory, or a list taken from them.
+
+A repository check: it reads the repository, not one product. Run it as `npm run check:preview-scope`, from the repository root, defined in `packages/harness/src/check-preview-scope.ts`. It takes no `--config`.
+
+It fails:
+
+- App.tsx or a feature file resolves a vendor id with knownVendors, previewVendors or vendorDirectory, or with a const assigned from one of them, by calling find, findIndex, findLast, filter or some, or by looping over the list.
+
+openVendor in products/meridian/flows/invoice-approval/vendors.ts searches every vendor the session can reach, including one a preview seeded. vendorDirectory is that list for the page, and it is what the flow barrel exports along with openVendor. knownVendors stays in the module so id uniqueness can use it, and a feature cannot import it from the barrel. previewVendors is the directory for the current preview, and it drops a seeded vendor once a link leaves the preview. `packages/harness/src/lib/preview-scope.test.ts` feeds the check the page and the title from before 3a3c7d7 and at 3a3c7d7, and a page that takes the first shownVendors.filter result or a findIndex. It skips when the commit is not in the clone.
 
 ## `check:self`
 

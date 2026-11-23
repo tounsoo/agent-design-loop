@@ -186,9 +186,19 @@ export const previewAddedVendorId: VendorId = addVendor(sampleVendors, previewAd
  * session vendor whose name the preview already has stays hidden rather than
  * showing twice.
  */
-/** Every vendor any preview can show, so a new vendor's id is unique wherever it appears. */
+/** Every vendor any preview can show, so a new vendor's id is unique wherever it appears. Not exported from the flow barrel: a page lists vendorDirectory and opens a vendor with openVendor. */
 export function knownVendors(added: readonly Vendor[]): readonly Vendor[] {
   return [...addVendor(sampleVendors, previewAddedVendor).registry, ...added];
+}
+
+/** The vendors a directory lists, including one a preview seeded. Searching this list for an id is the lookup openVendor already is. */
+export function vendorDirectory(added: readonly Vendor[]): readonly Vendor[] {
+  return knownVendors(added);
+}
+
+/** The vendor a page opens, and the one its document title names. Both call this, so a vendor a preview seeded still opens after the link leaves the preview. */
+export function openVendor(added: readonly Vendor[], vendorId: string): Vendor | null {
+  return knownVendors(added).find((entry) => entry.id === vendorId) ?? null;
 }
 
 export function previewVendors(previewState: ModeledState | null, added: readonly Vendor[]): readonly Vendor[] {
