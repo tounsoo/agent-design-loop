@@ -50,6 +50,10 @@ Every harness script, in one line each. [The check reference](packages/harness/d
 - [`check:retirement`](packages/harness/docs/checks.md#checkretirement), repository: A rule most products opt out of is flagged for retirement, and a rule leaves `check:rules`, or a product opts out, only by adopting a proposal.
 - [`check:loop`](packages/harness/docs/checks.md#checkloop), repository: The design loop graph in `packages/harness/design-loop.ts` is one an agent can follow, and the diagram in `how-it-works.md` is the one it draws.
 - [`check:docs`](packages/harness/docs/checks.md#checkdocs), repository: The check reference and the docs that copy it are the ones the code writes: `npm run docs:gen` rewrites them.
+- [`check:docs-claim`](packages/harness/docs/checks.md#checkdocs-claim), repository: CODEOWNERS, the gallery proposal and AGENTS.md do not claim review is required, that a file link opens full size, or that a cloud agent cannot clone home.
+- [`check:stale-proposal-path`](packages/harness/docs/checks.md#checkstale-proposal-path), repository: A proposal's later-landing section does not name a moved src, scripts or fixtures path, and an example that names a proposal number names that proposal or a number no proposal has.
+- [`check:review-note`](packages/harness/docs/checks.md#checkreview-note), repository: A review note does not claim a held booking takes a held length, that step-budget measures one route, or a proposal rule the check does not have.
+- [`check:preview-scope`](packages/harness/docs/checks.md#checkpreview-scope), repository: The page and the document title open a vendor with openVendor, not by searching knownVendors, previewVendors, vendorDirectory, or a list taken from them.
 - [`check:self`](packages/harness/docs/checks.md#checkself), repository: The rule table, weeds log and suppressions match the self-correcting standard, and the trust measures are printed.
 - [`check:fixtures`](packages/harness/docs/checks.md#checkfixtures), repository: The harness's own tests: every illegal fixture case fails with its expected message, and every legal case passes with its.
 - [`check:product`](packages/harness/docs/checks.md#checkproduct), product, needs `--config`: Runs `check:opt-outs`, then every rule check in `check:rules`, on one product, skipping a rule the product opts out of.
@@ -74,7 +78,7 @@ A page type is one of three kinds in the config's `shells`: `primarySlots` (one 
 These fill the **Repo lines** in home's `playbooks/review-before-pr.md` and `playbooks/waiting-on-ci.md`.
 
 - Base branch: `main`.
-- Checks, in this order: `npm run setup:chrome` when Chrome is missing, then `npm run check:fixtures`, then `npm run check` (`typecheck`, `lint`, `test`, `check:products`, `check:proposals`, `check:retirement`, `check:loop`, `check:docs`, `check:self`). `check:products` runs `check:product` on every product config, which runs `check:opt-outs` and then every rule in `check:rules`. Before pushing, also `npm run check:trace`. On the commit that ends the review round, run `.claude/skills/verify/SKILL.md` and put its verdict in the pull request body. A change to what a product renders also walks the design loop's `screenshots` and `critique` nodes.
+- Checks, in this order: `npm run setup:chrome` when Chrome is missing, then `npm run check:fixtures`, then `npm run check` (`typecheck`, `lint`, `test`, `check:products`, `check:proposals`, `check:retirement`, `check:loop`, `check:docs`, `check:docs-claim`, `check:stale-proposal-path`, `check:review-note`, `check:preview-scope`, `check:self`). `check:products` runs `check:product` on every product config, which runs `check:opt-outs` and then every rule in `check:rules`. Before pushing, also `npm run check:trace`. On the commit that ends the review round, run `.claude/skills/verify/SKILL.md` and put its verdict in the pull request body. A change to what a product renders also walks the design loop's `screenshots` and `critique` nodes.
 - Dependents to pass as context: importers of a changed catalog export; pages that use a changed layout, content layout, page type or shell; both products and the fixture product when `packages/adapter-todae/` or a harness check changes; the fixture cases that name a changed check; a flow's views, `scenarios.ts` and `accessible-names.ts` when its states change; the generated check reference, the harness README, this file's script list and the verify skill when a check's meta changes.
 - Push builds a preview: no. `npm run preview` serves a local build. Nothing in CI deploys.
 - Drafts: allowed. Open one after a clean round, and mark it ready once that round is clean. `.github/workflows/ci.yml` runs on `pull_request` with no `types` list, so a draft runs the same jobs as a ready pull request. A failure on a draft is a real failure. Marking ready does not start a new run: the default activity types are opened, synchronize and reopened. A conclusion from while the pull request was a draft counts when it is still the latest run of that job on the head.
@@ -115,6 +119,10 @@ Tier: T0
 | docs | [check:docs](packages/harness/docs/checks.md#checkdocs) | `npm run check:docs` | #54 | seeded |
 | trace | [check:trace](packages/harness/docs/checks.md#checktrace) | `npm run check:trace` | #23 | seeded |
 | self | [check:self](packages/harness/docs/checks.md#checkself) | `npm run check:self` | #72 | seeded |
+| docs-claim | [check:docs-claim](packages/harness/docs/checks.md#checkdocs-claim) | `npm run check:docs-claim` | #40 | enforced |
+| stale-proposal-path | [check:stale-proposal-path](packages/harness/docs/checks.md#checkstale-proposal-path) | `npm run check:stale-proposal-path` | #19 | enforced |
+| review-note-claim | [check:review-note](packages/harness/docs/checks.md#checkreview-note) | text | #27 | text |
+| preview-scope | [check:preview-scope](packages/harness/docs/checks.md#checkpreview-scope) | `npm run check:preview-scope` | #69 | enforced |
 
 ## Before changing a product's UI
 
