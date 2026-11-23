@@ -12,6 +12,7 @@ import {
   vendorProfile,
   vendorRows,
   knownVendors,
+  openVendor,
   previewVendors,
   type NewVendor,
 } from "./vendors";
@@ -129,6 +130,11 @@ describe("searchVendors", () => {
 });
 
 describe("the vendors a preview shows", () => {
+  it("opens a preview-seeded vendor after the link leaves the preview", () => {
+    expect(openVendor([], previewAddedVendorId)?.name).toBe(previewAddedVendor.name);
+    expect(previewVendors(null, []).some((vendor) => vendor.id === previewAddedVendorId)).toBe(false);
+  });
+
   it("adds the preview's vendor only on vendor-added", () => {
     expect(previewVendors("ready", [])).toBe(sampleVendors);
     const shown = previewVendors("vendor-added", []);

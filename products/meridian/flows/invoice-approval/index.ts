@@ -36,6 +36,7 @@ export {
   termsLabel,
   vendorRows,
   knownVendors,
+  openVendor,
   previewVendors,
   vendorKey,
   vendorProfile,

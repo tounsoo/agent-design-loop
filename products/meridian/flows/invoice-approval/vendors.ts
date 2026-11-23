@@ -191,6 +191,11 @@ export function knownVendors(added: readonly Vendor[]): readonly Vendor[] {
   return [...addVendor(sampleVendors, previewAddedVendor).registry, ...added];
 }
 
+/** The vendor a page opens, and the one its document title names. Both call this, so a vendor a preview seeded still opens after the link leaves the preview. */
+export function openVendor(added: readonly Vendor[], vendorId: string): Vendor | null {
+  return knownVendors(added).find((entry) => entry.id === vendorId) ?? null;
+}
+
 export function previewVendors(previewState: ModeledState | null, added: readonly Vendor[]): readonly Vendor[] {
   const base =
     previewState === "empty"

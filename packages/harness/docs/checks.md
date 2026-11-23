@@ -10,7 +10,7 @@ Every script the harness runs: what it is for, what it reads and what it fails. 
 npm run check:fixtures && npm run check
 ```
 
-`npm run check` runs `typecheck`, `lint`, `test`, `check:products`, `check:proposals`, `check:retirement`, `check:loop`, `check:docs`, `check:docs-claim`, `check:stale-proposal-path`, `check:review-note` and `check:self`, in that order, and stops at the first failure. `check:products` runs `check:product` on every product's config, which runs `check:opt-outs`, `lint:product-ui`, `lint:slots`, `check:step-budget`, `check:disclosure`, `check:priority`, `check:one-thing`, `check:inventories`, `check:state-coverage`, `check:target-size`, `check:accessible-names` and `check:rendered-page`, in that order, and skips a rule the config opts out of.
+`npm run check` runs `typecheck`, `lint`, `test`, `check:products`, `check:proposals`, `check:retirement`, `check:loop`, `check:docs`, `check:docs-claim`, `check:stale-proposal-path`, `check:review-note`, `check:preview-scope` and `check:self`, in that order, and stops at the first failure. `check:products` runs `check:product` on every product's config, which runs `check:opt-outs`, `lint:product-ui`, `lint:slots`, `check:step-budget`, `check:disclosure`, `check:priority`, `check:one-thing`, `check:inventories`, `check:state-coverage`, `check:target-size`, `check:accessible-names` and `check:rendered-page`, in that order, and skips a rule the config opts out of.
 
 **Base.** `check:inventories`, `check:proposals`, `check:retirement`, `check:trace`, `critique` and `loop:step` compare the change with its base. The base is `INVENTORY_BASE` when it is set: CI sets it to the pull request base, or on a push to `main` to `github.event.before`, the tip of `main` before the push. A base missing from the clone fails the check. Unset, empty, `true`, `false` or all zeros, it is the merge base with `origin/main`, or with a local `main`. Without either, the check fails.
 
@@ -38,6 +38,7 @@ npm run check:fixtures && npm run check
 | [`check:docs-claim`](#checkdocs-claim) | Repository | none |  |  |  |
 | [`check:stale-proposal-path`](#checkstale-proposal-path) | Repository | none |  |  |  |
 | [`check:review-note`](#checkreview-note) | Repository | none |  |  |  |
+| [`check:preview-scope`](#checkpreview-scope) | Repository | none |  |  |  |
 | [`check:self`](#checkself) | Repository | none |  |  |  |
 | [`check:fixtures`](#checkfixtures) | Repository | none |  |  |  |
 | [`check:product`](#checkproduct) | Product | `--config <file>` (required) |  | Yes |  |
@@ -671,6 +672,18 @@ It fails:
 - A review note says an addition passes by listing the id, or a rename lists that one id, while an addition keeps every base member and a rename lists both.
 
 The note is the review's record, so the check does not generate it from the checks. It compares the sentences that were false with the code they describe. `packages/harness/src/lib/review-note-claim.test.ts` feeds it Meridian's inventories and content-layouts notes from before d935b9b and Nook's book-a-held-room note from before 9b00127, with the checks as they were then, and the notes this check reads.
+
+## `check:preview-scope`
+
+The page and the document title open a vendor with openVendor, not with a find or some on knownVendors or previewVendors.
+
+A repository check: it reads the repository, not one product. Run it as `npm run check:preview-scope`, from the repository root, defined in `packages/harness/src/check-preview-scope.ts`. It takes no `--config`.
+
+It fails:
+
+- App.tsx or a feature file resolves a vendor id with knownVendors or previewVendors, by calling .find or .some on the list or on a const assigned from it.
+
+openVendor in products/meridian/flows/invoice-approval/vendors.ts searches every vendor the session can reach, including one a preview seeded. previewVendors is the directory for the current preview, and it drops that vendor once a link leaves the preview. A type cannot stop .find on either list. `packages/harness/src/lib/preview-scope.test.ts` feeds the check the page and the title from before 3a3c7d7 and at 3a3c7d7, and the files this check reads.
 
 ## `check:self`
 

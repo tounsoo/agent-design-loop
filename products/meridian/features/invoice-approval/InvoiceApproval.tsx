@@ -6,6 +6,7 @@ import {
   sampleInvoices,
   transition,
   knownVendors,
+  openVendor,
   previewVendors,
   type AppLocation,
   type FlowState,
@@ -41,11 +42,12 @@ export function InvoiceApproval({
   const shownVendors = previewVendors(location.preview.state, added);
   const located = flowFromLocation(location, ledger);
   // A link to a vendor Meridian does not have is the Vendors page, so adding a vendor there works as it does on Vendors.
-  // A vendor's page looks its vendor up among every vendor this session knows, so a card in a preview opens its page though the link leaves the preview.
+  // The page and the document title both open a vendor with openVendor, so a card in a preview opens its page though the link leaves the preview.
   const known = knownVendors(added);
   const vendorScreen = located.status === "ready" && located.screen === "vendor";
-  const unknownVendor = vendorScreen && !known.some((vendor) => vendor.id === located.vendorId);
-  const registry = vendorScreen && !unknownVendor ? known : shownVendors;
+  const opened = vendorScreen ? openVendor(added, located.vendorId) : null;
+  const unknownVendor = vendorScreen && opened === null;
+  const registry = opened ? known : shownVendors;
   const flow = overlay ?? (unknownVendor ? ({ status: "ready", screen: "collection" } as const) : located);
   // Empty means nothing loaded, so its vendor cards join no invoices.
   const shownLedger = location.preview.state === "empty" ? [] : ledger;
