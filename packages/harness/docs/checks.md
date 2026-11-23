@@ -10,7 +10,7 @@ Every script the harness runs: what it is for, what it reads and what it fails. 
 npm run check:fixtures && npm run check
 ```
 
-`npm run check` runs `typecheck`, `lint`, `test`, `check:products`, `check:proposals`, `check:retirement`, `check:loop`, `check:docs`, `check:docs-claim`, `check:stale-proposal-path` and `check:self`, in that order, and stops at the first failure. `check:products` runs `check:product` on every product's config, which runs `check:opt-outs`, `lint:product-ui`, `lint:slots`, `check:step-budget`, `check:disclosure`, `check:priority`, `check:one-thing`, `check:inventories`, `check:state-coverage`, `check:target-size`, `check:accessible-names` and `check:rendered-page`, in that order, and skips a rule the config opts out of.
+`npm run check` runs `typecheck`, `lint`, `test`, `check:products`, `check:proposals`, `check:retirement`, `check:loop`, `check:docs`, `check:docs-claim`, `check:stale-proposal-path`, `check:review-note` and `check:self`, in that order, and stops at the first failure. `check:products` runs `check:product` on every product's config, which runs `check:opt-outs`, `lint:product-ui`, `lint:slots`, `check:step-budget`, `check:disclosure`, `check:priority`, `check:one-thing`, `check:inventories`, `check:state-coverage`, `check:target-size`, `check:accessible-names` and `check:rendered-page`, in that order, and skips a rule the config opts out of.
 
 **Base.** `check:inventories`, `check:proposals`, `check:retirement`, `check:trace`, `critique` and `loop:step` compare the change with its base. The base is `INVENTORY_BASE` when it is set: CI sets it to the pull request base, or on a push to `main` to `github.event.before`, the tip of `main` before the push. A base missing from the clone fails the check. Unset, empty, `true`, `false` or all zeros, it is the merge base with `origin/main`, or with a local `main`. Without either, the check fails.
 
@@ -37,6 +37,7 @@ npm run check:fixtures && npm run check
 | [`check:docs`](#checkdocs) | Repository | `--write` |  |  |  |
 | [`check:docs-claim`](#checkdocs-claim) | Repository | none |  |  |  |
 | [`check:stale-proposal-path`](#checkstale-proposal-path) | Repository | none |  |  |  |
+| [`check:review-note`](#checkreview-note) | Repository | none |  |  |  |
 | [`check:self`](#checkself) | Repository | none |  |  |  |
 | [`check:fixtures`](#checkfixtures) | Repository | none |  |  |  |
 | [`check:product`](#checkproduct) | Product | `--config <file>` (required) |  | Yes |  |
@@ -654,6 +655,22 @@ It fails:
 - A section headed "after approval" names a `src/`, `scripts/` or `fixtures/` path, or any other path that does not exist, without saying the path was corrected.
 
 Paths a merged proposal's own pull request changed stay as they were, including `src/` from before proposal 0006. The proposals README maps those once. Only the section that says where a change still to come lands has to name a path that exists now, and a corrected path says so. `packages/harness/src/lib/stale-proposal-path.test.ts` feeds the check proposals 0001 and 0008 from before e8cc09b, and the proposals folder this check reads.
+
+## `check:review-note`
+
+A review note does not claim a held booking takes a held length, that step-budget measures one route, or a proposal rule the check does not have.
+
+A repository check: it reads the repository, not one product. Run it as `npm run check:review-note`, from the repository root, defined in `packages/harness/src/check-review-note.ts`. It takes no `--config`.
+
+It fails:
+
+- A Nook review note says a booking takes the held length while transition copies the length chosen before the hold.
+- A review note says check:step-budget measures one route, or only the shortest, while the check calls measureRoutes.
+- A review note's check:proposals sentence names a proposal whose lists change and leaves out a status the check pins, or omits a new proposal that starts adopted with gated lists.
+- A review note says every other inventory cannot be introduced when the base lacks it, and leaves out the design system adapter.
+- A review note says an addition passes by listing the id, or a rename lists that one id, while an addition keeps every base member and a rename lists both.
+
+The note is the review's record, so the check does not generate it from the checks. It compares the sentences that were false with the code they describe. `packages/harness/src/lib/review-note-claim.test.ts` feeds it Meridian's inventories and content-layouts notes from before d935b9b and Nook's book-a-held-room note from before 9b00127, with the checks as they were then, and the notes this check reads.
 
 ## `check:self`
 
