@@ -1,12 +1,11 @@
 /**
- * A vendor id is resolved in one place, openVendor, which searches every
- * vendor the session can reach. The page and the document title both call
- * it. knownVendors and previewVendors stay available for the directory and
- * for id uniqueness, and a type cannot stop a .find on either list, so the
- * check rejects that lookup in the page and the title and names openVendor.
+ * A vendor id is resolved by openVendor. The features barrel exports that and
+ * vendorDirectory, and knownVendors stays in the vendors module. A search of
+ * either list, or of a const taken from one, is the split this check rejects.
  */
 
-const LIST_CALL = /(knownVendors|previewVendors)\s*\([^)]*\)/g;
+const LISTS = "knownVendors|previewVendors|vendorDirectory";
+const METHODS = "find|findIndex|findLast|filter|some";
 
 export function previewScopeProblems(files: ReadonlyMap<string, string>): string[] {
   const problems: string[] = [];
@@ -28,23 +27,29 @@ function isPage(file: string): boolean {
 
 function idLookups(text: string): string[] {
   const used: string[] = [];
+  const add = (label: string): void => {
+    if (!used.includes(label)) used.push(label);
+  };
   const bound = new Map<string, string>();
-  for (const match of text.matchAll(/const\s+(\w+)\s*=\s*(knownVendors|previewVendors)\s*\(/g)) {
+  for (const match of text.matchAll(new RegExp(`const\\s+(\\w+)\\s*=\\s*(${LISTS})\\s*\\(`, "g"))) {
     const name = match[1];
     const list = match[2];
     if (name && list) bound.set(name, list);
   }
-  for (const match of text.matchAll(LIST_CALL)) {
+  for (const match of text.matchAll(new RegExp(`(${LISTS})\\s*\\([^)]*\\)`, "g"))) {
     const list = match[1];
     const after = text.slice((match.index ?? 0) + match[0].length);
-    const lookup = /^\s*\.\s*(find|some)\s*\(/.exec(after);
-    if (list && lookup?.[1] && !used.includes(`${list}().${lookup[1]}`)) used.push(`${list}().${lookup[1]}`);
+    const lookup = new RegExp(`^\\s*\\.\\s*(${METHODS})\\s*\\(`).exec(after);
+    if (list && lookup?.[1]) add(`${list}().${lookup[1]}`);
+  }
+  for (const match of text.matchAll(new RegExp(`for\\s*\\(\\s*(?:const|let|var)\\s+\\w+\\s+of\\s+(${LISTS})\\s*\\(`, "g"))) {
+    if (match[1]) add(`for…of ${match[1]}()`);
   }
   for (const [name, list] of bound) {
-    if (new RegExp(`\\b${name}\\s*\\.\\s*(find|some)\\s*\\(`).test(text) && !used.includes(`${list}().${name}`)) {
-      const how = new RegExp(`\\b${name}\\s*\\.\\s*(find|some)\\s*\\(`).exec(text)?.[1] ?? "find";
-      used.push(`${name}.${how} (${list})`);
+    for (const match of text.matchAll(new RegExp(`\\b${name}\\s*\\.\\s*(${METHODS})\\s*\\(`, "g"))) {
+      if (match[1]) add(`${name}.${match[1]} (${list})`);
     }
+    if (new RegExp(`for\\s*\\(\\s*(?:const|let|var)\\s+\\w+\\s+of\\s+${name}\\b`).test(text)) add(`for…of ${name} (${list})`);
   }
   return used;
 }

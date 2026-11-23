@@ -35,9 +35,9 @@ export {
   searchVendors,
   termsLabel,
   vendorRows,
-  knownVendors,
   openVendor,
   previewVendors,
+  vendorDirectory,
   vendorKey,
   vendorProfile,
 } from "./vendors";

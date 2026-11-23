@@ -642,20 +642,20 @@ It fails:
 - A markdown sentence says a link to the file opens the image full size, and does not say that no longer holds or name raw.githubusercontent.com.
 - AGENTS.md says a cloud agent cannot clone home, instead of reading `/agent/repos/home` when that directory exists.
 
-The three claims are prose, so a type cannot hold them, and generating CODEOWNERS, the proposal and AGENTS.md from one module would hide the instructions those files are. The check names the sentence to write. `packages/harness/src/lib/docs-claim.test.ts` feeds it the wording from the commits that had each claim, and the tree this check reads.
+The three claims are prose, so a type cannot hold them, and generating CODEOWNERS, the proposal and AGENTS.md from one module would hide the instructions those files are. The check names the sentence to write. `packages/harness/src/lib/docs-claim.test.ts` feeds it the wording from the commits that had each claim. It skips when the commit is not in the clone. This check reads the tree.
 
 ## `check:stale-proposal-path`
 
-A proposal's later-landing paths exist, and an example that names a proposal number names that proposal or a number no proposal has.
+A proposal's later-landing section does not name a moved src, scripts or fixtures path, and an example that names a proposal number names that proposal or a number no proposal has.
 
 A repository check: it reads the repository, not one product. Run it as `npm run check:stale-proposal-path`, from the repository root, defined in `packages/harness/src/check-stale-proposal-path.ts`. It takes no `--config`.
 
 It fails:
 
 - A proposal names `proposals/NNNN-slug.md` when `proposals/NNNN-` is a different file.
-- A section headed "after approval" names a `src/`, `scripts/` or `fixtures/` path, or any other path that does not exist, without saying the path was corrected.
+- A section headed "after approval" names a `src/`, `scripts/` or `fixtures/` path without saying the path was corrected.
 
-Paths a merged proposal's own pull request changed stay as they were, including `src/` from before proposal 0006. The proposals README maps those once. Only the section that says where a change still to come lands has to name a path that exists now, and a corrected path says so. `packages/harness/src/lib/stale-proposal-path.test.ts` feeds the check proposals 0001 and 0008 from before e8cc09b, and the proposals folder this check reads.
+Paths a merged proposal's own pull request changed stay as they were, including `src/` from before proposal 0006. The proposals README maps those once. A file the section says a later change will add, such as `packages/harness/src/check-new-thing.ts`, is not a failure: it does not exist yet. `packages/harness/src/lib/stale-proposal-path.test.ts` feeds the check proposals 0001 and 0008 from before e8cc09b, and that future path. It skips when the commit is not in the clone.
 
 ## `check:review-note`
 
@@ -666,24 +666,25 @@ A repository check: it reads the repository, not one product. Run it as `npm run
 It fails:
 
 - A Nook review note says a booking takes the held length while transition copies the length chosen before the hold.
-- A review note says check:step-budget measures one route, or only the shortest, while the check calls measureRoutes.
-- A review note's check:proposals sentence names a proposal whose lists change and leaves out a status the check pins, or omits a new proposal that starts adopted with gated lists.
+- A review note says check:step-budget measures one route, or only the shortest, while the check calls measureRoutes. A bullet that says the check does not see a change is not that claim.
+- A review note bullet that restates which statuses' lists are pinned leaves a status out, or leaves out a new proposal that starts adopted with gated lists. A check:proposals bullet that does not restate that pinning is not required to.
 - A review note says every other inventory cannot be introduced when the base lacks it, and leaves out the design system adapter.
 - A review note says an addition passes by listing the id, or a rename lists that one id, while an addition keeps every base member and a rename lists both.
+- A string the rule reads, such as measureRoutes or before.status !== "open", is not in the file the message names.
 
-The note is the review's record, so the check does not generate it from the checks. It compares the sentences that were false with the code they describe. `packages/harness/src/lib/review-note-claim.test.ts` feeds it Meridian's inventories and content-layouts notes from before d935b9b and Nook's book-a-held-room note from before 9b00127, with the checks as they were then, and the notes this check reads.
+The note is the review's record, so the check does not generate it from the checks. It compares the sentences that were false with the code they describe, and names the file when the string it reads is gone, so the rule cannot switch itself off. `packages/harness/src/lib/review-note-claim.test.ts` feeds it Meridian's inventories and content-layouts notes from before d935b9b and Nook's book-a-held-room note from before 9b00127, with the checks as they were then. It skips when the commit is not in the clone. The row in the rule table is text: the check holds five historical sentences, not every way a note can be wrong.
 
 ## `check:preview-scope`
 
-The page and the document title open a vendor with openVendor, not with a find or some on knownVendors or previewVendors.
+The page and the document title open a vendor with openVendor, not by searching knownVendors, previewVendors, vendorDirectory, or a list taken from them.
 
 A repository check: it reads the repository, not one product. Run it as `npm run check:preview-scope`, from the repository root, defined in `packages/harness/src/check-preview-scope.ts`. It takes no `--config`.
 
 It fails:
 
-- App.tsx or a feature file resolves a vendor id with knownVendors or previewVendors, by calling .find or .some on the list or on a const assigned from it.
+- App.tsx or a feature file resolves a vendor id with knownVendors, previewVendors or vendorDirectory, or with a const assigned from one of them, by calling find, findIndex, findLast, filter or some, or by looping over the list.
 
-openVendor in products/meridian/flows/invoice-approval/vendors.ts searches every vendor the session can reach, including one a preview seeded. previewVendors is the directory for the current preview, and it drops that vendor once a link leaves the preview. A type cannot stop .find on either list. `packages/harness/src/lib/preview-scope.test.ts` feeds the check the page and the title from before 3a3c7d7 and at 3a3c7d7, and the files this check reads.
+openVendor in products/meridian/flows/invoice-approval/vendors.ts searches every vendor the session can reach, including one a preview seeded. vendorDirectory is that list for the page, and it is what the flow barrel exports along with openVendor. knownVendors stays in the module so id uniqueness can use it, and a feature cannot import it from the barrel. previewVendors is the directory for the current preview, and it drops a seeded vendor once a link leaves the preview. `packages/harness/src/lib/preview-scope.test.ts` feeds the check the page and the title from before 3a3c7d7 and at 3a3c7d7, and a page that takes the first shownVendors.filter result or a findIndex. It skips when the commit is not in the clone.
 
 ## `check:self`
 

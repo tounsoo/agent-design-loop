@@ -1,12 +1,8 @@
 /**
- * A proposal that tells a later change where to land has to name a path that
- * exists, and an example that names `proposals/NNNN-slug.md` has to name that
- * proposal or a number no proposal has. Paths a merged proposal's own pull
- * request changed stay as they were: the proposals README maps `src/`,
- * `scripts/` and `fixtures/` once, and those records are not this check.
- * A type cannot tell a later-landing section from a record of a merged
- * change, so the check reads the "after approval" heading, which is the
- * section that names where a change still to come lands.
+ * An example that names `proposals/NNNN-slug.md` has to name that proposal
+ * or a number no proposal has. A section headed "after approval" is flagged
+ * only for a path under `src/`, `scripts/` or `fixtures/`, the roots proposal
+ * 0006 moved. A file the section says a later change will add is not a failure.
  */
 
 const OLD_ROOT = /^(?:src|scripts|fixtures)(?:\/|$)/;
@@ -14,17 +10,13 @@ const PROPOSAL_FILE = /proposals\/(\d{4})-([a-z][a-z0-9-]*)\.md/g;
 const PATH_TOKEN = /`((?:src|scripts|fixtures|products|packages|proposals|\.github|\.claude)\/[A-Za-z0-9_./-]*)`/g;
 const ACKNOWLEDGED = /corrected|when this proposal merged|moved|lived under/;
 
-export function staleProposalPathProblems(
-  files: ReadonlyMap<string, string>,
-  exists: (filePath: string) => boolean,
-  proposalFiles: readonly string[],
-): string[] {
+export function staleProposalPathProblems(files: ReadonlyMap<string, string>, proposalFiles: readonly string[]): string[] {
   const problems: string[] = [];
   for (const file of [...files.keys()].sort()) {
     if (!file.startsWith("proposals/") || !file.endsWith(".md")) continue;
     const text = files.get(file) ?? "";
     problems.push(...collisions(file, text, proposalFiles));
-    problems.push(...laterLandingPaths(file, text, exists));
+    problems.push(...laterLandingPaths(file, text));
   }
   return problems;
 }
@@ -47,7 +39,7 @@ function collisions(file: string, text: string, proposalFiles: readonly string[]
   return problems;
 }
 
-function laterLandingPaths(file: string, text: string, exists: (filePath: string) => boolean): string[] {
+function laterLandingPaths(file: string, text: string): string[] {
   const problems: string[] = [];
   for (const section of sections(text)) {
     if (!/after approval/i.test(section.heading)) continue;
@@ -56,17 +48,11 @@ function laterLandingPaths(file: string, text: string, exists: (filePath: string
       const seen = new Set<string>();
       for (const match of paragraph.matchAll(PATH_TOKEN)) {
         const token = (match[1] ?? "").replace(/\/+$/, "");
-        if (token === "" || seen.has(token) || token.includes("...")) continue;
+        if (token === "" || seen.has(token) || token.includes("...") || !OLD_ROOT.test(token)) continue;
         seen.add(token);
-        if (OLD_ROOT.test(token)) {
-          problems.push(
-            `${file} names \`${token}\` where a later change lands, and that path does not exist. Name the path the repository has now. Proposal 0006 moved \`src/\`, \`scripts/\` and \`fixtures/\` to \`products/meridian/\` and \`packages/harness/\`.`,
-          );
-          continue;
-        }
-        if (!exists(token)) {
-          problems.push(`${file} names \`${token}\` where a later change lands, and that path does not exist. Name the path the repository has now.`);
-        }
+        problems.push(
+          `${file} names \`${token}\` where a later change lands, and that path does not exist. Name the path the repository has now. Proposal 0006 moved \`src/\`, \`scripts/\` and \`fixtures/\` to \`products/meridian/\` and \`packages/harness/\`.`,
+        );
       }
     }
   }
