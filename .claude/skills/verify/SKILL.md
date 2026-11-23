@@ -57,7 +57,7 @@ for config in $(npm run --silent check:products -- --json | node -e 'for (const 
     npm run "$check" -- --config "$config" || break 2
   done
 done
-npm run check:proposals && npm run check:retirement && npm run check:loop && npm run check:docs && npm run check:self
+npm run check:proposals && npm run check:retirement && npm run check:loop && npm run check:docs && npm run check:docs-claim && npm run check:self
 ```
 <!-- docs:gen no-chrome end -->
 
