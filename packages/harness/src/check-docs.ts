@@ -9,7 +9,7 @@ import { readMapFiles, readProductRegistry, verifyMapProblems, VERIFY_MAP, type 
 /**
  * Writes the check reference from the code, and fails when a doc holds a
  * stale copy: packages/harness/docs/checks.md whole, and the generated blocks
- * in the harness README, CLAUDE.md, the verify skill and its map. `npm run
+ * in the harness README, AGENTS.md, the verify skill and its map. `npm run
  * docs:gen` runs it with --write, which rewrites them. It also holds the
  * verify map to the product registry: every page type, layout, content
  * layout, task and scenario of every product is covered by a feature file,

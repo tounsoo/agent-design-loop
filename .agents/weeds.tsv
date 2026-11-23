@@ -1,0 +1,17 @@
+date	class	ref	caught_by	note
+2026-11-11	proposal-state-parse	#36	review	A wrapped proposal state was read as a failure, and a fence with an info string closed the code block early.
+2026-11-11	stale-proposal-path	#19	review	Proposal 0001 still named Meridian's old src paths after the move into products/meridian.
+2026-11-11	stale-proposal-path	#22	review	Proposal 0008's opt-out example named proposals/0009-nook-has-no-disclosure.md, and the real proposal 0009 is the design loop.
+2026-11-11	review-note-claim	#27	review	Meridian's review note claimed one-PR additions and proposal pinning that the internal review disproved.
+2026-11-11	review-note-claim	#26	review	Nook's review note said a held booking took the held length and that step-budget measured the new route.
+2026-11-11	preview-clock	#33	review	A held-room preview turned into Hold ended after 15 minutes, and the note said an ended hold could not be renewed.
+2026-11-11	step-status-word	#32	review	A waiting Payment stage used Todae's default In progress word, so a screen reader heard that payment was running.
+2026-11-12	docs-claim	#1	review	The CODEOWNERS header said review is required, but main has no branch protection, so GitHub only requests it.
+2026-11-12	docs-claim	#40	review	The gallery proposal claimed a file link opens the image full size.
+2026-11-12	rendered-measure	#60	review	The rendered-page review found the type scale was not measured in Chrome and overflow was read outside the app shell.
+2026-11-12	docs-generator	#54	review	The docs generator review found the product kind, symlinked fixture cases and CRLF staleness were handled wrong.
+2026-11-12	trace-history	#66	review	check:trace dated a line's loop from the wrong commit, so a walk between a loop change and its revert lost its loop.
+2026-11-13	preview-scope	#69	review	A Vendor added preview card opened Vendors because the page looked that vendor up outside the preview.
+2026-11-13	preview-scope	#69	review	The document title used every known vendor, so a preview-only vendor link was titled while the page showed Vendors.
+2026-11-13	phone-table-wrap	#69	review	Page-wide overflow wrap split invoice numbers and amounts on a phone, which the critique flagged.
+2026-11-16	docs-claim	55f561218bc6e47ee03731292bbda6c66178cb46	ben	AGENTS.md said a Cursor cloud agent cannot clone home, so agents skipped the checkout at /agent/repos/home.

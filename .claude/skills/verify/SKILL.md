@@ -45,7 +45,7 @@ The Chrome checks look for Chrome where [the check reference](../../../packages/
 npm run check:fixtures && npm run check
 ```
 
-This is the command `AGENTS.md` names. CI runs the same checks split into jobs: one runs the fixtures, the repository-wide checks and `check:trace`, and one runs `check:product` for each product in the list `npm run check:products -- --json` prints. `check:fixtures` runs every case folder under `packages/harness/fixtures/` against the checks its `case.ts` names, and passes only when every illegal case fails with its expected message and every legal case passes with its expected message. `check` then runs typecheck, ESLint and the Vitest suite on the whole repository, `check:product` on each product's config, and the repository checks; [the check reference](../../../packages/harness/docs/checks.md#the-build-gate) lists them in order and says what each fails. The Vitest suite drives each product with Testing Library and `user-event` in jsdom, through its rendered controls: for Meridian it follows an invoice link, opens Line items and presses Approve, requests changes with and without a reason, adds a vendor and opens a vendor's page; for Nook it books, holds and joins a waitlist. Each product's folder in [the verify map](features/README.md) names its journeys. `check:docs` also holds that map to the products: every page type, layout, content layout, task and scenario a product has must be named in a feature file's `## Covers`, and nothing a `Covers` line names may be gone.
+This is the command `AGENTS.md` names. CI runs the same checks split into jobs: one runs the fixtures, the repository-wide checks and `check:trace`, the `rule-checker` job runs `check:self`, and one runs `check:product` for each product in the list `npm run check:products -- --json` prints. `check:fixtures` runs every case folder under `packages/harness/fixtures/` against the checks its `case.ts` names, and passes only when every illegal case fails with its expected message and every legal case passes with its expected message. `check` then runs typecheck, ESLint and the Vitest suite on the whole repository, `check:product` on each product's config, and the repository checks, `check:self` included; [the check reference](../../../packages/harness/docs/checks.md#the-build-gate) lists them in order and says what each fails. The Vitest suite drives each product with Testing Library and `user-event` in jsdom, through its rendered controls: for Meridian it follows an invoice link, opens Line items and presses Approve, requests changes with and without a reason, adds a vendor and opens a vendor's page; for Nook it books, holds and joins a waitlist. Each product's folder in [the verify map](features/README.md) names its journeys. `check:docs` also holds that map to the products: every page type, layout, content layout, task and scenario a product has must be named in a feature file's `## Covers`, and nothing a `Covers` line names may be gone.
 
 Each product's rule checks end with `check:target-size`, `check:accessible-names` and `check:rendered-page`, which share one build of the app that `check:product` serves on a free port, so without Chrome `check` stops at the first product's. Then run the rest by hand, one product at a time, and mark step 3 `BLOCKED`:
 
@@ -57,7 +57,7 @@ for config in $(npm run --silent check:products -- --json | node -e 'for (const 
     npm run "$check" -- --config "$config" || break 2
   done
 done
-npm run check:proposals && npm run check:retirement && npm run check:loop && npm run check:docs
+npm run check:proposals && npm run check:retirement && npm run check:loop && npm run check:docs && npm run check:self
 ```
 <!-- docs:gen no-chrome end -->
 
@@ -78,6 +78,8 @@ When a change touches an inventory (anything `proposals/README.md` lists), `chec
 When a change touches a reducer, a task graph or a task's `max_steps`, quote each task's `longest shipped flow route (N)` line from `check:step-budget` as well as its verdict. The check measures every route to a task's success, not only the shortest: any steps a task graph in the same flow names, then the shortest finish. A longer route over `max_steps` fails the change even when the shortest path fits, so cut the route or propose a new budget.
 
 When a change adds or edits a proposal, `check:proposals` must pass. [Its reference entry](../../../packages/harness/docs/checks.md#checkproposals) lists what it fails, such as a new proposal not named for the UTC day it was written and a lowercase slug, `2026-11-12-side-panel.md`. Its rules are proven by the Vitest suite in `packages/harness/src/lib/proposals.test.ts`, not by fixture cases, because the check reads the repository's own proposal folders and takes no `--config`.
+
+`check:self` is proven the same way. The Vitest suite in `packages/harness/src/lib/self-correcting.test.ts` runs it on a malformed rule table, a bad weeds row, a weeds row dated after today in Pacific time, a suppression over the baseline, an unannotated suppression over its baseline, an expired suppression, an annotated suppression with no reason, an expiry more than 90 days out, a missing approval, and a repeat at T1. It reads this repository's rule table, weeds log and suppression baseline, and it takes no `--config`, so a fixture product cannot show those failures.
 
 ### 3. Browser drive (a change to anything a product renders, its styles, its build config or the Todae version)
 
@@ -145,7 +147,7 @@ Every row also runs step 4.
 | A flow's `scenarios.ts`, a scenario added or removed | 1 and 3 |
 | `products/<name>/catalog/`, `layouts/`, `content-layouts/`, `page-types/`, `flows/` (the inventories, see `proposals/README.md`) | 1, 2 and 3 |
 | `products/<name>/inputs`, `rules`, `harness.config.ts`, `packages/adapter-todae/`, `package.json` and `package-lock.json` (the Todae version) | 1, 2 and 3 |
-| `packages/harness/` | 1 and 2. A change to a check updates its `.meta.ts` and runs `npm run docs:gen`, which rewrites `packages/harness/docs/checks.md` and the generated parts of `packages/harness/README.md`, `CLAUDE.md` and this skill; update their hand-written parts by hand. |
+| `packages/harness/` | 1 and 2. A change to a check updates its `.meta.ts` and runs `npm run docs:gen`, which rewrites `packages/harness/docs/checks.md` and the generated parts of `packages/harness/README.md`, `AGENTS.md` and this skill; update their hand-written parts by hand. |
 | `*.test.ts(x)`, `vitest.setup.ts`, `tsconfig.json`, `eslint.config.js`, `.npmrc`, `.gitignore` | 1 |
 | `proposals/` | 1, including `check:proposals`. A proposal changes nothing until it is adopted. |
 | `.github/` | 1, then the pull request's CI run is the rest of the proof; link it |

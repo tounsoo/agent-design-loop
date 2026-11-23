@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCovers, productName, renderChromeDrive, renderClaudeProducts, renderMapProducts, verifyMapProblems, type ProductRegistry } from "./verify-map";
+import { parseCovers, productName, renderChromeDrive, renderAgentsProducts, renderMapProducts, verifyMapProblems, type ProductRegistry } from "./verify-map";
 
 const shop: ProductRegistry = {
   name: "shop",
@@ -174,10 +174,10 @@ describe("verifyMapProblems", () => {
 
 describe("renderers", () => {
   it("lists each product with what it registers, its map and its Chrome drive", () => {
-    expect(renderClaudeProducts([shop])).toBe(
+    expect(renderAgentsProducts([shop])).toBe(
       "- [`shop`](products/shop/harness.config.ts), verify map [.claude/skills/verify/features/shop/](.claude/skills/verify/features/shop/README.md): page types `cart` (primary slot), `catalog` (collection); layouts `frame`; content layouts `item-grid`, `totals`; tasks `check-out`.",
     );
-    expect(renderClaudeProducts([{ ...shop, pageTypes: [] }])).toContain("page types none;");
+    expect(renderAgentsProducts([{ ...shop, pageTypes: [] }])).toContain("page types none;");
     expect(renderMapProducts([shop])).toBe("- [shop](shop/README.md), from `products/shop/harness.config.ts`: 2 page types, 1 layout, 2 content layouts, 1 task and 2 scenarios.");
     expect(renderChromeDrive([shop], ["check:a", "check:b"])).toBe(
       "```sh\nnpm run check:a -- --config products/shop/harness.config.ts\nnpm run check:b -- --config products/shop/harness.config.ts\n```",

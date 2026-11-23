@@ -392,11 +392,11 @@ function inline(items: readonly string[]): string {
 }
 
 /**
- * CLAUDE.md's list: one line per product, with what it registers and its
+ * AGENTS.md's list: one line per product, with what it registers and its
  * verify map. Scenarios are left to the map's index, so adding one, which
- * needs no proposal, needs no edit to CLAUDE.md either.
+ * needs no proposal, needs no edit to AGENTS.md either.
  */
-export function renderClaudeProducts(products: readonly ProductRegistry[]): string {
+export function renderAgentsProducts(products: readonly ProductRegistry[]): string {
   return products
     .map(
       (product) =>

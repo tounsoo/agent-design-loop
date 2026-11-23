@@ -6,7 +6,7 @@ import { BASE_DOC } from "./base";
 import { CHROME_DOC } from "./chrome";
 import { defaultExportLiteral, isRecord } from "./parse-config";
 import { ruleChecks } from "./scripts";
-import { renderChromeDrive, renderClaudeProducts, renderMapProducts, VERIFY_MAP, type ProductRegistry } from "./verify-map";
+import { renderChromeDrive, renderAgentsProducts, renderMapProducts, VERIFY_MAP, type ProductRegistry } from "./verify-map";
 
 /**
  * The check reference, written from the code. Each harness script's meta
@@ -389,8 +389,8 @@ export function renderReadmeTable(model: Model): string {
   return lines.join("\n");
 }
 
-/** CLAUDE.md's list: one line per script. */
-export function renderClaudeList(model: Model): string {
+/** AGENTS.md's list: one line per script. */
+export function renderScriptList(model: Model): string {
   return model.scripts
     .map((script) => `- [${code(script.name)}](${REFERENCE}#${anchor(script.name)}), ${kind(script).toLowerCase()}${script.config ? ", needs `--config`" : ""}: ${script.meta.summary}`)
     .join("\n");
@@ -442,14 +442,14 @@ export function chromeRules(model: Model): string[] {
 /**
  * The generated blocks each hand-written doc holds, by file from the
  * repository root. `products` is the product registry, as the verify map
- * reads it, so CLAUDE.md and the verify skill name every product, page type,
+ * reads it, so AGENTS.md and the verify skill name every product, page type,
  * content layout and task, and the browser drive runs every Chrome rule check
  * on every product.
  */
 export function renderBlocks(model: Model, products: readonly ProductRegistry[]): Record<string, Record<string, string>> {
   return {
     "packages/harness/README.md": { scripts: renderReadmeTable(model) },
-    "CLAUDE.md": { scripts: renderClaudeList(model), products: renderClaudeProducts(products) },
+    "AGENTS.md": { scripts: renderScriptList(model), products: renderAgentsProducts(products) },
     ".claude/skills/verify/SKILL.md": { "no-chrome": renderNoChrome(model), blockers: renderBlockers(model), "chrome-drive": renderChromeDrive(products, chromeRules(model)) },
     [`${VERIFY_MAP}/README.md`]: { products: renderMapProducts(products) },
   };
