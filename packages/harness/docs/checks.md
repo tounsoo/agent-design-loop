@@ -10,7 +10,7 @@ Every script the harness runs: what it is for, what it reads and what it fails. 
 npm run check:fixtures && npm run check
 ```
 
-`npm run check` runs `typecheck`, `lint`, `test`, `check:products`, `check:proposals`, `check:retirement`, `check:loop`, `check:docs`, `check:docs-claim` and `check:self`, in that order, and stops at the first failure. `check:products` runs `check:product` on every product's config, which runs `check:opt-outs`, `lint:product-ui`, `lint:slots`, `check:step-budget`, `check:disclosure`, `check:priority`, `check:one-thing`, `check:inventories`, `check:state-coverage`, `check:target-size`, `check:accessible-names` and `check:rendered-page`, in that order, and skips a rule the config opts out of.
+`npm run check` runs `typecheck`, `lint`, `test`, `check:products`, `check:proposals`, `check:retirement`, `check:loop`, `check:docs`, `check:docs-claim`, `check:stale-proposal-path` and `check:self`, in that order, and stops at the first failure. `check:products` runs `check:product` on every product's config, which runs `check:opt-outs`, `lint:product-ui`, `lint:slots`, `check:step-budget`, `check:disclosure`, `check:priority`, `check:one-thing`, `check:inventories`, `check:state-coverage`, `check:target-size`, `check:accessible-names` and `check:rendered-page`, in that order, and skips a rule the config opts out of.
 
 **Base.** `check:inventories`, `check:proposals`, `check:retirement`, `check:trace`, `critique` and `loop:step` compare the change with its base. The base is `INVENTORY_BASE` when it is set: CI sets it to the pull request base, or on a push to `main` to `github.event.before`, the tip of `main` before the push. A base missing from the clone fails the check. Unset, empty, `true`, `false` or all zeros, it is the merge base with `origin/main`, or with a local `main`. Without either, the check fails.
 
@@ -36,6 +36,7 @@ npm run check:fixtures && npm run check
 | [`check:loop`](#checkloop) | Repository | `--write` |  |  |  |
 | [`check:docs`](#checkdocs) | Repository | `--write` |  |  |  |
 | [`check:docs-claim`](#checkdocs-claim) | Repository | none |  |  |  |
+| [`check:stale-proposal-path`](#checkstale-proposal-path) | Repository | none |  |  |  |
 | [`check:self`](#checkself) | Repository | none |  |  |  |
 | [`check:fixtures`](#checkfixtures) | Repository | none |  |  |  |
 | [`check:product`](#checkproduct) | Product | `--config <file>` (required) |  | Yes |  |
@@ -640,6 +641,19 @@ It fails:
 - AGENTS.md says a cloud agent cannot clone home, instead of reading `/agent/repos/home` when that directory exists.
 
 The three claims are prose, so a type cannot hold them, and generating CODEOWNERS, the proposal and AGENTS.md from one module would hide the instructions those files are. The check names the sentence to write. `packages/harness/src/lib/docs-claim.test.ts` feeds it the wording from the commits that had each claim, and the tree this check reads.
+
+## `check:stale-proposal-path`
+
+A proposal's later-landing paths exist, and an example that names a proposal number names that proposal or a number no proposal has.
+
+A repository check: it reads the repository, not one product. Run it as `npm run check:stale-proposal-path`, from the repository root, defined in `packages/harness/src/check-stale-proposal-path.ts`. It takes no `--config`.
+
+It fails:
+
+- A proposal names `proposals/NNNN-slug.md` when `proposals/NNNN-` is a different file.
+- A section headed "after approval" names a `src/`, `scripts/` or `fixtures/` path, or any other path that does not exist, without saying the path was corrected.
+
+Paths a merged proposal's own pull request changed stay as they were, including `src/` from before proposal 0006. The proposals README maps those once. Only the section that says where a change still to come lands has to name a path that exists now, and a corrected path says so. `packages/harness/src/lib/stale-proposal-path.test.ts` feeds the check proposals 0001 and 0008 from before e8cc09b, and the proposals folder this check reads.
 
 ## `check:self`
 
