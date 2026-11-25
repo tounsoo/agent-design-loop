@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import designLoop from "../design-loop";
 import { config, configName, loadInputs } from "./lib/config";
 import { CRITIQUE_CONFIG_FILE, CRITIQUE_FILE, critiqueBrief, critiqueMarkdown, critiquePullRequestMarkdown, critiqueTrace, galleryShots, parseCritique, reviewerModel, verdict } from "./lib/critique";
@@ -11,9 +12,10 @@ import { loopBase, recordedLoops } from "./lib/trace-history";
  * the product's tasks and ranked actions, the gallery's screenshots, the
  * rubric and the shape of the answer. The agent gives it to the model
  * critique.config.json names, never the one that built the change. With
- * `--findings` and `--trace` it reads that answer back, checks it against the gallery, writes CRITIQUE.md into the
- * gallery and prints the edge the loop takes out of `critique`, with the block
- * for the pull request description.
+ * `--findings` and `--trace` it reads that answer back, checks it against
+ * the gallery, writes CRITIQUE.md into the gallery and prints the edge the
+ * loop takes out of `critique`, with the block for the pull request
+ * description.
  *
  * It is advisory. The build gate does not run it and no check reads what it
  * writes; the trace records the step and its edge.
@@ -40,7 +42,7 @@ if (!existsSync(readme) || !readFileSync(readme, "utf8").startsWith("# Screensho
 }
 const shots = galleryShots(folder);
 if (shots.after.length === 0) fail(`${gallery} holds no screenshots of the change.`);
-const reviewer = reviewerModel(process.cwd());
+const reviewer = reviewerModel(fileURLToPath(new URL("../../..", import.meta.url)));
 if ("problem" in reviewer) fail(reviewer.problem);
 
 if (briefFile) {
