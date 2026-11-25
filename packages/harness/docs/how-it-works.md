@@ -21,7 +21,7 @@ flowchart TB
 
 Read it from the top. Structure is the strongest control this repo has. Prose is weaker, because text has to be noticed. A person is last, for the decisions the structure cannot make.
 
-Lauren Tan (poteto) states why a check beats an instruction in [Encode lessons in structure](https://www.skills.sh/poteto/plugins/principle-encode-lessons-in-structure). The page says textual instructions are easy to miss: "They require the reader to notice, remember, and comply." Structural mechanisms, "lint rules, metadata flags, runtime checks, automation scripts", enforce the rule without that cooperation. When more than one mechanism would work, the page says to pick the strongest the situation allows: an unrepresentable state that cannot compile, then a lint or banned API that fails CI, then a canonical helper, then a runtime check, "because agents copy whatever the surrounding code already does and a weaker guard becomes the next template."
+Lauren Tan states why a check beats an instruction in her note *Encode lessons in structure*. The page says textual instructions are easy to miss: "They require the reader to notice, remember, and comply." Structural mechanisms, "lint rules, metadata flags, runtime checks, automation scripts", enforce the rule without that cooperation. When more than one mechanism would work, the page says to pick the strongest the situation allows: an unrepresentable state that cannot compile, then a lint or banned API that fails CI, then a canonical helper, then a runtime check, "because agents copy whatever the surrounding code already does and a weaker guard becomes the next template."
 
 The diagram is this repo's use of that idea. Codebase structure is the unrepresentable state and the helper the next edit copies. The check scripts are the CI rung. Prose and a person are the case the page leaves for judgment. The page does not call those structural rungs.
 
@@ -130,7 +130,7 @@ Each node has a kind, and the shape in the diagram shows it.
 - **llm.** The agent's own work, such as building the screen or writing a proposal. It has one edge out.
 - **router.** A question the agent answers. Each edge out is one answer, named by its `when`.
 - **eval.** npm scripts. The `pass` edge is taken when every script exits 0, and the `fail` edge otherwise. The eval node here runs the build gate, `npm run check:fixtures` and `npm run check`.
-- **human.** The run stops until a person decides. Its `gate` is a `CODEOWNERS` pattern, and the review `CODEOWNERS` requests on that pull request is the approval. Its edges are `approved` and `declined`. `main` has no branch protection, so GitHub requests the review but does not block a merge without it.
+- **human.** The run stops until a person decides. Its `gate` is a `CODEOWNERS` pattern, and the review `CODEOWNERS` requests on that pull request is the approval. Its edges are `approved` and `declined`. The `Protect main` ruleset requires the `check` and `rule-checker` status checks but no review, so GitHub requests the review but does not block a merge without it.
 - **checkpoint.** The work is saved where the next run and the reviewer read it, as a pull request. A checkpoint with no edge out ends the run. The proposal's checkpoint opens the pull request the human node reviews.
 
 The graph's `state` lists what the nodes read and write: the inventories, the harness rules, the proposals, the product's UI and its `review/` folder, which holds the review notes and each change's screenshots with their critique. An adopted proposal writes the inventories or the rules, so the next run reads a larger set.
@@ -470,7 +470,7 @@ flowchart LR
 
 What stays open is in the code and in Meridian's [`review/inventories.md`](../../../products/meridian/review/inventories.md):
 
-**Approval is a status, not a person.** The check reads `status: decided` on the base. It cannot see who approved it, and `main` has no branch protection, so `CODEOWNERS` review is requested, not required. A proposal that changes no inventory may start as `adopted`, so a harness change rests on that review alone. So does one that only adds or tightens: it is adopted in the pull request that adds it, and nothing the check reads shows the code owner looked beyond the merge. That review blocks the merge only once branch protection on `main` requires code owner review, which is Ben's setting in GitHub.
+**Approval is a status, not a person.** The check reads `status: decided` on the base. It cannot see who approved it, and the `Protect main` ruleset requires status checks but no review, so `CODEOWNERS` review is requested, not required. A proposal that changes no inventory may start as `adopted`, so a harness change rests on that review alone. So does one that only adds or tightens: it is adopted in the pull request that adds it, and nothing the check reads shows the code owner looked beyond the merge. That review blocks the merge only once a ruleset or branch protection on `main` requires code owner review, which is Ben's setting in GitHub.
 
 **Approval is shared across products.** `changes` names an inventory member, not a product, so one proposal in `proposals/` that lists `Toast` covers `Toast` in every product's catalog that adds it in the same change. Opt-outs name their product; changes do not.
 

@@ -286,7 +286,7 @@ function sourceFiles(root: string): string[] {
       if (SKIP_DIRS.has(entry.name)) continue;
       const full = path.join(dir, entry.name);
       const rel = path.relative(root, full).split(path.sep).join("/");
-      if (rel === ".agents/pstack" || rel.startsWith(".agents/pstack/") || rel.endsWith("routeTree.gen.ts")) continue;
+      if (rel.endsWith("routeTree.gen.ts")) continue;
       if (entry.isDirectory()) visit(full);
       else if (entry.isFile() && SOURCE_EXT.has(path.extname(entry.name))) found.push(full);
     }
