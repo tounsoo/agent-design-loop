@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import type { LoopGraph } from "./loop";
 import { VIEWS } from "./views";
@@ -103,6 +103,27 @@ export type Shots = { readonly before: readonly string[]; readonly after: readon
 
 const SEVERITIES: readonly Severity[] = ["revise", "note"];
 const FINDING_KEYS = new Set(["pattern", "severity", "screenshots", "problem", "fix"]);
+/** The repository's critique config: the model that judges the screenshots. */
+export const CRITIQUE_CONFIG_FILE = "critique.config.json";
+
+/**
+ * Reads `reviewerModel` from the critique config at the repository root. It
+ * names the critic's model, which is never the model that built the change.
+ */
+export function reviewerModel(root: string): { model: string } | { problem: string } {
+  const file = path.join(root, CRITIQUE_CONFIG_FILE);
+  if (!existsSync(file)) return { problem: `${CRITIQUE_CONFIG_FILE} is missing. It names the critic's model as reviewerModel.` };
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(file, "utf8"));
+  } catch {
+    return { problem: `${CRITIQUE_CONFIG_FILE} is not JSON.` };
+  }
+  const model = typeof parsed === "object" && parsed !== null ? (parsed as { reviewerModel?: unknown }).reviewerModel : undefined;
+  if (typeof model !== "string" || model.trim() === "") return { problem: `${CRITIQUE_CONFIG_FILE} names no reviewerModel.` };
+  return { model: model.trim() };
+}
+
 const CRITIQUE_KEYS = new Set(["reviewer", "findings"]);
 
 /** What the product tells the critic about itself, from its inputs. */

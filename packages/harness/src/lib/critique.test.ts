@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import designLoop from "../../design-loop";
-import { CRITIQUE_HEADING, critiqueBrief, critiqueMarkdown, critiquePullRequestMarkdown, critiqueTrace, galleryShots, MAX_REVISE_ROUNDS, parseCritique, PATTERNS, reviseRounds, verdict, type Critique, type Finding } from "./critique";
+import { CRITIQUE_HEADING, critiqueBrief, critiqueMarkdown, critiquePullRequestMarkdown, critiqueTrace, galleryShots, MAX_REVISE_ROUNDS, parseCritique, PATTERNS, reviewerModel, reviseRounds, verdict, type Critique, type Finding } from "./critique";
 
 const shots = { before: ["before/ready--page-detail.png"], after: ["after/ready--page-detail.png", "after/approved--page-detail.png"] };
 
@@ -155,5 +155,18 @@ describe("galleryShots", () => {
     const flat = mkdtempSync(path.join(os.tmpdir(), "critique-"));
     png(flat, "ready.png", "notes.txt");
     expect(galleryShots(flat)).toEqual({ before: [], after: ["ready.png"] });
+  });
+});
+
+describe("reviewerModel", () => {
+  it("reads the critic's model from the repository's critique config", () => {
+    expect(reviewerModel(process.cwd())).toEqual({ model: "gemini-4-neon" });
+  });
+
+  it("fails a config that is missing or names no model", () => {
+    const root = mkdtempSync(path.join(os.tmpdir(), "critique-config-"));
+    expect(reviewerModel(root)).toEqual({ problem: expect.stringContaining("is missing") });
+    writeFileSync(path.join(root, "critique.config.json"), JSON.stringify({ reviewerModel: " " }));
+    expect(reviewerModel(root)).toEqual({ problem: expect.stringContaining("names no reviewerModel") });
   });
 });

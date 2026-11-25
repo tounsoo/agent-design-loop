@@ -101,7 +101,7 @@ Before building, list the screen's states, the edge cases included, and look for
 
 To look at a Meridian change, run `npm run build && npm run preview`. It is ready when Vite prints `http://127.0.0.1:4173/`. Open the URLs in [features/](features/README.md) there, and stop the preview server you started when done.
 
-A Claude Duet thread runs this step too: `npm run setup:chrome` downloads chrome-headless-shell into `.cache/chrome` there, and `check:target-size`, `check:accessible-names` and `check:rendered-page` run in it. The step is `BLOCKED` only when no Chrome that starts is found: `setup:chrome` cannot download one or has no build for the platform, there is no other Chrome, or the one found does not start. Then say so in the pull request, link the pull request's CI run (it runs `npm run setup:chrome`, `check:target-size`, `check:accessible-names` and `check:rendered-page`), and name the URLs a reviewer should open. The fixture cases that open a page are `BLOCKED` with it, as the Doctor's list says.
+A T3 Code thread runs this step too: `npm run setup:chrome` downloads chrome-headless-shell into `.cache/chrome` there, and `check:target-size`, `check:accessible-names` and `check:rendered-page` run in it. The step is `BLOCKED` only when no Chrome that starts is found: `setup:chrome` cannot download one or has no build for the platform, there is no other Chrome, or the one found does not start. Then say so in the pull request, link the pull request's CI run (it runs `npm run setup:chrome`, `check:target-size`, `check:accessible-names` and `check:rendered-page`), and name the URLs a reviewer should open. The fixture cases that open a page are `BLOCKED` with it, as the Doctor's list says.
 
 #### Screenshots (the same changes, once step 3 passes)
 

@@ -1,19 +1,21 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import designLoop from "../design-loop";
 import { config, configName, loadInputs } from "./lib/config";
-import { CRITIQUE_FILE, critiqueBrief, critiqueMarkdown, critiquePullRequestMarkdown, critiqueTrace, galleryShots, parseCritique, verdict } from "./lib/critique";
+import { CRITIQUE_CONFIG_FILE, CRITIQUE_FILE, critiqueBrief, critiqueMarkdown, critiquePullRequestMarkdown, critiqueTrace, galleryShots, parseCritique, reviewerModel, verdict } from "./lib/critique";
 import { loopBase, recordedLoops } from "./lib/trace-history";
 
 /**
  * The design loop's `critique` step, in two runs around a model the harness
  * does not call. With `--brief` it writes the brief for the critic:
  * the product's tasks and ranked actions, the gallery's screenshots, the
- * rubric and the shape of the answer. The agent gives it to a model other
- * than the one that built the change. With `--findings` and `--trace` it reads
- * that answer back, checks it against the gallery, writes CRITIQUE.md into the
- * gallery and prints the edge the loop takes out of `critique`, with the block
- * for the pull request description.
+ * rubric and the shape of the answer. The agent gives it to the model
+ * critique.config.json names, never the one that built the change. With
+ * `--findings` and `--trace` it reads that answer back, checks it against
+ * the gallery, writes CRITIQUE.md into the gallery and prints the edge the
+ * loop takes out of `critique`, with the block for the pull request
+ * description.
  *
  * It is advisory. The build gate does not run it and no check reads what it
  * writes; the trace records the step and its edge.
@@ -40,6 +42,8 @@ if (!existsSync(readme) || !readFileSync(readme, "utf8").startsWith("# Screensho
 }
 const shots = galleryShots(folder);
 if (shots.after.length === 0) fail(`${gallery} holds no screenshots of the change.`);
+const reviewer = reviewerModel(fileURLToPath(new URL("../../..", import.meta.url)));
+if ("problem" in reviewer) fail(reviewer.problem);
 
 if (briefFile) {
   const inputs = await loadInputs();
@@ -48,7 +52,7 @@ if (briefFile) {
     ...(typeof task.description === "string" ? { description: task.description } : {}),
   }));
   writeFileSync(briefFile, critiqueBrief({ product: { config: configName, tasks, priority: inputs.priority }, gallery: folder, shots }));
-  console.log(`critique: wrote the critic's brief to ${briefFile}, for ${shots.after.length} screenshot${shots.after.length === 1 ? "" : "s"} of the change. Give it to a model other than the one that built the change, save its answer, and record it with --findings and --trace.`);
+  console.log(`critique: wrote the critic's brief to ${briefFile}, for ${shots.after.length} screenshot${shots.after.length === 1 ? "" : "s"} of the change. Give it to ${reviewer.model}, the reviewerModel in ${CRITIQUE_CONFIG_FILE}, never the model that built the change, save its answer, and record it with --findings and --trace.`);
   process.exit(0);
 }
 if (!findingsFile || !traceFile) fail("--findings needs --trace.");
@@ -62,6 +66,9 @@ if ("problems" in walk) fail(`${traceFile} is not ready for a critique:\n${walk.
 const parsed = parseCritique(readFileSync(findingsFile, "utf8"), shots);
 if ("problems" in parsed) fail(`${findingsFile} is not a critique of ${gallery}:\n${parsed.problems.map((problem) => `- ${problem}`).join("\n")}`);
 const { critique } = parsed;
+if (critique.reviewer !== reviewer.model) {
+  console.log(`critique: the findings name ${critique.reviewer} as the reviewer, but ${CRITIQUE_CONFIG_FILE} names ${reviewer.model}. Say why in the review note.`);
+}
 const result = verdict(critique, walk.rounds);
 writeFileSync(path.join(folder, CRITIQUE_FILE), critiqueMarkdown(critique, result));
 
